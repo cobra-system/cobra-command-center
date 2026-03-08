@@ -123,6 +123,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateTaskStatus,
         addTaskNote,
         updateOrderStatus,
+        addOrder,
         addTask,
         updateProduct,
         addUser,
