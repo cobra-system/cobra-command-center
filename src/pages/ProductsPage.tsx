@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useData } from "@/contexts/AppContext";
 import { categories } from "@/data/mockData";
-import { Search, Edit2 } from "lucide-react";
+import { Search, Edit2, Eye } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 export default function ProductsPage() {
