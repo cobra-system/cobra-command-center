@@ -1,23 +1,115 @@
-import React, { createContext, useContext, useState, useCallback, type ReactNode } from "react";
-import {
-  users as initialUsers,
-  products as initialProducts,
-  orders as initialOrders,
-  tasks as initialTasks,
-  suppliers as initialSuppliers,
-  type User,
-  type Product,
-  type Order,
-  type Task,
-  type Supplier,
-  type TaskStatus,
-  type OrderStatus,
-} from "@/data/mockData";
+import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
+
+// Re-export types for compatibility
+export type Role = "MANAGER" | "WAREHOUSE_MANAGER" | "LOGISTICS" | "DRIVER";
+export type OrderStatus = "PENDING" | "ORDERED" | "SHIPPED" | "ARRIVED" | "CANCELLED";
+export type Priority = "P0" | "P1" | "P2" | "P3";
+export type TaskStatus = "TODO" | "IN_PROGRESS" | "DONE" | "BLOCKED";
+
+export interface Profile {
+  id: string;
+  name: string;
+  role: Role;
+  pin?: string | null;
+}
+
+export interface Product {
+  id: string;
+  category: string;
+  division?: string | null;
+  name: string;
+  description?: string | null;
+  sku: string;
+  product_type: string;
+  supplier?: string | null;
+  supplier_origin?: string | null;
+  shipping?: string | null;
+  purchase_price?: number | null;
+  monthly_sales?: number | null;
+  monthly_order?: number | null;
+  sale_price?: number | null;
+  stock_qty: number;
+  incoming_qty: number;
+  notes?: string | null;
+  components?: ProductComponent[];
+}
+
+export interface ProductComponent {
+  id: string;
+  product_id: string;
+  name: string;
+  sku?: string | null;
+  supplier?: string | null;
+  origin?: string | null;
+  stock_qty?: number | null;
+  price?: number | null;
+  notes?: string | null;
+}
+
+export interface Supplier {
+  id: string;
+  contact_name: string;
+  company: string;
+  email?: string | null;
+  phone?: string | null;
+  role?: string | null;
+  country?: string | null;
+  products?: string | null;
+  notes?: string | null;
+}
+
+export interface Order {
+  id: string;
+  priority: string;
+  supplier_id?: string | null;
+  supplier_name?: string | null;
+  shipping?: string | null;
+  status: string;
+  order_date?: string | null;
+  payment_date?: string | null;
+  etd?: string | null;
+  eta?: string | null;
+  total_price?: number | null;
+  contact_name?: string | null;
+  notes?: string | null;
+  items: OrderItem[];
+}
+
+export interface OrderItem {
+  id: string;
+  order_id: string;
+  product_id?: string | null;
+  name: string;
+  qty: number;
+  price?: number | null;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  description?: string | null;
+  priority: string;
+  status: string;
+  assignee_id?: string | null;
+  assignee_name?: string | null;
+  due_date?: string | null;
+  start_date?: string | null;
+  milestone?: string | null;
+  deliverable?: string | null;
+  notes?: string | null;
+  is_daily: boolean;
+}
 
 interface AuthState {
-  currentUser: User | null;
-  login: (emailOrPin: string, password?: string) => boolean;
-  logout: () => void;
+  currentUser: Profile | null;
+  session: Session | null;
+  loading: boolean;
+  loginWithEmail: (email: string, password: string) => Promise<string | null>;
+  loginWithPin: (pin: string) => Promise<string | null>;
+  loginWithGoogle: () => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 interface DataState {
@@ -25,15 +117,21 @@ interface DataState {
   orders: Order[];
   tasks: Task[];
   suppliers: Supplier[];
-  users: User[];
-  updateTaskStatus: (taskId: string, status: TaskStatus) => void;
-  addTaskNote: (taskId: string, note: string) => void;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => void;
-  addOrder: (order: Order) => void;
-  addTask: (task: Task) => void;
-  updateProduct: (id: string, updates: Partial<Product>) => void;
-  addUser: (user: User) => void;
-  updateUser: (id: string, updates: Partial<User>) => void;
+  profiles: Profile[];
+  loading: boolean;
+  refreshProducts: () => Promise<void>;
+  refreshOrders: () => Promise<void>;
+  refreshTasks: () => Promise<void>;
+  refreshSuppliers: () => Promise<void>;
+  refreshProfiles: () => Promise<void>;
+  updateTaskStatus: (taskId: string, status: TaskStatus) => Promise<void>;
+  addTaskNote: (taskId: string, note: string) => Promise<void>;
+  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
+  addOrder: (order: Omit<Order, "id" | "items"> & { items: Omit<OrderItem, "id" | "order_id">[] }) => Promise<void>;
+  addTask: (task: Omit<Task, "id">) => Promise<void>;
+  updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
+  addProfile: (profile: { email: string; name: string; role: Role; pin?: string }) => Promise<void>;
+  updateProfile: (id: string, updates: Partial<Profile>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -52,85 +150,238 @@ export function useData() {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [productsState, setProducts] = useState(initialProducts);
-  const [ordersState, setOrders] = useState(initialOrders);
-  const [tasksState, setTasks] = useState(initialTasks);
-  const [suppliersState] = useState(initialSuppliers);
-  const [usersState, setUsers] = useState(initialUsers);
+  const [session, setSession] = useState<Session | null>(null);
+  const [currentUser, setCurrentUser] = useState<Profile | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
-  const login = useCallback((emailOrPin: string, password?: string): boolean => {
-    // Manager login
-    if (password) {
-      const user = usersState.find(u => u.email === emailOrPin && u.role === "MANAGER");
-      if (user && password === "cobra2026") {
-        setCurrentUser(user);
-        return true;
+  const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
+
+  // Fetch profile for a user
+  const fetchProfile = useCallback(async (userId: string): Promise<Profile | null> => {
+    const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
+    return data as Profile | null;
+  }, []);
+
+  // Auth state listener
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, sess) => {
+      setSession(sess);
+      if (sess?.user) {
+        const profile = await fetchProfile(sess.user.id);
+        setCurrentUser(profile);
+      } else {
+        setCurrentUser(null);
       }
-      return false;
-    }
-    // Employee PIN login
-    const user = usersState.find(u => u.pin === emailOrPin);
-    if (user) {
-      setCurrentUser(user);
-      return true;
-    }
-    return false;
-  }, [usersState]);
+      setAuthLoading(false);
+    });
 
-  const logout = useCallback(() => setCurrentUser(null), []);
+    supabase.auth.getSession().then(async ({ data: { session: sess } }) => {
+      setSession(sess);
+      if (sess?.user) {
+        const profile = await fetchProfile(sess.user.id);
+        setCurrentUser(profile);
+      }
+      setAuthLoading(false);
+    });
 
-  const updateTaskStatus = useCallback((taskId: string, status: TaskStatus) => {
+    return () => subscription.unsubscribe();
+  }, [fetchProfile]);
+
+  // Login with email/password
+  const loginWithEmail = useCallback(async (email: string, password: string): Promise<string | null> => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return error ? error.message : null;
+  }, []);
+
+  // Login with PIN (via edge function)
+  const loginWithPin = useCallback(async (pin: string): Promise<string | null> => {
+    try {
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const url = `https://${projectId}.supabase.co/functions/v1/login-with-pin`;
+      
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ pin }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) return result.error || "שגיאה בכניסה";
+
+      // Set the session from the edge function response
+      const { error } = await supabase.auth.setSession({
+        access_token: result.session.access_token,
+        refresh_token: result.session.refresh_token,
+      });
+
+      if (error) return error.message;
+      return null;
+    } catch {
+      return "שגיאה בחיבור לשרת";
+    }
+  }, []);
+
+  // Login with Google
+  const loginWithGoogle = useCallback(async () => {
+    const { lovable } = await import("@/integrations/lovable/index");
+    await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+    });
+  }, []);
+
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
+    setCurrentUser(null);
+    setSession(null);
+  }, []);
+
+  // Data fetchers
+  const refreshProducts = useCallback(async () => {
+    const { data: prods } = await supabase.from("products").select("*").order("category");
+    if (prods) {
+      // Fetch components for assembled products
+      const assembledIds = prods.filter(p => p.product_type === "מורכב").map(p => p.id);
+      let compsMap: Record<string, ProductComponent[]> = {};
+      if (assembledIds.length > 0) {
+        const { data: comps } = await supabase.from("product_components").select("*").in("product_id", assembledIds);
+        if (comps) {
+          comps.forEach(c => {
+            if (!compsMap[c.product_id]) compsMap[c.product_id] = [];
+            compsMap[c.product_id].push(c as ProductComponent);
+          });
+        }
+      }
+      setProducts(prods.map(p => ({ ...p, components: compsMap[p.id] || [] })) as Product[]);
+    }
+  }, []);
+
+  const refreshOrders = useCallback(async () => {
+    const { data: ords } = await supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false });
+    if (ords) {
+      setOrders(ords.map(o => ({ ...o, items: o.order_items || [] })) as unknown as Order[]);
+    }
+  }, []);
+
+  const refreshTasks = useCallback(async () => {
+    const { data } = await supabase.from("tasks").select("*").order("created_at", { ascending: false });
+    if (data) setTasks(data as Task[]);
+  }, []);
+
+  const refreshSuppliers = useCallback(async () => {
+    const { data } = await supabase.from("suppliers").select("*").order("company");
+    if (data) setSuppliers(data as Supplier[]);
+  }, []);
+
+  const refreshProfiles = useCallback(async () => {
+    const { data } = await supabase.from("profiles").select("*");
+    if (data) setProfiles(data as Profile[]);
+  }, []);
+
+  // Fetch data when authenticated
+  useEffect(() => {
+    if (!session) {
+      setDataLoading(false);
+      return;
+    }
+    setDataLoading(true);
+    Promise.all([
+      refreshProducts(),
+      refreshOrders(),
+      refreshTasks(),
+      refreshSuppliers(),
+      refreshProfiles(),
+    ]).finally(() => setDataLoading(false));
+  }, [session, refreshProducts, refreshOrders, refreshTasks, refreshSuppliers, refreshProfiles]);
+
+  // Mutations
+  const updateTaskStatus = useCallback(async (taskId: string, status: TaskStatus) => {
+    // Optimistic update
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status } : t));
+    await supabase.from("tasks").update({ status }).eq("id", taskId);
   }, []);
 
-  const addTaskNote = useCallback((taskId: string, note: string) => {
+  const addTaskNote = useCallback(async (taskId: string, note: string) => {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, notes: note } : t));
+    await supabase.from("tasks").update({ notes: note }).eq("id", taskId);
   }, []);
 
-  const updateOrderStatus = useCallback((orderId: string, status: OrderStatus) => {
+  const updateOrderStatus = useCallback(async (orderId: string, status: OrderStatus) => {
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+    await supabase.from("orders").update({ status }).eq("id", orderId);
   }, []);
 
-  const addOrder = useCallback((order: Order) => {
-    setOrders(prev => [...prev, order]);
-  }, []);
+  const addOrder = useCallback(async (order: Omit<Order, "id" | "items"> & { items: Omit<OrderItem, "id" | "order_id">[] }) => {
+    const { items, ...orderData } = order;
+    const { data: newOrder } = await supabase.from("orders").insert(orderData).select("id").single();
+    if (newOrder) {
+      const orderItems = items.map(item => ({ ...item, order_id: newOrder.id }));
+      await supabase.from("order_items").insert(orderItems);
+      await refreshOrders();
+    }
+  }, [refreshOrders]);
 
-  const addTask = useCallback((task: Task) => {
-    setTasks(prev => [...prev, task]);
-  }, []);
+  const addTask = useCallback(async (task: Omit<Task, "id">) => {
+    await supabase.from("tasks").insert(task);
+    await refreshTasks();
+  }, [refreshTasks]);
 
-  const updateProduct = useCallback((id: string, updates: Partial<Product>) => {
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
-  }, []);
+  const updateProduct = useCallback(async (id: string, updates: Partial<Product>) => {
+    const { components, ...dbUpdates } = updates as any;
+    await supabase.from("products").update(dbUpdates).eq("id", id);
+    await refreshProducts();
+  }, [refreshProducts]);
 
-  const addUser = useCallback((user: User) => {
-    setUsers(prev => [...prev, user]);
-  }, []);
+  const addProfile = useCallback(async (profile: { email: string; name: string; role: Role; pin?: string }) => {
+    // This would typically need an admin edge function to create auth users
+    // For now, refresh profiles
+    await refreshProfiles();
+  }, [refreshProfiles]);
 
-  const updateUser = useCallback((id: string, updates: Partial<User>) => {
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u));
-  }, []);
+  const updateProfile = useCallback(async (id: string, updates: Partial<Profile>) => {
+    await supabase.from("profiles").update(updates).eq("id", id);
+    await refreshProfiles();
+  }, [refreshProfiles]);
 
   return (
-    <AuthContext.Provider value={{ currentUser, login, logout }}>
+    <AuthContext.Provider value={{ currentUser, session, loading: authLoading, loginWithEmail, loginWithPin, loginWithGoogle, logout }}>
       <DataContext.Provider value={{
-        products: productsState,
-        orders: ordersState,
-        tasks: tasksState,
-        suppliers: suppliersState,
-        users: usersState,
+        products,
+        orders,
+        tasks,
+        suppliers,
+        profiles,
+        loading: dataLoading,
+        refreshProducts,
+        refreshOrders,
+        refreshTasks,
+        refreshSuppliers,
+        refreshProfiles,
         updateTaskStatus,
         addTaskNote,
         updateOrderStatus,
         addOrder,
         addTask,
         updateProduct,
-        addUser,
-        updateUser,
+        addProfile,
+        updateProfile,
       }}>
         {children}
       </DataContext.Provider>
     </AuthContext.Provider>
   );
 }
+
+// Helper constants
+export const categories = ["הכל", "מיגון ואיתור", "מולטימדיה", "בטיחות", "נוחות וקישוריות", "בית"];
+export const priorityLabel: Record<string, string> = { P0: "דחוף", P1: "גבוה", P2: "רגיל", P3: "נמוך" };
+export const statusLabel: Record<string, string> = { PENDING: "ממתין", ORDERED: "הוזמן", SHIPPED: "נשלח", ARRIVED: "הגיע", CANCELLED: "בוטל" };
+export const taskStatusLabel: Record<string, string> = { TODO: "לביצוע", IN_PROGRESS: "בביצוע", DONE: "הושלם", BLOCKED: "חסום" };
+export const roleLabel: Record<string, string> = { MANAGER: "מנהל", WAREHOUSE_MANAGER: "מנהל מחסן", LOGISTICS: "לוגיסטיקה", DRIVER: "נהג" };
