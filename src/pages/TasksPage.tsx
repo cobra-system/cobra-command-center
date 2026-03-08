@@ -65,8 +65,14 @@ export default function TasksPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-foreground">משימות</h1>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-          <DialogTrigger asChild><Button><Plus className="h-4 w-4 ml-2" />משימה חדשה</Button></DialogTrigger>
+        <div className="flex items-center gap-2">
+          {tasks.some(t => t.is_daily && t.status !== "TODO") && (
+            <Button variant="outline" onClick={async () => { await resetDailyTasks(); toast.success("משימות יומיות אופסו"); }}>
+              <RotateCcw className="h-4 w-4 ml-2" />איפוס יומיות
+            </Button>
+          )}
+          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
+            <DialogTrigger asChild><Button><Plus className="h-4 w-4 ml-2" />משימה חדשה</Button></DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>יצירת משימה חדשה</DialogTitle></DialogHeader>
             <div className="space-y-4 pt-2">
