@@ -6,7 +6,7 @@ import { toast } from "sonner";
 // Re-export types for compatibility
 export type Role = "MANAGER" | "WAREHOUSE_MANAGER" | "LOGISTICS" | "DRIVER";
 export type OrderStatus = "PENDING" | "ORDERED" | "SHIPPED" | "ARRIVED" | "CANCELLED";
-export type Priority = "P0" | "P1" | "P2" | "P3";
+export type Priority = "דחוף" | "גבוה" | "בינוני" | "נמוך";
 export type TaskStatus = "TODO" | "IN_PROGRESS" | "DONE" | "BLOCKED";
 
 export interface Profile {
@@ -612,7 +612,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 // Helper constants
 export const categories = ["הכל", "מיגון ואיתור", "מולטימדיה", "בטיחות", "נוחות וקישוריות", "בית"];
-export const priorityLabel: Record<string, string> = { P0: "דחוף", P1: "גבוה", P2: "רגיל", P3: "נמוך" };
+export const priorityLabel: Record<string, string> = { "דחוף": "דחוף", "גבוה": "גבוה", "בינוני": "בינוני", "נמוך": "נמוך" };
 export const statusLabel: Record<string, string> = { PENDING: "ממתין", ORDERED: "הוזמן", SHIPPED: "נשלח", ARRIVED: "הגיע", CANCELLED: "בוטל" };
 export { taskStatusLabel };
 export const roleLabel: Record<string, string> = { MANAGER: "מנהל", WAREHOUSE_MANAGER: "מנהל מחסן", LOGISTICS: "לוגיסטיקה", DRIVER: "נהג" };

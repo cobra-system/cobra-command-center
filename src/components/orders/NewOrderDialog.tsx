@@ -13,10 +13,10 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
 const priorities: { value: Priority; label: string }[] = [
-  { value: "P0", label: "P0 — דחוף" },
-  { value: "P1", label: "P1 — גבוה" },
-  { value: "P2", label: "P2 — רגיל" },
-  { value: "P3", label: "P3 — נמוך" },
+  { value: "דחוף", label: "דחוף" },
+  { value: "גבוה", label: "גבוה" },
+  { value: "בינוני", label: "בינוני" },
+  { value: "נמוך", label: "נמוך" },
 ];
 
 interface ItemRow { name: string; qty: string; price: string; productId: string; }
@@ -29,7 +29,7 @@ interface Props {
 
 export function NewOrderDialog({ suppliers, products, addOrder }: Props) {
   const [open, setOpen] = useState(false);
-  const [priority, setPriority] = useState<Priority>("P2");
+  const [priority, setPriority] = useState<Priority>("בינוני");
   const [supplierId, setSupplierId] = useState("");
   const [shipping, setShipping] = useState("");
   const [notes, setNotes] = useState("");
@@ -37,7 +37,7 @@ export function NewOrderDialog({ suppliers, products, addOrder }: Props) {
   const [eta, setEta] = useState<Date>();
   const [items, setItems] = useState<ItemRow[]>([{ name: "", qty: "", price: "", productId: "" }]);
 
-  const resetForm = () => { setPriority("P2"); setSupplierId(""); setShipping(""); setNotes(""); setEtd(undefined); setEta(undefined); setItems([{ name: "", qty: "", price: "", productId: "" }]); };
+  const resetForm = () => { setPriority("בינוני"); setSupplierId(""); setShipping(""); setNotes(""); setEtd(undefined); setEta(undefined); setItems([{ name: "", qty: "", price: "", productId: "" }]); };
   const updateItem = (idx: number, field: keyof ItemRow, value: string) => setItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
   const addItemRow = () => setItems(prev => [...prev, { name: "", qty: "", price: "", productId: "" }]);
   const removeItemRow = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));

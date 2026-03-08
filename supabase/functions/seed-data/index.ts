@@ -155,10 +155,10 @@ Deno.serve(async (req) => {
     const { data: dbSuppliers } = await supabaseAdmin.from("suppliers").select("id, company");
 
     const orders = [
-      { priority:"P0", supplier_name:"iStar", shipping:"ימי", status:"SHIPPED", eta:"2026-04-10T00:00:00Z", items:[{ name:"PROOF Z-4K", qty:1600 }] },
-      { priority:"P1", supplier_name:"iStar", shipping:"ימי", status:"SHIPPED", items:[{ name:"S400", qty:400 }] },
-      { priority:"P2", supplier_name:"SwitchBot", status:"ORDERED", items:[{ name:"Doore Ultra", qty:350 }] },
-      { priority:"P3", supplier_name:"iStar", status:"ORDERED", items:[{ name:"Doore Doorbell", qty:1000 }] },
+      { priority:"דחוף", supplier_name:"iStar", shipping:"ימי", status:"SHIPPED", eta:"2026-04-10T00:00:00Z", items:[{ name:"PROOF Z-4K", qty:1600 }] },
+      { priority:"גבוה", supplier_name:"iStar", shipping:"ימי", status:"SHIPPED", items:[{ name:"S400", qty:400 }] },
+      { priority:"בינוני", supplier_name:"SwitchBot", status:"ORDERED", items:[{ name:"Doore Ultra", qty:350 }] },
+      { priority:"נמוך", supplier_name:"iStar", status:"ORDERED", items:[{ name:"Doore Doorbell", qty:1000 }] },
     ];
 
     for (const o of orders) {
@@ -172,16 +172,16 @@ Deno.serve(async (req) => {
 
     // 5. Seed tasks
     const tasksData = [
-      { title:"ספירת מלאי — COBRA Biometric", priority:"P0", status:"TODO", is_daily:false, notes:"ספירה ואיפוס מלאי", assignee_id:georgeId, assignee_name:"ג'ורג'" },
-      { title:"ספירת מלאי — COBRA TV", priority:"P0", status:"TODO", is_daily:false, assignee_id:georgeId, assignee_name:"ג'ורג'" },
-      { title:"ספירת מלאי — הכפתור", priority:"P0", status:"IN_PROGRESS", is_daily:false, assignee_id:georgeId, assignee_name:"ג'ורג'" },
-      { title:"ספירת מלאי — Blindspot", priority:"P0", status:"TODO", is_daily:false, assignee_id:georgeId, assignee_name:"ג'ורג'" },
-      { title:"איזון SAP מול חברת כפתור — KAF32", priority:"P1", status:"TODO", is_daily:false, notes:"מקט KAF32 לא מיושר", assignee_id:zivId, assignee_name:"זיו" },
-      { title:"עדכון מלאי אוזניות בלוטוס BT100", priority:"P2", status:"DONE", is_daily:false, assignee_id:georgeId, assignee_name:"ג'ורג'" },
-      { title:"בדיקת ETA הזמנת Z4K מ-iStar", priority:"P0", status:"TODO", is_daily:false, notes:"ETA: 10 אפריל 2026", assignee_id:zivId, assignee_name:"זיו" },
-      { title:"ארגון מחסן קדמי", priority:"P2", status:"DONE", is_daily:true, assignee_id:georgeId, assignee_name:"ג'ורג'" },
-      { title:"קבלת משלוח iStar", priority:"P1", status:"TODO", is_daily:true, assignee_id:georgeId, assignee_name:"ג'ורג'" },
-      { title:"עדכון מלאי במערכת", priority:"P2", status:"TODO", is_daily:true, assignee_id:georgeId, assignee_name:"ג'ורג'" },
+      { title:"ספירת מלאי — COBRA Biometric", priority:"דחוף", status:"TODO", is_daily:false, notes:"ספירה ואיפוס מלאי", assignee_id:georgeId, assignee_name:"ג'ורג'" },
+      { title:"ספירת מלאי — COBRA TV", priority:"דחוף", status:"TODO", is_daily:false, assignee_id:georgeId, assignee_name:"ג'ורג'" },
+      { title:"ספירת מלאי — הכפתור", priority:"דחוף", status:"IN_PROGRESS", is_daily:false, assignee_id:georgeId, assignee_name:"ג'ורג'" },
+      { title:"ספירת מלאי — Blindspot", priority:"דחוף", status:"TODO", is_daily:false, assignee_id:georgeId, assignee_name:"ג'ורג'" },
+      { title:"איזון SAP מול חברת כפתור — KAF32", priority:"גבוה", status:"TODO", is_daily:false, notes:"מקט KAF32 לא מיושר", assignee_id:zivId, assignee_name:"זיו" },
+      { title:"עדכון מלאי אוזניות בלוטוס BT100", priority:"בינוני", status:"DONE", is_daily:false, assignee_id:georgeId, assignee_name:"ג'ורג'" },
+      { title:"בדיקת ETA הזמנת Z4K מ-iStar", priority:"דחוף", status:"TODO", is_daily:false, notes:"ETA: 10 אפריל 2026", assignee_id:zivId, assignee_name:"זיו" },
+      { title:"ארגון מחסן קדמי", priority:"בינוני", status:"DONE", is_daily:true, assignee_id:georgeId, assignee_name:"ג'ורג'" },
+      { title:"קבלת משלוח iStar", priority:"גבוה", status:"TODO", is_daily:true, assignee_id:georgeId, assignee_name:"ג'ורג'" },
+      { title:"עדכון מלאי במערכת", priority:"בינוני", status:"TODO", is_daily:true, assignee_id:georgeId, assignee_name:"ג'ורג'" },
     ];
 
     for (const t of tasksData) {

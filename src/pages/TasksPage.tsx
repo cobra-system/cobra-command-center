@@ -22,10 +22,10 @@ const columns: { status: TaskStatus; label: string; bgClass: string }[] = [
 ];
 
 const priorityOptions: { value: Priority; label: string }[] = [
-  { value: "P0", label: "P0 — דחוף" },
-  { value: "P1", label: "P1 — גבוה" },
-  { value: "P2", label: "P2 — רגיל" },
-  { value: "P3", label: "P3 — נמוך" },
+  { value: "דחוף", label: "דחוף" },
+  { value: "גבוה", label: "גבוה" },
+  { value: "בינוני", label: "בינוני" },
+  { value: "נמוך", label: "נמוך" },
 ];
 
 export default function TasksPage() {
@@ -35,7 +35,7 @@ export default function TasksPage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState<Priority>("P2");
+  const [priority, setPriority] = useState<Priority>("בינוני");
   const [assigneeId, setAssigneeId] = useState("");
   const [dueDate, setDueDate] = useState<Date>();
   const [isDaily, setIsDaily] = useState(false);
@@ -59,7 +59,7 @@ export default function TasksPage() {
   });
 
   const resetForm = () => {
-    setTitle(""); setDescription(""); setPriority("P2"); setAssigneeId(""); setDueDate(undefined); setIsDaily(false);
+    setTitle(""); setDescription(""); setPriority("בינוני"); setAssigneeId(""); setDueDate(undefined); setIsDaily(false);
     setEditingTask(null);
   };
 

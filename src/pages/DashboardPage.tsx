@@ -21,7 +21,7 @@ export default function DashboardPage() {
   });
   const chartData = Object.entries(catMap).map(([name, v]) => ({ name, ...v }));
   const openOrders = orders.filter(o => o.status !== "ARRIVED" && o.status !== "CANCELLED");
-  const p0Tasks = tasks.filter(t => t.priority === "P0" && t.status !== "DONE");
+  const p0Tasks = tasks.filter(t => t.priority === "דחוף" && t.status !== "DONE");
 
   return (
     <div className="space-y-6">
@@ -53,7 +53,7 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className="bg-card rounded-xl border p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-foreground mb-3">משימות P0 פתוחות</h2>
+          <h2 className="text-lg font-semibold text-foreground mb-3">משימות דחופות פתוחות</h2>
           <div className="space-y-2">
             {p0Tasks.length === 0 ? <p className="text-sm text-muted-foreground">אין משימות דחופות 🎉</p> : p0Tasks.map(t => (
               <div key={t.id} className="flex items-center justify-between py-2 border-b last:border-0">

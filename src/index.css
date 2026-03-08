@@ -83,16 +83,16 @@
 }
 
 @layer utilities {
-  .priority-p0 {
+  .priority-urgent {
     @apply bg-[hsl(var(--p0))] text-[hsl(var(--destructive-foreground))];
   }
-  .priority-p1 {
+  .priority-high {
     @apply bg-[hsl(var(--p1))] text-[hsl(var(--warning-foreground))];
   }
-  .priority-p2 {
+  .priority-medium {
     @apply bg-[hsl(var(--p2))] text-[hsl(var(--accent-foreground))];
   }
-  .priority-p3 {
+  .priority-low {
     @apply bg-[hsl(var(--p3))] text-[hsl(var(--foreground))];
   }
 
