@@ -21,7 +21,7 @@ export default function DashboardPage() {
   });
   const chartData = Object.entries(catMap).map(([name, v]) => ({ name, ...v }));
   const openOrders = orders.filter(o => o.status !== "ARRIVED" && o.status !== "CANCELLED");
-  const p0Tasks = tasks.filter(t => t.priority === "P0" && t.status !== "DONE");
+  const p0Tasks = tasks.filter(t => t.priority === "דחוף" && t.status !== "DONE");
 
   return (
     <div className="space-y-6">
