@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth, useData, roleLabel, type Role } from "@/contexts/AppContext";
+import { useAuth, useData, roleLabel, type Role, type RoleDefinition } from "@/contexts/AppContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,15 +9,24 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
-const roleOptions: { value: Role; label: string }[] = [
-  { value: "WAREHOUSE_MANAGER", label: "מנהל מחסן" },
-  { value: "LOGISTICS", label: "לוגיסטיקה" },
-  { value: "DRIVER", label: "נהג" },
-];
 
 export default function TeamPage() {
   const { currentUser } = useAuth();
-  const { profiles, createEmployee, refreshProfiles } = useData();
+  const { profiles, createEmployee, refreshProfiles, roleDefinitions } = useData();
+
+  // Build dynamic role label map
+  const dynamicRoleLabel: Record<string, string> = { MANAGER: "מנהל" };
+  roleDefinitions.forEach(rd => { if (rd.system_key) dynamicRoleLabel[rd.system_key] = rd.name; });
+  const getRoleLabel = (role: string) => dynamicRoleLabel[role] || roleLabel[role] || role;
+
+  // Use role definitions for dropdown
+  const roleOptions = roleDefinitions.length > 0
+    ? roleDefinitions.map(rd => ({ value: (rd.system_key || rd.id) as Role, label: rd.name }))
+    : [
+        { value: "WAREHOUSE_MANAGER" as Role, label: "מנהל מחסן" },
+        { value: "LOGISTICS" as Role, label: "לוגיסטיקה" },
+        { value: "DRIVER" as Role, label: "נהג" },
+      ];
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -163,7 +172,7 @@ export default function TeamPage() {
             {profiles.map(u => (
               <tr key={u.id}>
                 <td className="p-3 font-medium text-foreground">{u.name}</td>
-                <td className="p-3 text-muted-foreground">{roleLabel[u.role] || u.role}</td>
+                <td className="p-3 text-muted-foreground">{getRoleLabel(u.role)}</td>
                 <td className="p-3 font-mono text-muted-foreground" dir="ltr">{isManager ? (u.pin || "—") : "••••"}</td>
                 {isManager && (
                   <td className="p-3">

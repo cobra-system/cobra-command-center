@@ -123,12 +123,19 @@ interface AuthState {
   logout: () => Promise<void>;
 }
 
+export interface RoleDefinition {
+  id: string;
+  name: string;
+  system_key: string | null;
+}
+
 interface DataState {
   products: Product[];
   orders: Order[];
   tasks: Task[];
   suppliers: Supplier[];
   profiles: Profile[];
+  roleDefinitions: RoleDefinition[];
   loading: boolean;
   refreshProducts: () => Promise<void>;
   refreshOrders: () => Promise<void>;
@@ -157,6 +164,10 @@ interface DataState {
   addSupplier: (supplier: Omit<Supplier, "id">) => Promise<void>;
   updateSupplier: (id: string, updates: Partial<Supplier>) => Promise<void>;
   deleteSupplier: (id: string) => Promise<void>;
+  refreshRoleDefinitions: () => Promise<void>;
+  addRoleDefinition: (name: string) => Promise<void>;
+  updateRoleDefinition: (id: string, name: string) => Promise<void>;
+  deleteRoleDefinition: (id: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -186,6 +197,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [roleDefinitions, setRoleDefinitions] = useState<RoleDefinition[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   // Track own mutations to suppress self-notifications
@@ -316,6 +328,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (data) setProfiles(data as Profile[]);
   }, []);
 
+  const refreshRoleDefinitions = useCallback(async () => {
+    const { data } = await supabase.from("role_definitions").select("*").order("created_at");
+    if (data) setRoleDefinitions(data as RoleDefinition[]);
+  }, []);
+
   // Fetch data when authenticated
   useEffect(() => {
     if (!session) {
@@ -329,8 +346,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       refreshTasks(),
       refreshSuppliers(),
       refreshProfiles(),
+      refreshRoleDefinitions(),
     ]).finally(() => setDataLoading(false));
-  }, [session, refreshProducts, refreshOrders, refreshTasks, refreshSuppliers, refreshProfiles]);
+  }, [session, refreshProducts, refreshOrders, refreshTasks, refreshSuppliers, refreshProfiles, refreshRoleDefinitions]);
 
   // Realtime subscription for tasks
   useEffect(() => {
@@ -529,6 +547,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await refreshSuppliers();
   }, [refreshSuppliers]);
 
+  const addRoleDefinition = useCallback(async (name: string) => {
+    await supabase.from("role_definitions").insert({ name } as any);
+    await refreshRoleDefinitions();
+  }, [refreshRoleDefinitions]);
+
+  const updateRoleDefinition = useCallback(async (id: string, name: string) => {
+    await supabase.from("role_definitions").update({ name } as any).eq("id", id);
+    await refreshRoleDefinitions();
+  }, [refreshRoleDefinitions]);
+
+  const deleteRoleDefinition = useCallback(async (id: string) => {
+    await supabase.from("role_definitions").delete().eq("id", id);
+    await refreshRoleDefinitions();
+  }, [refreshRoleDefinitions]);
+
   return (
     <AuthContext.Provider value={{ currentUser, session, loading: authLoading, loginWithEmail, loginWithPin, loginWithGoogle, logout }}>
       <DataContext.Provider value={{
@@ -565,6 +598,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addSupplier,
         updateSupplier,
         deleteSupplier,
+        roleDefinitions,
+        refreshRoleDefinitions,
+        addRoleDefinition,
+        updateRoleDefinition,
+        deleteRoleDefinition,
       }}>
         {children}
       </DataContext.Provider>
