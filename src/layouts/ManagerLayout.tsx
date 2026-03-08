@@ -13,23 +13,23 @@ import {
   Settings,
   FileText,
   CalendarClock,
-  BarChart3,
-} from "lucide-react";
+  BarChart3 } from
+"lucide-react";
 import { useState } from "react";
 import cobraLogo from "@/assets/cobra-logo.png";
 
 const navItems = [
-  { to: "/dashboard", icon: LayoutDashboard, label: "דשבורד" },
-  { to: "/products", icon: Package, label: "מוצרים" },
-  { to: "/orders", icon: ShoppingCart, label: "הזמנות" },
-  { to: "/documents", icon: FileText, label: "מסמכים" },
-  { to: "/suppliers", icon: Truck, label: "ספקים" },
-  { to: "/tasks", icon: ListTodo, label: "משימות" },
-  { to: "/reorder", icon: CalendarClock, label: "תכנון רכש" },
-  { to: "/reports", icon: BarChart3, label: "דוחות" },
-  { to: "/team", icon: Users, label: "צוות" },
-  { to: "/settings", icon: Settings, label: "הגדרות" },
-];
+{ to: "/dashboard", icon: LayoutDashboard, label: "דשבורד" },
+{ to: "/products", icon: Package, label: "מוצרים" },
+{ to: "/orders", icon: ShoppingCart, label: "הזמנות" },
+{ to: "/documents", icon: FileText, label: "מסמכים" },
+{ to: "/suppliers", icon: Truck, label: "ספקים" },
+{ to: "/tasks", icon: ListTodo, label: "משימות" },
+{ to: "/reorder", icon: CalendarClock, label: "תכנון רכש" },
+{ to: "/reports", icon: BarChart3, label: "דוחות" },
+{ to: "/team", icon: Users, label: "צוות" },
+{ to: "/settings", icon: Settings, label: "הגדרות" }];
+
 
 export default function ManagerLayout() {
   const { currentUser, logout } = useAuth();
@@ -37,7 +37,7 @@ export default function ManagerLayout() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const pendingCount = tasks.filter(t => t.status !== "DONE").length;
+  const pendingCount = tasks.filter((t) => t.status !== "DONE").length;
 
   const handleLogout = () => {
     logout();
@@ -47,13 +47,13 @@ export default function ManagerLayout() {
   return (
     <div className="min-h-screen flex">
       {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-foreground/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
-      )}
+      {sidebarOpen &&
+      <div className="fixed inset-0 bg-foreground/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      }
 
       {/* Sidebar */}
       <aside className={`fixed lg:static inset-y-0 right-0 z-50 w-64 bg-sidebar text-sidebar-foreground flex flex-col transition-transform lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}`}>
-        <div className="p-5 flex items-center justify-between">
+        <div className="p-5 flex items-center justify-between text-neutral-100">
           <img src={cobraLogo} alt="COBRA.IO" className="h-8" />
           <button className="lg:hidden text-sidebar-foreground" onClick={() => setSidebarOpen(false)}>
             <X className="h-5 w-5" />
@@ -61,26 +61,26 @@ export default function ManagerLayout() {
         </div>
 
         <nav className="flex-1 px-3 space-y-1">
-          {navItems.map(item => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                }`
-              }
-            >
+          {navItems.map((item) =>
+          <NavLink
+            key={item.to}
+            to={item.to}
+            onClick={() => setSidebarOpen(false)}
+            className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"}`
+
+            }>
+            
               <item.icon className="h-5 w-5" />
               <span>{item.label}</span>
-              {item.to === "/tasks" && pendingCount > 0 && (
-                <span className="mr-auto flex items-center gap-1 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
+              {item.to === "/tasks" && pendingCount > 0 &&
+            <span className="mr-auto flex items-center gap-1 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
                   {pendingCount}
                 </span>
-              )}
+            }
             </NavLink>
-          ))}
+          )}
         </nav>
 
         <div className="p-3 border-t border-sidebar-border">
@@ -113,6 +113,6 @@ export default function ManagerLayout() {
           <Outlet />
         </div>
       </main>
-    </div>
-  );
+    </div>);
+
 }
