@@ -1,0 +1,1 @@
+CREATE POLICY "Managers can delete suppliers" ON public.suppliers FOR DELETE TO authenticated USING (is_manager());
