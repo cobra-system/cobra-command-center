@@ -406,6 +406,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateProduct,
         addProfile,
         updateProfile,
+        resetDailyTasks,
+        createEmployee,
       }}>
         {children}
       </DataContext.Provider>
