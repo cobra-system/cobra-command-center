@@ -35,6 +35,11 @@ export interface Product {
   incoming_qty: number;
   notes?: string | null;
   components?: ProductComponent[];
+  reorder_point?: number | null;
+  lead_time_days?: number | null;
+  monthly_sales_avg?: number | null;
+  end_product_url?: string | null;
+  end_product_image?: string | null;
 }
 
 export interface ProductComponent {
@@ -59,6 +64,10 @@ export interface Supplier {
   country?: string | null;
   products?: string | null;
   notes?: string | null;
+  lead_time_days?: number | null;
+  payment_terms?: string | null;
+  risk_level?: string | null;
+  backup_supplier_id?: string | null;
 }
 
 export interface Order {

@@ -16,6 +16,9 @@ import {
   BookOpen,
   FileText,
   CreditCard,
+  CalendarClock,
+  Map,
+  BarChart3,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -28,6 +31,9 @@ const navItems = [
   { to: "/suppliers", icon: Truck, label: "ספקים" },
   { to: "/tasks", icon: ListTodo, label: "משימות" },
   { to: "/journal", icon: BookOpen, label: "יומן למידה" },
+  { to: "/reorder", icon: CalendarClock, label: "תכנון רכש" },
+  { to: "/dependencies", icon: Map, label: "מפת תלויות" },
+  { to: "/reports", icon: BarChart3, label: "דוחות" },
   { to: "/team", icon: Users, label: "צוות" },
   { to: "/settings", icon: Settings, label: "הגדרות" },
 ];

@@ -9,8 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowRight, Package, Boxes, TruckIcon, BookOpen, Plus, Pencil, AlertTriangle } from "lucide-react";
+import { ArrowRight, Package, Boxes, TruckIcon, BookOpen, Plus, Pencil, AlertTriangle, Scale } from "lucide-react";
 import ProductIssuesTab from "@/components/ProductIssuesTab";
+import SupplierComparisonPanel from "@/components/SupplierComparisonPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -237,6 +238,14 @@ export default function ProductDetailPage() {
             </div>
           ) : (
             <p className="text-sm text-muted-foreground py-4 text-center">לא הוגדרו רכיבים למוצר זה</p>
+          )}
+          {/* Supplier Comparison per component */}
+          {product.components && product.components.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {product.components.map(comp => (
+                <SupplierComparisonPanel key={comp.id} componentName={comp.name} productId={product.id} />
+              ))}
+            </div>
           )}
         </div>
       )}

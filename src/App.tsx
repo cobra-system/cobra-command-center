@@ -18,6 +18,9 @@ import SettingsPage from "@/pages/SettingsPage";
 import LearningJournalPage from "@/pages/LearningJournalPage";
 import DocumentsPage from "@/pages/DocumentsPage";
 import PaymentsPage from "@/pages/PaymentsPage";
+import ReorderPage from "@/pages/ReorderPage";
+import DependencyMapPage from "@/pages/DependencyMapPage";
+import ReportsPage from "@/pages/ReportsPage";
 import MyTasksPage from "@/pages/MyTasksPage";
 import MyTaskDetailPage from "@/pages/MyTaskDetailPage";
 import NotFound from "@/pages/NotFound";
@@ -60,6 +63,9 @@ function AppRoutes() {
         <Route path="/journal" element={<LearningJournalPage />} />
         <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/payments" element={<PaymentsPage />} />
+        <Route path="/reorder" element={<ReorderPage />} />
+        <Route path="/dependencies" element={<DependencyMapPage />} />
+        <Route path="/reports" element={<ReportsPage />} />
         <Route path="/team" element={<TeamPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
