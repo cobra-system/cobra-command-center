@@ -152,7 +152,15 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
           <div>
             <h3 className="text-sm font-semibold text-foreground mb-2">ספק ומשלוח</h3>
             <div className="grid grid-cols-2 gap-3">
-              {textField("supplier", "ספק")}
+              <div className="space-y-1">
+                <Label className="text-xs">ספק</Label>
+                <Select value={fields.supplier || ""} onValueChange={v => set("supplier", v)}>
+                  <SelectTrigger><SelectValue placeholder="בחר ספק..." /></SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map(s => <SelectItem key={s.id} value={s.company}>{s.company}{s.country ? ` (${s.country})` : ""}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               {textField("supplier_origin", "מקור ספק")}
               <div className="space-y-1">
                 <Label className="text-xs">שיטת משלוח</Label>
