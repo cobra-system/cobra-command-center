@@ -40,6 +40,15 @@ export default function SupplierDetailPage() {
   const isManager = currentUser?.role === "MANAGER";
   const relatedOrders = orders.filter(o => o.supplier_id === supplier.id || o.supplier_name === supplier.company);
   const relatedProducts = products.filter(p => p.supplier === supplier.company);
+  
+  // Products where a component references this supplier
+  const componentProducts = products
+    .filter(p => p.product_type === "מורכב" && p.components?.some(c => c.supplier === supplier.company))
+    .filter(p => !relatedProducts.some(rp => rp.id === p.id))
+    .map(p => ({
+      product: p,
+      components: p.components?.filter(c => c.supplier === supplier.company) || [],
+    }));
   const contacts = supplier.contacts || [];
 
   const handleDelete = async () => {
