@@ -29,6 +29,7 @@ interface DataState {
   updateTaskStatus: (taskId: string, status: TaskStatus) => void;
   addTaskNote: (taskId: string, note: string) => void;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  addOrder: (order: Order) => void;
   addTask: (task: Task) => void;
   updateProduct: (id: string, updates: Partial<Product>) => void;
   addUser: (user: User) => void;
