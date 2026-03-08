@@ -415,6 +415,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateOrderStatus,
         addOrder,
         addTask,
+        updateTask,
+        deleteTask,
         updateProduct,
         addProfile,
         updateProfile,
