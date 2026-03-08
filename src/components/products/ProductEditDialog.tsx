@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { type Product, categories } from "@/contexts/AppContext";
+import { type Product, categories, divisions } from "@/contexts/AppContext";
 import { supabase } from "@/integrations/supabase/client";
 
 const productCategories = categories.filter(c => c !== "הכל");
