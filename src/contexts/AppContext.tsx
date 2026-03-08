@@ -328,6 +328,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (data) setProfiles(data as Profile[]);
   }, []);
 
+  const refreshRoleDefinitions = useCallback(async () => {
+    const { data } = await supabase.from("role_definitions").select("*").order("created_at");
+    if (data) setRoleDefinitions(data as RoleDefinition[]);
+  }, []);
+
   // Fetch data when authenticated
   useEffect(() => {
     if (!session) {
