@@ -277,7 +277,7 @@ export default function ProductDetailPage() {
                         <td className="p-3 font-medium text-foreground">{comp.name}</td>
                         <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">{comp.sku || "—"}</td>
                         <td className="p-3 text-muted-foreground">{comp.supplier || "—"}</td>
-                        <td className="p-3 text-muted-foreground">{comp.origin || "—"}</td>
+                        
                         <td className="p-3 text-muted-foreground">{comp.stock_qty ?? "—"}</td>
                         <td className="p-3 text-muted-foreground">{comp.price ? `$${comp.price}` : "—"}</td>
                         <td className="p-3 text-muted-foreground text-xs">{comp.notes || "—"}</td>
