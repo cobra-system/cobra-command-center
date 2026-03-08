@@ -35,35 +35,23 @@ export default function SuppliersPage() {
           <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="border-b bg-muted/50">
-                <th className="text-right p-3 font-semibold text-foreground">שם</th>
                 <th className="text-right p-3 font-semibold text-foreground">חברה</th>
+                <th className="text-right p-3 font-semibold text-foreground">איש קשר</th>
                 <th className="text-right p-3 font-semibold text-foreground">אימייל</th>
                 <th className="text-right p-3 font-semibold text-foreground">טלפון</th>
                 <th className="text-right p-3 font-semibold text-foreground">מוצרים</th>
-                <th className="text-right p-3 font-semibold text-foreground">Lead Time</th>
-                <th className="text-right p-3 font-semibold text-foreground">סיכון</th>
                 <th className="text-right p-3 font-semibold text-foreground">תקשורת</th>
               </tr></thead>
               <tbody className="divide-y">
                 {section.list.length === 0 ? (
-                  <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">לא נמצאו ספקים</td></tr>
+                  <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">לא נמצאו ספקים</td></tr>
                 ) : section.list.map(s => (
                   <tr key={s.id}>
-                    <td className="p-3 font-medium text-foreground">{s.contact_name}</td>
-                    <td className="p-3 text-muted-foreground">{s.company}</td>
+                    <td className="p-3 font-medium text-foreground">{s.company}</td>
+                    <td className="p-3 text-muted-foreground">{s.contact_name}</td>
                     <td className="p-3">{s.email ? <a href={`mailto:${s.email}`} className="text-accent hover:underline text-xs" dir="ltr">{s.email}</a> : "—"}</td>
                     <td className="p-3 text-muted-foreground" dir="ltr">{s.phone || "—"}</td>
                     <td className="p-3 text-muted-foreground text-xs max-w-[200px] truncate">{s.products || "—"}</td>
-                    <td className="p-3 text-muted-foreground">{s.lead_time_days ? `${s.lead_time_days} ימים` : "—"}</td>
-                    <td className="p-3">
-                      {s.risk_level ? (
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                          s.risk_level === "גבוה" ? "bg-destructive/15 text-destructive" :
-                          s.risk_level === "בינוני" ? "bg-warning/15 text-warning" :
-                          "bg-success/15 text-success"
-                        }`}>{s.risk_level}</span>
-                      ) : "—"}
-                    </td>
                     <td className="p-3">
                       <button
                         onClick={() => setSelectedSupplier({ id: s.id, company: s.company, email: s.email || null })}
