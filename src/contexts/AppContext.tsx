@@ -346,8 +346,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       refreshTasks(),
       refreshSuppliers(),
       refreshProfiles(),
+      refreshRoleDefinitions(),
     ]).finally(() => setDataLoading(false));
-  }, [session, refreshProducts, refreshOrders, refreshTasks, refreshSuppliers, refreshProfiles]);
+  }, [session, refreshProducts, refreshOrders, refreshTasks, refreshSuppliers, refreshProfiles, refreshRoleDefinitions]);
 
   // Realtime subscription for tasks
   useEffect(() => {
