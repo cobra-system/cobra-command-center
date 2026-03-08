@@ -18,7 +18,7 @@ export default function ProductDetailPage() {
   const { products, orders, updateProduct } = useData();
 
   const [editOpen, setEditOpen] = useState(false);
-  const [editFields, setEditFields] = useState<Record<string, any>>({});
+  
 
   const product = products.find(p => p.id === id);
 
