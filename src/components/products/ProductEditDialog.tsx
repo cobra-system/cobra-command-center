@@ -28,6 +28,13 @@ interface ProductEditDialogProps {
 export default function ProductEditDialog({ open, onOpenChange, product, onSave }: ProductEditDialogProps) {
   const [fields, setFields] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+
+  useEffect(() => {
+    supabase.from("suppliers").select("id, company, country").order("company").then(({ data }) => {
+      if (data) setSuppliers(data);
+    });
+  }, []);
 
   useEffect(() => {
     if (open && product) {
