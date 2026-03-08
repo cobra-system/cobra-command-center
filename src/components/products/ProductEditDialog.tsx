@@ -6,10 +6,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { type Product, categories } from "@/contexts/AppContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const productCategories = categories.filter(c => c !== "הכל");
 const productTypes = ["מוגמר", "מורכב"];
 const shippingMethods = ["אוויר", "ים", "יבשה", "שילוב"];
+
+interface Supplier {
+  id: string;
+  company: string;
+  country: string | null;
+}
 
 interface ProductEditDialogProps {
   open: boolean;
@@ -21,6 +28,13 @@ interface ProductEditDialogProps {
 export default function ProductEditDialog({ open, onOpenChange, product, onSave }: ProductEditDialogProps) {
   const [fields, setFields] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+
+  useEffect(() => {
+    supabase.from("suppliers").select("id, company, country").order("company").then(({ data }) => {
+      if (data) setSuppliers(data);
+    });
+  }, []);
 
   useEffect(() => {
     if (open && product) {
@@ -138,7 +152,15 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
           <div>
             <h3 className="text-sm font-semibold text-foreground mb-2">ספק ומשלוח</h3>
             <div className="grid grid-cols-2 gap-3">
-              {textField("supplier", "ספק")}
+              <div className="space-y-1">
+                <Label className="text-xs">ספק</Label>
+                <Select value={fields.supplier || ""} onValueChange={v => set("supplier", v)}>
+                  <SelectTrigger><SelectValue placeholder="בחר ספק..." /></SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map(s => <SelectItem key={s.id} value={s.company}>{s.company}{s.country ? ` (${s.country})` : ""}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               {textField("supplier_origin", "מקור ספק")}
               <div className="space-y-1">
                 <Label className="text-xs">שיטת משלוח</Label>
