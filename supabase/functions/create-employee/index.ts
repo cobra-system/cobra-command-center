@@ -52,29 +52,28 @@ Deno.serve(async (req) => {
 
     const { name, role, pin } = await req.json();
 
-    if (!name || !role || !pin || pin.length !== 4) {
+    if (!name || !role || !pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
       return new Response(
         JSON.stringify({ error: "שם, תפקיד וקוד PIN (4 ספרות) נדרשים" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Check PIN uniqueness
-    const { data: existingPin } = await supabaseAdmin
-      .from("profiles")
-      .select("id")
-      .eq("pin", pin)
-      .maybeSingle();
-    if (existingPin) {
+    // Check PIN uniqueness using the secure verify function
+    const { data: existingMatch } = await supabaseAdmin.rpc("login_by_pin", {
+      input_pin: pin,
+    });
+    if (existingMatch && existingMatch.length > 0) {
       return new Response(
         JSON.stringify({ error: "קוד PIN כבר בשימוש" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Create auth user with a generated email
-    const email = `${pin}@employee.cobra.io`;
-    const password = `pin-${pin}-${Date.now()}`;
+    // Create auth user with a random non-guessable email and password
+    const randomId = crypto.randomUUID();
+    const email = `${randomId}@employee.internal`;
+    const password = crypto.randomUUID();
 
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -90,10 +89,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Update the profile with PIN (handle_new_user trigger creates the profile)
+    // Hash the PIN and store it
+    const { data: hashedPin } = await supabaseAdmin.rpc("hash_pin" as any, { raw_pin: pin });
+
+    // Update the profile with hashed PIN
     await supabaseAdmin
       .from("profiles")
-      .update({ pin, role })
+      .update({ pin: hashedPin, role })
       .eq("id", newUser.user.id);
 
     // Add user_role
@@ -102,7 +104,7 @@ Deno.serve(async (req) => {
       .insert({ user_id: newUser.user.id, role });
 
     return new Response(
-      JSON.stringify({ success: true, profile: { id: newUser.user.id, name, role, pin } }),
+      JSON.stringify({ success: true, profile: { id: newUser.user.id, name, role } }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

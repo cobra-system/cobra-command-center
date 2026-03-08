@@ -5,6 +5,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const MAX_ATTEMPTS = 5;
+const WINDOW_MINUTES = 15;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -13,7 +16,7 @@ Deno.serve(async (req) => {
   try {
     const { pin } = await req.json();
 
-    if (!pin || typeof pin !== "string" || pin.length !== 4) {
+    if (!pin || typeof pin !== "string" || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
       return new Response(
         JSON.stringify({ error: "PIN חייב להיות 4 ספרות" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -25,19 +28,52 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Look up user by PIN in profiles
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .select("id, name, role")
-      .eq("pin", pin)
-      .maybeSingle();
+    // Rate limiting: check recent failed attempts from this IP
+    const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || 
+                     req.headers.get("cf-connecting-ip") || 
+                     "unknown";
+    
+    const windowStart = new Date(Date.now() - WINDOW_MINUTES * 60 * 1000).toISOString();
+    
+    const { count: recentFailures } = await supabaseAdmin
+      .from("login_attempts")
+      .select("*", { count: "exact", head: true })
+      .eq("ip_address", clientIP)
+      .eq("success", false)
+      .gte("attempted_at", windowStart);
 
-    if (profileError || !profile) {
+    if ((recentFailures || 0) >= MAX_ATTEMPTS) {
+      return new Response(
+        JSON.stringify({ error: "יותר מדי ניסיונות כניסה. נסה שוב מאוחר יותר." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Look up user by PIN using the secure DB function (bcrypt comparison)
+    const { data: profiles, error: rpcError } = await supabaseAdmin.rpc("login_by_pin", {
+      input_pin: pin,
+    });
+
+    const profile = profiles?.[0];
+
+    if (rpcError || !profile) {
+      // Log failed attempt
+      await supabaseAdmin.from("login_attempts").insert({
+        ip_address: clientIP,
+        success: false,
+      });
+      
       return new Response(
         JSON.stringify({ error: "קוד PIN שגוי" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Log successful attempt
+    await supabaseAdmin.from("login_attempts").insert({
+      ip_address: clientIP,
+      success: true,
+    });
 
     // Get the user's email from auth.users to sign them in
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(profile.id);
