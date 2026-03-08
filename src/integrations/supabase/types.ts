@@ -428,6 +428,27 @@ export type Database = {
           },
         ]
       }
+      role_definitions: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          system_key: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          system_key?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          system_key?: string | null
+        }
+        Relationships: []
+      }
       supplier_payments: {
         Row: {
           amount: number
