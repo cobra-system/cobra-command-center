@@ -17,7 +17,21 @@ const roleOptions: { value: Role; label: string }[] = [
 
 export default function TeamPage() {
   const { currentUser } = useAuth();
-  const { profiles, createEmployee, refreshProfiles } = useData();
+  const { profiles, createEmployee, refreshProfiles, roleDefinitions } = useData();
+
+  // Build dynamic role label map
+  const dynamicRoleLabel: Record<string, string> = { MANAGER: "מנהל" };
+  roleDefinitions.forEach(rd => { if (rd.system_key) dynamicRoleLabel[rd.system_key] = rd.name; });
+  const getRoleLabel = (role: string) => dynamicRoleLabel[role] || roleLabel[role] || role;
+
+  // Use role definitions for dropdown
+  const roleOptions = roleDefinitions.length > 0
+    ? roleDefinitions.map(rd => ({ value: (rd.system_key || rd.id) as Role, label: rd.name }))
+    : [
+        { value: "WAREHOUSE_MANAGER" as Role, label: "מנהל מחסן" },
+        { value: "LOGISTICS" as Role, label: "לוגיסטיקה" },
+        { value: "DRIVER" as Role, label: "נהג" },
+      ];
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
