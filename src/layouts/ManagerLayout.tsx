@@ -103,7 +103,7 @@ export default function ManagerLayout() {
       <main className="flex-1 min-h-screen">
         {/* Mobile header */}
         <header className="lg:hidden sticky top-0 z-30 bg-background border-b px-4 py-3 flex items-center justify-between">
-          <img src={cobraLogo} alt="COBRA.IO" className="h-6" />
+          <img src={cobraLogo} alt="COBRA.IO" className="h-8" />
           <button onClick={() => setSidebarOpen(true)}>
             <Menu className="h-6 w-6 text-foreground" />
           </button>
