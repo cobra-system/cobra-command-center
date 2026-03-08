@@ -276,7 +276,12 @@ export default function ProductDetailPage() {
                       <tr key={comp.id}>
                         <td className="p-3 font-medium text-foreground">{comp.name}</td>
                         <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">{comp.sku || "—"}</td>
-                        <td className="p-3 text-muted-foreground">{comp.supplier || "—"}</td>
+                        <td className="p-3 text-muted-foreground">{(() => {
+                          const s = suppliers.find(s => s.company === comp.supplier);
+                          return s ? (
+                            <button onClick={() => navigate(`/suppliers/${s.id}`)} className="text-primary hover:underline">{comp.supplier}</button>
+                          ) : (comp.supplier || "—");
+                        })()}</td>
                         
                         <td className="p-3 text-muted-foreground">{comp.stock_qty ?? "—"}</td>
                         <td className="p-3 text-muted-foreground">{comp.price ? `$${comp.price}` : "—"}</td>

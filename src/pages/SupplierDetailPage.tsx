@@ -40,6 +40,15 @@ export default function SupplierDetailPage() {
   const isManager = currentUser?.role === "MANAGER";
   const relatedOrders = orders.filter(o => o.supplier_id === supplier.id || o.supplier_name === supplier.company);
   const relatedProducts = products.filter(p => p.supplier === supplier.company);
+  
+  // Products where a component references this supplier
+  const componentProducts = products
+    .filter(p => p.product_type === "מורכב" && p.components?.some(c => c.supplier === supplier.company))
+    .filter(p => !relatedProducts.some(rp => rp.id === p.id))
+    .map(p => ({
+      product: p,
+      components: p.components?.filter(c => c.supplier === supplier.company) || [],
+    }));
   const contacts = supplier.contacts || [];
 
   const handleDelete = async () => {
@@ -205,8 +214,8 @@ export default function SupplierDetailPage() {
 
       {/* Related Products */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
-        <h2 className="text-lg font-semibold text-foreground mb-4">מוצרים משויכים ({relatedProducts.length})</h2>
-        {relatedProducts.length > 0 ? (
+        <h2 className="text-lg font-semibold text-foreground mb-4">מוצרים משויכים ({relatedProducts.length + componentProducts.length})</h2>
+        {(relatedProducts.length > 0 || componentProducts.length > 0) ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="border-b bg-muted/50">
@@ -219,6 +228,16 @@ export default function SupplierDetailPage() {
                 {relatedProducts.map(p => (
                   <tr key={p.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/products/${p.id}`)}>
                     <td className="p-3 font-medium text-foreground">{p.name}</td>
+                    <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">{p.sku}</td>
+                    <td className="p-3 text-muted-foreground">{p.category}</td>
+                    <td className="p-3 text-muted-foreground">{p.stock_qty}</td>
+                  </tr>
+                ))}
+                {componentProducts.map(({ product: p, components: comps }) => (
+                  <tr key={p.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/products/${p.id}`)}>
+                    <td className="p-3 font-medium text-foreground">
+                      {p.name} <span className="text-xs text-muted-foreground">({comps.map(c => c.name).join(", ")})</span>
+                    </td>
                     <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">{p.sku}</td>
                     <td className="p-3 text-muted-foreground">{p.category}</td>
                     <td className="p-3 text-muted-foreground">{p.stock_qty}</td>
