@@ -57,27 +57,9 @@ export default function ProductDetailPage() {
     { label: "הערות", value: product.notes },
   ];
 
-  const openEditDialog = () => {
-    setEditFields({
-      stock_qty: product.stock_qty,
-      incoming_qty: product.incoming_qty,
-      purchase_price: product.purchase_price || "",
-      sale_price: product.sale_price || "",
-      monthly_order: product.monthly_order || "",
-      notes: product.notes || "",
-    });
-    setEditOpen(true);
-  };
-
-  const handleSaveEdit = async () => {
-    const updates: Record<string, any> = {};
-    for (const key of Object.keys(editFields)) {
-      const val = editFields[key];
-      updates[key] = val === "" ? null : (typeof val === "string" && !isNaN(Number(val)) && key !== "notes" ? Number(val) : val);
-    }
-    await updateProduct(product.id, updates);
+  const handleSaveEdit = async (id: string, updates: Record<string, any>) => {
+    await updateProduct(id, updates);
     toast.success("המוצר עודכן");
-    setEditOpen(false);
   };
 
   return (
