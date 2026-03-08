@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useData, useAuth, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
@@ -7,28 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowRight, Package, Boxes, TruckIcon, BookOpen, Plus, Pencil, AlertTriangle, Scale } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ArrowRight, Package, Boxes, TruckIcon, Pencil, Scale } from "lucide-react";
 import ProductIssuesTab from "@/components/ProductIssuesTab";
 import SupplierComparisonPanel from "@/components/SupplierComparisonPanel";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format } from "date-fns";
-
-interface JournalEntry {
-  id: string;
-  date: string;
-  title: string;
-  content: string;
-  status: string;
-}
-
-const statusBadgeClass: Record<string, string> = {
-  "למידה": "bg-primary/15 text-primary",
-  "שאלה פתוחה": "bg-warning/15 text-warning",
-  "הובן": "bg-success/15 text-success",
-};
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -36,31 +19,10 @@ export default function ProductDetailPage() {
   const { currentUser } = useAuth();
   const { products, orders, updateProduct } = useData();
 
-  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
-  const [journalOpen, setJournalOpen] = useState(false);
-  const [showJournal, setShowJournal] = useState(false);
-  const [jTitle, setJTitle] = useState("");
-  const [jContent, setJContent] = useState("");
-  const [jStatus, setJStatus] = useState("למידה");
-
-  // Edit product dialog
   const [editOpen, setEditOpen] = useState(false);
   const [editFields, setEditFields] = useState<Record<string, any>>({});
 
   const product = products.find(p => p.id === id);
-
-  const fetchJournal = useCallback(async () => {
-    if (!id) return;
-    const { data } = await supabase
-      .from("learning_journal")
-      .select("id, date, title, content, status")
-      .eq("linked_type", "product")
-      .eq("linked_id", id)
-      .order("date", { ascending: false });
-    if (data) setJournalEntries(data as JournalEntry[]);
-  }, [id]);
-
-  useEffect(() => { fetchJournal(); }, [fetchJournal]);
 
   if (!product) {
     return (
@@ -96,22 +58,6 @@ export default function ProductDetailPage() {
     { label: "בדרך", value: product.incoming_qty },
     { label: "הערות", value: product.notes },
   ];
-
-  const handleAddJournal = async () => {
-    if (!jTitle.trim() || !currentUser) return;
-    await supabase.from("learning_journal").insert({
-      title: jTitle.trim(),
-      content: jContent.trim(),
-      status: jStatus,
-      linked_type: "product",
-      linked_id: id,
-      created_by: currentUser.id,
-    });
-    toast.success("הערת למידה נוספה");
-    setJTitle(""); setJContent(""); setJStatus("למידה");
-    setJournalOpen(false);
-    fetchJournal();
-  };
 
   const openEditDialog = () => {
     setEditFields({
@@ -239,7 +185,6 @@ export default function ProductDetailPage() {
           ) : (
             <p className="text-sm text-muted-foreground py-4 text-center">לא הוגדרו רכיבים למוצר זה</p>
           )}
-          {/* Supplier Comparison per component */}
           {product.components && product.components.length > 0 && (
             <div className="mt-4 space-y-3">
               {product.components.map(comp => (
@@ -289,62 +234,6 @@ export default function ProductDetailPage() {
       {/* Product Issues Tab */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
         <ProductIssuesTab productId={product.id} />
-      </div>
-
-      {/* Learning Journal Section */}
-      <div className="bg-card rounded-xl border shadow-sm p-5">
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={() => setShowJournal(!showJournal)} className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold text-foreground">📖 הערות למידה</h2>
-            <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">{journalEntries.length}</span>
-          </button>
-          <Dialog open={journalOpen} onOpenChange={setJournalOpen}>
-            <DialogTrigger asChild><Button variant="outline" size="sm"><Plus className="h-3 w-3 ml-1" />הוסף</Button></DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader><DialogTitle>הערת למידה חדשה</DialogTitle></DialogHeader>
-              <div className="space-y-3 pt-2">
-                <div className="space-y-1"><Label>כותרת *</Label><Input value={jTitle} onChange={e => setJTitle(e.target.value)} placeholder="מה למדת?" /></div>
-                <div className="space-y-1"><Label>תוכן</Label><Textarea value={jContent} onChange={e => setJContent(e.target.value)} rows={4} /></div>
-                <div className="space-y-1">
-                  <Label>סטטוס</Label>
-                  <Select value={jStatus} onValueChange={setJStatus}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="למידה">📚 למידה</SelectItem>
-                      <SelectItem value="שאלה פתוחה">❓ שאלה פתוחה</SelectItem>
-                      <SelectItem value="הובן">✅ הובן</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button onClick={handleAddJournal} disabled={!jTitle.trim()} className="w-full">הוסף הערה</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-        {showJournal && (
-          journalEntries.length > 0 ? (
-            <div className="space-y-3">
-              {journalEntries.map(e => (
-                <div key={e.id} className="border rounded-lg p-3 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusBadgeClass[e.status] || "bg-muted text-muted-foreground"}`}>{e.status}</span>
-                    <span className="text-xs text-muted-foreground">{format(new Date(e.date), "dd/MM/yyyy")}</span>
-                  </div>
-                  <p className="text-sm font-medium text-foreground">{e.title}</p>
-                  {e.content && <p className="text-xs text-muted-foreground whitespace-pre-wrap">{e.content}</p>}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">אין הערות למידה למוצר זה</p>
-          )
-        )}
-        {!showJournal && journalEntries.length > 0 && (
-          <p className="text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors" onClick={() => setShowJournal(true)}>
-            לחץ להצגת {journalEntries.length} הערות למידה...
-          </p>
-        )}
       </div>
     </div>
   );
