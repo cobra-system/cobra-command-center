@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
-import { useData, useAuth, categories, type Priority, type OrderStatus } from "@/contexts/AppContext";
+import { useData, useAuth, categories, divisions, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
