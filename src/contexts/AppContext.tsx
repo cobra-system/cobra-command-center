@@ -547,6 +547,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addTaskNote,
         updateOrderStatus,
         addOrder,
+        updateOrder,
+        deleteOrder,
         addTask,
         updateTask,
         deleteTask,
