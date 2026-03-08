@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { useData, useAuth, type Supplier, type Priority, type OrderStatus } from "@/contexts/AppContext";
+import { useData, useAuth, type Supplier, type SupplierContact, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -8,19 +8,23 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowRight, Pencil, Trash2, ExternalLink, Mail, Phone, Globe, TruckIcon } from "lucide-react";
+import { ArrowRight, Pencil, Trash2, ExternalLink, Mail, Phone, Globe, TruckIcon, UserPlus, Users, X } from "lucide-react";
 import { InlineEditField } from "@/components/InlineEditField";
 import SapSyncBadge from "@/components/SapSyncBadge";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export default function SupplierDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { suppliers, orders, products, updateSupplier, deleteSupplier } = useData();
+  const { suppliers, orders, products, updateSupplier, deleteSupplier, refreshSuppliers } = useData();
 
   const [editOpen, setEditOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [addContactOpen, setAddContactOpen] = useState(false);
+  const [newContact, setNewContact] = useState({ name: "", role: "", email: "", phone: "" });
+  const [savingContact, setSavingContact] = useState(false);
 
   const supplier = suppliers.find(s => s.id === id);
 
@@ -36,6 +40,7 @@ export default function SupplierDetailPage() {
   const isManager = currentUser?.role === "MANAGER";
   const relatedOrders = orders.filter(o => o.supplier_id === supplier.id || o.supplier_name === supplier.company);
   const relatedProducts = products.filter(p => p.supplier === supplier.company);
+  const contacts = supplier.contacts || [];
 
   const handleDelete = async () => {
     await deleteSupplier(supplier.id);
@@ -48,6 +53,33 @@ export default function SupplierDetailPage() {
     (updates as any)[field] = value || null;
     await updateSupplier(supplier.id, updates);
     toast.success("עודכן");
+  };
+
+  const handleAddContact = async () => {
+    if (!newContact.name.trim()) return;
+    setSavingContact(true);
+    try {
+      await supabase.from("supplier_contacts").insert({
+        supplier_id: supplier.id,
+        name: newContact.name,
+        role: newContact.role || null,
+        email: newContact.email || null,
+        phone: newContact.phone || null,
+        is_primary: contacts.length === 0,
+      } as any);
+      await refreshSuppliers();
+      setNewContact({ name: "", role: "", email: "", phone: "" });
+      setAddContactOpen(false);
+      toast.success("איש קשר נוסף");
+    } finally {
+      setSavingContact(false);
+    }
+  };
+
+  const handleDeleteContact = async (contactId: string) => {
+    await supabase.from("supplier_contacts").delete().eq("id", contactId);
+    await refreshSuppliers();
+    toast.success("איש קשר נמחק");
   };
 
   return (
@@ -74,7 +106,7 @@ export default function SupplierDetailPage() {
       <div className="bg-card rounded-xl border shadow-sm p-5">
         <h2 className="text-lg font-semibold text-foreground mb-4">פרטי קשר</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          <InlineEditField label="איש קשר" value={supplier.contact_name} onSave={(v) => handleInlineSave("contact_name", v)} disabled={!isManager} />
+          <InlineEditField label="איש קשר ראשי" value={supplier.contact_name} onSave={(v) => handleInlineSave("contact_name", v)} disabled={!isManager} />
           <InlineEditField
             label="אימייל"
             value={supplier.email}
@@ -116,6 +148,60 @@ export default function SupplierDetailPage() {
           <InlineEditField label="הערות" value={supplier.notes} onSave={(v) => handleInlineSave("notes", v)} disabled={!isManager} />
         </div>
       </div>
+
+      {/* Additional Contacts */}
+      {(contacts.length > 0 || isManager) && (
+        <div className="bg-card rounded-xl border shadow-sm p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold text-foreground">אנשי קשר ({contacts.length})</h2>
+            </div>
+            {isManager && (
+              <Button variant="outline" size="sm" onClick={() => setAddContactOpen(true)}>
+                <UserPlus className="h-4 w-4 ml-1" />הוסף איש קשר
+              </Button>
+            )}
+          </div>
+          {contacts.length > 0 ? (
+            <div className="space-y-3">
+              {contacts.map(contact => (
+                <div key={contact.id} className="flex items-center gap-4 p-3 rounded-lg bg-muted/30 border">
+                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-4 gap-2">
+                    <div>
+                      <p className="text-xs text-muted-foreground">שם</p>
+                      <p className="text-sm font-medium text-foreground">{contact.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">תפקיד</p>
+                      <p className="text-sm text-foreground">{contact.role || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">אימייל</p>
+                      {contact.email ? (
+                        <a href={`mailto:${contact.email}`} className="text-sm text-accent hover:underline" dir="ltr">{contact.email}</a>
+                      ) : <p className="text-sm text-muted-foreground">—</p>}
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">טלפון</p>
+                      {contact.phone ? (
+                        <a href={`tel:${contact.phone}`} className="text-sm text-accent hover:underline" dir="ltr">{contact.phone}</a>
+                      ) : <p className="text-sm text-muted-foreground">—</p>}
+                    </div>
+                  </div>
+                  {isManager && (
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteContact(contact.id)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-3">אין אנשי קשר נוספים</p>
+          )}
+        </div>
+      )}
 
       {/* Related Products */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
@@ -179,6 +265,36 @@ export default function SupplierDetailPage() {
 
       {/* Edit Dialog */}
       <SupplierEditDialog open={editOpen} onOpenChange={setEditOpen} supplier={supplier} onSave={updateSupplier} />
+
+      {/* Add Contact Dialog */}
+      <Dialog open={addContactOpen} onOpenChange={setAddContactOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>הוספת איש קשר</DialogTitle></DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">שם *</Label>
+                <Input value={newContact.name} onChange={e => setNewContact(p => ({ ...p, name: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">תפקיד</Label>
+                <Input value={newContact.role} onChange={e => setNewContact(p => ({ ...p, role: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">אימייל</Label>
+                <Input type="email" value={newContact.email} onChange={e => setNewContact(p => ({ ...p, email: e.target.value }))} dir="ltr" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">טלפון</Label>
+                <Input value={newContact.phone} onChange={e => setNewContact(p => ({ ...p, phone: e.target.value }))} dir="ltr" />
+              </div>
+            </div>
+            <Button onClick={handleAddContact} className="w-full" disabled={savingContact || !newContact.name.trim()}>
+              {savingContact ? "שומר..." : "הוסף"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirm */}
       <Dialog open={deleteConfirm} onOpenChange={setDeleteConfirm}>

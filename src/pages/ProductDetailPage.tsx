@@ -1,10 +1,13 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
-import { useData, useAuth, categories, divisions, type Priority, type OrderStatus } from "@/contexts/AppContext";
+import { useData, useAuth, categories, divisions, type ProductComponent, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Package, Boxes, TruckIcon, Pencil, ExternalLink } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ArrowRight, Package, Boxes, TruckIcon, Pencil, ExternalLink, Plus, Trash2, Save, X } from "lucide-react";
 import ProductIssuesTab from "@/components/ProductIssuesTab";
 import ProductEditDialog from "@/components/products/ProductEditDialog";
 import SupplierComparisonPanel from "@/components/SupplierComparisonPanel";
@@ -16,10 +19,14 @@ export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { products, orders, updateProduct, suppliers } = useData();
+  const { products, orders, updateProduct, suppliers, addComponent, updateComponent, deleteComponent } = useData();
   const [editOpen, setEditOpen] = useState(false);
+  const [addCompOpen, setAddCompOpen] = useState(false);
+  const [editingCompId, setEditingCompId] = useState<string | null>(null);
+  const [editCompFields, setEditCompFields] = useState<Record<string, string>>({});
+  const [newComp, setNewComp] = useState({ name: "", sku: "", supplier: "", origin: "", stock_qty: "", price: "", notes: "" });
+  const [savingComp, setSavingComp] = useState(false);
 
-  // Hooks must be before any early return
   const categoryOptions = useMemo(() => categories.filter(c => c !== "הכל").map(c => ({ value: c, label: c })), []);
   const supplierOptions = useMemo(() => suppliers.map(s => ({ value: s.company, label: s.company })), [suppliers]);
   const divisionOptions = useMemo(() => divisions.map(d => ({ value: d, label: d })), []);
@@ -77,6 +84,66 @@ export default function ProductDetailPage() {
   const handleSaveEdit = async (id: string, updates: Record<string, any>) => {
     await updateProduct(id, updates);
     toast.success("המוצר עודכן");
+  };
+
+  const handleAddComponent = async () => {
+    if (!newComp.name.trim()) return;
+    setSavingComp(true);
+    try {
+      await addComponent({
+        product_id: product.id,
+        name: newComp.name,
+        sku: newComp.sku || null,
+        supplier: newComp.supplier || null,
+        origin: newComp.origin || null,
+        stock_qty: newComp.stock_qty ? Number(newComp.stock_qty) : null,
+        price: newComp.price ? Number(newComp.price) : null,
+        notes: newComp.notes || null,
+      });
+      setNewComp({ name: "", sku: "", supplier: "", origin: "", stock_qty: "", price: "", notes: "" });
+      setAddCompOpen(false);
+      toast.success("רכיב נוסף");
+    } finally {
+      setSavingComp(false);
+    }
+  };
+
+  const startEditComp = (comp: ProductComponent) => {
+    setEditingCompId(comp.id);
+    setEditCompFields({
+      name: comp.name || "",
+      sku: comp.sku || "",
+      supplier: comp.supplier || "",
+      origin: comp.origin || "",
+      stock_qty: comp.stock_qty?.toString() || "",
+      price: comp.price?.toString() || "",
+      notes: comp.notes || "",
+    });
+  };
+
+  const handleSaveComp = async () => {
+    if (!editingCompId) return;
+    setSavingComp(true);
+    try {
+      await updateComponent(editingCompId, {
+        name: editCompFields.name,
+        sku: editCompFields.sku || null,
+        supplier: editCompFields.supplier || null,
+        origin: editCompFields.origin || null,
+        stock_qty: editCompFields.stock_qty ? Number(editCompFields.stock_qty) : null,
+        price: editCompFields.price ? Number(editCompFields.price) : null,
+        notes: editCompFields.notes || null,
+      });
+      setEditingCompId(null);
+      toast.success("רכיב עודכן");
+    } finally {
+      setSavingComp(false);
+    }
+  };
+
+  const handleDeleteComp = async (compId: string) => {
+    await deleteComponent(compId);
+    toast.success("רכיב נמחק");
   };
 
   return (
@@ -148,7 +215,17 @@ export default function ProductDetailPage() {
       {/* BOM - Components */}
       {product.product_type === "מורכב" && (
         <div className="bg-card rounded-xl border shadow-sm p-5">
-          <div className="flex items-center gap-2 mb-4"><Boxes className="h-5 w-5 text-accent" /><h2 className="text-lg font-semibold text-foreground">רכיבים (BOM)</h2></div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Boxes className="h-5 w-5 text-accent" />
+              <h2 className="text-lg font-semibold text-foreground">רכיבים (BOM)</h2>
+            </div>
+            {isManager && (
+              <Button variant="outline" size="sm" onClick={() => setAddCompOpen(true)}>
+                <Plus className="h-4 w-4 ml-1" />הוסף רכיב
+              </Button>
+            )}
+          </div>
           {product.components && product.components.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -161,19 +238,54 @@ export default function ProductDetailPage() {
                     <th className="text-right p-3 font-semibold text-foreground">מלאי</th>
                     <th className="text-right p-3 font-semibold text-foreground">מחיר</th>
                     <th className="text-right p-3 font-semibold text-foreground">הערות</th>
+                    {isManager && <th className="text-right p-3 font-semibold text-foreground">פעולות</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {product.components.map(comp => (
-                    <tr key={comp.id}>
-                      <td className="p-3 font-medium text-foreground">{comp.name}</td>
-                      <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">{comp.sku || "—"}</td>
-                      <td className="p-3 text-muted-foreground">{comp.supplier || "—"}</td>
-                      <td className="p-3 text-muted-foreground">{comp.origin || "—"}</td>
-                      <td className="p-3 text-muted-foreground">{comp.stock_qty ?? "—"}</td>
-                      <td className="p-3 text-muted-foreground">{comp.price ? `$${comp.price}` : "—"}</td>
-                      <td className="p-3 text-muted-foreground text-xs">{comp.notes || "—"}</td>
-                    </tr>
+                    editingCompId === comp.id ? (
+                      <tr key={comp.id} className="bg-accent/5">
+                        <td className="p-2"><Input value={editCompFields.name} onChange={e => setEditCompFields(p => ({ ...p, name: e.target.value }))} className="h-8 text-sm" /></td>
+                        <td className="p-2"><Input value={editCompFields.sku} onChange={e => setEditCompFields(p => ({ ...p, sku: e.target.value }))} className="h-8 text-sm" dir="ltr" /></td>
+                        <td className="p-2"><Input value={editCompFields.supplier} onChange={e => setEditCompFields(p => ({ ...p, supplier: e.target.value }))} className="h-8 text-sm" /></td>
+                        <td className="p-2"><Input value={editCompFields.origin} onChange={e => setEditCompFields(p => ({ ...p, origin: e.target.value }))} className="h-8 text-sm" /></td>
+                        <td className="p-2"><Input type="number" value={editCompFields.stock_qty} onChange={e => setEditCompFields(p => ({ ...p, stock_qty: e.target.value }))} className="h-8 text-sm w-20" /></td>
+                        <td className="p-2"><Input type="number" value={editCompFields.price} onChange={e => setEditCompFields(p => ({ ...p, price: e.target.value }))} className="h-8 text-sm w-20" /></td>
+                        <td className="p-2"><Input value={editCompFields.notes} onChange={e => setEditCompFields(p => ({ ...p, notes: e.target.value }))} className="h-8 text-sm" /></td>
+                        <td className="p-2">
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSaveComp} disabled={savingComp}>
+                              <Save className="h-3.5 w-3.5 text-success" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingCompId(null)}>
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      <tr key={comp.id}>
+                        <td className="p-3 font-medium text-foreground">{comp.name}</td>
+                        <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">{comp.sku || "—"}</td>
+                        <td className="p-3 text-muted-foreground">{comp.supplier || "—"}</td>
+                        <td className="p-3 text-muted-foreground">{comp.origin || "—"}</td>
+                        <td className="p-3 text-muted-foreground">{comp.stock_qty ?? "—"}</td>
+                        <td className="p-3 text-muted-foreground">{comp.price ? `$${comp.price}` : "—"}</td>
+                        <td className="p-3 text-muted-foreground text-xs">{comp.notes || "—"}</td>
+                        {isManager && (
+                          <td className="p-3">
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEditComp(comp)}>
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteComp(comp.id)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    )
                   ))}
                 </tbody>
               </table>
@@ -190,6 +302,48 @@ export default function ProductDetailPage() {
           )}
         </div>
       )}
+
+      {/* Add Component Dialog */}
+      <Dialog open={addCompOpen} onOpenChange={setAddCompOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader><DialogTitle>הוספת רכיב</DialogTitle></DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">שם רכיב *</Label>
+                <Input value={newComp.name} onChange={e => setNewComp(p => ({ ...p, name: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">מק״ט</Label>
+                <Input value={newComp.sku} onChange={e => setNewComp(p => ({ ...p, sku: e.target.value }))} dir="ltr" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">ספק</Label>
+                <Input value={newComp.supplier} onChange={e => setNewComp(p => ({ ...p, supplier: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">מקור</Label>
+                <Input value={newComp.origin} onChange={e => setNewComp(p => ({ ...p, origin: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">מלאי</Label>
+                <Input type="number" value={newComp.stock_qty} onChange={e => setNewComp(p => ({ ...p, stock_qty: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">מחיר ($)</Label>
+                <Input type="number" value={newComp.price} onChange={e => setNewComp(p => ({ ...p, price: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">הערות</Label>
+              <Input value={newComp.notes} onChange={e => setNewComp(p => ({ ...p, notes: e.target.value }))} />
+            </div>
+            <Button onClick={handleAddComponent} className="w-full" disabled={savingComp || !newComp.name.trim()}>
+              {savingComp ? "שומר..." : "הוסף רכיב"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Orders History */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
