@@ -142,6 +142,11 @@ interface DataState {
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
+  addProduct: (product: Omit<Product, "id" | "components">, components?: Omit<ProductComponent, "id" | "product_id">[]) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
+  addComponent: (component: Omit<ProductComponent, "id">) => Promise<void>;
+  updateComponent: (id: string, updates: Partial<ProductComponent>) => Promise<void>;
+  deleteComponent: (id: string) => Promise<void>;
   addProfile: (profile: { email: string; name: string; role: Role; pin?: string }) => Promise<void>;
   updateProfile: (id: string, updates: Partial<Profile>) => Promise<void>;
   resetDailyTasks: () => Promise<void>;
