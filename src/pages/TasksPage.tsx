@@ -45,6 +45,15 @@ export default function TasksPage() {
   const [search, setSearch] = useState("");
   const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [searchParams] = useSearchParams();
+  const highlightId = searchParams.get("highlight");
+  const highlightRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (highlightId && highlightRef.current) {
+      highlightRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [highlightId]);
 
   // Include current user (manager) + all non-manager employees for assignment
   const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
