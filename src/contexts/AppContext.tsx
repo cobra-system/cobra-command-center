@@ -598,6 +598,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addSupplier,
         updateSupplier,
         deleteSupplier,
+        roleDefinitions,
+        refreshRoleDefinitions,
+        addRoleDefinition,
+        updateRoleDefinition,
+        deleteRoleDefinition,
       }}>
         {children}
       </DataContext.Provider>
