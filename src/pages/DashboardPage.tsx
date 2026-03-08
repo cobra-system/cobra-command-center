@@ -3,6 +3,7 @@ import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Package, Truck, ClipboardList, Users } from "lucide-react";
+import RecentSupplierEmails from "@/components/RecentSupplierEmails";
 
 export default function DashboardPage() {
   const { products, orders, tasks, suppliers } = useData();
@@ -63,6 +64,8 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      {/* Recent Supplier Emails */}
+      <RecentSupplierEmails />
       <div className="bg-card rounded-xl border p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-foreground mb-4">מלאי קיים לעומת הזמנה חודשית</h2>
         <ResponsiveContainer width="100%" height={300}>
