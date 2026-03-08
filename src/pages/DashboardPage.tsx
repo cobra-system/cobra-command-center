@@ -73,10 +73,10 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className="bg-card rounded-xl border p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-foreground mb-3">משימות פתוחות — טופ 3</h2>
+          <h2 className="text-lg font-semibold text-foreground mb-3">משימות פתוחות</h2>
           <div className="space-y-2">
             {topTasks.length === 0 ? <p className="text-sm text-muted-foreground">אין משימות פתוחות 🎉</p> : topTasks.map(t => (
-              <div key={t.id} className="flex items-center justify-between py-2 border-b last:border-0">
+              <div key={t.id} className="flex items-center justify-between py-2 border-b last:border-0 cursor-pointer hover:bg-muted/30 rounded transition-colors px-1" onClick={() => navigate(`/tasks?highlight=${t.id}`)}>
                 <div className="flex items-center gap-2">
                   <PriorityBadge priority={t.priority as Priority} />
                   <span className="text-sm text-foreground">{t.title}</span>
