@@ -22,10 +22,10 @@ const columns: { status: TaskStatus; label: string; bgClass: string }[] = [
 ];
 
 const priorityOptions: { value: Priority; label: string }[] = [
-  { value: "P0", label: "P0 — דחוף" },
-  { value: "P1", label: "P1 — גבוה" },
-  { value: "P2", label: "P2 — רגיל" },
-  { value: "P3", label: "P3 — נמוך" },
+  { value: "דחוף", label: "דחוף" },
+  { value: "גבוה", label: "גבוה" },
+  { value: "בינוני", label: "בינוני" },
+  { value: "נמוך", label: "נמוך" },
 ];
 
 export default function TasksPage() {
