@@ -25,10 +25,10 @@ const allStatuses: { value: OrderStatus; label: string }[] = [
 ];
 
 const priorities: { value: Priority; label: string }[] = [
-  { value: "P0", label: "P0 — דחוף" },
-  { value: "P1", label: "P1 — גבוה" },
-  { value: "P2", label: "P2 — רגיל" },
-  { value: "P3", label: "P3 — נמוך" },
+  { value: "דחוף", label: "דחוף" },
+  { value: "גבוה", label: "גבוה" },
+  { value: "בינוני", label: "בינוני" },
+  { value: "נמוך", label: "נמוך" },
 ];
 
 const priorityOrder: Record<string, number> = { P0: 0, P1: 1, P2: 2, P3: 3 };
