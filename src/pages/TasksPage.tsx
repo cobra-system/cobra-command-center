@@ -59,7 +59,7 @@ export default function TasksPage() {
   });
 
   const resetForm = () => {
-    setTitle(""); setDescription(""); setPriority("P2"); setAssigneeId(""); setDueDate(undefined); setIsDaily(false);
+    setTitle(""); setDescription(""); setPriority("בינוני"); setAssigneeId(""); setDueDate(undefined); setIsDaily(false);
     setEditingTask(null);
   };
 

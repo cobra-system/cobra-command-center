@@ -286,7 +286,7 @@ function TaskRow({ task, index, completed, blocked, urgent, isJustCompleted, onT
         )}
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
-        {urgent && !completed && <PriorityBadge priority="P0" />}
+        {urgent && !completed && <PriorityBadge priority="דחוף" />}
         <ChevronLeft className="h-4 w-4 text-muted-foreground/40" />
       </div>
     </div>

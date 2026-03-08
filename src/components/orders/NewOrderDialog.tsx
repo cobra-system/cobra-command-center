@@ -37,7 +37,7 @@ export function NewOrderDialog({ suppliers, products, addOrder }: Props) {
   const [eta, setEta] = useState<Date>();
   const [items, setItems] = useState<ItemRow[]>([{ name: "", qty: "", price: "", productId: "" }]);
 
-  const resetForm = () => { setPriority("P2"); setSupplierId(""); setShipping(""); setNotes(""); setEtd(undefined); setEta(undefined); setItems([{ name: "", qty: "", price: "", productId: "" }]); };
+  const resetForm = () => { setPriority("בינוני"); setSupplierId(""); setShipping(""); setNotes(""); setEtd(undefined); setEta(undefined); setItems([{ name: "", qty: "", price: "", productId: "" }]); };
   const updateItem = (idx: number, field: keyof ItemRow, value: string) => setItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
   const addItemRow = () => setItems(prev => [...prev, { name: "", qty: "", price: "", productId: "" }]);
   const removeItemRow = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
