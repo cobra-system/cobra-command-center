@@ -1,0 +1,11 @@
+{
+  "name": "COBRA Tasks",
+  "short_name": "Cobra",
+  "start_url": "/my-tasks",
+  "display": "standalone",
+  "background_color": "#1F5C3A",
+  "theme_color": "#1F5C3A",
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "64x64", "type": "image/x-icon" }
+  ]
+}
