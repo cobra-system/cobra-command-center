@@ -277,6 +277,11 @@ export default function ProductDetailPage() {
         )}
       </div>
 
+      {/* Product Issues Tab */}
+      <div className="bg-card rounded-xl border shadow-sm p-5">
+        <ProductIssuesTab productId={product.id} />
+      </div>
+
       {/* Learning Journal Section */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">

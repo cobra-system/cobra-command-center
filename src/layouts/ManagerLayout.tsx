@@ -23,6 +23,8 @@ const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "דשבורד" },
   { to: "/products", icon: Package, label: "מוצרים" },
   { to: "/orders", icon: ShoppingCart, label: "הזמנות" },
+  { to: "/documents", icon: FileText, label: "מסמכים (PI/PO)" },
+  { to: "/payments", icon: CreditCard, label: "תשלומים" },
   { to: "/suppliers", icon: Truck, label: "ספקים" },
   { to: "/tasks", icon: ListTodo, label: "משימות" },
   { to: "/journal", icon: BookOpen, label: "יומן למידה" },
