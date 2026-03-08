@@ -64,6 +64,10 @@ export interface Supplier {
   country?: string | null;
   products?: string | null;
   notes?: string | null;
+  lead_time_days?: number | null;
+  payment_terms?: string | null;
+  risk_level?: string | null;
+  backup_supplier_id?: string | null;
 }
 
 export interface Order {

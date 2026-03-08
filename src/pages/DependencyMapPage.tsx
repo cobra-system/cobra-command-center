@@ -92,7 +92,7 @@ export default function DependencyMapPage() {
       }
     });
 
-    return Array.from(supplierMap.values())
+    return Object.values(supplierMap)
       .filter(s => s.products.length > 0)
       .map(s => ({
         name: s.company,
