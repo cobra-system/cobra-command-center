@@ -4,8 +4,6 @@ import { useData, useAuth, type Priority, type OrderStatus } from "@/contexts/Ap
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ArrowRight, Package, Boxes, TruckIcon, Pencil, ExternalLink } from "lucide-react";
 import ProductIssuesTab from "@/components/ProductIssuesTab";
