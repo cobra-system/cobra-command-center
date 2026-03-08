@@ -53,8 +53,8 @@ export default function MyTasksPage() {
   const dayNames = ["יום ראשון", "יום שני", "יום שלישי", "יום רביעי", "יום חמישי", "יום שישי", "שבת"];
   const dayName = dayNames[now.getDay()];
 
-  const p0Tasks = todo.filter(t => t.priority === "P0");
-  const otherTasks = todo.filter(t => t.priority !== "P0");
+  const p0Tasks = todo.filter(t => t.priority === "דחוף");
+  const otherTasks = todo.filter(t => t.priority !== "דחוף");
 
   // Confetti on 100%
   useEffect(() => {
