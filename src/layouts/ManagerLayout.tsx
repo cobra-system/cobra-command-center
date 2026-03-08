@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import cobraLogo from "@/assets/cobra-logo.png";
+import GlobalSearch from "@/components/GlobalSearch";
 
 const defaultNavItems = [
   { to: "/dashboard", icon: "LayoutDashboard", label: "דשבורד" },
@@ -119,6 +120,8 @@ export default function ManagerLayout() {
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        <GlobalSearch />
 
         <nav className="flex-1 px-3 space-y-1">
           {navItems.map((item, index) => {
