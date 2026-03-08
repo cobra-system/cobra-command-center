@@ -99,6 +99,7 @@ export type Database = {
           id: string
           is_main: boolean
           name: string
+          sap_code: string | null
           type: string
           updated_at: string
         }
@@ -109,6 +110,7 @@ export type Database = {
           id?: string
           is_main?: boolean
           name: string
+          sap_code?: string | null
           type?: string
           updated_at?: string
         }
@@ -119,6 +121,7 @@ export type Database = {
           id?: string
           is_main?: boolean
           name?: string
+          sap_code?: string | null
           type?: string
           updated_at?: string
         }
@@ -271,6 +274,7 @@ export type Database = {
           order_date: string | null
           payment_date: string | null
           priority: string
+          sap_doc_entry: string | null
           shipping: string | null
           status: string
           supplier_id: string | null
@@ -288,6 +292,7 @@ export type Database = {
           order_date?: string | null
           payment_date?: string | null
           priority?: string
+          sap_doc_entry?: string | null
           shipping?: string | null
           status?: string
           supplier_id?: string | null
@@ -305,6 +310,7 @@ export type Database = {
           order_date?: string | null
           payment_date?: string | null
           priority?: string
+          sap_doc_entry?: string | null
           shipping?: string | null
           status?: string
           supplier_id?: string | null
@@ -436,6 +442,7 @@ export type Database = {
           purchase_price: number | null
           reorder_point: number | null
           sale_price: number | null
+          sap_code: string | null
           shipping: string | null
           sku: string
           stock_qty: number
@@ -462,6 +469,7 @@ export type Database = {
           purchase_price?: number | null
           reorder_point?: number | null
           sale_price?: number | null
+          sap_code?: string | null
           shipping?: string | null
           sku: string
           stock_qty?: number
@@ -488,6 +496,7 @@ export type Database = {
           purchase_price?: number | null
           reorder_point?: number | null
           sale_price?: number | null
+          sap_code?: string | null
           shipping?: string | null
           sku?: string
           stock_qty?: number
@@ -611,6 +620,42 @@ export type Database = {
           id?: string
           name?: string
           system_key?: string | null
+        }
+        Relationships: []
+      }
+      sap_sync_log: {
+        Row: {
+          created_at: string
+          details: string | null
+          direction: string
+          entity_id: string | null
+          entity_type: string
+          error_message: string | null
+          id: string
+          sap_code: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          details?: string | null
+          direction?: string
+          entity_id?: string | null
+          entity_type: string
+          error_message?: string | null
+          id?: string
+          sap_code?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          details?: string | null
+          direction?: string
+          entity_id?: string | null
+          entity_type?: string
+          error_message?: string | null
+          id?: string
+          sap_code?: string | null
+          status?: string
         }
         Relationships: []
       }
@@ -753,6 +798,7 @@ export type Database = {
           products: string | null
           risk_level: string | null
           role: string | null
+          sap_code: string | null
           website: string | null
         }
         Insert: {
@@ -770,6 +816,7 @@ export type Database = {
           products?: string | null
           risk_level?: string | null
           role?: string | null
+          sap_code?: string | null
           website?: string | null
         }
         Update: {
@@ -787,6 +834,7 @@ export type Database = {
           products?: string | null
           risk_level?: string | null
           role?: string | null
+          sap_code?: string | null
           website?: string | null
         }
         Relationships: [
