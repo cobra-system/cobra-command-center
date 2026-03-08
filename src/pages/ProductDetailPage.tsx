@@ -18,6 +18,15 @@ export default function ProductDetailPage() {
   const { products, orders, updateProduct, suppliers } = useData();
   const [editOpen, setEditOpen] = useState(false);
 
+  // Hooks must be before any early return
+  const categoryOptions = useMemo(() => categories.filter(c => c !== "הכל").map(c => ({ value: c, label: c })), []);
+  const supplierOptions = useMemo(() => suppliers.map(s => ({ value: s.company, label: s.company })), [suppliers]);
+  const productTypeOptions = [{ value: "פשוט", label: "פשוט" }, { value: "מורכב", label: "מורכב" }];
+  const shippingOptions = [
+    { value: "ים", label: "ים" }, { value: "אוויר", label: "אוויר" },
+    { value: "יבשה", label: "יבשה" }, { value: "אקספרס", label: "אקספרס" },
+  ];
+
   const product = products.find(p => p.id === id);
   if (!product) {
     return (
@@ -44,15 +53,6 @@ export default function ProductDetailPage() {
     await updateProduct(product.id, updates);
     toast.success("עודכן");
   };
-
-  // Build options for predefined fields
-  const categoryOptions = useMemo(() => categories.filter(c => c !== "הכל").map(c => ({ value: c, label: c })), []);
-  const productTypeOptions = [{ value: "פשוט", label: "פשוט" }, { value: "מורכב", label: "מורכב" }];
-  const supplierOptions = useMemo(() => suppliers.map(s => ({ value: s.company, label: s.company })), [suppliers]);
-  const shippingOptions = [
-    { value: "ים", label: "ים" }, { value: "אוויר", label: "אוויר" },
-    { value: "יבשה", label: "יבשה" }, { value: "אקספרס", label: "אקספרס" },
-  ];
 
   const details: { label: string; field: string; value: string | number | undefined | null; isSupplierLink?: boolean; options?: { value: string; label: string }[] }[] = [
     { label: "קטגוריה", field: "category", value: product.category, options: categoryOptions },
