@@ -9,11 +9,6 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
-const roleOptions: { value: Role; label: string }[] = [
-  { value: "WAREHOUSE_MANAGER", label: "מנהל מחסן" },
-  { value: "LOGISTICS", label: "לוגיסטיקה" },
-  { value: "DRIVER", label: "נהג" },
-];
 
 export default function TeamPage() {
   const { currentUser } = useAuth();
