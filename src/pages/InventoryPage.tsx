@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Plus, Warehouse, ArrowDown, ArrowRight, Phone, User, Trash2, Building2, ArrowLeftRight, AlertTriangle, History } from "lucide-react";
+import { Plus, Warehouse, ArrowDown, Phone, User, Trash2, Building2, ArrowLeftRight, AlertTriangle, History } from "lucide-react";
 import { toast } from "sonner";
 
 interface DistributionCenter {
@@ -148,17 +148,14 @@ export default function InventoryPage() {
     const qty = parseInt(transferQty);
     if (qty <= 0) return;
 
-    // Check source has enough stock
     const sourceInv = inventory.find(i => i.center_id === transferFrom && i.product_id === transferProduct);
     if (!sourceInv || sourceInv.quantity < qty) {
       toast.error("אין מספיק מלאי במרכז המקור");
       return;
     }
 
-    // Update source
     await supabase.from("center_inventory").update({ quantity: sourceInv.quantity - qty } as any).eq("id", sourceInv.id);
 
-    // Update destination
     const destInv = inventory.find(i => i.center_id === transferTo && i.product_id === transferProduct);
     if (destInv) {
       await supabase.from("center_inventory").update({ quantity: destInv.quantity + qty } as any).eq("id", destInv.id);
@@ -166,7 +163,6 @@ export default function InventoryPage() {
       await supabase.from("center_inventory").insert({ center_id: transferTo, product_id: transferProduct, quantity: qty } as any);
     }
 
-    // Record transfer
     await supabase.from("inventory_transfers").insert({
       from_center_id: transferFrom,
       to_center_id: transferTo,
@@ -224,7 +220,7 @@ export default function InventoryPage() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className="w-full justify-start">
           <TabsTrigger value="overview">סקירה כללית</TabsTrigger>
           <TabsTrigger value="flow">זרימת מלאי</TabsTrigger>
           <TabsTrigger value="details">פירוט מלאי</TabsTrigger>
@@ -252,14 +248,18 @@ export default function InventoryPage() {
                       <User className="h-3.5 w-3.5 text-muted-foreground" />
                       <span>{ct.name}</span>
                       {ct.role && <span className="text-muted-foreground">({ct.role})</span>}
-                      {ct.phone && <span className="text-muted-foreground">{ct.phone}</span>}
+                      {ct.phone && (
+                        <a href={`tel:${ct.phone}`} className="text-primary hover:underline flex items-center gap-1" dir="ltr">
+                          <Phone className="h-3 w-3" />{ct.phone}
+                        </a>
+                      )}
                     </div>
                   ))}
                   <Button size="sm" variant="ghost" onClick={() => { setAddContactCenterId(mainCenter.id); setShowAddContact(true); }}>
                     <Plus className="h-3 w-3 ml-1" /> איש קשר
                   </Button>
                 </div>
-                <p className="text-sm text-muted-foreground">סה"כ יחידות: <strong className="text-foreground">{getTotalQty(mainCenter.id)}</strong></p>
+                <p className="text-sm text-muted-foreground">סה״כ יחידות: <strong className="text-foreground">{getTotalQty(mainCenter.id)}</strong></p>
               </CardContent>
             </Card>
           )}
@@ -287,7 +287,7 @@ export default function InventoryPage() {
                       <span className="font-medium">{ct.name}</span>
                       {ct.role && <span className="text-muted-foreground">· {ct.role}</span>}
                       {ct.phone && (
-                        <a href={`tel:${ct.phone}`} className="text-primary hover:underline flex items-center gap-1 mr-auto">
+                        <a href={`tel:${ct.phone}`} className="text-primary hover:underline flex items-center gap-1 mr-auto" dir="ltr">
                           <Phone className="h-3 w-3" />{ct.phone}
                         </a>
                       )}
@@ -297,7 +297,7 @@ export default function InventoryPage() {
                     <Plus className="h-3 w-3 ml-1" /> איש קשר
                   </Button>
                   <div className="pt-2 border-t">
-                    <p className="text-xs text-muted-foreground">סה"כ יחידות: <strong className="text-foreground">{getTotalQty(center.id)}</strong></p>
+                    <p className="text-xs text-muted-foreground">סה״כ יחידות: <strong className="text-foreground">{getTotalQty(center.id)}</strong></p>
                   </div>
                 </CardContent>
               </Card>
@@ -317,62 +317,64 @@ export default function InventoryPage() {
             ))}
           </div>
           <Card>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>מוצר</TableHead>
-                  <TableHead>SKU</TableHead>
-                  {(selectedCenter ? [centers.find(c => c.id === selectedCenter)!] : centers).map(c => (
-                    <TableHead key={c.id} className="text-center">
-                      <div>{c.name}</div>
-                      <div className="text-[10px] text-muted-foreground font-normal">כמות / מינימום</div>
-                    </TableHead>
-                  ))}
-                  <TableHead className="text-center">סה"כ</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {products.map(p => {
-                  const displayCenters = selectedCenter ? [centers.find(c => c.id === selectedCenter)!] : centers;
-                  const totalForProduct = displayCenters.reduce((sum, c) => {
-                    const inv = inventory.find(i => i.center_id === c.id && i.product_id === p.id);
-                    return sum + (inv?.quantity || 0);
-                  }, 0);
-                  return (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-medium">{p.name}</TableCell>
-                      <TableCell className="text-muted-foreground text-xs">{p.sku}</TableCell>
-                      {displayCenters.map(c => {
-                        const inv = inventory.find(i => i.center_id === c.id && i.product_id === p.id);
-                        const isLow = inv && inv.min_stock > 0 && inv.quantity < inv.min_stock;
-                        return (
-                          <TableCell key={c.id} className="text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <Input
-                                type="number" min={0}
-                                value={inv?.quantity ?? 0}
-                                onChange={e => handleUpdateInventory(c.id, p.id, parseInt(e.target.value) || 0)}
-                                className={`w-16 h-7 text-center text-sm ${isLow ? "border-destructive bg-destructive/5" : ""}`}
-                              />
-                              <span className="text-muted-foreground text-xs">/</span>
-                              <Input
-                                type="number" min={0}
-                                value={inv?.min_stock ?? 0}
-                                onChange={e => handleUpdateMinStock(c.id, p.id, parseInt(e.target.value) || 0)}
-                                className="w-14 h-7 text-center text-xs text-muted-foreground"
-                                title="סף מינימום"
-                              />
-                              {isLow && <AlertTriangle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />}
-                            </div>
-                          </TableCell>
-                        );
-                      })}
-                      <TableCell className="text-center font-bold">{totalForProduct}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-right">מוצר</TableHead>
+                    <TableHead className="text-right">SKU</TableHead>
+                    {(selectedCenter ? [centers.find(c => c.id === selectedCenter)!] : centers).map(c => (
+                      <TableHead key={c.id} className="text-center min-w-[140px]">
+                        <div>{c.name}</div>
+                        <div className="text-[10px] text-muted-foreground font-normal">כמות / מינימום</div>
+                      </TableHead>
+                    ))}
+                    <TableHead className="text-center">סה״כ</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {products.map(p => {
+                    const displayCenters = selectedCenter ? [centers.find(c => c.id === selectedCenter)!] : centers;
+                    const totalForProduct = displayCenters.reduce((sum, c) => {
+                      const inv = inventory.find(i => i.center_id === c.id && i.product_id === p.id);
+                      return sum + (inv?.quantity || 0);
+                    }, 0);
+                    return (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-medium text-right">{p.name}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs text-right" dir="ltr">{p.sku}</TableCell>
+                        {displayCenters.map(c => {
+                          const inv = inventory.find(i => i.center_id === c.id && i.product_id === p.id);
+                          const isLow = inv && inv.min_stock > 0 && inv.quantity < inv.min_stock;
+                          return (
+                            <TableCell key={c.id} className="text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <Input
+                                  type="number" min={0}
+                                  value={inv?.quantity ?? 0}
+                                  onChange={e => handleUpdateInventory(c.id, p.id, parseInt(e.target.value) || 0)}
+                                  className={`w-16 h-7 text-center text-sm ${isLow ? "border-destructive bg-destructive/5" : ""}`}
+                                />
+                                <span className="text-muted-foreground text-xs">/</span>
+                                <Input
+                                  type="number" min={0}
+                                  value={inv?.min_stock ?? 0}
+                                  onChange={e => handleUpdateMinStock(c.id, p.id, parseInt(e.target.value) || 0)}
+                                  className="w-14 h-7 text-center text-xs text-muted-foreground"
+                                  title="סף מינימום"
+                                />
+                                {isLow && <AlertTriangle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />}
+                              </div>
+                            </TableCell>
+                          );
+                        })}
+                        <TableCell className="text-center font-bold">{totalForProduct}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           </Card>
         </TabsContent>
 
@@ -388,32 +390,36 @@ export default function InventoryPage() {
               {transfers.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">אין העברות מלאי עדיין</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>תאריך</TableHead>
-                      <TableHead>מוצר</TableHead>
-                      <TableHead>ממרכז</TableHead>
-                      <TableHead>למרכז</TableHead>
-                      <TableHead className="text-center">כמות</TableHead>
-                      <TableHead>בוצע ע"י</TableHead>
-                      <TableHead>הערות</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {transfers.map(t => (
-                      <TableRow key={t.id}>
-                        <TableCell className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString("he-IL")} {new Date(t.created_at).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}</TableCell>
-                        <TableCell className="font-medium">{getProductName(t.product_id)}</TableCell>
-                        <TableCell>{getCenterName(t.from_center_id)}</TableCell>
-                        <TableCell>{getCenterName(t.to_center_id)}</TableCell>
-                        <TableCell className="text-center font-bold">{t.quantity}</TableCell>
-                        <TableCell className="text-muted-foreground text-xs">{t.transferred_by || "—"}</TableCell>
-                        <TableCell className="text-muted-foreground text-xs">{t.notes || "—"}</TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-right">תאריך</TableHead>
+                        <TableHead className="text-right">מוצר</TableHead>
+                        <TableHead className="text-right">ממרכז</TableHead>
+                        <TableHead className="text-right">למרכז</TableHead>
+                        <TableHead className="text-center">כמות</TableHead>
+                        <TableHead className="text-right">בוצע ע״י</TableHead>
+                        <TableHead className="text-right">הערות</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {transfers.map(t => (
+                        <TableRow key={t.id}>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                            {new Date(t.created_at).toLocaleDateString("he-IL")} {new Date(t.created_at).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                          </TableCell>
+                          <TableCell className="font-medium">{getProductName(t.product_id)}</TableCell>
+                          <TableCell>{getCenterName(t.from_center_id)}</TableCell>
+                          <TableCell>{getCenterName(t.to_center_id)}</TableCell>
+                          <TableCell className="text-center font-bold">{t.quantity}</TableCell>
+                          <TableCell className="text-muted-foreground text-xs">{t.transferred_by || "—"}</TableCell>
+                          <TableCell className="text-muted-foreground text-xs">{t.notes || "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -425,10 +431,19 @@ export default function InventoryPage() {
         <DialogContent dir="rtl">
           <DialogHeader><DialogTitle>הוסף מרכז הפצה</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <Input placeholder="שם המרכז" value={newCenterName} onChange={e => setNewCenterName(e.target.value)} />
-            <Input placeholder="עיר (אופציונלי)" value={newCenterCity} onChange={e => setNewCenterCity(e.target.value)} />
+            <div className="space-y-1">
+              <Label className="text-xs">שם המרכז</Label>
+              <Input value={newCenterName} onChange={e => setNewCenterName(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">עיר (אופציונלי)</Label>
+              <Input value={newCenterCity} onChange={e => setNewCenterCity(e.target.value)} />
+            </div>
           </div>
-          <DialogFooter><Button onClick={handleAddCenter}>הוסף</Button></DialogFooter>
+          <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
+            <Button onClick={handleAddCenter} disabled={!newCenterName.trim()}>הוסף</Button>
+            <Button variant="outline" onClick={() => setShowAddCenter(false)}>ביטול</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -437,11 +452,23 @@ export default function InventoryPage() {
         <DialogContent dir="rtl">
           <DialogHeader><DialogTitle>הוסף איש קשר</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <Input placeholder="שם" value={newContactName} onChange={e => setNewContactName(e.target.value)} />
-            <Input placeholder="תפקיד" value={newContactRole} onChange={e => setNewContactRole(e.target.value)} />
-            <Input placeholder="טלפון" value={newContactPhone} onChange={e => setNewContactPhone(e.target.value)} />
+            <div className="space-y-1">
+              <Label className="text-xs">שם</Label>
+              <Input value={newContactName} onChange={e => setNewContactName(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">תפקיד</Label>
+              <Input value={newContactRole} onChange={e => setNewContactRole(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">טלפון</Label>
+              <Input value={newContactPhone} onChange={e => setNewContactPhone(e.target.value)} dir="ltr" />
+            </div>
           </div>
-          <DialogFooter><Button onClick={handleAddContact}>הוסף</Button></DialogFooter>
+          <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
+            <Button onClick={handleAddContact} disabled={!newContactName.trim()}>הוסף</Button>
+            <Button variant="outline" onClick={() => setShowAddContact(false)}>ביטול</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -473,15 +500,16 @@ export default function InventoryPage() {
             </div>
             <div className="space-y-1">
               <Label className="text-xs">כמות</Label>
-              <Input type="number" min={1} value={transferQty} onChange={e => setTransferQty(e.target.value)} />
+              <Input type="number" min={1} value={transferQty} onChange={e => setTransferQty(e.target.value)} dir="ltr" />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">הערות</Label>
               <Textarea value={transferNotes} onChange={e => setTransferNotes(e.target.value)} rows={2} />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
             <Button onClick={handleTransfer} disabled={!transferFrom || !transferTo || !transferProduct || !transferQty}>העבר</Button>
+            <Button variant="outline" onClick={() => setShowTransfer(false)}>ביטול</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -497,7 +525,8 @@ function FlowVisualization({ mainCenter, bondedCenters, inventory, products }: {
   const mainQty = inventory.filter(i => i.center_id === mainCenter.id).reduce((s, i) => s + i.quantity, 0);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" dir="rtl">
+      {/* Incoming orders → Main center */}
       <div className="flex flex-col items-center gap-4">
         <Card className="w-64 text-center border-dashed border-2 border-muted-foreground/30">
           <CardContent className="py-4">
@@ -516,29 +545,28 @@ function FlowVisualization({ mainCenter, bondedCenters, inventory, products }: {
         </Card>
         <ArrowDown className="h-8 w-8 text-muted-foreground" />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+      {/* Bonded centers */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {bondedCenters.map(center => {
           const centerQty = inventory.filter(i => i.center_id === center.id).reduce((s, i) => s + i.quantity, 0);
           const productCount = inventory.filter(i => i.center_id === center.id && i.quantity > 0).length;
           const lowCount = inventory.filter(i => i.center_id === center.id && i.min_stock > 0 && i.quantity < i.min_stock).length;
           return (
-            <div key={center.id} className="flex flex-col items-center gap-2">
-              <ArrowRight className="h-5 w-5 text-muted-foreground" />
-              <Card className={`w-full text-center hover:shadow-md transition-shadow ${lowCount > 0 ? "border-destructive/40" : ""}`}>
-                <CardContent className="py-4">
-                  <Warehouse className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
-                  <p className="font-semibold text-sm">{center.name}</p>
-                  <p className="text-xl font-bold text-foreground mt-1">{centerQty}</p>
-                  <p className="text-xs text-muted-foreground">{productCount} מוצרים</p>
-                  {lowCount > 0 && (
-                    <div className="flex items-center justify-center gap-1 mt-1">
-                      <AlertTriangle className="h-3 w-3 text-destructive" />
-                      <span className="text-xs text-destructive">{lowCount} מתחת למינימום</span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            <Card key={center.id} className={`text-center hover:shadow-md transition-shadow ${lowCount > 0 ? "border-destructive/40" : ""}`}>
+              <CardContent className="py-4">
+                <Warehouse className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
+                <p className="font-semibold text-sm">{center.name}</p>
+                <p className="text-xl font-bold text-foreground mt-1">{centerQty}</p>
+                <p className="text-xs text-muted-foreground">{productCount} מוצרים</p>
+                {lowCount > 0 && (
+                  <div className="flex items-center justify-center gap-1 mt-1">
+                    <AlertTriangle className="h-3 w-3 text-destructive" />
+                    <span className="text-xs text-destructive">{lowCount} מתחת למינימום</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           );
         })}
       </div>
