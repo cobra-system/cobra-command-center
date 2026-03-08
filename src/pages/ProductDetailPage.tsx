@@ -55,7 +55,7 @@ export default function ProductDetailPage() {
     toast.success("עודכן");
   };
 
-  const details: { label: string; field: string; value: string | number | undefined | null; isSupplierLink?: boolean; options?: { value: string; label: string }[] }[] = [
+  const details: { label: string; field: string; value: string | number | undefined | null; isSupplierLink?: boolean; options?: { value: string; label: string }[]; multiSelect?: boolean }[] = [
     { label: "קטגוריה", field: "category", value: product.category, options: categoryOptions },
     { label: "חטיבות", field: "division", value: product.division, options: divisionOptions },
     { label: "מק״ט", field: "sku", value: product.sku },
