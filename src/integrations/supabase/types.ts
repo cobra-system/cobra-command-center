@@ -14,16 +14,374 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      order_items: {
+        Row: {
+          id: string
+          name: string
+          order_id: string
+          price: number | null
+          product_id: string | null
+          qty: number
+        }
+        Insert: {
+          id?: string
+          name: string
+          order_id: string
+          price?: number | null
+          product_id?: string | null
+          qty: number
+        }
+        Update: {
+          id?: string
+          name?: string
+          order_id?: string
+          price?: number | null
+          product_id?: string | null
+          qty?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          contact_name: string | null
+          created_at: string
+          eta: string | null
+          etd: string | null
+          id: string
+          notes: string | null
+          order_date: string | null
+          payment_date: string | null
+          priority: string
+          shipping: string | null
+          status: string
+          supplier_id: string | null
+          supplier_name: string | null
+          total_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          contact_name?: string | null
+          created_at?: string
+          eta?: string | null
+          etd?: string | null
+          id?: string
+          notes?: string | null
+          order_date?: string | null
+          payment_date?: string | null
+          priority?: string
+          shipping?: string | null
+          status?: string
+          supplier_id?: string | null
+          supplier_name?: string | null
+          total_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          contact_name?: string | null
+          created_at?: string
+          eta?: string | null
+          etd?: string | null
+          id?: string
+          notes?: string | null
+          order_date?: string | null
+          payment_date?: string | null
+          priority?: string
+          shipping?: string | null
+          status?: string
+          supplier_id?: string | null
+          supplier_name?: string | null
+          total_price?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_components: {
+        Row: {
+          id: string
+          name: string
+          notes: string | null
+          origin: string | null
+          price: number | null
+          product_id: string
+          sku: string | null
+          stock_qty: number | null
+          supplier: string | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          notes?: string | null
+          origin?: string | null
+          price?: number | null
+          product_id: string
+          sku?: string | null
+          stock_qty?: number | null
+          supplier?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          notes?: string | null
+          origin?: string | null
+          price?: number | null
+          product_id?: string
+          sku?: string | null
+          stock_qty?: number | null
+          supplier?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_components_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          division: string | null
+          id: string
+          incoming_qty: number
+          monthly_order: number | null
+          monthly_sales: number | null
+          name: string
+          notes: string | null
+          product_type: string
+          purchase_price: number | null
+          sale_price: number | null
+          shipping: string | null
+          sku: string
+          stock_qty: number
+          supplier: string | null
+          supplier_origin: string | null
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description?: string | null
+          division?: string | null
+          id?: string
+          incoming_qty?: number
+          monthly_order?: number | null
+          monthly_sales?: number | null
+          name: string
+          notes?: string | null
+          product_type: string
+          purchase_price?: number | null
+          sale_price?: number | null
+          shipping?: string | null
+          sku: string
+          stock_qty?: number
+          supplier?: string | null
+          supplier_origin?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          division?: string | null
+          id?: string
+          incoming_qty?: number
+          monthly_order?: number | null
+          monthly_sales?: number | null
+          name?: string
+          notes?: string | null
+          product_type?: string
+          purchase_price?: number | null
+          sale_price?: number | null
+          shipping?: string | null
+          sku?: string
+          stock_qty?: number
+          supplier?: string | null
+          supplier_origin?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          pin: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          name: string
+          pin?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          pin?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      suppliers: {
+        Row: {
+          company: string
+          contact_name: string
+          country: string | null
+          created_at: string
+          email: string | null
+          id: string
+          notes: string | null
+          phone: string | null
+          products: string | null
+          role: string | null
+        }
+        Insert: {
+          company: string
+          contact_name: string
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          products?: string | null
+          role?: string | null
+        }
+        Update: {
+          company?: string
+          contact_name?: string
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          products?: string | null
+          role?: string | null
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          assignee_id: string | null
+          assignee_name: string | null
+          created_at: string
+          deliverable: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          is_daily: boolean
+          milestone: string | null
+          notes: string | null
+          priority: string
+          start_date: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          assignee_name?: string | null
+          created_at?: string
+          deliverable?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          is_daily?: boolean
+          milestone?: string | null
+          notes?: string | null
+          priority?: string
+          start_date?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_id?: string | null
+          assignee_name?: string | null
+          created_at?: string
+          deliverable?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          is_daily?: boolean
+          milestone?: string | null
+          notes?: string | null
+          priority?: string
+          start_date?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_manager: { Args: never; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "MANAGER" | "WAREHOUSE_MANAGER" | "LOGISTICS" | "DRIVER"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +508,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["MANAGER", "WAREHOUSE_MANAGER", "LOGISTICS", "DRIVER"],
+    },
   },
 } as const
