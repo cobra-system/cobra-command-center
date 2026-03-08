@@ -408,6 +408,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshOrders]);
 
+  const updateOrder = useCallback(async (id: string, updates: Partial<Order>) => {
+    const { items, ...dbUpdates } = updates as any;
+    await supabase.from("orders").update(dbUpdates).eq("id", id);
+    await refreshOrders();
+  }, [refreshOrders]);
+
+  const deleteOrder = useCallback(async (id: string) => {
+    await supabase.from("order_items").delete().eq("order_id", id);
+    await supabase.from("orders").delete().eq("id", id);
+    await refreshOrders();
+  }, [refreshOrders]);
+
   const addTask = useCallback(async (task: Omit<Task, "id">) => {
     await supabase.from("tasks").insert(task);
     await refreshTasks();
