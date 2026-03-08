@@ -21,6 +21,7 @@ export default function ProductDetailPage() {
   // Hooks must be before any early return
   const categoryOptions = useMemo(() => categories.filter(c => c !== "הכל").map(c => ({ value: c, label: c })), []);
   const supplierOptions = useMemo(() => suppliers.map(s => ({ value: s.company, label: s.company })), [suppliers]);
+  const divisionOptions = useMemo(() => divisions.map(d => ({ value: d, label: d })), []);
   const productTypeOptions = [{ value: "פשוט", label: "פשוט" }, { value: "מורכב", label: "מורכב" }];
   const shippingOptions = [
     { value: "ים", label: "ים" }, { value: "אוויר", label: "אוויר" },
