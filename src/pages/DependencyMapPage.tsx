@@ -76,16 +76,16 @@ export default function DependencyMapPage() {
       if (p.components) {
         p.components.forEach(c => {
           if (c.supplier && c.supplier !== supplierName) {
-            const compSupplier = supplierMap.get(c.supplier);
+            const compSupplier = supplierMap[c.supplier];
             if (compSupplier) {
               if (!compSupplier.products.includes(p.name)) compSupplier.products.push(p.name);
             } else {
               const sr = suppliers.find(s => s.company === c.supplier);
-              supplierMap.set(c.supplier, {
+              supplierMap[c.supplier] = {
                 company: c.supplier,
                 products: [p.name],
                 risk: sr?.risk_level || "",
-              });
+              };
             }
           }
         });
