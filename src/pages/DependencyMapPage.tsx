@@ -55,7 +55,7 @@ export default function DependencyMapPage() {
   const { products, suppliers, loading } = useData();
 
   const treeData = useMemo(() => {
-    const supplierMap = new Map<string, { company: string; products: string[]; risk: string }>();
+    const supplierMap: Record<string, { company: string; products: string[]; risk: string }> = {};
 
     products.forEach(p => {
       if (!p.supplier) return;
