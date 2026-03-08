@@ -45,15 +45,24 @@ export default function ProductDetailPage() {
     toast.success("עודכן");
   };
 
-  const details: { label: string; field: string; value: string | number | undefined | null; isSupplierLink?: boolean }[] = [
-    { label: "קטגוריה", field: "category", value: product.category },
+  // Build options for predefined fields
+  const categoryOptions = useMemo(() => categories.filter(c => c !== "הכל").map(c => ({ value: c, label: c })), []);
+  const productTypeOptions = [{ value: "פשוט", label: "פשוט" }, { value: "מורכב", label: "מורכב" }];
+  const supplierOptions = useMemo(() => suppliers.map(s => ({ value: s.company, label: s.company })), [suppliers]);
+  const shippingOptions = [
+    { value: "ים", label: "ים" }, { value: "אוויר", label: "אוויר" },
+    { value: "יבשה", label: "יבשה" }, { value: "אקספרס", label: "אקספרס" },
+  ];
+
+  const details: { label: string; field: string; value: string | number | undefined | null; isSupplierLink?: boolean; options?: { value: string; label: string }[] }[] = [
+    { label: "קטגוריה", field: "category", value: product.category, options: categoryOptions },
     { label: "חטיבה", field: "division", value: product.division },
     { label: "מק״ט", field: "sku", value: product.sku },
-    { label: "סוג מוצר", field: "product_type", value: product.product_type },
+    { label: "סוג מוצר", field: "product_type", value: product.product_type, options: productTypeOptions },
     { label: "תיאור", field: "description", value: product.description },
-    { label: "ספק", field: "supplier", value: product.supplier, isSupplierLink: true },
+    { label: "ספק", field: "supplier", value: product.supplier, isSupplierLink: true, options: supplierOptions },
     { label: "מקור ספק", field: "supplier_origin", value: product.supplier_origin },
-    { label: "שיטת משלוח", field: "shipping", value: product.shipping },
+    { label: "שיטת משלוח", field: "shipping", value: product.shipping, options: shippingOptions },
     { label: "מחיר רכישה", field: "purchase_price", value: product.purchase_price },
     { label: "מחיר מכירה", field: "sale_price", value: product.sale_price },
     { label: "מכירות חודשיות", field: "monthly_sales", value: product.monthly_sales },
