@@ -112,7 +112,8 @@ export default function TasksPage() {
               <Button onClick={handleSubmit} disabled={!title.trim()} className="w-full">צור משימה</Button>
             </div>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
