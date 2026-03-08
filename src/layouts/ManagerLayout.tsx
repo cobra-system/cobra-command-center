@@ -14,6 +14,8 @@ import {
   X,
   Settings,
   BookOpen,
+  FileText,
+  CreditCard,
 } from "lucide-react";
 import { useState } from "react";
 
