@@ -328,7 +328,13 @@ export default function ProductDetailPage() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">ספק</Label>
-                <Input value={newComp.supplier} onChange={e => setNewComp(p => ({ ...p, supplier: e.target.value }))} />
+                <Select value={newComp.supplier || "__none__"} onValueChange={v => setNewComp(p => ({ ...p, supplier: v === "__none__" ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder="בחר ספק" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">ללא</SelectItem>
+                    {suppliers.map(s => <SelectItem key={s.id} value={s.company}>{s.company}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">מקור</Label>
