@@ -129,6 +129,8 @@ interface DataState {
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   addOrder: (order: Omit<Order, "id" | "items"> & { items: Omit<OrderItem, "id" | "order_id">[] }) => Promise<void>;
   addTask: (task: Omit<Task, "id">) => Promise<void>;
+  updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
   updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
   addProfile: (profile: { email: string; name: string; role: Role; pin?: string }) => Promise<void>;
   updateProfile: (id: string, updates: Partial<Profile>) => Promise<void>;
