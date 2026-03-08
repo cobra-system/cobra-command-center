@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useData, categories, type Product, type ProductComponent } from "@/contexts/AppContext";
+import { useData, categories, divisions, type Product, type ProductComponent } from "@/contexts/AppContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -165,8 +165,26 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct }: P
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>חטיבה</Label>
-              <Input value={form.division} onChange={e => setField("division", e.target.value)} />
+              <Label>חטיבות</Label>
+              <div className="flex flex-wrap gap-1 p-2 border rounded-md min-h-[36px]">
+                {divisions.map(d => {
+                  const current = (form.division || "").split(",").map(s => s.trim()).filter(Boolean);
+                  const selected = current.includes(d);
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => {
+                        const newVals = selected ? current.filter(v => v !== d) : [...current, d];
+                        setField("division", newVals.join(", "));
+                      }}
+                      className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${selected ? "bg-primary text-primary-foreground border-primary" : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"}`}
+                    >
+                      {d}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 

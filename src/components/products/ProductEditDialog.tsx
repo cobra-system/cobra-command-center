@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { type Product, categories } from "@/contexts/AppContext";
+import { type Product, categories, divisions } from "@/contexts/AppContext";
 import { supabase } from "@/integrations/supabase/client";
 
 const productCategories = categories.filter(c => c !== "הכל");
@@ -131,7 +131,28 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
                   </SelectContent>
                 </Select>
               </div>
-              {textField("division", "חטיבה")}
+              <div className="space-y-1">
+                <Label className="text-xs">חטיבות</Label>
+                <div className="flex flex-wrap gap-1 p-2 border rounded-md min-h-[36px]">
+                  {divisions.map(d => {
+                    const current = (fields.division || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+                    const selected = current.includes(d);
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => {
+                          const newVals = selected ? current.filter((v: string) => v !== d) : [...current, d];
+                          set("division", newVals.join(", "));
+                        }}
+                        className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${selected ? "bg-primary text-primary-foreground border-primary" : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"}`}
+                      >
+                        {d}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div className="space-y-1">
                 <Label className="text-xs">סוג מוצר</Label>
                 <Select value={fields.product_type || ""} onValueChange={v => set("product_type", v)}>

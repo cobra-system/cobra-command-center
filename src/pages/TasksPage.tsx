@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useData, useAuth, type TaskStatus, type Priority, type Task } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -44,6 +45,15 @@ export default function TasksPage() {
   const [search, setSearch] = useState("");
   const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [searchParams] = useSearchParams();
+  const highlightId = searchParams.get("highlight");
+  const highlightRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (highlightId && highlightRef.current) {
+      highlightRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [highlightId]);
 
   // Include current user (manager) + all non-manager employees for assignment
   const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
@@ -211,7 +221,11 @@ export default function TasksPage() {
               </div>
               <div className="space-y-2 min-h-[200px]">
                 {colTasks.map(task => (
-                  <div key={task.id} className="bg-card rounded-lg border p-3 shadow-sm space-y-2 group">
+                  <div
+                    key={task.id}
+                    ref={task.id === highlightId ? highlightRef : undefined}
+                    className={`bg-card rounded-lg border p-3 shadow-sm space-y-2 group transition-all ${task.id === highlightId ? "ring-2 ring-primary" : ""}`}
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-medium text-foreground leading-tight">{task.title}</p>
                       <div className="flex items-center gap-1 shrink-0">

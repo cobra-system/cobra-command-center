@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
-import { useData, useAuth, categories, type Priority, type OrderStatus } from "@/contexts/AppContext";
+import { useData, useAuth, categories, divisions, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ export default function ProductDetailPage() {
   // Hooks must be before any early return
   const categoryOptions = useMemo(() => categories.filter(c => c !== "הכל").map(c => ({ value: c, label: c })), []);
   const supplierOptions = useMemo(() => suppliers.map(s => ({ value: s.company, label: s.company })), [suppliers]);
+  const divisionOptions = useMemo(() => divisions.map(d => ({ value: d, label: d })), []);
   const productTypeOptions = [{ value: "פשוט", label: "פשוט" }, { value: "מורכב", label: "מורכב" }];
   const shippingOptions = [
     { value: "ים", label: "ים" }, { value: "אוויר", label: "אוויר" },
@@ -54,9 +55,9 @@ export default function ProductDetailPage() {
     toast.success("עודכן");
   };
 
-  const details: { label: string; field: string; value: string | number | undefined | null; isSupplierLink?: boolean; options?: { value: string; label: string }[] }[] = [
+  const details: { label: string; field: string; value: string | number | undefined | null; isSupplierLink?: boolean; options?: { value: string; label: string }[]; multiSelect?: boolean }[] = [
     { label: "קטגוריה", field: "category", value: product.category, options: categoryOptions },
-    { label: "חטיבה", field: "division", value: product.division },
+    { label: "חטיבות", field: "division", value: product.division, options: divisionOptions, multiSelect: true },
     { label: "מק״ט", field: "sku", value: product.sku },
     { label: "סוג מוצר", field: "product_type", value: product.product_type, options: productTypeOptions },
     { label: "תיאור", field: "description", value: product.description },
@@ -121,6 +122,7 @@ export default function ProductDetailPage() {
                 onSave={(v) => handleInlineSave(d.field, v)}
                 disabled={!isManager}
                 options={d.options}
+                multiSelect={d.multiSelect}
               />
             );
           })}
