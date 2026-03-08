@@ -29,6 +29,7 @@ interface DataState {
   updateTaskStatus: (taskId: string, status: TaskStatus) => void;
   addTaskNote: (taskId: string, note: string) => void;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  addOrder: (order: Order) => void;
   addTask: (task: Task) => void;
   updateProduct: (id: string, updates: Partial<Product>) => void;
   addUser: (user: User) => void;
@@ -91,6 +92,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
   }, []);
 
+  const addOrder = useCallback((order: Order) => {
+    setOrders(prev => [...prev, order]);
+  }, []);
+
   const addTask = useCallback((task: Task) => {
     setTasks(prev => [...prev, task]);
   }, []);
@@ -118,6 +123,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateTaskStatus,
         addTaskNote,
         updateOrderStatus,
+        addOrder,
         addTask,
         updateProduct,
         addUser,
