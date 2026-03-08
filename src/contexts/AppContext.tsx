@@ -216,7 +216,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Fetch profile for a user
   const fetchProfile = useCallback(async (userId: string): Promise<Profile | null> => {
-    const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
+    const { data } = await supabase.from("profiles").select("id, name, role, created_at, updated_at").eq("id", userId).single();
     return data as Profile | null;
   }, []);
 
