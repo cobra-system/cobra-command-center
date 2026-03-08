@@ -31,6 +31,7 @@ const defaultNavItems = [
   { to: "/reorder", icon: "CalendarClock", label: "תכנון רכש" },
   { to: "/reports", icon: "BarChart3", label: "דוחות" },
   { to: "/settings", icon: "Settings", label: "הגדרות" },
+  { to: "/sap", icon: "Server", label: "SAP B1" },
 ];
 
 const iconMap: Record<string, any> = {
