@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Plus } from "lucide-react";
+import { CalendarIcon, Plus, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 const columns: { status: TaskStatus; label: string; bgClass: string }[] = [
   { status: "TODO", label: "לביצוע", bgClass: "bg-[hsl(var(--todo))]" },
