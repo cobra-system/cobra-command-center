@@ -115,7 +115,7 @@ export default function ManagerLayout() {
       {/* Sidebar */}
       <aside className={`fixed lg:static inset-y-0 right-0 z-50 w-64 bg-sidebar text-sidebar-foreground flex flex-col transition-transform lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}`}>
         <div className="p-5 flex items-center justify-between">
-          <img src={cobraLogo} alt="COBRA.IO" className="h-10 brightness-0 invert" />
+          <img src={cobraLogo} alt="COBRA.IO" className="h-10 brightness-0 invert cursor-pointer" onClick={() => { navigate("/dashboard"); window.location.reload(); }} />
           <button className="lg:hidden text-sidebar-foreground" onClick={() => setSidebarOpen(false)}>
             <X className="h-5 w-5" />
           </button>
