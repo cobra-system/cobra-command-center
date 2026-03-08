@@ -78,10 +78,9 @@ export default function ManagerLayout() {
             >
               <item.icon className="h-5 w-5" />
               <span>{item.label}</span>
-              {item.to === "/tasks" && p0Count > 0 && (
-                <span className="mr-auto flex items-center gap-1 bg-destructive text-destructive-foreground text-xs px-2 py-0.5 rounded-full">
-                  <AlertTriangle className="h-3 w-3" />
-                  {p0Count}
+              {item.to === "/tasks" && pendingCount > 0 && (
+                <span className="mr-auto flex items-center gap-1 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
+                  {pendingCount}
                 </span>
               )}
             </NavLink>
