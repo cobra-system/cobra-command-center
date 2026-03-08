@@ -14,6 +14,7 @@ import OrdersPage from "@/pages/OrdersPage";
 import SuppliersPage from "@/pages/SuppliersPage";
 import TasksPage from "@/pages/TasksPage";
 import TeamPage from "@/pages/TeamPage";
+import SettingsPage from "@/pages/SettingsPage";
 import MyTasksPage from "@/pages/MyTasksPage";
 import MyTaskDetailPage from "@/pages/MyTaskDetailPage";
 import NotFound from "@/pages/NotFound";
@@ -54,6 +55,7 @@ function AppRoutes() {
         <Route path="/suppliers" element={<SuppliersPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/team" element={<TeamPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
       </Route>
 
       <Route element={<RequireAuth />}>

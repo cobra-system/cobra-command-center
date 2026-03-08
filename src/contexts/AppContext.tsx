@@ -129,6 +129,8 @@ interface DataState {
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   addOrder: (order: Omit<Order, "id" | "items"> & { items: Omit<OrderItem, "id" | "order_id">[] }) => Promise<void>;
   addTask: (task: Omit<Task, "id">) => Promise<void>;
+  updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
   updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
   addProfile: (profile: { email: string; name: string; role: Role; pin?: string }) => Promise<void>;
   updateProfile: (id: string, updates: Partial<Profile>) => Promise<void>;
@@ -335,6 +337,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await refreshTasks();
   }, [refreshTasks]);
 
+  const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+    await supabase.from("tasks").update(updates).eq("id", id);
+  }, []);
+
+  const deleteTask = useCallback(async (id: string) => {
+    setTasks(prev => prev.filter(t => t.id !== id));
+    await supabase.from("tasks").delete().eq("id", id);
+  }, []);
+
   const updateProduct = useCallback(async (id: string, updates: Partial<Product>) => {
     const { components, ...dbUpdates } = updates as any;
     await supabase.from("products").update(dbUpdates).eq("id", id);
@@ -403,6 +415,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateOrderStatus,
         addOrder,
         addTask,
+        updateTask,
+        deleteTask,
         updateProduct,
         addProfile,
         updateProfile,

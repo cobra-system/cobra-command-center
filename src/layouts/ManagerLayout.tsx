@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Menu,
   X,
+  Settings,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -22,6 +23,7 @@ const navItems = [
   { to: "/suppliers", icon: Truck, label: "ספקים" },
   { to: "/tasks", icon: ListTodo, label: "משימות" },
   { to: "/team", icon: Users, label: "צוות" },
+  { to: "/settings", icon: Settings, label: "הגדרות" },
 ];
 
 export default function ManagerLayout() {

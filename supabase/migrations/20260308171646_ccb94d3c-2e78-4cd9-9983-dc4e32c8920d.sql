@@ -1,0 +1,1 @@
+CREATE POLICY "Managers can delete tasks" ON public.tasks FOR DELETE USING (is_manager());
