@@ -16,21 +16,20 @@ import TeamPage from "@/pages/TeamPage";
 import MyTasksPage from "@/pages/MyTasksPage";
 import MyTaskDetailPage from "@/pages/MyTaskDetailPage";
 import NotFound from "@/pages/NotFound";
-import type { ReactNode } from "react";
 
 const queryClient = new QueryClient();
 
-function ProtectedManager({ children }: { children: ReactNode }) {
+function RequireManager() {
   const { currentUser } = useAuth();
   if (!currentUser) return <Navigate to="/login" replace />;
   if (currentUser.role !== "MANAGER") return <Navigate to="/my-tasks" replace />;
-  return <>{children}</>;
+  return <ManagerLayout />;
 }
 
-function ProtectedEmployee({ children }: { children: ReactNode }) {
+function RequireAuth() {
   const { currentUser } = useAuth();
   if (!currentUser) return <Navigate to="/login" replace />;
-  return <>{children}</>;
+  return <EmployeeLayout />;
 }
 
 function RootRedirect() {
@@ -40,6 +39,31 @@ function RootRedirect() {
   return <Navigate to="/my-tasks" replace />;
 }
 
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<RootRedirect />} />
+      <Route path="/login" element={<LoginPage />} />
+
+      <Route element={<RequireManager />}>
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/products" element={<ProductsPage />} />
+        <Route path="/orders" element={<OrdersPage />} />
+        <Route path="/suppliers" element={<SuppliersPage />} />
+        <Route path="/tasks" element={<TasksPage />} />
+        <Route path="/team" element={<TeamPage />} />
+      </Route>
+
+      <Route element={<RequireAuth />}>
+        <Route path="/my-tasks" element={<MyTasksPage />} />
+        <Route path="/my-tasks/:id" element={<MyTaskDetailPage />} />
+      </Route>
+
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -47,28 +71,7 @@ const App = () => (
       <Sonner />
       <AppProvider>
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<RootRedirect />} />
-            <Route path="/login" element={<LoginPage />} />
-
-            {/* Manager routes */}
-            <Route element={<ProtectedManager><ManagerLayout /></ProtectedManager>}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/products" element={<ProductsPage />} />
-              <Route path="/orders" element={<OrdersPage />} />
-              <Route path="/suppliers" element={<SuppliersPage />} />
-              <Route path="/tasks" element={<TasksPage />} />
-              <Route path="/team" element={<TeamPage />} />
-            </Route>
-
-            {/* Employee routes */}
-            <Route element={<ProtectedEmployee><EmployeeLayout /></ProtectedEmployee>}>
-              <Route path="/my-tasks" element={<MyTasksPage />} />
-              <Route path="/my-tasks/:id" element={<MyTaskDetailPage />} />
-            </Route>
-
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <AppRoutes />
         </BrowserRouter>
       </AppProvider>
     </TooltipProvider>
