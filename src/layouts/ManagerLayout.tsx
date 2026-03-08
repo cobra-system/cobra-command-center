@@ -15,6 +15,7 @@ import {
   BarChart3,
   Warehouse,
   GripVertical,
+  Server,
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import cobraLogo from "@/assets/cobra-logo.png";
@@ -30,11 +31,12 @@ const defaultNavItems = [
   { to: "/reorder", icon: "CalendarClock", label: "תכנון רכש" },
   { to: "/reports", icon: "BarChart3", label: "דוחות" },
   { to: "/settings", icon: "Settings", label: "הגדרות" },
+  { to: "/sap", icon: "Server", label: "SAP B1" },
 ];
 
 const iconMap: Record<string, any> = {
   LayoutDashboard, Package, ShoppingCart, Truck, ListTodo,
-  Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical,
+  Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical, Server,
 };
 
 const NAV_ORDER_KEY = "cobra-nav-order";
