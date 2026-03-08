@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const roleOptions: { value: Role; label: string }[] = [
   { value: "WAREHOUSE_MANAGER", label: "מנהל מחסן" },
@@ -16,40 +17,114 @@ const roleOptions: { value: Role; label: string }[] = [
 
 export default function TeamPage() {
   const { currentUser } = useAuth();
-  const { profiles, createEmployee } = useData();
+  const { profiles, createEmployee, refreshProfiles } = useData();
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [role, setRole] = useState<Role>("DRIVER");
   const [pin, setPin] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-  const resetForm = () => { setName(""); setRole("DRIVER"); setPin(""); };
+  const isManager = currentUser?.role === "MANAGER";
+
+  const resetForm = () => { setName(""); setRole("DRIVER"); setPin(""); setEditingId(null); };
 
   const handleSubmit = async () => {
-    if (!name.trim() || !pin || pin.length !== 4) return;
+    if (!name.trim() || (!editingId && (!pin || pin.length !== 4))) return;
     setSubmitting(true);
-    const error = await createEmployee({ name: name.trim(), role, pin });
-    setSubmitting(false);
-    if (error) {
-      toast.error(error);
+
+    if (editingId) {
+      // Update via edge function
+      try {
+        const sess = await supabase.auth.getSession();
+        const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+        const res = await fetch(`https://${projectId}.supabase.co/functions/v1/manage-employee`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            "Authorization": `Bearer ${sess.data.session?.access_token}`,
+          },
+          body: JSON.stringify({
+            action: "update",
+            employee_id: editingId,
+            name: name.trim(),
+            role,
+            pin: pin.length === 4 ? pin : undefined,
+          }),
+        });
+        const result = await res.json();
+        if (!res.ok) {
+          toast.error(result.error || "שגיאה בעדכון");
+        } else {
+          toast.success("העובד עודכן בהצלחה");
+          await refreshProfiles();
+        }
+      } catch {
+        toast.error("שגיאה בחיבור לשרת");
+      }
     } else {
-      toast.success(`${name} נוסף בהצלחה`);
-      resetForm();
-      setOpen(false);
+      const error = await createEmployee({ name: name.trim(), role, pin });
+      if (error) {
+        toast.error(error);
+      } else {
+        toast.success(`${name} נוסף בהצלחה`);
+      }
     }
+
+    setSubmitting(false);
+    resetForm();
+    setOpen(false);
+  };
+
+  const handleEdit = (profile: { id: string; name: string; role: Role; pin?: string | null }) => {
+    setEditingId(profile.id);
+    setName(profile.name);
+    setRole(profile.role);
+    setPin("");
+    setOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    setSubmitting(true);
+    try {
+      const sess = await supabase.auth.getSession();
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/manage-employee`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          "Authorization": `Bearer ${sess.data.session?.access_token}`,
+        },
+        body: JSON.stringify({ action: "delete", employee_id: id }),
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        toast.error(result.error || "שגיאה במחיקה");
+      } else {
+        toast.success("העובד נמחק");
+        await refreshProfiles();
+      }
+    } catch {
+      toast.error("שגיאה בחיבור לשרת");
+    }
+    setSubmitting(false);
+    setDeleteConfirm(null);
   };
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">צוות</h1>
-        {currentUser?.role === "MANAGER" && (
+        {isManager && (
           <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 ml-2" />עובד חדש</Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
-              <DialogHeader><DialogTitle>הוספת עובד חדש</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{editingId ? "עריכת עובד" : "הוספת עובד חדש"}</DialogTitle></DialogHeader>
               <div className="space-y-4 pt-2">
                 <div className="space-y-2">
                   <Label>שם *</Label>
@@ -65,11 +140,11 @@ export default function TeamPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>קוד PIN (4 ספרות) *</Label>
+                  <Label>{editingId ? "קוד PIN חדש (אופציונלי)" : "קוד PIN (4 ספרות) *"}</Label>
                   <Input value={pin} onChange={e => { const v = e.target.value.replace(/\D/g, "").slice(0, 4); setPin(v); }} placeholder="1234" dir="ltr" maxLength={4} />
                 </div>
-                <Button onClick={handleSubmit} disabled={!name.trim() || pin.length !== 4 || submitting} className="w-full">
-                  {submitting ? "יוצר..." : "הוסף עובד"}
+                <Button onClick={handleSubmit} disabled={!name.trim() || (!editingId && pin.length !== 4) || submitting} className="w-full">
+                  {submitting ? "שומר..." : editingId ? "עדכן עובד" : "הוסף עובד"}
                 </Button>
               </div>
             </DialogContent>
@@ -82,13 +157,39 @@ export default function TeamPage() {
             <th className="text-right p-3 font-semibold text-foreground">שם</th>
             <th className="text-right p-3 font-semibold text-foreground">תפקיד</th>
             <th className="text-right p-3 font-semibold text-foreground">PIN</th>
+            {isManager && <th className="text-right p-3 font-semibold text-foreground">פעולות</th>}
           </tr></thead>
           <tbody className="divide-y">
             {profiles.map(u => (
               <tr key={u.id}>
                 <td className="p-3 font-medium text-foreground">{u.name}</td>
                 <td className="p-3 text-muted-foreground">{roleLabel[u.role] || u.role}</td>
-                <td className="p-3 font-mono text-muted-foreground" dir="ltr">{currentUser?.role === "MANAGER" ? (u.pin || "—") : "••••"}</td>
+                <td className="p-3 font-mono text-muted-foreground" dir="ltr">{isManager ? (u.pin || "—") : "••••"}</td>
+                {isManager && (
+                  <td className="p-3">
+                    <div className="flex gap-1">
+                      {u.role !== "MANAGER" && (
+                        <>
+                          <Button variant="ghost" size="sm" onClick={() => handleEdit(u)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          {deleteConfirm === u.id ? (
+                            <div className="flex items-center gap-1">
+                              <Button variant="destructive" size="sm" onClick={() => handleDelete(u.id)} disabled={submitting}>
+                                {submitting ? "מוחק..." : "אישור"}
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => setDeleteConfirm(null)}>ביטול</Button>
+                            </div>
+                          ) : (
+                            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteConfirm(u.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
