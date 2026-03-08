@@ -142,6 +142,11 @@ interface DataState {
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
+  addProduct: (product: Omit<Product, "id" | "components">, components?: Omit<ProductComponent, "id" | "product_id">[]) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
+  addComponent: (component: Omit<ProductComponent, "id">) => Promise<void>;
+  updateComponent: (id: string, updates: Partial<ProductComponent>) => Promise<void>;
+  deleteComponent: (id: string) => Promise<void>;
   addProfile: (profile: { email: string; name: string; role: Role; pin?: string }) => Promise<void>;
   updateProfile: (id: string, updates: Partial<Profile>) => Promise<void>;
   resetDailyTasks: () => Promise<void>;
@@ -420,6 +425,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await refreshProducts();
   }, [refreshProducts]);
 
+  const addProduct = useCallback(async (product: Omit<Product, "id" | "components">, components?: Omit<ProductComponent, "id" | "product_id">[]) => {
+    const { data: newProd } = await supabase.from("products").insert(product as any).select("id").single();
+    if (newProd && components && components.length > 0) {
+      await supabase.from("product_components").insert(components.map(c => ({ ...c, product_id: newProd.id })));
+    }
+    await refreshProducts();
+  }, [refreshProducts]);
+
+  const deleteProduct = useCallback(async (id: string) => {
+    await supabase.from("product_components").delete().eq("product_id", id);
+    await supabase.from("products").delete().eq("id", id);
+    await refreshProducts();
+  }, [refreshProducts]);
+
+  const addComponent = useCallback(async (component: Omit<ProductComponent, "id">) => {
+    await supabase.from("product_components").insert(component);
+    await refreshProducts();
+  }, [refreshProducts]);
+
+  const updateComponent = useCallback(async (id: string, updates: Partial<ProductComponent>) => {
+    const { product_id, ...dbUpdates } = updates as any;
+    await supabase.from("product_components").update(dbUpdates).eq("id", id);
+    await refreshProducts();
+  }, [refreshProducts]);
+
+  const deleteComponent = useCallback(async (id: string) => {
+    await supabase.from("product_components").delete().eq("id", id);
+    await refreshProducts();
+  }, [refreshProducts]);
+
   const addProfile = useCallback(async (profile: { email: string; name: string; role: Role; pin?: string }) => {
     await refreshProfiles();
   }, [refreshProfiles]);
@@ -483,6 +518,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateTask,
         deleteTask,
         updateProduct,
+        addProduct,
+        deleteProduct,
+        addComponent,
+        updateComponent,
+        deleteComponent,
         addProfile,
         updateProfile,
         resetDailyTasks,
