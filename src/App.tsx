@@ -16,6 +16,8 @@ import TasksPage from "@/pages/TasksPage";
 import TeamPage from "@/pages/TeamPage";
 import SettingsPage from "@/pages/SettingsPage";
 import LearningJournalPage from "@/pages/LearningJournalPage";
+import DocumentsPage from "@/pages/DocumentsPage";
+import PaymentsPage from "@/pages/PaymentsPage";
 import MyTasksPage from "@/pages/MyTasksPage";
 import MyTaskDetailPage from "@/pages/MyTaskDetailPage";
 import NotFound from "@/pages/NotFound";
