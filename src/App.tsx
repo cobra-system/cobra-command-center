@@ -24,6 +24,7 @@ import ReorderPage from "@/pages/ReorderPage";
 import ReportsPage from "@/pages/ReportsPage";
 import MyTasksPage from "@/pages/MyTasksPage";
 import MyTaskDetailPage from "@/pages/MyTaskDetailPage";
+import InventoryPage from "@/pages/InventoryPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
