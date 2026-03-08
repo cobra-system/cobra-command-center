@@ -12,7 +12,7 @@ export default function LoginPage() {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { loginWithEmail, loginWithPin, loginWithGoogle } = useAuth();
+  const { loginWithEmail, loginWithPin } = useAuth();
   const navigate = useNavigate();
 
   const handleManagerLogin = async () => {
