@@ -123,12 +123,19 @@ interface AuthState {
   logout: () => Promise<void>;
 }
 
+export interface RoleDefinition {
+  id: string;
+  name: string;
+  system_key: string | null;
+}
+
 interface DataState {
   products: Product[];
   orders: Order[];
   tasks: Task[];
   suppliers: Supplier[];
   profiles: Profile[];
+  roleDefinitions: RoleDefinition[];
   loading: boolean;
   refreshProducts: () => Promise<void>;
   refreshOrders: () => Promise<void>;
