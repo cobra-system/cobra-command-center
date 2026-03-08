@@ -14,6 +14,113 @@ export type Database = {
   }
   public: {
     Tables: {
+      center_contacts: {
+        Row: {
+          center_id: string
+          created_at: string
+          id: string
+          name: string
+          phone: string | null
+          role: string | null
+        }
+        Insert: {
+          center_id: string
+          created_at?: string
+          id?: string
+          name: string
+          phone?: string | null
+          role?: string | null
+        }
+        Update: {
+          center_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          phone?: string | null
+          role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "center_contacts_center_id_fkey"
+            columns: ["center_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      center_inventory: {
+        Row: {
+          center_id: string
+          id: string
+          product_id: string
+          quantity: number
+          updated_at: string
+        }
+        Insert: {
+          center_id: string
+          id?: string
+          product_id: string
+          quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          center_id?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "center_inventory_center_id_fkey"
+            columns: ["center_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "center_inventory_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_centers: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string
+          id: string
+          is_main: boolean
+          name: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          id?: string
+          is_main?: boolean
+          name: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          id?: string
+          is_main?: boolean
+          name?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       learning_journal: {
         Row: {
           content: string
