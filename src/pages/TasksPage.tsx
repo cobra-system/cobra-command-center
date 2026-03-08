@@ -29,7 +29,7 @@ const priorityOptions: { value: Priority; label: string }[] = [
 ];
 
 export default function TasksPage() {
-  const { tasks, updateTaskStatus, addTask, profiles } = useData();
+  const { tasks, updateTaskStatus, addTask, profiles, resetDailyTasks } = useData();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
