@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { useData } from "@/contexts/AppContext";
+import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import type { OrderStatus, Priority } from "@/data/mockData";
-import { ChevronLeft, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,11 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
-const nextStatus: Partial<Record<OrderStatus, OrderStatus>> = {
+const nextStatus: Partial<Record<string, OrderStatus>> = {
   PENDING: "ORDERED",
   ORDERED: "SHIPPED",
   SHIPPED: "ARRIVED",
@@ -29,11 +27,7 @@ const priorities: { value: Priority; label: string }[] = [
   { value: "P3", label: "P3 — נמוך" },
 ];
 
-interface ItemRow {
-  name: string;
-  qty: string;
-  price: string;
-}
+interface ItemRow { name: string; qty: string; price: string; }
 
 export default function OrdersPage() {
   const { orders, updateOrderStatus, addOrder, suppliers, products } = useData();
@@ -46,49 +40,28 @@ export default function OrdersPage() {
   const [eta, setEta] = useState<Date>();
   const [items, setItems] = useState<ItemRow[]>([{ name: "", qty: "", price: "" }]);
 
-  const resetForm = () => {
-    setPriority("P2");
-    setSupplierId("");
-    setShipping("");
-    setNotes("");
-    setEtd(undefined);
-    setEta(undefined);
-    setItems([{ name: "", qty: "", price: "" }]);
-  };
-
-  const updateItem = (idx: number, field: keyof ItemRow, value: string) => {
-    setItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
-  };
-
+  const resetForm = () => { setPriority("P2"); setSupplierId(""); setShipping(""); setNotes(""); setEtd(undefined); setEta(undefined); setItems([{ name: "", qty: "", price: "" }]); };
+  const updateItem = (idx: number, field: keyof ItemRow, value: string) => setItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
   const addItemRow = () => setItems(prev => [...prev, { name: "", qty: "", price: "" }]);
   const removeItemRow = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const validItems = items.filter(i => i.name.trim() && Number(i.qty) > 0);
     if (validItems.length === 0) return;
-
     const supplier = suppliers.find(s => s.id === supplierId);
-    const orderId = `order-${Date.now()}`;
 
-    addOrder({
-      id: orderId,
+    await addOrder({
       priority,
-      supplierId: supplierId || undefined,
-      supplierName: supplier?.company || undefined,
+      supplier_id: supplierId || undefined,
+      supplier_name: supplier?.company || undefined,
       shipping: shipping || undefined,
       status: "PENDING",
-      orderDate: new Date().toISOString(),
+      order_date: new Date().toISOString(),
       etd: etd?.toISOString(),
       eta: eta?.toISOString(),
-      totalPrice: validItems.reduce((s, i) => s + (Number(i.price) || 0) * Number(i.qty), 0) || undefined,
+      total_price: validItems.reduce((s, i) => s + (Number(i.price) || 0) * Number(i.qty), 0) || undefined,
       notes: notes.trim() || undefined,
-      items: validItems.map((item, idx) => ({
-        id: `oi-${Date.now()}-${idx}`,
-        orderId,
-        name: item.name,
-        qty: Number(item.qty),
-        price: Number(item.price) || undefined,
-      })),
+      items: validItems.map(item => ({ name: item.name, qty: Number(item.qty), price: Number(item.price) || undefined })),
     });
     resetForm();
     setOpen(false);
@@ -116,95 +89,50 @@ export default function OrdersPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">הזמנות</h1>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-          <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 ml-2" />הזמנה חדשה</Button>
-          </DialogTrigger>
+          <DialogTrigger asChild><Button><Plus className="h-4 w-4 ml-2" />הזמנה חדשה</Button></DialogTrigger>
           <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>יצירת הזמנה חדשה</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>יצירת הזמנה חדשה</DialogTitle></DialogHeader>
             <div className="space-y-4 pt-2">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>עדיפות</Label>
                   <Select value={priority} onValueChange={v => setPriority(v as Priority)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {priorities.map(p => (
-                        <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                      ))}
-                    </SelectContent>
+                    <SelectContent>{priorities.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>ספק</Label>
                   <Select value={supplierId} onValueChange={setSupplierId}>
                     <SelectTrigger><SelectValue placeholder="בחר ספק" /></SelectTrigger>
-                    <SelectContent>
-                      {suppliers.map(s => (
-                        <SelectItem key={s.id} value={s.id}>{s.company} — {s.contactName}</SelectItem>
-                      ))}
-                    </SelectContent>
+                    <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.company} — {s.contact_name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <Label>שיטת משלוח</Label>
-                <Input value={shipping} onChange={e => setShipping(e.target.value)} placeholder="ימי / אווירי / יבשתי..." />
-              </div>
-
+              <div className="space-y-2"><Label>שיטת משלוח</Label><Input value={shipping} onChange={e => setShipping(e.target.value)} placeholder="ימי / אווירי / יבשתי..." /></div>
               <div className="grid grid-cols-2 gap-4">
                 <DateField label="ETD (תאריך יציאה)" value={etd} onChange={setEtd} />
                 <DateField label="ETA (תאריך הגעה)" value={eta} onChange={setEta} />
               </div>
-
-              {/* Items */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>מוצרים</Label>
-                  <Button type="button" variant="ghost" size="sm" onClick={addItemRow}>
-                    <Plus className="h-3 w-3 ml-1" />הוסף שורה
-                  </Button>
-                </div>
+                <div className="flex items-center justify-between"><Label>מוצרים</Label><Button type="button" variant="ghost" size="sm" onClick={addItemRow}><Plus className="h-3 w-3 ml-1" />הוסף שורה</Button></div>
                 {items.map((item, idx) => (
                   <div key={idx} className="flex gap-2 items-end">
                     <div className="flex-1">
                       {idx === 0 && <span className="text-xs text-muted-foreground">מוצר</span>}
                       <Select value={item.name} onValueChange={v => updateItem(idx, "name", v)}>
                         <SelectTrigger><SelectValue placeholder="בחר מוצר" /></SelectTrigger>
-                        <SelectContent>
-                          {products.map(p => (
-                            <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
-                          ))}
-                        </SelectContent>
+                        <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
-                    <div className="w-20">
-                      {idx === 0 && <span className="text-xs text-muted-foreground">כמות</span>}
-                      <Input type="number" value={item.qty} onChange={e => updateItem(idx, "qty", e.target.value)} placeholder="0" />
-                    </div>
-                    <div className="w-24">
-                      {idx === 0 && <span className="text-xs text-muted-foreground">מחיר</span>}
-                      <Input type="number" value={item.price} onChange={e => updateItem(idx, "price", e.target.value)} placeholder="$" />
-                    </div>
-                    {items.length > 1 && (
-                      <Button type="button" variant="ghost" size="icon" onClick={() => removeItemRow(idx)} className="shrink-0">
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    )}
+                    <div className="w-20">{idx === 0 && <span className="text-xs text-muted-foreground">כמות</span>}<Input type="number" value={item.qty} onChange={e => updateItem(idx, "qty", e.target.value)} placeholder="0" /></div>
+                    <div className="w-24">{idx === 0 && <span className="text-xs text-muted-foreground">מחיר</span>}<Input type="number" value={item.price} onChange={e => updateItem(idx, "price", e.target.value)} placeholder="$" /></div>
+                    {items.length > 1 && <Button type="button" variant="ghost" size="icon" onClick={() => removeItemRow(idx)} className="shrink-0"><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                   </div>
                 ))}
               </div>
-
-              <div className="space-y-2">
-                <Label>הערות</Label>
-                <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="הערות להזמנה..." rows={2} />
-              </div>
-
-              <Button onClick={handleSubmit} disabled={!items.some(i => i.name && Number(i.qty) > 0)} className="w-full">
-                צור הזמנה
-              </Button>
+              <div className="space-y-2"><Label>הערות</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="הערות להזמנה..." rows={2} /></div>
+              <Button onClick={handleSubmit} disabled={!items.some(i => i.name && Number(i.qty) > 0)} className="w-full">צור הזמנה</Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -226,37 +154,25 @@ export default function OrdersPage() {
           </thead>
           <tbody className="divide-y">
             {orders.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="p-8 text-center text-muted-foreground">אין הזמנות</td>
+              <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
+            ) : orders.map(order => (
+              <tr key={order.id}>
+                <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
+                <td className="p-3 font-medium text-foreground">{order.items.map(i => i.name).join(", ")}</td>
+                <td className="p-3 text-muted-foreground">{order.items.reduce((s, i) => s + i.qty, 0)}</td>
+                <td className="p-3 text-muted-foreground">{order.supplier_name || "—"}</td>
+                <td className="p-3 text-muted-foreground">{order.shipping || "—"}</td>
+                <td className="p-3"><OrderStatusBadge status={order.status as OrderStatus} /></td>
+                <td className="p-3 text-muted-foreground text-xs">{order.eta ? new Date(order.eta).toLocaleDateString("he-IL") : "—"}</td>
+                <td className="p-3">
+                  {nextStatus[order.status] && (
+                    <Button size="sm" variant="outline" className="text-xs gap-1" onClick={() => updateOrderStatus(order.id, nextStatus[order.status]!)}>
+                      קדם סטטוס<ChevronLeft className="h-3 w-3" />
+                    </Button>
+                  )}
+                </td>
               </tr>
-            ) : (
-              orders.map(order => (
-                <tr key={order.id}>
-                  <td className="p-3"><PriorityBadge priority={order.priority} /></td>
-                  <td className="p-3 font-medium text-foreground">{order.items.map(i => i.name).join(", ")}</td>
-                  <td className="p-3 text-muted-foreground">{order.items.reduce((s, i) => s + i.qty, 0)}</td>
-                  <td className="p-3 text-muted-foreground">{order.supplierName || "—"}</td>
-                  <td className="p-3 text-muted-foreground">{order.shipping || "—"}</td>
-                  <td className="p-3"><OrderStatusBadge status={order.status} /></td>
-                  <td className="p-3 text-muted-foreground text-xs">
-                    {order.eta ? new Date(order.eta).toLocaleDateString("he-IL") : "—"}
-                  </td>
-                  <td className="p-3">
-                    {nextStatus[order.status] && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-xs gap-1"
-                        onClick={() => updateOrderStatus(order.id, nextStatus[order.status]!)}
-                      >
-                        קדם סטטוס
-                        <ChevronLeft className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
+            ))}
           </tbody>
         </table>
       </div>

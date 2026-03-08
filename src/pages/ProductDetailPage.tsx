@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useData } from "@/contexts/AppContext";
+import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -15,71 +15,55 @@ export default function ProductDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <p className="text-lg text-muted-foreground">מוצר לא נמצא</p>
-        <Button variant="outline" onClick={() => navigate("/products")}>
-          <ArrowRight className="h-4 w-4 ml-2" />חזרה למוצרים
-        </Button>
+        <Button variant="outline" onClick={() => navigate("/products")}><ArrowRight className="h-4 w-4 ml-2" />חזרה למוצרים</Button>
       </div>
     );
   }
 
-  // Find related orders
-  const relatedOrders = orders.filter(o =>
-    o.items.some(item => item.name === product.name || item.productId === product.id)
-  );
+  const relatedOrders = orders.filter(o => o.items.some(item => item.name === product.name || item.product_id === product.id));
 
-  const stockStatus = product.stockQty === 0
+  const stockStatus = product.stock_qty === 0
     ? { label: "אזל מהמלאי", className: "bg-destructive/15 text-destructive" }
-    : product.monthlyOrder && product.stockQty < product.monthlyOrder
+    : product.monthly_order && product.stock_qty < product.monthly_order
     ? { label: "מלאי נמוך", className: "bg-warning/15 text-warning" }
     : { label: "תקין", className: "bg-success/15 text-success" };
 
-  const details: { label: string; value: string | number | undefined }[] = [
+  const details: { label: string; value: string | number | undefined | null }[] = [
     { label: "קטגוריה", value: product.category },
     { label: "חטיבה", value: product.division },
     { label: "מק״ט", value: product.sku },
-    { label: "סוג מוצר", value: product.productType },
+    { label: "סוג מוצר", value: product.product_type },
     { label: "תיאור", value: product.description },
     { label: "ספק", value: product.supplier },
-    { label: "מקור ספק", value: product.supplierOrigin },
+    { label: "מקור ספק", value: product.supplier_origin },
     { label: "שיטת משלוח", value: product.shipping },
-    { label: "מחיר רכישה", value: product.purchasePrice ? `$${product.purchasePrice}` : undefined },
-    { label: "מחיר מכירה", value: product.salePrice ? `$${product.salePrice}` : undefined },
-    { label: "מכירות חודשיות", value: product.monthlySales },
-    { label: "הזמנה חודשית", value: product.monthlyOrder },
-    { label: "מלאי קיים", value: product.stockQty },
-    { label: "בדרך", value: product.incomingQty },
+    { label: "מחיר רכישה", value: product.purchase_price ? `$${product.purchase_price}` : undefined },
+    { label: "מחיר מכירה", value: product.sale_price ? `$${product.sale_price}` : undefined },
+    { label: "מכירות חודשיות", value: product.monthly_sales },
+    { label: "הזמנה חודשית", value: product.monthly_order },
+    { label: "מלאי קיים", value: product.stock_qty },
+    { label: "בדרך", value: product.incoming_qty },
     { label: "הערות", value: product.notes },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/products")}>
-          <ArrowRight className="h-5 w-5" />
-        </Button>
+        <Button variant="ghost" size="icon" onClick={() => navigate("/products")}><ArrowRight className="h-5 w-5" /></Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-foreground">{product.name}</h1>
           <p className="text-sm text-muted-foreground font-mono" dir="ltr">{product.sku}</p>
         </div>
-        <span className={`px-3 py-1 rounded-full text-xs font-medium ${stockStatus.className}`}>
-          {stockStatus.label}
-        </span>
+        <span className={`px-3 py-1 rounded-full text-xs font-medium ${stockStatus.className}`}>{stockStatus.label}</span>
         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-          product.productType === "מורכב" ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"
-        }`}>
-          {product.productType}
-        </span>
+          product.product_type === "מורכב" ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"
+        }`}>{product.product_type}</span>
       </div>
 
-      {/* Details grid */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <Package className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold text-foreground">פרטי מוצר</h2>
-        </div>
+        <div className="flex items-center gap-2 mb-4"><Package className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">פרטי מוצר</h2></div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {details.filter(d => d.value !== undefined && d.value !== "").map(d => (
+          {details.filter(d => d.value != null && d.value !== "").map(d => (
             <div key={d.label} className="space-y-1">
               <p className="text-xs text-muted-foreground">{d.label}</p>
               <p className="text-sm font-medium text-foreground">{d.value}</p>
@@ -88,30 +72,23 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      {/* Stock indicators */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: "מלאי קיים", value: product.stockQty, icon: Boxes, danger: product.stockQty === 0 },
-          { label: "בדרך", value: product.incomingQty, icon: TruckIcon },
-          { label: "מכירות חודשיות", value: product.monthlySales ?? "—" },
-          { label: "הזמנה חודשית", value: product.monthlyOrder ?? "—", icon: product.monthlyOrder && product.stockQty < product.monthlyOrder ? AlertTriangle : undefined },
+          { label: "מלאי קיים", value: product.stock_qty, danger: product.stock_qty === 0 },
+          { label: "בדרך", value: product.incoming_qty },
+          { label: "מכירות חודשיות", value: product.monthly_sales ?? "—" },
+          { label: "הזמנה חודשית", value: product.monthly_order ?? "—" },
         ].map((item) => (
           <div key={item.label} className="bg-card rounded-xl border p-4 text-center">
             <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
-            <p className={`text-2xl font-bold ${item.danger ? "text-destructive" : "text-foreground"}`}>
-              {item.value}
-            </p>
+            <p className={`text-2xl font-bold ${item.danger ? "text-destructive" : "text-foreground"}`}>{item.value}</p>
           </div>
         ))}
       </div>
 
-      {/* Components (for מורכב products) */}
-      {product.productType === "מורכב" && (
+      {product.product_type === "מורכב" && (
         <div className="bg-card rounded-xl border shadow-sm p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Boxes className="h-5 w-5 text-accent" />
-            <h2 className="text-lg font-semibold text-foreground">רכיבים</h2>
-          </div>
+          <div className="flex items-center gap-2 mb-4"><Boxes className="h-5 w-5 text-accent" /><h2 className="text-lg font-semibold text-foreground">רכיבים</h2></div>
           {product.components && product.components.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -133,7 +110,7 @@ export default function ProductDetailPage() {
                       <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">{comp.sku || "—"}</td>
                       <td className="p-3 text-muted-foreground">{comp.supplier || "—"}</td>
                       <td className="p-3 text-muted-foreground">{comp.origin || "—"}</td>
-                      <td className="p-3 text-muted-foreground">{comp.stockQty ?? "—"}</td>
+                      <td className="p-3 text-muted-foreground">{comp.stock_qty ?? "—"}</td>
                       <td className="p-3 text-muted-foreground">{comp.price ? `$${comp.price}` : "—"}</td>
                       <td className="p-3 text-muted-foreground text-xs">{comp.notes || "—"}</td>
                     </tr>
@@ -147,12 +124,8 @@ export default function ProductDetailPage() {
         </div>
       )}
 
-      {/* Related orders */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <TruckIcon className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold text-foreground">היסטוריית הזמנות</h2>
-        </div>
+        <div className="flex items-center gap-2 mb-4"><TruckIcon className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">היסטוריית הזמנות</h2></div>
         {relatedOrders.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -167,16 +140,14 @@ export default function ProductDetailPage() {
               </thead>
               <tbody className="divide-y">
                 {relatedOrders.map(order => {
-                  const relevantItem = order.items.find(i => i.name === product.name || i.productId === product.id);
+                  const relevantItem = order.items.find(i => i.name === product.name || i.product_id === product.id);
                   return (
                     <tr key={order.id}>
-                      <td className="p-3"><PriorityBadge priority={order.priority} /></td>
-                      <td className="p-3 text-muted-foreground">{order.supplierName || "—"}</td>
+                      <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
+                      <td className="p-3 text-muted-foreground">{order.supplier_name || "—"}</td>
                       <td className="p-3 text-muted-foreground">{relevantItem?.qty || "—"}</td>
-                      <td className="p-3"><OrderStatusBadge status={order.status} /></td>
-                      <td className="p-3 text-muted-foreground text-xs">
-                        {order.eta ? new Date(order.eta).toLocaleDateString("he-IL") : "—"}
-                      </td>
+                      <td className="p-3"><OrderStatusBadge status={order.status as OrderStatus} /></td>
+                      <td className="p-3 text-muted-foreground text-xs">{order.eta ? new Date(order.eta).toLocaleDateString("he-IL") : "—"}</td>
                     </tr>
                   );
                 })}
