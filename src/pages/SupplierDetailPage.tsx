@@ -57,7 +57,10 @@ export default function SupplierDetailPage() {
         <Button variant="ghost" size="icon" onClick={() => navigate("/suppliers")}><ArrowRight className="h-5 w-5" /></Button>
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold text-foreground">{supplier.company}</h1>
-          <p className="text-sm text-muted-foreground">{supplier.country === "ישראל" ? "🇮🇱 ישראל" : "🌍 חו״ל"}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground">{supplier.country === "ישראל" ? "🇮🇱 ישראל" : "🌍 חו״ל"}</p>
+            <SapSyncBadge sapCode={(supplier as any).sap_code} />
+          </div>
         </div>
         {isManager && (
           <div className="flex gap-2">

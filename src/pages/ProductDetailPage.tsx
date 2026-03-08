@@ -97,6 +97,7 @@ export default function ProductDetailPage() {
         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
           product.product_type === "מורכב" ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"
         }`}>{product.product_type}</span>
+        <SapSyncBadge sapCode={(product as any).sap_code} />
       </div>
 
       <ProductEditDialog open={editOpen} onOpenChange={setEditOpen} product={product} onSave={handleSaveEdit} />
