@@ -612,7 +612,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 // Helper constants
 export const categories = ["הכל", "מיגון ואיתור", "מולטימדיה", "בטיחות", "נוחות וקישוריות", "בית"];
-export const priorityLabel: Record<string, string> = { P0: "דחוף", P1: "גבוה", P2: "רגיל", P3: "נמוך" };
+export const priorityLabel: Record<string, string> = { "דחוף": "דחוף", "גבוה": "גבוה", "בינוני": "בינוני", "נמוך": "נמוך" };
 export const statusLabel: Record<string, string> = { PENDING: "ממתין", ORDERED: "הוזמן", SHIPPED: "נשלח", ARRIVED: "הגיע", CANCELLED: "בוטל" };
 export { taskStatusLabel };
 export const roleLabel: Record<string, string> = { MANAGER: "מנהל", WAREHOUSE_MANAGER: "מנהל מחסן", LOGISTICS: "לוגיסטיקה", DRIVER: "נהג" };
