@@ -33,10 +33,14 @@ export default function SuppliersPage() {
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
+  const countries = useMemo(() => {
+    const set = new Set(suppliers.map(s => s.country).filter(Boolean) as string[]);
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "he"));
+  }, [suppliers]);
+
   const filtered = useMemo(() => {
     let result = suppliers.filter(s => {
-      if (countryFilter === "ישראל" && s.country !== "ישראל") return false;
-      if (countryFilter === "חול" && s.country === "ישראל") return false;
+      if (countryFilter !== "all" && s.country !== countryFilter) return false;
       if (!search) return true;
       const q = search.toLowerCase();
       return s.contact_name.toLowerCase().includes(q) || s.company.toLowerCase().includes(q) || (s.email || "").toLowerCase().includes(q);
