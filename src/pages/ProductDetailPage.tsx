@@ -235,7 +235,7 @@ export default function ProductDetailPage() {
                     <th className="text-right p-3 font-semibold text-foreground">רכיב</th>
                     <th className="text-right p-3 font-semibold text-foreground">מק״ט</th>
                     <th className="text-right p-3 font-semibold text-foreground">ספק</th>
-                    <th className="text-right p-3 font-semibold text-foreground">מקור</th>
+                    
                     <th className="text-right p-3 font-semibold text-foreground">מלאי</th>
                     <th className="text-right p-3 font-semibold text-foreground">מחיר</th>
                     <th className="text-right p-3 font-semibold text-foreground">הערות</th>
