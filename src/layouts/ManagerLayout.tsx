@@ -6,7 +6,6 @@ import {
   ShoppingCart,
   Truck,
   ListTodo,
-  Users,
   LogOut,
   Menu,
   X,
@@ -27,7 +26,6 @@ const navItems = [
   { to: "/tasks", icon: ListTodo, label: "משימות" },
   { to: "/reorder", icon: CalendarClock, label: "תכנון רכש" },
   { to: "/reports", icon: BarChart3, label: "דוחות" },
-  { to: "/team", icon: Users, label: "צוות" },
   { to: "/settings", icon: Settings, label: "הגדרות" },
 ];
 

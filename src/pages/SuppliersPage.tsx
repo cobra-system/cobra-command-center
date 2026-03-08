@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth, type Supplier } from "@/contexts/AppContext";
-import { Search, Plus, Mail } from "lucide-react";
+import { Search, Plus, Mail, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,6 +11,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import SupplierEmailTab from "@/components/SupplierEmailTab";
 import { toast } from "sonner";
 
+type SortKey = "company" | "contact_name" | "email" | "phone";
+type SortDir = "asc" | "desc";
+
+const sortableColumns: { key: SortKey; label: string }[] = [
+  { key: "company", label: "חברה" },
+  { key: "contact_name", label: "איש קשר" },
+  { key: "email", label: "אימייל" },
+  { key: "phone", label: "טלפון" },
+];
+
 export default function SuppliersPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
@@ -18,21 +28,67 @@ export default function SuppliersPage() {
   const [search, setSearch] = useState("");
   const [emailSupplier, setEmailSupplier] = useState<{ id: string; company: string; email: string | null } | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [countryFilter, setCountryFilter] = useState("all");
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
 
-  const filtered = suppliers.filter(s => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return s.contact_name.toLowerCase().includes(q) || s.company.toLowerCase().includes(q) || (s.products || "").toLowerCase().includes(q);
-  });
+  const filtered = useMemo(() => {
+    let result = suppliers.filter(s => {
+      if (countryFilter !== "all" && s.country !== countryFilter) return false;
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return s.contact_name.toLowerCase().includes(q) || s.company.toLowerCase().includes(q) || (s.email || "").toLowerCase().includes(q);
+    });
 
-  const abroad = filtered.filter(s => s.country === "חול");
-  const israel = filtered.filter(s => s.country === "ישראל");
+    if (sortKey) {
+      result = [...result].sort((a, b) => {
+        const av = (a as any)[sortKey] || "";
+        const bv = (b as any)[sortKey] || "";
+        const cmp = String(av).localeCompare(String(bv), "he");
+        return sortDir === "asc" ? cmp : -cmp;
+      });
+    }
+
+    return result;
+  }, [suppliers, search, countryFilter, sortKey, sortDir]);
+
+  const abroad = useMemo(() => filtered.filter(s => s.country === "חול"), [filtered]);
+  const israel = useMemo(() => filtered.filter(s => s.country === "ישראל"), [filtered]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      if (sortDir === "asc") setSortDir("desc");
+      else { setSortKey(null); setSortDir("asc"); }
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortKey !== col) return <ArrowUpDown className="h-3 w-3 opacity-30" />;
+    return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
+  };
+
+  const sections = countryFilter === "all"
+    ? [{ title: "ספקים מחו״ל", list: abroad }, { title: "ספקים בישראל", list: israel }]
+    : countryFilter === "חול"
+    ? [{ title: "ספקים מחו״ל", list: abroad }]
+    : [{ title: "ספקים בישראל", list: israel }];
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-foreground">ספקים</h1>
         <div className="flex items-center gap-3">
+          <Select value={countryFilter} onValueChange={setCountryFilter}>
+            <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">הכל</SelectItem>
+              <SelectItem value="חול">חו״ל</SelectItem>
+              <SelectItem value="ישראל">ישראל</SelectItem>
+            </SelectContent>
+          </Select>
           <div className="relative min-w-[200px] max-w-sm">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="חיפוש ספק..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
@@ -43,16 +99,20 @@ export default function SuppliersPage() {
         </div>
       </div>
 
-      {[{ title: "ספקים מחו״ל", list: abroad }, { title: "ספקים בישראל", list: israel }].map(section => (
+      {sections.map(section => (
         <div key={section.title}>
           <h2 className="text-lg font-semibold text-foreground mb-3">{section.title} ({section.list.length})</h2>
           <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="border-b bg-muted/50">
-                <th className="text-right p-3 font-semibold text-foreground">חברה</th>
-                <th className="text-right p-3 font-semibold text-foreground">איש קשר</th>
-                <th className="text-right p-3 font-semibold text-foreground">אימייל</th>
-                <th className="text-right p-3 font-semibold text-foreground">טלפון</th>
+                {sortableColumns.map(col => (
+                  <th key={col.key} className="text-right p-3 font-semibold text-foreground">
+                    <button onClick={() => toggleSort(col.key)} className="flex items-center gap-1 hover:text-accent transition-colors">
+                      {col.label}
+                      <SortIcon col={col.key} />
+                    </button>
+                  </th>
+                ))}
                 <th className="text-right p-3 font-semibold text-foreground">מוצרים</th>
                 <th className="text-right p-3 font-semibold text-foreground">תקשורת</th>
               </tr></thead>

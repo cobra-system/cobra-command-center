@@ -1,10 +1,25 @@
-import { useState, Fragment } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, categories, type Product } from "@/contexts/AppContext";
-import { Search, ChevronDown, ChevronUp, Boxes, Plus } from "lucide-react";
+import { Search, ChevronDown, ChevronUp, Boxes, Plus, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ProductFormDialog from "@/components/products/ProductFormDialog";
+
+type SortKey = "name" | "sku" | "product_type" | "supplier" | "stock_qty" | "incoming_qty" | "purchase_price" | "monthly_order";
+type SortDir = "asc" | "desc";
+
+const sortableColumns: { key: SortKey; label: string }[] = [
+  { key: "name", label: "שם מוצר" },
+  { key: "sku", label: "מק״ט" },
+  { key: "product_type", label: "סוג" },
+  { key: "supplier", label: "ספק" },
+  { key: "stock_qty", label: "מלאי" },
+  { key: "incoming_qty", label: "בדרך" },
+  { key: "purchase_price", label: "מחיר רכישה" },
+  { key: "monthly_order", label: "הזמנה חודשית" },
+];
 
 export default function ProductsPage() {
   const { products, suppliers } = useData();
@@ -12,16 +27,55 @@ export default function ProductsPage() {
   const [category, setCategory] = useState("הכל");
   const [typeFilter, setTypeFilter] = useState<"all" | "מוגמר" | "מורכב">("all");
   const [search, setSearch] = useState("");
+  const [supplierFilter, setSupplierFilter] = useState("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
 
-  const filtered = products.filter(p => {
-    if (category !== "הכל" && p.category !== category) return false;
-    if (typeFilter !== "all" && p.product_type !== typeFilter) return false;
-    if (search && !p.name.includes(search) && !p.sku.includes(search)) return false;
-    return true;
-  });
+  const filtered = useMemo(() => {
+    let result = products.filter(p => {
+      if (category !== "הכל" && p.category !== category) return false;
+      if (typeFilter !== "all" && p.product_type !== typeFilter) return false;
+      if (supplierFilter !== "all" && p.supplier !== supplierFilter) return false;
+      if (search && !p.name.includes(search) && !p.sku.includes(search)) return false;
+      return true;
+    });
+
+    if (sortKey) {
+      result = [...result].sort((a, b) => {
+        const av = (a as any)[sortKey];
+        const bv = (b as any)[sortKey];
+        if (av == null && bv == null) return 0;
+        if (av == null) return 1;
+        if (bv == null) return -1;
+        const cmp = typeof av === "number" ? av - bv : String(av).localeCompare(String(bv), "he");
+        return sortDir === "asc" ? cmp : -cmp;
+      });
+    }
+    return result;
+  }, [products, category, typeFilter, supplierFilter, search, sortKey, sortDir]);
+
+  const uniqueSuppliers = useMemo(() => {
+    const set = new Set(products.map(p => p.supplier).filter(Boolean) as string[]);
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "he"));
+  }, [products]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      if (sortDir === "asc") setSortDir("desc");
+      else { setSortKey(null); setSortDir("asc"); }
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortKey !== col) return <ArrowUpDown className="h-3 w-3 opacity-30" />;
+    return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
+  };
 
   const getRowClass = (stockQty: number, monthlyOrder?: number | null) => {
     if (stockQty === 0) return "stock-danger";
@@ -34,7 +88,7 @@ export default function ProductsPage() {
 
   const navigateToSupplier = (supplierName: string) => {
     const s = suppliers.find(s => s.company === supplierName);
-    if (s) navigate(`/suppliers?highlight=${s.id}`);
+    if (s) navigate(`/suppliers/${s.id}`);
   };
 
   return (
@@ -60,6 +114,13 @@ export default function ProductsPage() {
             }`}>{t === "all" ? "הכל" : t}</button>
           ))}
         </div>
+        <Select value={supplierFilter} onValueChange={setSupplierFilter}>
+          <SelectTrigger className="w-[160px]"><SelectValue placeholder="ספק" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">כל הספקים</SelectItem>
+            {uniqueSuppliers.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="חיפוש לפי שם או מק״ט..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
@@ -71,14 +132,14 @@ export default function ProductsPage() {
           <thead>
             <tr className="border-b bg-muted/50">
               <th className="text-right p-3 font-semibold text-foreground w-8"></th>
-              <th className="text-right p-3 font-semibold text-foreground">שם מוצר</th>
-              <th className="text-right p-3 font-semibold text-foreground">מק״ט</th>
-              <th className="text-right p-3 font-semibold text-foreground">סוג</th>
-              <th className="text-right p-3 font-semibold text-foreground">ספק</th>
-              <th className="text-right p-3 font-semibold text-foreground">מלאי</th>
-              <th className="text-right p-3 font-semibold text-foreground">בדרך</th>
-              <th className="text-right p-3 font-semibold text-foreground">מחיר רכישה</th>
-              <th className="text-right p-3 font-semibold text-foreground">הזמנה חודשית</th>
+              {sortableColumns.map(col => (
+                <th key={col.key} className="text-right p-3 font-semibold text-foreground">
+                  <button onClick={() => toggleSort(col.key)} className="flex items-center gap-1 hover:text-accent transition-colors">
+                    {col.label}
+                    <SortIcon col={col.key} />
+                  </button>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y">

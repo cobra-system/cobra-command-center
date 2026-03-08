@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useData, type TaskStatus, type Priority, type Task } from "@/contexts/AppContext";
+import { useData, useAuth, type TaskStatus, type Priority, type Task } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -30,6 +30,7 @@ const priorityOptions: { value: Priority; label: string }[] = [
 
 export default function TasksPage() {
   const { tasks, updateTaskStatus, addTask, updateTask, deleteTask, profiles, resetDailyTasks } = useData();
+  const { currentUser } = useAuth();
   const [open, setOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [title, setTitle] = useState("");
@@ -44,7 +45,8 @@ export default function TasksPage() {
   const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
 
-  const employees = profiles.filter(u => u.role !== "MANAGER");
+  // Include current user (manager) + all non-manager employees for assignment
+  const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
 
   const filteredTasks = tasks.filter(t => {
     if (assigneeFilter !== "all" && t.assignee_id !== assigneeFilter) return false;
@@ -137,10 +139,16 @@ export default function TasksPage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>שיוך לעובד</Label>
+                    <Label>שיוך</Label>
                     <Select value={assigneeId} onValueChange={setAssigneeId}>
-                      <SelectTrigger><SelectValue placeholder="בחר עובד" /></SelectTrigger>
-                      <SelectContent>{employees.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
+                      <SelectTrigger><SelectValue placeholder="בחר" /></SelectTrigger>
+                      <SelectContent>
+                        {assignableUsers.map(u => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {u.name}{u.id === currentUser?.id ? " (אני)" : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
                     </Select>
                   </div>
                 </div>
@@ -177,8 +185,10 @@ export default function TasksPage() {
         <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
           <SelectTrigger className="w-[150px]"><SelectValue placeholder="עובד" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">כל העובדים</SelectItem>
-            {employees.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+            <SelectItem value="all">כל המשויכים</SelectItem>
+            {assignableUsers.map(u => (
+              <SelectItem key={u.id} value={u.id}>{u.name}{u.id === currentUser?.id ? " (אני)" : ""}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Select value={priorityFilter} onValueChange={setPriorityFilter}>
