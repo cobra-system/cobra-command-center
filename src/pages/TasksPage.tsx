@@ -17,7 +17,6 @@ import { toast } from "sonner";
 
 const columns: { status: TaskStatus; label: string; bgClass: string }[] = [
   { status: "TODO", label: "לביצוע", bgClass: "bg-[hsl(var(--todo))]" },
-  { status: "IN_PROGRESS", label: "בביצוע", bgClass: "bg-[hsl(var(--in-progress))]" },
   { status: "DONE", label: "הושלם", bgClass: "bg-[hsl(var(--done))]" },
   { status: "BLOCKED", label: "חסום", bgClass: "bg-[hsl(var(--blocked))]" },
 ];
