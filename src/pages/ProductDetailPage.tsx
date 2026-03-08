@@ -9,6 +9,7 @@ import ProductIssuesTab from "@/components/ProductIssuesTab";
 import ProductEditDialog from "@/components/products/ProductEditDialog";
 import SupplierComparisonPanel from "@/components/SupplierComparisonPanel";
 import { InlineEditField } from "@/components/InlineEditField";
+import SapSyncBadge from "@/components/SapSyncBadge";
 import { toast } from "sonner";
 
 export default function ProductDetailPage() {
