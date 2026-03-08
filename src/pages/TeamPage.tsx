@@ -172,7 +172,7 @@ export default function TeamPage() {
             {profiles.map(u => (
               <tr key={u.id}>
                 <td className="p-3 font-medium text-foreground">{u.name}</td>
-                <td className="p-3 text-muted-foreground">{roleLabel[u.role] || u.role}</td>
+                <td className="p-3 text-muted-foreground">{getRoleLabel(u.role)}</td>
                 <td className="p-3 font-mono text-muted-foreground" dir="ltr">{isManager ? (u.pin || "—") : "••••"}</td>
                 {isManager && (
                   <td className="p-3">
