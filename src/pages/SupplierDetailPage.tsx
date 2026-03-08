@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowRight, Pencil, Trash2, ExternalLink, Mail, Phone, Globe, TruckIcon } from "lucide-react";
+import { InlineEditField } from "@/components/InlineEditField";
 import { toast } from "sonner";
 
 export default function SupplierDetailPage() {
@@ -31,6 +32,7 @@ export default function SupplierDetailPage() {
     );
   }
 
+  const isManager = currentUser?.role === "MANAGER";
   const relatedOrders = orders.filter(o => o.supplier_id === supplier.id || o.supplier_name === supplier.company);
   const relatedProducts = products.filter(p => p.supplier === supplier.company);
 
@@ -38,6 +40,13 @@ export default function SupplierDetailPage() {
     await deleteSupplier(supplier.id);
     toast.success("ספק נמחק בהצלחה");
     navigate("/suppliers");
+  };
+
+  const handleInlineSave = async (field: string, value: string) => {
+    const updates: Partial<Supplier> = {};
+    (updates as any)[field] = value || null;
+    await updateSupplier(supplier.id, updates);
+    toast.success("עודכן");
   };
 
   return (
@@ -49,7 +58,7 @@ export default function SupplierDetailPage() {
           <h1 className="text-2xl font-bold text-foreground">{supplier.company}</h1>
           <p className="text-sm text-muted-foreground">{supplier.country === "ישראל" ? "🇮🇱 ישראל" : "🌍 חו״ל"}</p>
         </div>
-        {currentUser?.role === "MANAGER" && (
+        {isManager && (
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4 ml-1" />עריכה</Button>
             <Button variant="destructive" size="sm" onClick={() => setDeleteConfirm(true)}><Trash2 className="h-4 w-4 ml-1" />מחיקה</Button>
@@ -61,41 +70,47 @@ export default function SupplierDetailPage() {
       <div className="bg-card rounded-xl border shadow-sm p-5">
         <h2 className="text-lg font-semibold text-foreground mb-4">פרטי קשר</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">איש קשר</p>
-            <p className="text-sm font-medium text-foreground">{supplier.contact_name}</p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">אימייל</p>
-            {supplier.email ? (
+          <InlineEditField label="איש קשר" value={supplier.contact_name} onSave={(v) => handleInlineSave("contact_name", v)} disabled={!isManager} />
+          <InlineEditField
+            label="אימייל"
+            value={supplier.email}
+            onSave={(v) => handleInlineSave("email", v)}
+            disabled={!isManager}
+            displayValue={supplier.email ? (
               <a href={`mailto:${supplier.email}`} className="text-sm text-accent hover:underline flex items-center gap-1" dir="ltr">
                 <Mail className="h-3 w-3" />{supplier.email}
               </a>
-            ) : <p className="text-sm text-muted-foreground">—</p>}
-          </div>
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">טלפון</p>
-            {supplier.phone ? (
+            ) : "—"}
+          />
+          <InlineEditField
+            label="טלפון"
+            value={supplier.phone}
+            onSave={(v) => handleInlineSave("phone", v)}
+            disabled={!isManager}
+            displayValue={supplier.phone ? (
               <a href={`tel:${supplier.phone}`} className="text-sm text-accent hover:underline flex items-center gap-1" dir="ltr">
                 <Phone className="h-3 w-3" />{supplier.phone}
               </a>
-            ) : <p className="text-sm text-muted-foreground">—</p>}
-          </div>
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">אתר</p>
-            {supplier.website ? (
+            ) : "—"}
+          />
+          <InlineEditField
+            label="אתר"
+            value={supplier.website}
+            onSave={(v) => handleInlineSave("website", v)}
+            disabled={!isManager}
+            displayValue={supplier.website ? (
               <a href={supplier.website.startsWith("http") ? supplier.website : `https://${supplier.website}`} target="_blank" rel="noopener noreferrer" className="text-sm text-accent hover:underline flex items-center gap-1" dir="ltr">
                 <Globe className="h-3 w-3" />{supplier.website}
               </a>
-            ) : <p className="text-sm text-muted-foreground">—</p>}
-          </div>
+            ) : "—"}
+          />
         </div>
-        {supplier.notes && (
-          <div className="mt-4 pt-4 border-t">
-            <p className="text-xs text-muted-foreground mb-1">הערות</p>
-            <p className="text-sm text-foreground">{supplier.notes}</p>
-          </div>
-        )}
+        <div className="mt-4 pt-4 border-t grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <InlineEditField label="מדינה" value={supplier.country} onSave={(v) => handleInlineSave("country", v)} disabled={!isManager} />
+          <InlineEditField label="תנאי תשלום" value={supplier.payment_terms} onSave={(v) => handleInlineSave("payment_terms", v)} disabled={!isManager} />
+          <InlineEditField label="מוצרים" value={supplier.products} onSave={(v) => handleInlineSave("products", v)} disabled={!isManager} />
+          <InlineEditField label="הערות" value={supplier.notes} onSave={(v) => handleInlineSave("notes", v)} disabled={!isManager} />
+        </div>
       </div>
 
       {/* Related Products */}
@@ -142,7 +157,7 @@ export default function SupplierDetailPage() {
               </tr></thead>
               <tbody className="divide-y">
                 {relatedOrders.map(order => (
-                  <tr key={order.id}>
+                  <tr key={order.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/orders/${order.id}`)}>
                     <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
                     <td className="p-3 text-muted-foreground text-xs">{order.items.map(i => i.name).join(", ")}</td>
                     <td className="p-3 text-muted-foreground">{order.total_price ? `$${order.total_price}` : "—"}</td>
@@ -188,7 +203,6 @@ function SupplierEditDialog({ open, onOpenChange, supplier, onSave }: {
 
   const set = (key: string, value: string) => setFields(prev => ({ ...prev, [key]: value }));
 
-  // Reset fields when dialog opens
   if (open && Object.keys(fields).length === 0) {
     const init: Record<string, string> = {
       company: supplier.company || "",

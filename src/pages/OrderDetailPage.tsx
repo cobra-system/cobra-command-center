@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComp } from "@/components/ui/calendar";
+import { InlineEditField } from "@/components/InlineEditField";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -52,15 +53,43 @@ export default function OrderDetailPage() {
     navigate("/orders");
   };
 
-  const InfoCard = ({ icon: Icon, label, value }: { icon: any; label: string; value: string | React.ReactNode }) => (
-    <div className="bg-card rounded-xl border p-4 space-y-1">
-      <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
-        <Icon className="h-3.5 w-3.5" />
-        {label}
+  const handleInlineSave = async (field: string, value: string) => {
+    const updates: Record<string, any> = {};
+    if (field === "total_price") {
+      updates[field] = value ? Number(value) : null;
+    } else {
+      updates[field] = value || null;
+    }
+    await updateOrder(order.id, updates as any);
+    toast.success("עודכן");
+  };
+
+  const InfoCard = ({ icon: Icon, label, value, field, editable = false }: { icon: any; label: string; value: string | React.ReactNode; field?: string; editable?: boolean }) => {
+    if (editable && isManager && field && typeof value === "string") {
+      return (
+        <div className="bg-card rounded-xl border p-4 space-y-1">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
+            <Icon className="h-3.5 w-3.5" />
+            {label}
+          </div>
+          <InlineEditField
+            value={value === "—" ? "" : value}
+            onSave={(v) => handleInlineSave(field, v)}
+            type={field === "total_price" ? "number" : "text"}
+          />
+        </div>
+      );
+    }
+    return (
+      <div className="bg-card rounded-xl border p-4 space-y-1">
+        <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
+          <Icon className="h-3.5 w-3.5" />
+          {label}
+        </div>
+        <div className="text-sm font-semibold text-foreground">{value}</div>
       </div>
-      <div className="text-sm font-semibold text-foreground">{value}</div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -114,14 +143,14 @@ export default function OrderDetailPage() {
           }
         />
         <InfoCard icon={Calendar} label="תאריך הזמנה" value={order.order_date ? new Date(order.order_date).toLocaleDateString("he-IL") : "—"} />
-        <InfoCard icon={DollarSign} label="סה״כ" value={order.total_price ? `$${order.total_price.toLocaleString()}` : "—"} />
+        <InfoCard icon={DollarSign} label="סה״כ" value={order.total_price ? `$${order.total_price.toLocaleString()}` : "—"} field="total_price" editable />
       </div>
 
       {/* Dates & shipping */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <InfoCard icon={Calendar} label="ETD (יציאה)" value={order.etd ? new Date(order.etd).toLocaleDateString("he-IL") : "—"} />
         <InfoCard icon={Calendar} label="ETA (הגעה)" value={order.eta ? new Date(order.eta).toLocaleDateString("he-IL") : "—"} />
-        <InfoCard icon={Truck} label="שיטת משלוח" value={order.shipping || "—"} />
+        <InfoCard icon={Truck} label="שיטת משלוח" value={order.shipping || "—"} field="shipping" editable />
         <InfoCard icon={CreditCard} label="תאריך תשלום" value={order.payment_date ? new Date(order.payment_date).toLocaleDateString("he-IL") : "—"} />
       </div>
 
@@ -195,15 +224,21 @@ export default function OrderDetailPage() {
       </div>
 
       {/* Notes */}
-      {order.notes && (
-        <div className="bg-card rounded-xl border p-4 space-y-2">
-          <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
-            <FileText className="h-3.5 w-3.5" />
-            הערות
-          </div>
-          <p className="text-sm text-foreground whitespace-pre-wrap">{order.notes}</p>
+      <div className="bg-card rounded-xl border p-4 space-y-2">
+        <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
+          <FileText className="h-3.5 w-3.5" />
+          הערות
         </div>
-      )}
+        {isManager ? (
+          <InlineEditField
+            value={order.notes}
+            onSave={(v) => handleInlineSave("notes", v)}
+            displayValue={order.notes ? <p className="text-sm text-foreground whitespace-pre-wrap">{order.notes}</p> : <p className="text-sm text-muted-foreground">לחץ פעמיים להוספת הערה</p>}
+          />
+        ) : (
+          <p className="text-sm text-foreground whitespace-pre-wrap">{order.notes || "—"}</p>
+        )}
+      </div>
 
       {/* Edit Dialog */}
       <OrderEditDialog open={editOpen} onOpenChange={setEditOpen} order={order} suppliers={suppliers} onSave={updateOrder} />

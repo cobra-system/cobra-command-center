@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth, useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
@@ -5,14 +7,19 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { Package, Truck, ClipboardList, Users } from "lucide-react";
 import RecentSupplierEmails from "@/components/RecentSupplierEmails";
 
+const priorityOrder: Record<string, number> = { "דחוף": 0, "גבוה": 1, "בינוני": 2, "נמוך": 3 };
+
 export default function DashboardPage() {
   const { products, orders, tasks, suppliers } = useData();
+  const navigate = useNavigate();
+
   const kpis = [
     { label: "מוצרים פעילים", value: products.length, icon: Package, color: "text-primary" },
     { label: "הזמנות בדרך", value: orders.filter(o => o.status === "SHIPPED").length, icon: Truck, color: "text-accent" },
     { label: "משימות פתוחות", value: tasks.filter(t => t.status !== "DONE").length, icon: ClipboardList, color: "text-warning" },
     { label: "ספקים פעילים", value: suppliers.length, icon: Users, color: "text-success" },
   ];
+
   const catMap: Record<string, { stock: number; order: number }> = {};
   products.forEach(p => {
     if (!catMap[p.category]) catMap[p.category] = { stock: 0, order: 0 };
@@ -20,8 +27,21 @@ export default function DashboardPage() {
     catMap[p.category].order += (p.monthly_order ?? 0);
   });
   const chartData = Object.entries(catMap).map(([name, v]) => ({ name, ...v }));
-  const openOrders = orders.filter(o => o.status !== "ARRIVED" && o.status !== "CANCELLED");
-  const p0Tasks = tasks.filter(t => t.priority === "דחוף" && t.status !== "DONE");
+
+  const openOrders = useMemo(() =>
+    orders
+      .filter(o => o.status !== "ARRIVED" && o.status !== "CANCELLED")
+      .sort((a, b) => (priorityOrder[a.priority] ?? 9) - (priorityOrder[b.priority] ?? 9)),
+    [orders]
+  );
+
+  const topTasks = useMemo(() =>
+    tasks
+      .filter(t => t.status !== "DONE")
+      .sort((a, b) => (priorityOrder[a.priority] ?? 9) - (priorityOrder[b.priority] ?? 9))
+      .slice(0, 3),
+    [tasks]
+  );
 
   return (
     <div className="space-y-6">
@@ -39,7 +59,7 @@ export default function DashboardPage() {
           <h2 className="text-lg font-semibold text-foreground mb-3">הזמנות פתוחות</h2>
           <div className="space-y-2">
             {openOrders.length === 0 ? <p className="text-sm text-muted-foreground">אין הזמנות פתוחות</p> : openOrders.map(o => (
-              <div key={o.id} className="flex items-center justify-between py-2 border-b last:border-0">
+              <div key={o.id} className="flex items-center justify-between py-2 border-b last:border-0 cursor-pointer hover:bg-muted/30 rounded transition-colors px-1" onClick={() => navigate(`/orders/${o.id}`)}>
                 <div className="flex items-center gap-2">
                   <PriorityBadge priority={o.priority as Priority} />
                   <span className="text-sm text-foreground">{o.items.map(i => i.name).join(", ")}</span>
@@ -53,11 +73,14 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className="bg-card rounded-xl border p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-foreground mb-3">משימות דחופות פתוחות</h2>
+          <h2 className="text-lg font-semibold text-foreground mb-3">משימות פתוחות — טופ 3</h2>
           <div className="space-y-2">
-            {p0Tasks.length === 0 ? <p className="text-sm text-muted-foreground">אין משימות דחופות 🎉</p> : p0Tasks.map(t => (
+            {topTasks.length === 0 ? <p className="text-sm text-muted-foreground">אין משימות פתוחות 🎉</p> : topTasks.map(t => (
               <div key={t.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                <span className="text-sm text-foreground">{t.title}</span>
+                <div className="flex items-center gap-2">
+                  <PriorityBadge priority={t.priority as Priority} />
+                  <span className="text-sm text-foreground">{t.title}</span>
+                </div>
                 <span className="text-xs text-muted-foreground">{t.assignee_name || "לא משויך"}</span>
               </div>
             ))}
