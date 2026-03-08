@@ -104,27 +104,23 @@ export default function ProductDetailPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {details.filter(d => d.value != null && d.value !== "").map(d => {
             const supplierMatch = d.isSupplierLink && typeof d.value === "string" ? suppliers.find(s => s.company === d.value) : null;
-            
-            if (supplierMatch) {
-              return (
-                <div key={d.label} className="space-y-1">
-                  <p className="text-xs text-muted-foreground">{d.label}</p>
-                  <button onClick={() => navigate(`/suppliers/${supplierMatch.id}`)} className="text-sm font-medium text-primary hover:underline">
-                    {d.value}
-                  </button>
-                </div>
-              );
-            }
 
             return (
               <InlineEditField
                 key={d.label}
                 label={d.label}
                 value={d.value}
-                displayValue={d.field === "purchase_price" || d.field === "sale_price" ? (d.value ? `$${d.value}` : "—") : undefined}
+                displayValue={
+                  supplierMatch ? (
+                    <button onClick={() => navigate(`/suppliers/${supplierMatch.id}`)} className="text-sm font-medium text-primary hover:underline">
+                      {d.value}
+                    </button>
+                  ) : d.field === "purchase_price" || d.field === "sale_price" ? (d.value ? `$${d.value}` : "—") : undefined
+                }
                 type={["purchase_price", "sale_price", "monthly_sales", "monthly_order", "stock_qty", "incoming_qty"].includes(d.field) ? "number" : "text"}
                 onSave={(v) => handleInlineSave(d.field, v)}
                 disabled={!isManager}
+                options={d.options}
               />
             );
           })}
