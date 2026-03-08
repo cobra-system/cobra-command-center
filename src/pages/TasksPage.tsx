@@ -35,7 +35,7 @@ export default function TasksPage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState<Priority>("P2");
+  const [priority, setPriority] = useState<Priority>("בינוני");
   const [assigneeId, setAssigneeId] = useState("");
   const [dueDate, setDueDate] = useState<Date>();
   const [isDaily, setIsDaily] = useState(false);
