@@ -547,6 +547,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await refreshSuppliers();
   }, [refreshSuppliers]);
 
+  const addRoleDefinition = useCallback(async (name: string) => {
+    await supabase.from("role_definitions").insert({ name } as any);
+    await refreshRoleDefinitions();
+  }, [refreshRoleDefinitions]);
+
+  const updateRoleDefinition = useCallback(async (id: string, name: string) => {
+    await supabase.from("role_definitions").update({ name } as any).eq("id", id);
+    await refreshRoleDefinitions();
+  }, [refreshRoleDefinitions]);
+
+  const deleteRoleDefinition = useCallback(async (id: string) => {
+    await supabase.from("role_definitions").delete().eq("id", id);
+    await refreshRoleDefinitions();
+  }, [refreshRoleDefinitions]);
+
   return (
     <AuthContext.Provider value={{ currentUser, session, loading: authLoading, loginWithEmail, loginWithPin, loginWithGoogle, logout }}>
       <DataContext.Provider value={{
