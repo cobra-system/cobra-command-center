@@ -54,6 +54,16 @@ export interface ProductComponent {
   notes?: string | null;
 }
 
+export interface SupplierContact {
+  id: string;
+  supplier_id: string;
+  name: string;
+  role?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  is_primary: boolean;
+}
+
 export interface Supplier {
   id: string;
   contact_name: string;
@@ -69,6 +79,7 @@ export interface Supplier {
   risk_level?: string | null;
   backup_supplier_id?: string | null;
   website?: string | null;
+  contacts?: SupplierContact[];
 }
 
 export interface Order {
