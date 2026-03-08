@@ -11,7 +11,8 @@ export default function MyTasksPage() {
 
   const myTasks = tasks.filter(t => t.assignee_id === currentUser?.id);
   const done = myTasks.filter(t => t.status === "DONE");
-  const notDone = myTasks.filter(t => t.status !== "DONE");
+  const blocked = myTasks.filter(t => t.status === "BLOCKED");
+  const todo = myTasks.filter(t => t.status !== "DONE" && t.status !== "BLOCKED");
   const pct = myTasks.length > 0 ? Math.round((done.length / myTasks.length) * 100) : 0;
 
   const now = new Date();
