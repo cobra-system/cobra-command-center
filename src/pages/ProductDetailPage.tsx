@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowRight, Package, Boxes, TruckIcon, BookOpen, Plus, Pencil } from "lucide-react";
+import { ArrowRight, Package, Boxes, TruckIcon, BookOpen, Plus, Pencil, AlertTriangle } from "lucide-react";
+import ProductIssuesTab from "@/components/ProductIssuesTab";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -274,6 +275,11 @@ export default function ProductDetailPage() {
         ) : (
           <p className="text-sm text-muted-foreground py-4 text-center">אין הזמנות קשורות למוצר זה</p>
         )}
+      </div>
+
+      {/* Product Issues Tab */}
+      <div className="bg-card rounded-xl border shadow-sm p-5">
+        <ProductIssuesTab productId={product.id} />
       </div>
 
       {/* Learning Journal Section */}
