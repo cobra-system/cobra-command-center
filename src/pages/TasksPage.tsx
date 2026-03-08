@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Plus } from "lucide-react";
+import { CalendarIcon, Plus, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 const columns: { status: TaskStatus; label: string; bgClass: string }[] = [
   { status: "TODO", label: "לביצוע", bgClass: "bg-[hsl(var(--todo))]" },
@@ -28,7 +29,7 @@ const priorityOptions: { value: Priority; label: string }[] = [
 ];
 
 export default function TasksPage() {
-  const { tasks, updateTaskStatus, addTask, profiles } = useData();
+  const { tasks, updateTaskStatus, addTask, profiles, resetDailyTasks } = useData();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -62,10 +63,16 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-foreground">משימות</h1>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-          <DialogTrigger asChild><Button><Plus className="h-4 w-4 ml-2" />משימה חדשה</Button></DialogTrigger>
+        <div className="flex items-center gap-2">
+          {tasks.some(t => t.is_daily && t.status !== "TODO") && (
+            <Button variant="outline" onClick={async () => { await resetDailyTasks(); toast.success("משימות יומיות אופסו"); }}>
+              <RotateCcw className="h-4 w-4 ml-2" />איפוס יומיות
+            </Button>
+          )}
+          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
+            <DialogTrigger asChild><Button><Plus className="h-4 w-4 ml-2" />משימה חדשה</Button></DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>יצירת משימה חדשה</DialogTitle></DialogHeader>
             <div className="space-y-4 pt-2">
@@ -105,7 +112,8 @@ export default function TasksPage() {
               <Button onClick={handleSubmit} disabled={!title.trim()} className="w-full">צור משימה</Button>
             </div>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">

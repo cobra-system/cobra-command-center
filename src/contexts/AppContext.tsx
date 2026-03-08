@@ -132,6 +132,8 @@ interface DataState {
   updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
   addProfile: (profile: { email: string; name: string; role: Role; pin?: string }) => Promise<void>;
   updateProfile: (id: string, updates: Partial<Profile>) => Promise<void>;
+  resetDailyTasks: () => Promise<void>;
+  createEmployee: (data: { name: string; role: Role; pin: string }) => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -350,6 +352,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await refreshProfiles();
   }, [refreshProfiles]);
 
+  const resetDailyTasks = useCallback(async () => {
+    const dailyTasks = tasks.filter(t => t.is_daily && t.status !== "TODO");
+    // Optimistic update
+    setTasks(prev => prev.map(t => t.is_daily ? { ...t, status: "TODO" } : t));
+    for (const t of dailyTasks) {
+      await supabase.from("tasks").update({ status: "TODO" }).eq("id", t.id);
+    }
+  }, [tasks]);
+
+  const createEmployee = useCallback(async (data: { name: string; role: Role; pin: string }): Promise<string | null> => {
+    try {
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const url = `https://${projectId}.supabase.co/functions/v1/create-employee`;
+      const sess = await supabase.auth.getSession();
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          "Authorization": `Bearer ${sess.data.session?.access_token}`,
+        },
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      if (!response.ok) return result.error || "שגיאה ביצירת עובד";
+      await refreshProfiles();
+      return null;
+    } catch {
+      return "שגיאה בחיבור לשרת";
+    }
+  }, [refreshProfiles]);
+
   return (
     <AuthContext.Provider value={{ currentUser, session, loading: authLoading, loginWithEmail, loginWithPin, loginWithGoogle, logout }}>
       <DataContext.Provider value={{
@@ -372,6 +406,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateProduct,
         addProfile,
         updateProfile,
+        resetDailyTasks,
+        createEmployee,
       }}>
         {children}
       </DataContext.Provider>
