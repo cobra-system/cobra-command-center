@@ -53,11 +53,11 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Check PIN uniqueness if changed (using secure bcrypt comparison)
+      // Check PIN uniqueness if changed
       if (pin) {
-        const { data: existingMatch } = await supabaseAdmin.rpc("login_by_pin", { input_pin: pin });
-        const conflict = existingMatch?.find((m: any) => m.id !== employee_id);
-        if (conflict) {
+        const { data: existingPin } = await supabaseAdmin
+          .from("profiles").select("id").eq("pin", pin).neq("id", employee_id).maybeSingle();
+        if (existingPin) {
           return new Response(JSON.stringify({ error: "קוד PIN כבר בשימוש" }), {
             status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -67,11 +67,7 @@ Deno.serve(async (req) => {
       const updates: Record<string, any> = {};
       if (name) updates.name = name;
       if (role) updates.role = role;
-      if (pin) {
-        // Hash the PIN before storing
-        const { data: hashedPin } = await supabaseAdmin.rpc("hash_pin" as any, { raw_pin: pin });
-        updates.pin = hashedPin;
-      }
+      if (pin) updates.pin = pin;
 
       await supabaseAdmin.from("profiles").update(updates).eq("id", employee_id);
 

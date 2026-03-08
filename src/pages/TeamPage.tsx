@@ -165,6 +165,7 @@ export default function TeamPage() {
           <thead><tr className="border-b bg-muted/50">
             <th className="text-right p-3 font-semibold text-foreground">שם</th>
             <th className="text-right p-3 font-semibold text-foreground">תפקיד</th>
+            <th className="text-right p-3 font-semibold text-foreground">PIN</th>
             {isManager && <th className="text-right p-3 font-semibold text-foreground">פעולות</th>}
           </tr></thead>
           <tbody className="divide-y">
@@ -172,6 +173,7 @@ export default function TeamPage() {
               <tr key={u.id}>
                 <td className="p-3 font-medium text-foreground">{u.name}</td>
                 <td className="p-3 text-muted-foreground">{getRoleLabel(u.role)}</td>
+                <td className="p-3 font-mono text-muted-foreground" dir="ltr">{isManager ? (u.pin || "—") : "••••"}</td>
                 {isManager && (
                   <td className="p-3">
                     <div className="flex gap-1">

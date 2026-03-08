@@ -221,27 +221,6 @@ export type Database = {
         }
         Relationships: []
       }
-      login_attempts: {
-        Row: {
-          attempted_at: string
-          id: string
-          ip_address: string
-          success: boolean
-        }
-        Insert: {
-          attempted_at?: string
-          id?: string
-          ip_address: string
-          success?: boolean
-        }
-        Update: {
-          attempted_at?: string
-          id?: string
-          ip_address?: string
-          success?: boolean
-        }
-        Relationships: []
-      }
       order_items: {
         Row: {
           id: string
@@ -993,20 +972,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      hash_pin: { Args: { raw_pin: string }; Returns: string }
       is_manager: { Args: never; Returns: boolean }
-      login_by_pin: {
-        Args: { input_pin: string }
-        Returns: {
-          id: string
-          name: string
-          role: Database["public"]["Enums"]["app_role"]
-        }[]
-      }
-      verify_pin: {
-        Args: { hashed_pin: string; raw_pin: string }
-        Returns: boolean
-      }
     }
     Enums: {
       app_role: "MANAGER" | "WAREHOUSE_MANAGER" | "LOGISTICS" | "DRIVER"

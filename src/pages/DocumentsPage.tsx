@@ -175,8 +175,8 @@ export default function DocumentsPage() {
       return;
     }
 
-    const { data: urlData } = await supabase.storage.from("documents").createSignedUrl(path, 3600);
-    const fileUrl = urlData?.signedUrl || "";
+    const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
+    const fileUrl = urlData.publicUrl;
     setUploading(false);
 
     // Extract text for classification

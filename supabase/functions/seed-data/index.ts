@@ -10,57 +10,17 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Authentication: Verify the caller is a manager
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return new Response(
-      JSON.stringify({ error: "לא מורשה — נדרש אימות" }),
-      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
   const supabaseAdmin = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  // Verify caller identity and role
-  const callerClient = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } }
-  );
-  
-  const { data: claimsData, error: claimsError } = await callerClient.auth.getClaims(
-    authHeader.replace("Bearer ", "")
-  );
-  if (claimsError || !claimsData?.claims) {
-    return new Response(
-      JSON.stringify({ error: "לא מורשה" }),
-      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  const userId = claimsData.claims.sub as string;
-  const { data: callerProfile } = await supabaseAdmin
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .single();
-    
-  if (!callerProfile || callerProfile.role !== "MANAGER") {
-    return new Response(
-      JSON.stringify({ error: "רק מנהל יכול להריץ seed" }),
-      { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
   try {
-    // 1. Create auth users with random passwords (not based on PINs)
+    // 1. Create auth users
     const usersToCreate = [
-      { email: "admin@cobra.io", name: "מנהל", role: "MANAGER", pin: null },
-      { email: "george@cobra.io", name: "ג'ורג'", role: "WAREHOUSE_MANAGER", pin: "1111" },
-      { email: "ziv@cobra.io", name: "זיו", role: "LOGISTICS", pin: "2222" },
+      { email: "admin@cobra.io", password: "cobra2026", name: "מנהל", role: "MANAGER", pin: null },
+      { email: "george@cobra.io", password: "pin1111", name: "ג'ורג'", role: "WAREHOUSE_MANAGER", pin: "1111" },
+      { email: "ziv@cobra.io", password: "pin2222", name: "זיו", role: "LOGISTICS", pin: "2222" },
     ];
 
     const userIds: Record<string, string> = {};
@@ -70,36 +30,28 @@ Deno.serve(async (req) => {
       const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
       const existing = existingUsers?.users?.find(eu => eu.email === u.email);
       
-      const randomPassword = crypto.randomUUID();
-      
       if (existing) {
         userIds[u.name] = existing.id;
-        // Hash PIN if provided
-        let hashedPin = null;
-        if (u.pin) {
-          const { data } = await supabaseAdmin.rpc("hash_pin" as any, { raw_pin: u.pin });
-          hashedPin = data;
-        }
+        // Update profile with PIN
         await supabaseAdmin.from("profiles").upsert({
           id: existing.id,
           name: u.name,
           role: u.role,
-          pin: hashedPin,
+          pin: u.pin,
         });
       } else {
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
           email: u.email,
-          password: randomPassword,
+          password: u.password,
           email_confirm: true,
           user_metadata: { name: u.name, role: u.role },
         });
         if (authError) throw new Error(`Failed to create user ${u.email}: ${authError.message}`);
         userIds[u.name] = authData.user.id;
         
-        // Hash and store PIN
+        // Update PIN in profile (trigger creates profile)
         if (u.pin) {
-          const { data: hashedPin } = await supabaseAdmin.rpc("hash_pin" as any, { raw_pin: u.pin });
-          await supabaseAdmin.from("profiles").update({ pin: hashedPin }).eq("id", authData.user.id);
+          await supabaseAdmin.from("profiles").update({ pin: u.pin }).eq("id", authData.user.id);
         }
       }
 
@@ -133,23 +85,27 @@ Deno.serve(async (req) => {
       { category:"בית", division:"Doore", name:"Doore", sku:"doorexr-full", product_type:"מורכב", supplier_origin:"ישראל, סין", shipping:"ימי + אווירי", monthly_sales:60, stock_qty:169, incoming_qty:0 },
     ];
 
+    // Upsert products
     for (const p of products) {
       await supabaseAdmin.from("products").upsert(p, { onConflict: "sku" });
     }
 
+    // Get product IDs for components
     const { data: dbProducts } = await supabaseAdmin.from("products").select("id, sku");
     const productMap: Record<string, string> = {};
     dbProducts?.forEach(p => { productMap[p.sku] = p.id; });
 
+    // Components for assembled products
     const components = [
-      { product_id: productMap["cobrasecrect"], name: "מודול GPS", sku: "gps-01", supplier: "RootRust", stock_qty: 200, price: 12 },
-      { product_id: productMap["cobrasecrect"], name: "יחידת שליטה", sku: "ctrl-01", supplier: "CR Team", stock_qty: 150, price: 35 },
-      { product_id: productMap["cobrasecrect"], name: "חיווט ראשי", supplier: "חיווט נאה", stock_qty: 400, price: 8 },
-      { product_id: productMap["biofin"], name: "סורק טביעות אצבע", sku: "fp-scan", supplier: "GROW", stock_qty: 50, price: 18 },
-      { product_id: productMap["biofin"], name: "לוח PCB", sku: "pcb-bio", supplier: "Fastline PCB", stock_qty: 100, price: 22 },
-      { product_id: productMap["biofin"], name: "מארז פלסטיק", sku: "case-bio", supplier: "TS Prototypes", stock_qty: 80, price: 5 },
+      { product_id: productMap["cobrasecrect"], name: "מודול GPS", sku: "gps-01", supplier: "RootRust", origin: "סין", stock_qty: 200, price: 12 },
+      { product_id: productMap["cobrasecrect"], name: "יחידת שליטה", sku: "ctrl-01", supplier: "CR Team", origin: "ישראל", stock_qty: 150, price: 35 },
+      { product_id: productMap["cobrasecrect"], name: "חיווט ראשי", supplier: "חיווט נאה", origin: "ישראל", stock_qty: 400, price: 8 },
+      { product_id: productMap["biofin"], name: "סורק טביעות אצבע", sku: "fp-scan", supplier: "GROW", origin: "סין", stock_qty: 50, price: 18 },
+      { product_id: productMap["biofin"], name: "לוח PCB", sku: "pcb-bio", supplier: "Fastline PCB", origin: "סין", stock_qty: 100, price: 22 },
+      { product_id: productMap["biofin"], name: "מארז פלסטיק", sku: "case-bio", supplier: "TS Prototypes", origin: "סין", stock_qty: 80, price: 5 },
     ];
 
+    // Clear existing components and insert
     for (const c of components) {
       if (c.product_id) {
         await supabaseAdmin.from("product_components").insert(c);
@@ -158,25 +114,25 @@ Deno.serve(async (req) => {
 
     // 3. Seed suppliers
     const allSuppliers = [
-      { contact_name:"MAIRIA / Carolyn", company:"iStar Video", email:"maria@istarvideo.com", country:"סין", products:"PROOF Z-4K, S400, KAF32, Doore Doorbell" },
-      { contact_name:"Simon", company:"ACESVision", email:"sales@acesvision.com", country:"סין", products:"BackseatTV1, BackseatTV2, מסכי אנדרואיד" },
-      { contact_name:"Denver", company:"BOW", email:"denverzheng@hotmail.com", country:"סין", products:"פותח מצלמה אחורית לברלינגו" },
-      { contact_name:"Winni Wu", company:"GROW", email:"winni@hzgrow.com", country:"סין", products:"סורק טביעות אצבע לביומטרי" },
-      { contact_name:"Lois", company:"Kaier", email:"sales8@szkaier.com", country:"סין", products:"מערכות מולטימדיה" },
-      { contact_name:"ADA", company:"LOWC", email:"ada@lowctech.com", country:"סין", products:"סוללות" },
-      { contact_name:"Jenny", company:"RootRust", email:"jenny@rootrust.com", country:"סין", products:"דונגלים, נתבים" },
-      { contact_name:"Ivy", company:"SwitchBot WOAN", email:"ivy@switch-bot.com", country:"סין", products:"Doore Ultra" },
-      { contact_name:"John", company:"VehicleTech", email:"john@vehicle-tech.net", country:"סין", products:"פותח תא מטען" },
-      { contact_name:"Brikena / Federica", company:"Vodafone Automotive", email:"brikena.hamataj@vodafone.com", country:"איטליה", products:"COBRA Alert, Parking Sensors" },
-      { contact_name:"Emma", company:"AutoStar / Just Supply", email:"emma@auto-star.com.cn", country:"סין", products:"Blindspot" },
-      { contact_name:"Neil", company:"A.I. Matics", email:"neil@aimatics.ai", country:"דרום קוריאה", products:"AWACS CM108" },
-      { contact_name:"Zoe", company:"TS Prototypes", email:"sales9@tsprototypes.com", country:"סין", products:"פלסטיקה לביומטרי" },
-      { contact_name:"Nataya", company:"AUTHOR-ALARM", email:"vankova@author-alarm.com", country:"סלובניה", products:"IGLA100, IGLA200, IGLA230" },
-      { contact_name:"Pancras Qiu", company:"Kunshan RCD Electronics", email:"sales16@ksrcd.com", country:"סין" },
-      { contact_name:"Florian", company:"KUDA", email:"florian.kuhlmann@kuda-phonebase.de", country:"סין" },
-      { contact_name:"Wendy", company:"HYF / Herofun-Bio", email:"sales07@herofun-bio.com", country:"סין" },
-      { contact_name:"Cari", company:"Topfoison", email:"cari.huang@topfoison.com", country:"סין", products:"תצוגות" },
-      { contact_name:"Jenny", company:"Fastline PCB", email:"jenny@fastlinepcb.com", country:"סין", products:"PCB" },
+      { contact_name:"MAIRIA / Carolyn", company:"iStar Video", email:"maria@istarvideo.com", country:"חול", products:"PROOF Z-4K, S400, KAF32, Doore Doorbell" },
+      { contact_name:"Simon", company:"ACESVision", email:"sales@acesvision.com", country:"חול", products:"BackseatTV1, BackseatTV2, מסכי אנדרואיד" },
+      { contact_name:"Denver", company:"BOW", email:"denverzheng@hotmail.com", country:"חול", products:"פותח מצלמה אחורית לברלינגו" },
+      { contact_name:"Winni Wu", company:"GROW", email:"winni@hzgrow.com", country:"חול", products:"סורק טביעות אצבע לביומטרי" },
+      { contact_name:"Lois", company:"Kaier", email:"sales8@szkaier.com", country:"חול", products:"מערכות מולטימדיה" },
+      { contact_name:"ADA", company:"LOWC", email:"ada@lowctech.com", country:"חול", products:"סוללות" },
+      { contact_name:"Jenny", company:"RootRust", email:"jenny@rootrust.com", country:"חול", products:"דונגלים, נתבים" },
+      { contact_name:"Ivy", company:"SwitchBot WOAN", email:"ivy@switch-bot.com", country:"חול", products:"Doore Ultra" },
+      { contact_name:"John", company:"VehicleTech", email:"john@vehicle-tech.net", country:"חול", products:"פותח תא מטען" },
+      { contact_name:"Brikena / Federica", company:"Vodafone Automotive", email:"brikena.hamataj@vodafone.com", country:"חול", products:"COBRA Alert, Parking Sensors" },
+      { contact_name:"Emma", company:"AutoStar / Just Supply", email:"emma@auto-star.com.cn", country:"חול", products:"Blindspot" },
+      { contact_name:"Neil", company:"A.I. Matics", email:"neil@aimatics.ai", country:"חול", products:"AWACS CM108" },
+      { contact_name:"Zoe", company:"TS Prototypes", email:"sales9@tsprototypes.com", country:"חול", products:"פלסטיקה לביומטרי" },
+      { contact_name:"Nataya", company:"AUTHOR-ALARM", email:"vankova@author-alarm.com", country:"חול", products:"IGLA100, IGLA200, IGLA230" },
+      { contact_name:"Pancras Qiu", company:"Kunshan RCD Electronics", email:"sales16@ksrcd.com", country:"חול" },
+      { contact_name:"Florian", company:"KUDA", email:"florian.kuhlmann@kuda-phonebase.de", country:"חול" },
+      { contact_name:"Wendy", company:"HYF / Herofun-Bio", email:"sales07@herofun-bio.com", country:"חול" },
+      { contact_name:"Cari", company:"Topfoison", email:"cari.huang@topfoison.com", country:"חול", products:"תצוגות" },
+      { contact_name:"Jenny", company:"Fastline PCB", email:"jenny@fastlinepcb.com", country:"חול", products:"PCB" },
       { contact_name:"אופיר", company:"ניפון", phone:"054-2315566", email:"udi.nippon@gmail.com", country:"ישראל", products:"מולטימדיות" },
       { contact_name:"ישראל", company:"ספטרוטק", phone:"0522260438", country:"ישראל", products:"קודניות" },
       { contact_name:"אריאל", company:"ERM", phone:"0545727969", email:"ariel@erm.co.il", country:"ישראל", products:"מרים, קודניות" },
@@ -194,6 +150,9 @@ Deno.serve(async (req) => {
     // 4. Seed orders
     const georgeId = userIds["ג'ורג'"];
     const zivId = userIds["זיו"];
+
+    // Get supplier IDs
+    const { data: dbSuppliers } = await supabaseAdmin.from("suppliers").select("id, company");
 
     const orders = [
       { priority:"דחוף", supplier_name:"iStar", shipping:"ימי", status:"SHIPPED", eta:"2026-04-10T00:00:00Z", items:[{ name:"PROOF Z-4K", qty:1600 }] },
@@ -230,7 +189,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ success: true, userIds }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
