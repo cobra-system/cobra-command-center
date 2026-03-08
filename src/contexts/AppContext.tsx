@@ -68,6 +68,7 @@ export interface Supplier {
   payment_terms?: string | null;
   risk_level?: string | null;
   backup_supplier_id?: string | null;
+  website?: string | null;
 }
 
 export interface Order {
@@ -151,6 +152,9 @@ interface DataState {
   updateProfile: (id: string, updates: Partial<Profile>) => Promise<void>;
   resetDailyTasks: () => Promise<void>;
   createEmployee: (data: { name: string; role: Role; pin: string }) => Promise<string | null>;
+  addSupplier: (supplier: Omit<Supplier, "id">) => Promise<void>;
+  updateSupplier: (id: string, updates: Partial<Supplier>) => Promise<void>;
+  deleteSupplier: (id: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -496,6 +500,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshProfiles]);
 
+  const addSupplier = useCallback(async (supplier: Omit<Supplier, "id">) => {
+    await supabase.from("suppliers").insert(supplier as any);
+    await refreshSuppliers();
+  }, [refreshSuppliers]);
+
+  const updateSupplier = useCallback(async (id: string, updates: Partial<Supplier>) => {
+    await supabase.from("suppliers").update(updates as any).eq("id", id);
+    await refreshSuppliers();
+  }, [refreshSuppliers]);
+
+  const deleteSupplier = useCallback(async (id: string) => {
+    await supabase.from("suppliers").delete().eq("id", id);
+    await refreshSuppliers();
+  }, [refreshSuppliers]);
+
   return (
     <AuthContext.Provider value={{ currentUser, session, loading: authLoading, loginWithEmail, loginWithPin, loginWithGoogle, logout }}>
       <DataContext.Provider value={{
@@ -527,6 +546,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateProfile,
         resetDailyTasks,
         createEmployee,
+        addSupplier,
+        updateSupplier,
+        deleteSupplier,
       }}>
         {children}
       </DataContext.Provider>

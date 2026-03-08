@@ -13,6 +13,7 @@ import ProductsPage from "@/pages/ProductsPage";
 import ProductDetailPage from "@/pages/ProductDetailPage";
 import OrdersPage from "@/pages/OrdersPage";
 import SuppliersPage from "@/pages/SuppliersPage";
+import SupplierDetailPage from "@/pages/SupplierDetailPage";
 import TasksPage from "@/pages/TasksPage";
 import TeamPage from "@/pages/TeamPage";
 import SettingsPage from "@/pages/SettingsPage";
@@ -57,6 +58,7 @@ function AppRoutes() {
         <Route path="/products/:id" element={<ProductDetailPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/suppliers" element={<SuppliersPage />} />
+        <Route path="/suppliers/:id" element={<SupplierDetailPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/reorder" element={<ReorderPage />} />

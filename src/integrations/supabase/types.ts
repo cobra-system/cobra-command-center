@@ -567,6 +567,7 @@ export type Database = {
           products: string | null
           risk_level: string | null
           role: string | null
+          website: string | null
         }
         Insert: {
           backup_supplier_id?: string | null
@@ -583,6 +584,7 @@ export type Database = {
           products?: string | null
           risk_level?: string | null
           role?: string | null
+          website?: string | null
         }
         Update: {
           backup_supplier_id?: string | null
@@ -599,6 +601,7 @@ export type Database = {
           products?: string | null
           risk_level?: string | null
           role?: string | null
+          website?: string | null
         }
         Relationships: [
           {

@@ -1,14 +1,23 @@
 import { useState } from "react";
-import { useData } from "@/contexts/AppContext";
-import { Search, Mail } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useData, useAuth, type Supplier } from "@/contexts/AppContext";
+import { Search, Plus, Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SupplierEmailTab from "@/components/SupplierEmailTab";
+import { toast } from "sonner";
 
 export default function SuppliersPage() {
-  const { suppliers } = useData();
+  const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const { suppliers, addSupplier } = useData();
   const [search, setSearch] = useState("");
-  const [selectedSupplier, setSelectedSupplier] = useState<{ id: string; company: string; email: string | null } | null>(null);
+  const [emailSupplier, setEmailSupplier] = useState<{ id: string; company: string; email: string | null } | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   const filtered = suppliers.filter(s => {
     if (!search) return true;
@@ -23,9 +32,14 @@ export default function SuppliersPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-foreground">ספקים</h1>
-        <div className="relative min-w-[200px] max-w-sm">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="חיפוש ספק..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
+        <div className="flex items-center gap-3">
+          <div className="relative min-w-[200px] max-w-sm">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="חיפוש ספק..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
+          </div>
+          {currentUser?.role === "MANAGER" && (
+            <Button size="sm" onClick={() => setAddOpen(true)}><Plus className="h-4 w-4 ml-1" />ספק חדש</Button>
+          )}
         </div>
       </div>
 
@@ -46,15 +60,15 @@ export default function SuppliersPage() {
                 {section.list.length === 0 ? (
                   <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">לא נמצאו ספקים</td></tr>
                 ) : section.list.map(s => (
-                  <tr key={s.id}>
+                  <tr key={s.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/suppliers/${s.id}`)}>
                     <td className="p-3 font-medium text-foreground">{s.company}</td>
                     <td className="p-3 text-muted-foreground">{s.contact_name}</td>
-                    <td className="p-3">{s.email ? <a href={`mailto:${s.email}`} className="text-accent hover:underline text-xs" dir="ltr">{s.email}</a> : "—"}</td>
+                    <td className="p-3">{s.email ? <span className="text-accent text-xs" dir="ltr">{s.email}</span> : "—"}</td>
                     <td className="p-3 text-muted-foreground" dir="ltr">{s.phone || "—"}</td>
                     <td className="p-3 text-muted-foreground text-xs max-w-[200px] truncate">{s.products || "—"}</td>
                     <td className="p-3">
                       <button
-                        onClick={() => setSelectedSupplier({ id: s.id, company: s.company, email: s.email || null })}
+                        onClick={(e) => { e.stopPropagation(); setEmailSupplier({ id: s.id, company: s.company, email: s.email || null }); }}
                         className="text-primary hover:text-primary/80 transition-colors"
                         title="📧 תקשורת"
                       >
@@ -70,19 +84,97 @@ export default function SuppliersPage() {
       ))}
 
       {/* Email Dialog */}
-      <Dialog open={!!selectedSupplier} onOpenChange={() => setSelectedSupplier(null)}>
+      <Dialog open={!!emailSupplier} onOpenChange={() => setEmailSupplier(null)}>
         <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>📧 תקשורת — {selectedSupplier?.company}</DialogTitle>
-          </DialogHeader>
-          {selectedSupplier && (
-            <SupplierEmailTab
-              supplierEmail={selectedSupplier.email || ""}
-              supplierName={selectedSupplier.company}
-            />
-          )}
+          <DialogHeader><DialogTitle>📧 תקשורת — {emailSupplier?.company}</DialogTitle></DialogHeader>
+          {emailSupplier && <SupplierEmailTab supplierEmail={emailSupplier.email || ""} supplierName={emailSupplier.company} />}
         </DialogContent>
       </Dialog>
+
+      {/* Add Supplier Dialog */}
+      <AddSupplierDialog open={addOpen} onOpenChange={setAddOpen} onAdd={addSupplier} />
     </div>
+  );
+}
+
+function AddSupplierDialog({ open, onOpenChange, onAdd }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAdd: (supplier: Omit<Supplier, "id">) => Promise<void>;
+}) {
+  const [fields, setFields] = useState({
+    company: "", contact_name: "", email: "", phone: "", country: "ישראל", website: "", notes: "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  const set = (key: string, value: string) => setFields(prev => ({ ...prev, [key]: value }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onAdd({
+        company: fields.company,
+        contact_name: fields.contact_name,
+        email: fields.email || null,
+        phone: fields.phone || null,
+        country: fields.country || null,
+        website: fields.website || null,
+        notes: fields.notes || null,
+      });
+      toast.success("ספק נוסף בהצלחה");
+      onOpenChange(false);
+      setFields({ company: "", contact_name: "", email: "", phone: "", country: "ישראל", website: "", notes: "" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader><DialogTitle>ספק חדש</DialogTitle></DialogHeader>
+        <div className="space-y-3 pt-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">שם חברה *</Label>
+              <Input value={fields.company} onChange={e => set("company", e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">איש קשר *</Label>
+              <Input value={fields.contact_name} onChange={e => set("contact_name", e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">אימייל</Label>
+              <Input type="email" value={fields.email} onChange={e => set("email", e.target.value)} dir="ltr" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">טלפון</Label>
+              <Input value={fields.phone} onChange={e => set("phone", e.target.value)} dir="ltr" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">מדינה</Label>
+              <Select value={fields.country} onValueChange={v => set("country", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ישראל">ישראל</SelectItem>
+                  <SelectItem value="חול">חו״ל</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">אתר</Label>
+              <Input value={fields.website} onChange={e => set("website", e.target.value)} dir="ltr" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">הערות</Label>
+            <Textarea value={fields.notes} onChange={e => set("notes", e.target.value)} rows={2} />
+          </div>
+          <Button onClick={handleSave} className="w-full" disabled={saving || !fields.company.trim() || !fields.contact_name.trim()}>
+            {saving ? "שומר..." : "הוסף ספק"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
