@@ -70,6 +70,7 @@ function AppRoutes() {
         <Route path="/reorder" element={<ReorderPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/sap" element={<SapSettingsPage />} />
       </Route>
 
       <Route element={<RequireAuth />}>
