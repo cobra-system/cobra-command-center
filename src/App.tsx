@@ -55,6 +55,7 @@ function AppRoutes() {
         <Route path="/suppliers" element={<SuppliersPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/team" element={<TeamPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
       </Route>
 
       <Route element={<RequireAuth />}>
