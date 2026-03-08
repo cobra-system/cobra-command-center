@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Plus, RotateCcw, Pencil, Trash2 } from "lucide-react";
+import { CalendarIcon, Plus, RotateCcw, Pencil, Trash2, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -40,7 +40,22 @@ export default function TasksPage() {
   const [dueDate, setDueDate] = useState<Date>();
   const [isDaily, setIsDaily] = useState(false);
 
+  // Filters
+  const [search, setSearch] = useState("");
+  const [assigneeFilter, setAssigneeFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+
   const employees = profiles.filter(u => u.role !== "MANAGER");
+
+  const filteredTasks = tasks.filter(t => {
+    if (assigneeFilter !== "all" && t.assignee_id !== assigneeFilter) return false;
+    if (priorityFilter !== "all" && t.priority !== priorityFilter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!t.title.toLowerCase().includes(q) && !(t.assignee_name || "").toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
 
   const resetForm = () => {
     setTitle(""); setDescription(""); setPriority("P2"); setAssigneeId(""); setDueDate(undefined); setIsDaily(false);
@@ -95,7 +110,7 @@ export default function TasksPage() {
     toast.success("המשימה נמחקה");
   };
 
-  const getColumnTasks = (status: TaskStatus): Task[] => tasks.filter(t => t.status === status);
+  const getColumnTasks = (status: TaskStatus): Task[] => filteredTasks.filter(t => t.status === status);
 
   return (
     <div className="space-y-5">
@@ -152,6 +167,28 @@ export default function TasksPage() {
             </DialogContent>
           </Dialog>
         </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="חיפוש לפי כותרת או עובד..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
+        </div>
+        <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+          <SelectTrigger className="w-[150px]"><SelectValue placeholder="עובד" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">כל העובדים</SelectItem>
+            {employees.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+          <SelectTrigger className="w-[130px]"><SelectValue placeholder="עדיפות" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">כל העדיפויות</SelectItem>
+            {priorityOptions.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">

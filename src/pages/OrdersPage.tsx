@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { ChevronLeft, Plus, Trash2, CalendarIcon } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, CalendarIcon, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,14 @@ const priorities: { value: Priority; label: string }[] = [
   { value: "P3", label: "P3 — נמוך" },
 ];
 
+const statusOptions: { value: string; label: string }[] = [
+  { value: "all", label: "הכל" },
+  { value: "PENDING", label: "ממתין" },
+  { value: "ORDERED", label: "הוזמן" },
+  { value: "SHIPPED", label: "נשלח" },
+  { value: "ARRIVED", label: "הגיע" },
+];
+
 interface ItemRow { name: string; qty: string; price: string; }
 
 export default function OrdersPage() {
@@ -39,6 +47,23 @@ export default function OrdersPage() {
   const [etd, setEtd] = useState<Date>();
   const [eta, setEta] = useState<Date>();
   const [items, setItems] = useState<ItemRow[]>([{ name: "", qty: "", price: "" }]);
+
+  // Filters
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+
+  const filtered = orders.filter(o => {
+    if (statusFilter !== "all" && o.status !== statusFilter) return false;
+    if (priorityFilter !== "all" && o.priority !== priorityFilter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const itemNames = o.items.map(i => i.name).join(" ").toLowerCase();
+      const supplier = (o.supplier_name || "").toLowerCase();
+      if (!itemNames.includes(q) && !supplier.includes(q)) return false;
+    }
+    return true;
+  });
 
   const resetForm = () => { setPriority("P2"); setSupplierId(""); setShipping(""); setNotes(""); setEtd(undefined); setEta(undefined); setItems([{ name: "", qty: "", price: "" }]); };
   const updateItem = (idx: number, field: keyof ItemRow, value: string) => setItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
@@ -138,6 +163,28 @@ export default function OrdersPage() {
         </Dialog>
       </div>
 
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="חיפוש לפי מוצר או ספק..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
+        </div>
+        <div className="flex bg-secondary rounded-lg p-1">
+          {statusOptions.map(s => (
+            <button key={s.value} onClick={() => setStatusFilter(s.value)} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              statusFilter === s.value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+            }`}>{s.label}</button>
+          ))}
+        </div>
+        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+          <SelectTrigger className="w-[130px]"><SelectValue placeholder="עדיפות" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">כל העדיפויות</SelectItem>
+            {priorities.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -153,9 +200,9 @@ export default function OrdersPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {orders.length === 0 ? (
+            {filtered.length === 0 ? (
               <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
-            ) : orders.map(order => (
+            ) : filtered.map(order => (
               <tr key={order.id}>
                 <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
                 <td className="p-3 font-medium text-foreground">{order.items.map(i => i.name).join(", ")}</td>

@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
+import { toast } from "sonner";
 
 // Re-export types for compatibility
 export type Role = "MANAGER" | "WAREHOUSE_MANAGER" | "LOGISTICS" | "DRIVER";
@@ -153,6 +154,8 @@ export function useData() {
   return ctx;
 }
 
+const taskStatusLabel: Record<string, string> = { TODO: "לביצוע", IN_PROGRESS: "בביצוע", DONE: "הושלם", BLOCKED: "חסום" };
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [currentUser, setCurrentUser] = useState<Profile | null>(null);
@@ -165,6 +168,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
+  // Track own mutations to suppress self-notifications
+  const ownMutationIds = useRef<Set<string>>(new Set());
+
   // Fetch profile for a user
   const fetchProfile = useCallback(async (userId: string): Promise<Profile | null> => {
     const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
@@ -173,11 +179,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Auth state listener
   useEffect(() => {
-    // Set up the listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, sess) => {
       setSession(sess);
       if (sess?.user) {
-        // Defer profile fetch to avoid Supabase deadlock
         setTimeout(async () => {
           const profile = await fetchProfile(sess.user.id);
           setCurrentUser(profile);
@@ -189,7 +193,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    // Then check for existing session
     supabase.auth.getSession().then(async ({ data: { session: sess } }) => {
       setSession(sess);
       if (sess?.user) {
@@ -226,7 +229,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const result = await response.json();
       if (!response.ok) return result.error || "שגיאה בכניסה";
 
-      // Set the session from the edge function response
       const { error } = await supabase.auth.setSession({
         access_token: result.session.access_token,
         refresh_token: result.session.refresh_token,
@@ -257,7 +259,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refreshProducts = useCallback(async () => {
     const { data: prods } = await supabase.from("products").select("*").order("category");
     if (prods) {
-      // Fetch components for assembled products
       const assembledIds = prods.filter(p => p.product_type === "מורכב").map(p => p.id);
       let compsMap: Record<string, ProductComponent[]> = {};
       if (assembledIds.length > 0) {
@@ -311,14 +312,63 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ]).finally(() => setDataLoading(false));
   }, [session, refreshProducts, refreshOrders, refreshTasks, refreshSuppliers, refreshProfiles]);
 
+  // Realtime subscription for tasks
+  useEffect(() => {
+    if (!session) return;
+
+    const channel = supabase
+      .channel('tasks-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tasks' },
+        (payload) => {
+          const taskId = (payload.new as any)?.id || (payload.old as any)?.id;
+          
+          // Skip notifications for own mutations
+          if (ownMutationIds.current.has(taskId)) {
+            ownMutationIds.current.delete(taskId);
+            return;
+          }
+
+          if (payload.eventType === 'UPDATE') {
+            const newTask = payload.new as Task;
+            const oldTask = payload.old as any;
+            
+            setTasks(prev => prev.map(t => t.id === newTask.id ? newTask : t));
+
+            // Show notification for status changes
+            if (oldTask.status && oldTask.status !== newTask.status) {
+              const statusText = taskStatusLabel[newTask.status] || newTask.status;
+              toast.info(`📋 "${newTask.title}" → ${statusText}`, {
+                description: newTask.assignee_name ? `עודכן ע״י ${newTask.assignee_name}` : undefined,
+              });
+            }
+          } else if (payload.eventType === 'INSERT') {
+            const newTask = payload.new as Task;
+            setTasks(prev => [newTask, ...prev]);
+            toast.info(`📋 משימה חדשה: "${newTask.title}"`);
+          } else if (payload.eventType === 'DELETE') {
+            const oldId = (payload.old as any).id;
+            setTasks(prev => prev.filter(t => t.id !== oldId));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session]);
+
   // Mutations
   const updateTaskStatus = useCallback(async (taskId: string, status: TaskStatus) => {
-    // Optimistic update
+    ownMutationIds.current.add(taskId);
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status } : t));
     await supabase.from("tasks").update({ status }).eq("id", taskId);
   }, []);
 
   const addTaskNote = useCallback(async (taskId: string, note: string) => {
+    ownMutationIds.current.add(taskId);
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, notes: note } : t));
     await supabase.from("tasks").update({ notes: note }).eq("id", taskId);
   }, []);
@@ -344,11 +394,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [refreshTasks]);
 
   const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
+    ownMutationIds.current.add(id);
     setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
     await supabase.from("tasks").update(updates).eq("id", id);
   }, []);
 
   const deleteTask = useCallback(async (id: string) => {
+    ownMutationIds.current.add(id);
     setTasks(prev => prev.filter(t => t.id !== id));
     await supabase.from("tasks").delete().eq("id", id);
   }, []);
@@ -360,8 +412,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [refreshProducts]);
 
   const addProfile = useCallback(async (profile: { email: string; name: string; role: Role; pin?: string }) => {
-    // This would typically need an admin edge function to create auth users
-    // For now, refresh profiles
     await refreshProfiles();
   }, [refreshProfiles]);
 
@@ -372,9 +422,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const resetDailyTasks = useCallback(async () => {
     const dailyTasks = tasks.filter(t => t.is_daily && t.status !== "TODO");
-    // Optimistic update
     setTasks(prev => prev.map(t => t.is_daily ? { ...t, status: "TODO" } : t));
     for (const t of dailyTasks) {
+      ownMutationIds.current.add(t.id);
       await supabase.from("tasks").update({ status: "TODO" }).eq("id", t.id);
     }
   }, [tasks]);
@@ -439,5 +489,5 @@ export function AppProvider({ children }: { children: ReactNode }) {
 export const categories = ["הכל", "מיגון ואיתור", "מולטימדיה", "בטיחות", "נוחות וקישוריות", "בית"];
 export const priorityLabel: Record<string, string> = { P0: "דחוף", P1: "גבוה", P2: "רגיל", P3: "נמוך" };
 export const statusLabel: Record<string, string> = { PENDING: "ממתין", ORDERED: "הוזמן", SHIPPED: "נשלח", ARRIVED: "הגיע", CANCELLED: "בוטל" };
-export const taskStatusLabel: Record<string, string> = { TODO: "לביצוע", IN_PROGRESS: "בביצוע", DONE: "הושלם", BLOCKED: "חסום" };
+export { taskStatusLabel };
 export const roleLabel: Record<string, string> = { MANAGER: "מנהל", WAREHOUSE_MANAGER: "מנהל מחסן", LOGISTICS: "לוגיסטיקה", DRIVER: "נהג" };
