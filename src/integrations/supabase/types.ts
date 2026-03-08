@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      learning_journal: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string
+          date: string
+          id: string
+          linked_id: string | null
+          linked_type: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          created_by: string
+          date?: string
+          id?: string
+          linked_id?: string | null
+          linked_type?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string
+          date?: string
+          id?: string
+          linked_id?: string | null
+          linked_type?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           id: string
@@ -168,14 +207,19 @@ export type Database = {
           created_at: string
           description: string | null
           division: string | null
+          end_product_image: string | null
+          end_product_url: string | null
           id: string
           incoming_qty: number
+          lead_time_days: number | null
           monthly_order: number | null
           monthly_sales: number | null
+          monthly_sales_avg: number | null
           name: string
           notes: string | null
           product_type: string
           purchase_price: number | null
+          reorder_point: number | null
           sale_price: number | null
           shipping: string | null
           sku: string
@@ -189,14 +233,19 @@ export type Database = {
           created_at?: string
           description?: string | null
           division?: string | null
+          end_product_image?: string | null
+          end_product_url?: string | null
           id?: string
           incoming_qty?: number
+          lead_time_days?: number | null
           monthly_order?: number | null
           monthly_sales?: number | null
+          monthly_sales_avg?: number | null
           name: string
           notes?: string | null
           product_type: string
           purchase_price?: number | null
+          reorder_point?: number | null
           sale_price?: number | null
           shipping?: string | null
           sku: string
@@ -210,14 +259,19 @@ export type Database = {
           created_at?: string
           description?: string | null
           division?: string | null
+          end_product_image?: string | null
+          end_product_url?: string | null
           id?: string
           incoming_qty?: number
+          lead_time_days?: number | null
           monthly_order?: number | null
           monthly_sales?: number | null
+          monthly_sales_avg?: number | null
           name?: string
           notes?: string | null
           product_type?: string
           purchase_price?: number | null
+          reorder_point?: number | null
           sale_price?: number | null
           shipping?: string | null
           sku?: string
@@ -257,42 +311,62 @@ export type Database = {
       }
       suppliers: {
         Row: {
+          backup_supplier_id: string | null
           company: string
           contact_name: string
           country: string | null
           created_at: string
           email: string | null
           id: string
+          lead_time_days: number | null
           notes: string | null
+          payment_terms: string | null
           phone: string | null
           products: string | null
+          risk_level: string | null
           role: string | null
         }
         Insert: {
+          backup_supplier_id?: string | null
           company: string
           contact_name: string
           country?: string | null
           created_at?: string
           email?: string | null
           id?: string
+          lead_time_days?: number | null
           notes?: string | null
+          payment_terms?: string | null
           phone?: string | null
           products?: string | null
+          risk_level?: string | null
           role?: string | null
         }
         Update: {
+          backup_supplier_id?: string | null
           company?: string
           contact_name?: string
           country?: string | null
           created_at?: string
           email?: string | null
           id?: string
+          lead_time_days?: number | null
           notes?: string | null
+          payment_terms?: string | null
           phone?: string | null
           products?: string | null
+          risk_level?: string | null
           role?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_backup_supplier_id_fkey"
+            columns: ["backup_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tasks: {
         Row: {
