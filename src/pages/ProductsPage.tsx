@@ -148,7 +148,7 @@ export default function ProductsPage() {
               return (
                 <Fragment key={p.id}>
                   <tr
-                    className={`${getRowClass(p.stock_qty, p.monthly_order)} cursor-pointer hover:bg-muted/30 transition-colors`}
+                    className="cursor-pointer hover:bg-muted/30 transition-colors"
                     onClick={() => isComposite ? toggleExpand(p.id) : navigate(`/products/${p.id}`)}
                     onDoubleClick={() => navigate(`/products/${p.id}`)}
                   >
