@@ -121,6 +121,8 @@ export default function ManagerLayout() {
           </button>
         </div>
 
+        <GlobalSearch />
+
         <nav className="flex-1 px-3 space-y-1">
           {navItems.map((item, index) => {
             const Icon = iconMap[item.icon] || Package;
