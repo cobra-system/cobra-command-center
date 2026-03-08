@@ -57,7 +57,7 @@ export default function ProductDetailPage() {
 
   const details: { label: string; field: string; value: string | number | undefined | null; isSupplierLink?: boolean; options?: { value: string; label: string }[] }[] = [
     { label: "קטגוריה", field: "category", value: product.category, options: categoryOptions },
-    { label: "חטיבה", field: "division", value: product.division },
+    { label: "חטיבות", field: "division", value: product.division, options: divisionOptions },
     { label: "מק״ט", field: "sku", value: product.sku },
     { label: "סוג מוצר", field: "product_type", value: product.product_type, options: productTypeOptions },
     { label: "תיאור", field: "description", value: product.description },
