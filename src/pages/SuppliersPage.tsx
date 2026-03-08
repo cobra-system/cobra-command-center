@@ -82,8 +82,9 @@ export default function SuppliersPage() {
             <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">הכל</SelectItem>
-              <SelectItem value="חול">חו״ל</SelectItem>
-              <SelectItem value="ישראל">ישראל</SelectItem>
+              {countries.map(c => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <div className="relative min-w-[200px] max-w-sm">
