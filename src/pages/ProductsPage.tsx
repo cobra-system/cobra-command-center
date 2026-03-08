@@ -104,8 +104,12 @@ export default function ProductsPage() {
                       )}
                     </td>
                     <td className="p-3 font-medium text-foreground">
-                      <div className="flex items-center gap-1.5">
-                        {isComposite && <Boxes className="h-3.5 w-3.5 text-accent shrink-0" />}
+                      <div className="flex items-center gap-2">
+                        {p.end_product_image ? (
+                          <img src={p.end_product_image} alt={p.name} className="h-8 w-8 rounded object-cover shrink-0" />
+                        ) : isComposite ? (
+                          <Boxes className="h-3.5 w-3.5 text-accent shrink-0" />
+                        ) : null}
                         {p.name}
                       </div>
                     </td>
