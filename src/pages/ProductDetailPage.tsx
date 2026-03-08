@@ -337,10 +337,6 @@ export default function ProductDetailPage() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">מקור</Label>
-                <Input value={newComp.origin} onChange={e => setNewComp(p => ({ ...p, origin: e.target.value }))} />
-              </div>
-              <div className="space-y-1">
                 <Label className="text-xs">מלאי</Label>
                 <Input type="number" value={newComp.stock_qty} onChange={e => setNewComp(p => ({ ...p, stock_qty: e.target.value }))} />
               </div>
