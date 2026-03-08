@@ -256,7 +256,13 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct }: P
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">ספק</Label>
-                    <Input value={comp.supplier} onChange={e => { const nc = [...comps]; nc[i].supplier = e.target.value; setComps(nc); }} className="h-8 text-xs" />
+                    <Select value={comp.supplier || "__none__"} onValueChange={v => { const nc = [...comps]; nc[i].supplier = v === "__none__" ? "" : v; setComps(nc); }}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="בחר ספק" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">ללא</SelectItem>
+                        {suppliers.map(s => <SelectItem key={s.id} value={s.company}>{s.company}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">מלאי</Label>
