@@ -248,7 +248,15 @@ export default function ProductDetailPage() {
                       <tr key={comp.id} className="bg-accent/5">
                         <td className="p-2"><Input value={editCompFields.name} onChange={e => setEditCompFields(p => ({ ...p, name: e.target.value }))} className="h-8 text-sm" /></td>
                         <td className="p-2"><Input value={editCompFields.sku} onChange={e => setEditCompFields(p => ({ ...p, sku: e.target.value }))} className="h-8 text-sm" dir="ltr" /></td>
-                        <td className="p-2"><Input value={editCompFields.supplier} onChange={e => setEditCompFields(p => ({ ...p, supplier: e.target.value }))} className="h-8 text-sm" /></td>
+                        <td className="p-2">
+                          <Select value={editCompFields.supplier || "__none__"} onValueChange={v => setEditCompFields(p => ({ ...p, supplier: v === "__none__" ? "" : v }))}>
+                            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="בחר ספק" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">ללא</SelectItem>
+                              {suppliers.map(s => <SelectItem key={s.id} value={s.company}>{s.company}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </td>
                         <td className="p-2"><Input value={editCompFields.origin} onChange={e => setEditCompFields(p => ({ ...p, origin: e.target.value }))} className="h-8 text-sm" /></td>
                         <td className="p-2"><Input type="number" value={editCompFields.stock_qty} onChange={e => setEditCompFields(p => ({ ...p, stock_qty: e.target.value }))} className="h-8 text-sm w-20" /></td>
                         <td className="p-2"><Input type="number" value={editCompFields.price} onChange={e => setEditCompFields(p => ({ ...p, price: e.target.value }))} className="h-8 text-sm w-20" /></td>
