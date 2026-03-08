@@ -38,7 +38,7 @@ export default function ManagerLayout() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const p0Count = tasks.filter(t => t.priority === "P0" && t.status !== "DONE").length;
+  const pendingCount = tasks.filter(t => t.status !== "DONE").length;
 
   const handleLogout = () => {
     logout();
