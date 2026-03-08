@@ -15,7 +15,7 @@ export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { products, orders, updateProduct } = useData();
+  const { products, orders, updateProduct, suppliers } = useData();
 
   const [editOpen, setEditOpen] = useState(false);
   
@@ -87,12 +87,21 @@ export default function ProductDetailPage() {
       <div className="bg-card rounded-xl border shadow-sm p-5">
         <div className="flex items-center gap-2 mb-4"><Package className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">פרטי מוצר</h2></div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {details.filter(d => d.value != null && d.value !== "").map(d => (
-            <div key={d.label} className="space-y-1">
-              <p className="text-xs text-muted-foreground">{d.label}</p>
-              <p className="text-sm font-medium text-foreground">{d.value}</p>
-            </div>
-          ))}
+          {details.filter(d => d.value != null && d.value !== "").map(d => {
+            const supplierMatch = d.label === "ספק" && typeof d.value === "string" ? suppliers.find(s => s.company === d.value) : null;
+            return (
+              <div key={d.label} className="space-y-1">
+                <p className="text-xs text-muted-foreground">{d.label}</p>
+                {supplierMatch ? (
+                  <button onClick={() => navigate(`/suppliers/${supplierMatch.id}`)} className="text-sm font-medium text-primary hover:underline">
+                    {d.value}
+                  </button>
+                ) : (
+                  <p className="text-sm font-medium text-foreground">{d.value}</p>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 

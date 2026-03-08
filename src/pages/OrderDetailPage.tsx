@@ -1,10 +1,20 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
+import { useState } from "react";
+import { useData, useAuth, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText } from "lucide-react";
+import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Pencil, Trash2, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComp } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { toast } from "sonner";
 
 const allStatuses: { value: OrderStatus; label: string }[] = [
   { value: "PENDING", label: "ממתין" },
@@ -14,15 +24,33 @@ const allStatuses: { value: OrderStatus; label: string }[] = [
   { value: "CANCELLED", label: "בוטל" },
 ];
 
+const priorities: { value: Priority; label: string }[] = [
+  { value: "P0", label: "P0 — דחוף" },
+  { value: "P1", label: "P1 — גבוה" },
+  { value: "P2", label: "P2 — רגיל" },
+  { value: "P3", label: "P3 — נמוך" },
+];
+
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { orders, updateOrderStatus, suppliers, products } = useData();
+  const { currentUser } = useAuth();
+  const { orders, updateOrderStatus, updateOrder, deleteOrder, suppliers, products } = useData();
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const order = orders.find(o => o.id === id);
   if (!order) return <div className="p-8 text-center text-muted-foreground">הזמנה לא נמצאה</div>;
 
   const supplier = order.supplier_id ? suppliers.find(s => s.id === order.supplier_id) : null;
+  const isManager = currentUser?.role === "MANAGER";
+
+  const handleDelete = async () => {
+    await deleteOrder(order.id);
+    toast.success("ההזמנה נמחקה");
+    navigate("/orders");
+  };
 
   const InfoCard = ({ icon: Icon, label, value }: { icon: any; label: string; value: string | React.ReactNode }) => (
     <div className="bg-card rounded-xl border p-4 space-y-1">
@@ -46,6 +74,16 @@ export default function OrderDetailPage() {
             {order.items.map(i => i.name).join(", ")}
           </p>
         </div>
+        {isManager && (
+          <>
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+              <Pencil className="h-4 w-4 ml-1" />עריכה
+            </Button>
+            <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteConfirm(true)}>
+              <Trash2 className="h-4 w-4 ml-1" />מחיקה
+            </Button>
+          </>
+        )}
         <PriorityBadge priority={order.priority as Priority} />
       </div>
 
@@ -80,10 +118,11 @@ export default function OrderDetailPage() {
       </div>
 
       {/* Dates & shipping */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <InfoCard icon={Calendar} label="ETD (יציאה)" value={order.etd ? new Date(order.etd).toLocaleDateString("he-IL") : "—"} />
         <InfoCard icon={Calendar} label="ETA (הגעה)" value={order.eta ? new Date(order.eta).toLocaleDateString("he-IL") : "—"} />
         <InfoCard icon={Truck} label="שיטת משלוח" value={order.shipping || "—"} />
+        <InfoCard icon={CreditCard} label="תאריך תשלום" value={order.payment_date ? new Date(order.payment_date).toLocaleDateString("he-IL") : "—"} />
       </div>
 
       {/* Items */}
@@ -121,6 +160,40 @@ export default function OrderDetailPage() {
         </table>
       </div>
 
+      {/* Payment Tracking */}
+      <div className="bg-card rounded-xl border shadow-sm p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <CreditCard className="h-5 w-5 text-primary" />
+          <h2 className="font-semibold text-foreground">מעקב תשלומים</h2>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">סה״כ לתשלום</p>
+            <p className="text-lg font-bold text-foreground">{order.total_price ? `$${order.total_price.toLocaleString()}` : "—"}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">תאריך תשלום</p>
+            <p className="text-sm font-medium text-foreground">{order.payment_date ? new Date(order.payment_date).toLocaleDateString("he-IL") : "טרם שולם"}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">סטטוס תשלום</p>
+            <span className={cn(
+              "inline-block px-2 py-0.5 rounded-full text-xs font-medium",
+              order.payment_date ? "bg-success/15 text-success" : "bg-warning/15 text-warning"
+            )}>
+              {order.payment_date ? "שולם" : "ממתין לתשלום"}
+            </span>
+          </div>
+          {isManager && !order.payment_date && (
+            <div className="flex items-end">
+              <Button size="sm" variant="outline" onClick={() => updateOrder(order.id, { payment_date: new Date().toISOString() } as any)}>
+                סמן כשולם
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Notes */}
       {order.notes && (
         <div className="bg-card rounded-xl border p-4 space-y-2">
@@ -131,6 +204,109 @@ export default function OrderDetailPage() {
           <p className="text-sm text-foreground whitespace-pre-wrap">{order.notes}</p>
         </div>
       )}
+
+      {/* Edit Dialog */}
+      <OrderEditDialog open={editOpen} onOpenChange={setEditOpen} order={order} suppliers={suppliers} onSave={updateOrder} />
+
+      {/* Delete Confirmation */}
+      <Dialog open={deleteConfirm} onOpenChange={setDeleteConfirm}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>מחיקת הזמנה</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">האם למחוק את ההזמנה? פעולה זו אינה ניתנת לביטול.</p>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => setDeleteConfirm(false)}>ביטול</Button>
+            <Button variant="destructive" className="flex-1" onClick={handleDelete}>מחק</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+function OrderEditDialog({ open, onOpenChange, order, suppliers, onSave }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  order: any;
+  suppliers: any[];
+  onSave: (id: string, updates: any) => Promise<void>;
+}) {
+  const [priority, setPriority] = useState(order.priority);
+  const [supplierId, setSupplierId] = useState(order.supplier_id || "");
+  const [shipping, setShipping] = useState(order.shipping || "");
+  const [notes, setNotes] = useState(order.notes || "");
+  const [etd, setEtd] = useState<Date | undefined>(order.etd ? new Date(order.etd) : undefined);
+  const [eta, setEta] = useState<Date | undefined>(order.eta ? new Date(order.eta) : undefined);
+  const [paymentDate, setPaymentDate] = useState<Date | undefined>(order.payment_date ? new Date(order.payment_date) : undefined);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const supplier = suppliers.find((s: any) => s.id === supplierId);
+    await onSave(order.id, {
+      priority,
+      supplier_id: supplierId || null,
+      supplier_name: supplier?.company || null,
+      shipping: shipping || null,
+      notes: notes || null,
+      etd: etd?.toISOString() || null,
+      eta: eta?.toISOString() || null,
+      payment_date: paymentDate?.toISOString() || null,
+    });
+    toast.success("ההזמנה עודכנה");
+    setSaving(false);
+    onOpenChange(false);
+  };
+
+  const DateField = ({ label, value, onChange }: { label: string; value?: Date; onChange: (d?: Date) => void }) => (
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className={cn("w-full justify-start text-right font-normal text-sm", !value && "text-muted-foreground")}>
+            <Calendar className="h-4 w-4 ml-2" />
+            {value ? format(value, "dd/MM/yyyy") : "בחר תאריך"}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <CalendarComp mode="single" selected={value} onSelect={d => onChange(d)} initialFocus className="p-3 pointer-events-auto" />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>עריכת הזמנה</DialogTitle></DialogHeader>
+        <div className="space-y-4 pt-2">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label className="text-xs">עדיפות</Label>
+              <Select value={priority} onValueChange={setPriority}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {priorities.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">ספק</Label>
+              <Select value={supplierId} onValueChange={setSupplierId}>
+                <SelectTrigger><SelectValue placeholder="בחר ספק" /></SelectTrigger>
+                <SelectContent>{suppliers.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.company}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-1"><Label className="text-xs">שיטת משלוח</Label><Input value={shipping} onChange={e => setShipping(e.target.value)} /></div>
+          <div className="grid grid-cols-3 gap-3">
+            <DateField label="ETD (יציאה)" value={etd} onChange={setEtd} />
+            <DateField label="ETA (הגעה)" value={eta} onChange={setEta} />
+            <DateField label="תאריך תשלום" value={paymentDate} onChange={setPaymentDate} />
+          </div>
+          <div className="space-y-1"><Label className="text-xs">הערות</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} /></div>
+          <Button onClick={handleSave} disabled={saving} className="w-full">{saving ? "שומר..." : "שמור שינויים"}</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
