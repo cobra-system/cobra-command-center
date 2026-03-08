@@ -29,7 +29,7 @@ interface Props {
 
 export function NewOrderDialog({ suppliers, products, addOrder }: Props) {
   const [open, setOpen] = useState(false);
-  const [priority, setPriority] = useState<Priority>("P2");
+  const [priority, setPriority] = useState<Priority>("בינוני");
   const [supplierId, setSupplierId] = useState("");
   const [shipping, setShipping] = useState("");
   const [notes, setNotes] = useState("");
