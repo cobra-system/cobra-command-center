@@ -331,7 +331,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const refreshSuppliers = useCallback(async () => {
     const { data } = await supabase.from("suppliers").select("*").order("company");
-    if (data) setSuppliers(data as Supplier[]);
+    if (data) {
+      // Fetch contacts for all suppliers
+      const { data: contacts } = await supabase.from("supplier_contacts").select("*").order("is_primary", { ascending: false });
+      const contactsMap: Record<string, SupplierContact[]> = {};
+      if (contacts) {
+        contacts.forEach((c: any) => {
+          if (!contactsMap[c.supplier_id]) contactsMap[c.supplier_id] = [];
+          contactsMap[c.supplier_id].push(c as SupplierContact);
+        });
+      }
+      setSuppliers(data.map((s: any) => ({ ...s, contacts: contactsMap[s.id] || [] })) as Supplier[]);
+    }
   }, []);
 
   const refreshProfiles = useCallback(async () => {
