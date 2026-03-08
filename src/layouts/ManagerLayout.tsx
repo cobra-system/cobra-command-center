@@ -6,7 +6,6 @@ import {
   ShoppingCart,
   Truck,
   ListTodo,
-  Users,
   LogOut,
   Menu,
   X,
