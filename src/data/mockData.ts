@@ -32,6 +32,18 @@ export interface Product {
   stockQty: number;
   incomingQty: number;
   notes?: string;
+  components?: ProductComponent[];
+}
+
+export interface ProductComponent {
+  id: string;
+  name: string;
+  sku?: string;
+  supplier?: string;
+  origin?: string;
+  stockQty?: number;
+  price?: number;
+  notes?: string;
 }
 
 export interface Supplier {
@@ -100,8 +112,16 @@ export const products: Product[] = [
   { id:"p1", category:"מיגון ואיתור", division:"AWCAS", name:"PROOF Z-4K", description:"מערכת צילום וניטור", sku:"z4k", productType:"מוגמר", supplier:"iStarVideo", supplierOrigin:"סין", shipping:"ימי + אווירי", purchasePrice:95, monthlySales:630, monthlyOrder:1600, stockQty:1600, incomingQty:1600 },
   { id:"p2", category:"מיגון ואיתור", division:"AWCAS", name:"S400", description:"מערכת צילום וניטור", sku:"s400", productType:"מוגמר", supplier:"iStarVideo", supplierOrigin:"סין", shipping:"ימי + אווירי", purchasePrice:83, monthlySales:105, monthlyOrder:400, stockQty:0, incomingQty:400 },
   { id:"p3", category:"מיגון ואיתור", division:"כפתור", name:"KAF32", description:"מערכת צילום וניטור", sku:"ks400", productType:"מוגמר", supplier:"iStarVideo", supplierOrigin:"סין", shipping:"ימי + אווירי", purchasePrice:73, monthlySales:0, monthlyOrder:50, stockQty:77, incomingQty:200, notes:"SAP לא מיושר מול חברת כפתור" },
-  { id:"p4", category:"מיגון ואיתור", division:"כפתור", name:"COBRA Secret", description:"מערכת ניטור וניתוק", sku:"cobrasecrect", productType:"מורכב", supplierOrigin:"ישראל, סין", shipping:"ימי", monthlySales:50, monthlyOrder:50, stockQty:383, incomingQty:0, notes:"אין צפי הזמנות. אין צריכה." },
-  { id:"p5", category:"מיגון ואיתור", division:"AWCAS", name:"COBRA Biometric", description:"מערכת התנעה ביומטרית", sku:"biofin", productType:"מורכב", supplier:"CR Team", supplierOrigin:"ישראל, סין", shipping:"אווירי", monthlySales:20, stockQty:0, incomingQty:0, notes:"לעדכן ספירה" },
+  { id:"p4", category:"מיגון ואיתור", division:"כפתור", name:"COBRA Secret", description:"מערכת ניטור וניתוק", sku:"cobrasecrect", productType:"מורכב", supplierOrigin:"ישראל, סין", shipping:"ימי", monthlySales:50, monthlyOrder:50, stockQty:383, incomingQty:0, notes:"אין צפי הזמנות. אין צריכה.", components:[
+    { id:"c1", name:"מודול GPS", sku:"gps-01", supplier:"RootRust", origin:"סין", stockQty:200, price:12 },
+    { id:"c2", name:"יחידת שליטה", sku:"ctrl-01", supplier:"CR Team", origin:"ישראל", stockQty:150, price:35 },
+    { id:"c3", name:"חיווט ראשי", supplier:"חיווט נאה", origin:"ישראל", stockQty:400, price:8 },
+  ] },
+  { id:"p5", category:"מיגון ואיתור", division:"AWCAS", name:"COBRA Biometric", description:"מערכת התנעה ביומטרית", sku:"biofin", productType:"מורכב", supplier:"CR Team", supplierOrigin:"ישראל, סין", shipping:"אווירי", monthlySales:20, stockQty:0, incomingQty:0, notes:"לעדכן ספירה", components:[
+    { id:"c4", name:"סורק טביעות אצבע", sku:"fp-scan", supplier:"GROW", origin:"סין", stockQty:50, price:18 },
+    { id:"c5", name:"לוח PCB", sku:"pcb-bio", supplier:"Fastline PCB", origin:"סין", stockQty:100, price:22 },
+    { id:"c6", name:"מארז פלסטיק", sku:"case-bio", supplier:"TS Prototypes", origin:"סין", stockQty:80, price:5 },
+  ] },
   { id:"p6", category:"מיגון ואיתור", division:"AWCAS, דלק מוטורס, כפתור", name:"מערכת איתור Connect", description:"מערכת ניטור", sku:"5224", productType:"מוגמר", supplierOrigin:"ישראל", shipping:"יבשתי", monthlySales:200, monthlyOrder:300, stockQty:1008, incomingQty:0 },
   { id:"p7", category:"מולטימדיה", division:"AWCAS", name:"COBRA BackseatTV1", description:"מערכת מולטימדיה", sku:"cobratv1", productType:"מורכב", supplier:"ACESVision", supplierOrigin:"סין", shipping:"ימי", purchasePrice:232.9, monthlySales:3, stockQty:69, incomingQty:0 },
   { id:"p8", category:"מולטימדיה", division:"AWCAS", name:"COBRA BackseatTV2", description:"מערכת מולטימדיה", sku:"cobratv2", productType:"מורכב", supplier:"ACESVision", supplierOrigin:"סין", shipping:"ימי", purchasePrice:140, monthlySales:2, stockQty:0, incomingQty:0 },
