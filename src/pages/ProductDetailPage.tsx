@@ -239,6 +239,14 @@ export default function ProductDetailPage() {
           ) : (
             <p className="text-sm text-muted-foreground py-4 text-center">לא הוגדרו רכיבים למוצר זה</p>
           )}
+          {/* Supplier Comparison per component */}
+          {product.components && product.components.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {product.components.map(comp => (
+                <SupplierComparisonPanel key={comp.id} componentName={comp.name} productId={product.id} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 

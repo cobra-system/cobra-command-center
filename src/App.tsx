@@ -63,6 +63,9 @@ function AppRoutes() {
         <Route path="/journal" element={<LearningJournalPage />} />
         <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/payments" element={<PaymentsPage />} />
+        <Route path="/reorder" element={<ReorderPage />} />
+        <Route path="/dependencies" element={<DependencyMapPage />} />
+        <Route path="/reports" element={<ReportsPage />} />
         <Route path="/team" element={<TeamPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
