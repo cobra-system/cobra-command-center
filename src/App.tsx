@@ -26,6 +26,7 @@ import MyTasksPage from "@/pages/MyTasksPage";
 import MyTaskDetailPage from "@/pages/MyTaskDetailPage";
 import InventoryPage from "@/pages/InventoryPage";
 import NotFound from "@/pages/NotFound";
+import SapSettingsPage from "@/pages/SapSettingsPage";
 
 const queryClient = new QueryClient();
 
