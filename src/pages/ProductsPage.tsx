@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 
 export default function ProductsPage() {
   const { products } = useData();
+  const navigate = useNavigate();
   const [category, setCategory] = useState("הכל");
   const [typeFilter, setTypeFilter] = useState<"all" | "מוגמר" | "מורכב">("all");
   const [search, setSearch] = useState("");
