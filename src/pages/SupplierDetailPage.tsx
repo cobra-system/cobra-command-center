@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowRight, Pencil, Trash2, ExternalLink, Mail, Phone, Globe, TruckIcon } from "lucide-react";
 import { InlineEditField } from "@/components/InlineEditField";
+import SapSyncBadge from "@/components/SapSyncBadge";
 import { toast } from "sonner";
 
 export default function SupplierDetailPage() {
