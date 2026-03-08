@@ -500,6 +500,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshProfiles]);
 
+  const addSupplier = useCallback(async (supplier: Omit<Supplier, "id">) => {
+    await supabase.from("suppliers").insert(supplier as any);
+    await refreshSuppliers();
+  }, [refreshSuppliers]);
+
+  const updateSupplier = useCallback(async (id: string, updates: Partial<Supplier>) => {
+    await supabase.from("suppliers").update(updates as any).eq("id", id);
+    await refreshSuppliers();
+  }, [refreshSuppliers]);
+
+  const deleteSupplier = useCallback(async (id: string) => {
+    await supabase.from("suppliers").delete().eq("id", id);
+    await refreshSuppliers();
+  }, [refreshSuppliers]);
+
   return (
     <AuthContext.Provider value={{ currentUser, session, loading: authLoading, loginWithEmail, loginWithPin, loginWithGoogle, logout }}>
       <DataContext.Provider value={{
