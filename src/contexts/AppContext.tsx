@@ -173,17 +173,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Auth state listener
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, sess) => {
+    // Set up the listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, sess) => {
       setSession(sess);
       if (sess?.user) {
-        const profile = await fetchProfile(sess.user.id);
-        setCurrentUser(profile);
+        // Defer profile fetch to avoid Supabase deadlock
+        setTimeout(async () => {
+          const profile = await fetchProfile(sess.user.id);
+          setCurrentUser(profile);
+          setAuthLoading(false);
+        }, 0);
       } else {
         setCurrentUser(null);
+        setAuthLoading(false);
       }
-      setAuthLoading(false);
     });
 
+    // Then check for existing session
     supabase.auth.getSession().then(async ({ data: { session: sess } }) => {
       setSession(sess);
       if (sess?.user) {

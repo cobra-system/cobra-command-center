@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AppContext";
 import { useNavigate } from "react-router-dom";
 import { Shield } from "lucide-react";
@@ -12,8 +12,19 @@ export default function LoginPage() {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { loginWithEmail, loginWithPin } = useAuth();
+  const { loginWithEmail, loginWithPin, currentUser } = useAuth();
   const navigate = useNavigate();
+
+  // Navigate when currentUser is set after login
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.role === "MANAGER") {
+        navigate("/dashboard", { replace: true });
+      } else {
+        navigate("/my-tasks", { replace: true });
+      }
+    }
+  }, [currentUser, navigate]);
 
   const handleManagerLogin = async () => {
     setError("");
@@ -22,9 +33,8 @@ export default function LoginPage() {
     setLoading(false);
     if (err) {
       setError("אימייל או סיסמה שגויים");
-    } else {
-      navigate("/dashboard");
     }
+    // Navigation handled by useEffect watching currentUser
   };
 
   const handlePinInput = async (digit: string) => {
@@ -39,9 +49,8 @@ export default function LoginPage() {
       if (err) {
         setError("קוד שגוי");
         setTimeout(() => setPin(""), 500);
-      } else {
-        navigate("/my-tasks");
       }
+      // Navigation handled by useEffect watching currentUser
     }
   };
 
