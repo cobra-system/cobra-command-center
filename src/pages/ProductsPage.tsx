@@ -112,7 +112,10 @@ export default function ProductsPage() {
                   <td className="p-3 text-muted-foreground">{p.purchasePrice ? `$${p.purchasePrice}` : "—"}</td>
                   <td className="p-3 text-muted-foreground">{p.monthlyOrder || "—"}</td>
                   <td className="p-3 text-muted-foreground text-xs max-w-[150px] truncate">{p.notes || "—"}</td>
-                  <td className="p-3">
+                  <td className="p-3 flex gap-2">
+                    <button onClick={() => navigate(`/products/${p.id}`)} className="text-primary hover:text-primary/80">
+                      <Eye className="h-4 w-4" />
+                    </button>
                     <button className="text-accent hover:text-accent/80">
                       <Edit2 className="h-4 w-4" />
                     </button>
