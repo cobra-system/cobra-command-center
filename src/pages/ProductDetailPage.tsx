@@ -235,7 +235,7 @@ export default function ProductDetailPage() {
                     <th className="text-right p-3 font-semibold text-foreground">רכיב</th>
                     <th className="text-right p-3 font-semibold text-foreground">מק״ט</th>
                     <th className="text-right p-3 font-semibold text-foreground">ספק</th>
-                    <th className="text-right p-3 font-semibold text-foreground">מקור</th>
+                    
                     <th className="text-right p-3 font-semibold text-foreground">מלאי</th>
                     <th className="text-right p-3 font-semibold text-foreground">מחיר</th>
                     <th className="text-right p-3 font-semibold text-foreground">הערות</th>
@@ -257,7 +257,7 @@ export default function ProductDetailPage() {
                             </SelectContent>
                           </Select>
                         </td>
-                        <td className="p-2"><Input value={editCompFields.origin} onChange={e => setEditCompFields(p => ({ ...p, origin: e.target.value }))} className="h-8 text-sm" /></td>
+                        
                         <td className="p-2"><Input type="number" value={editCompFields.stock_qty} onChange={e => setEditCompFields(p => ({ ...p, stock_qty: e.target.value }))} className="h-8 text-sm w-20" /></td>
                         <td className="p-2"><Input type="number" value={editCompFields.price} onChange={e => setEditCompFields(p => ({ ...p, price: e.target.value }))} className="h-8 text-sm w-20" /></td>
                         <td className="p-2"><Input value={editCompFields.notes} onChange={e => setEditCompFields(p => ({ ...p, notes: e.target.value }))} className="h-8 text-sm" /></td>
@@ -277,7 +277,7 @@ export default function ProductDetailPage() {
                         <td className="p-3 font-medium text-foreground">{comp.name}</td>
                         <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">{comp.sku || "—"}</td>
                         <td className="p-3 text-muted-foreground">{comp.supplier || "—"}</td>
-                        <td className="p-3 text-muted-foreground">{comp.origin || "—"}</td>
+                        
                         <td className="p-3 text-muted-foreground">{comp.stock_qty ?? "—"}</td>
                         <td className="p-3 text-muted-foreground">{comp.price ? `$${comp.price}` : "—"}</td>
                         <td className="p-3 text-muted-foreground text-xs">{comp.notes || "—"}</td>
@@ -335,10 +335,6 @@ export default function ProductDetailPage() {
                     {suppliers.map(s => <SelectItem key={s.id} value={s.company}>{s.company}</SelectItem>)}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">מקור</Label>
-                <Input value={newComp.origin} onChange={e => setNewComp(p => ({ ...p, origin: e.target.value }))} />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">מלאי</Label>
