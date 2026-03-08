@@ -221,7 +221,11 @@ export default function TasksPage() {
               </div>
               <div className="space-y-2 min-h-[200px]">
                 {colTasks.map(task => (
-                  <div key={task.id} className="bg-card rounded-lg border p-3 shadow-sm space-y-2 group">
+                  <div
+                    key={task.id}
+                    ref={task.id === highlightId ? highlightRef : undefined}
+                    className={`bg-card rounded-lg border p-3 shadow-sm space-y-2 group transition-all ${task.id === highlightId ? "ring-2 ring-primary" : ""}`}
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-medium text-foreground leading-tight">{task.title}</p>
                       <div className="flex items-center gap-1 shrink-0">
