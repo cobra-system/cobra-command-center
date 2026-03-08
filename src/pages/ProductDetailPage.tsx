@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowRight, Package, Boxes, TruckIcon, Pencil, Scale } from "lucide-react";
+import { ArrowRight, Package, Boxes, TruckIcon, Pencil, ExternalLink } from "lucide-react";
 import ProductIssuesTab from "@/components/ProductIssuesTab";
 import SupplierComparisonPanel from "@/components/SupplierComparisonPanel";
 import { toast } from "sonner";
@@ -90,6 +90,11 @@ export default function ProductDetailPage() {
           <h1 className="text-2xl font-bold text-foreground">{product.name}</h1>
           <p className="text-sm text-muted-foreground font-mono" dir="ltr">{product.sku}</p>
         </div>
+        {product.end_product_url && (
+          <Button variant="outline" size="sm" asChild>
+            <a href={product.end_product_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4 ml-1" />אתר המוצר</a>
+          </Button>
+        )}
         <Button variant="outline" size="sm" onClick={openEditDialog}><Pencil className="h-4 w-4 ml-1" />עריכה</Button>
         <span className={`px-3 py-1 rounded-full text-xs font-medium ${stockStatus.className}`}>{stockStatus.label}</span>
         <span className={`px-3 py-1 rounded-full text-xs font-medium ${

@@ -54,7 +54,7 @@ export default function ManagerLayout() {
       {/* Sidebar */}
       <aside className={`fixed lg:static inset-y-0 right-0 z-50 w-64 bg-sidebar text-sidebar-foreground flex flex-col transition-transform lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}`}>
         <div className="p-5 flex items-center justify-between">
-          <img src={cobraLogo} alt="COBRA.IO" className="h-8" />
+          <img src={cobraLogo} alt="COBRA.IO" className="h-10 brightness-0 invert" />
           <button className="lg:hidden text-sidebar-foreground" onClick={() => setSidebarOpen(false)}>
             <X className="h-5 w-5" />
           </button>
@@ -103,7 +103,7 @@ export default function ManagerLayout() {
       <main className="flex-1 min-h-screen">
         {/* Mobile header */}
         <header className="lg:hidden sticky top-0 z-30 bg-background border-b px-4 py-3 flex items-center justify-between">
-          <img src={cobraLogo} alt="COBRA.IO" className="h-6" />
+          <img src={cobraLogo} alt="COBRA.IO" className="h-8" />
           <button onClick={() => setSidebarOpen(true)}>
             <Menu className="h-6 w-6 text-foreground" />
           </button>
