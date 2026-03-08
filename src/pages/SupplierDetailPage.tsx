@@ -214,8 +214,8 @@ export default function SupplierDetailPage() {
 
       {/* Related Products */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
-        <h2 className="text-lg font-semibold text-foreground mb-4">מוצרים משויכים ({relatedProducts.length})</h2>
-        {relatedProducts.length > 0 ? (
+        <h2 className="text-lg font-semibold text-foreground mb-4">מוצרים משויכים ({relatedProducts.length + componentProducts.length})</h2>
+        {(relatedProducts.length > 0 || componentProducts.length > 0) ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="border-b bg-muted/50">
@@ -228,6 +228,16 @@ export default function SupplierDetailPage() {
                 {relatedProducts.map(p => (
                   <tr key={p.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/products/${p.id}`)}>
                     <td className="p-3 font-medium text-foreground">{p.name}</td>
+                    <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">{p.sku}</td>
+                    <td className="p-3 text-muted-foreground">{p.category}</td>
+                    <td className="p-3 text-muted-foreground">{p.stock_qty}</td>
+                  </tr>
+                ))}
+                {componentProducts.map(({ product: p, components: comps }) => (
+                  <tr key={p.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/products/${p.id}`)}>
+                    <td className="p-3 font-medium text-foreground">
+                      {p.name} <span className="text-xs text-muted-foreground">({comps.map(c => c.name).join(", ")})</span>
+                    </td>
                     <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">{p.sku}</td>
                     <td className="p-3 text-muted-foreground">{p.category}</td>
                     <td className="p-3 text-muted-foreground">{p.stock_qty}</td>
