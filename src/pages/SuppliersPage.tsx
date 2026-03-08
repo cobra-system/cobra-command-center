@@ -35,7 +35,8 @@ export default function SuppliersPage() {
 
   const filtered = useMemo(() => {
     let result = suppliers.filter(s => {
-      if (countryFilter !== "all" && s.country !== countryFilter) return false;
+      if (countryFilter === "ישראל" && s.country !== "ישראל") return false;
+      if (countryFilter === "חול" && s.country === "ישראל") return false;
       if (!search) return true;
       const q = search.toLowerCase();
       return s.contact_name.toLowerCase().includes(q) || s.company.toLowerCase().includes(q) || (s.email || "").toLowerCase().includes(q);
