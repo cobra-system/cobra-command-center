@@ -64,6 +64,7 @@ function AppRoutes() {
         <Route path="/suppliers" element={<SuppliersPage />} />
         <Route path="/suppliers/:id" element={<SupplierDetailPage />} />
         <Route path="/tasks" element={<TasksPage />} />
+        <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/reorder" element={<ReorderPage />} />
         <Route path="/reports" element={<ReportsPage />} />
