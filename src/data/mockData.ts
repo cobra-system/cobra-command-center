@@ -171,28 +171,28 @@ export const suppliers: Supplier[] = [
 
 // ─── Orders ───
 export const orders: Order[] = [
-  { id:"o1", priority:"P0", supplierName:"iStar", shipping:"ימי", status:"SHIPPED", eta:"2026-04-10", items:[{ id:"oi1", orderId:"o1", name:"PROOF Z-4K", qty:1600 }] },
-  { id:"o2", priority:"P1", supplierName:"iStar", shipping:"ימי", status:"SHIPPED", items:[{ id:"oi2", orderId:"o2", name:"S400", qty:400 }] },
-  { id:"o3", priority:"P2", supplierName:"SwitchBot", status:"ORDERED", items:[{ id:"oi3", orderId:"o3", name:"Doore Ultra", qty:350 }] },
-  { id:"o4", priority:"P3", supplierName:"iStar", status:"ORDERED", items:[{ id:"oi4", orderId:"o4", name:"Doore Doorbell", qty:1000 }] },
+  { id:"o1", priority:"דחוף", supplierName:"iStar", shipping:"ימי", status:"SHIPPED", eta:"2026-04-10", items:[{ id:"oi1", orderId:"o1", name:"PROOF Z-4K", qty:1600 }] },
+  { id:"o2", priority:"גבוה", supplierName:"iStar", shipping:"ימי", status:"SHIPPED", items:[{ id:"oi2", orderId:"o2", name:"S400", qty:400 }] },
+  { id:"o3", priority:"בינוני", supplierName:"SwitchBot", status:"ORDERED", items:[{ id:"oi3", orderId:"o3", name:"Doore Ultra", qty:350 }] },
+  { id:"o4", priority:"נמוך", supplierName:"iStar", status:"ORDERED", items:[{ id:"oi4", orderId:"o4", name:"Doore Doorbell", qty:1000 }] },
 ];
 
 // ─── Tasks ───
 export const tasks: Task[] = [
-  { id:"t1", title:"ספירת מלאי — COBRA Biometric", priority:"P0", status:"TODO", isDaily:false, notes:"ספירה ואיפוס מלאי", assigneeId:"u2", assigneeName:"ג'ורג'" },
-  { id:"t2", title:"ספירת מלאי — COBRA TV", priority:"P0", status:"TODO", isDaily:false, assigneeId:"u2", assigneeName:"ג'ורג'" },
-  { id:"t3", title:"ספירת מלאי — הכפתור", priority:"P0", status:"IN_PROGRESS", isDaily:false, assigneeId:"u2", assigneeName:"ג'ורג'" },
-  { id:"t4", title:"ספירת מלאי — Blindspot", priority:"P0", status:"TODO", isDaily:false, assigneeId:"u2", assigneeName:"ג'ורג'" },
-  { id:"t5", title:"איזון SAP מול חברת כפתור — KAF32", priority:"P1", status:"TODO", isDaily:false, notes:"מקט KAF32 לא מיושר", assigneeId:"u3", assigneeName:"זיו" },
-  { id:"t6", title:"עדכון מלאי אוזניות בלוטוס BT100", priority:"P2", status:"DONE", isDaily:false, assigneeId:"u2", assigneeName:"ג'ורג'" },
-  { id:"t7", title:"בדיקת ETA הזמנת Z4K מ-iStar", priority:"P0", status:"TODO", isDaily:false, notes:"ETA: 10 אפריל 2026", assigneeId:"u3", assigneeName:"זיו" },
-  { id:"t8", title:"ארגון מחסן קדמי", priority:"P2", status:"DONE", isDaily:true, assigneeId:"u2", assigneeName:"ג'ורג'" },
-  { id:"t9", title:"קבלת משלוח iStar", priority:"P1", status:"TODO", isDaily:true, assigneeId:"u2", assigneeName:"ג'ורג'" },
-  { id:"t10", title:"עדכון מלאי במערכת", priority:"P2", status:"TODO", isDaily:true, assigneeId:"u2", assigneeName:"ג'ורג'" },
+  { id:"t1", title:"ספירת מלאי — COBRA Biometric", priority:"דחוף", status:"TODO", isDaily:false, notes:"ספירה ואיפוס מלאי", assigneeId:"u2", assigneeName:"ג'ורג'" },
+  { id:"t2", title:"ספירת מלאי — COBRA TV", priority:"דחוף", status:"TODO", isDaily:false, assigneeId:"u2", assigneeName:"ג'ורג'" },
+  { id:"t3", title:"ספירת מלאי — הכפתור", priority:"דחוף", status:"IN_PROGRESS", isDaily:false, assigneeId:"u2", assigneeName:"ג'ורג'" },
+  { id:"t4", title:"ספירת מלאי — Blindspot", priority:"דחוף", status:"TODO", isDaily:false, assigneeId:"u2", assigneeName:"ג'ורג'" },
+  { id:"t5", title:"איזון SAP מול חברת כפתור — KAF32", priority:"גבוה", status:"TODO", isDaily:false, notes:"מקט KAF32 לא מיושר", assigneeId:"u3", assigneeName:"זיו" },
+  { id:"t6", title:"עדכון מלאי אוזניות בלוטוס BT100", priority:"בינוני", status:"DONE", isDaily:false, assigneeId:"u2", assigneeName:"ג'ורג'" },
+  { id:"t7", title:"בדיקת ETA הזמנת Z4K מ-iStar", priority:"דחוף", status:"TODO", isDaily:false, notes:"ETA: 10 אפריל 2026", assigneeId:"u3", assigneeName:"זיו" },
+  { id:"t8", title:"ארגון מחסן קדמי", priority:"בינוני", status:"DONE", isDaily:true, assigneeId:"u2", assigneeName:"ג'ורג'" },
+  { id:"t9", title:"קבלת משלוח iStar", priority:"גבוה", status:"TODO", isDaily:true, assigneeId:"u2", assigneeName:"ג'ורג'" },
+  { id:"t10", title:"עדכון מלאי במערכת", priority:"בינוני", status:"TODO", isDaily:true, assigneeId:"u2", assigneeName:"ג'ורג'" },
 ];
 
 // ─── Helpers ───
-export const priorityLabel: Record<Priority, string> = { P0: "דחוף", P1: "גבוה", P2: "רגיל", P3: "נמוך" };
+export const priorityLabel: Record<Priority, string> = { "דחוף": "דחוף", "גבוה": "גבוה", "בינוני": "בינוני", "נמוך": "נמוך" };
 export const statusLabel: Record<OrderStatus, string> = { PENDING: "ממתין", ORDERED: "הוזמן", SHIPPED: "נשלח", ARRIVED: "הגיע", CANCELLED: "בוטל" };
 export const taskStatusLabel: Record<TaskStatus, string> = { TODO: "לביצוע", IN_PROGRESS: "בביצוע", DONE: "הושלם", BLOCKED: "חסום" };
 export const roleLabel: Record<Role, string> = { MANAGER: "מנהל", WAREHOUSE_MANAGER: "מנהל מחסן", LOGISTICS: "לוגיסטיקה", DRIVER: "נהג" };
