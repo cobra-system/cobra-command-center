@@ -346,7 +346,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshProfiles = useCallback(async () => {
-    const { data } = await supabase.from("profiles").select("*");
+    const { data } = await supabase.from("profiles").select("id, name, role, created_at, updated_at");
     if (data) setProfiles(data as Profile[]);
   }, []);
 
