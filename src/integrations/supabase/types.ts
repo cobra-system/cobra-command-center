@@ -488,6 +488,69 @@ export type Database = {
           },
         ]
       }
+      supplier_price_quotes: {
+        Row: {
+          component_name: string
+          created_at: string
+          currency: string
+          id: string
+          is_primary: boolean
+          lead_time_days: number | null
+          moq: number | null
+          notes: string | null
+          product_id: string | null
+          supplier_id: string
+          unit_price: number
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          component_name: string
+          created_at?: string
+          currency?: string
+          id?: string
+          is_primary?: boolean
+          lead_time_days?: number | null
+          moq?: number | null
+          notes?: string | null
+          product_id?: string | null
+          supplier_id: string
+          unit_price?: number
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          component_name?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          is_primary?: boolean
+          lead_time_days?: number | null
+          moq?: number | null
+          notes?: string | null
+          product_id?: string | null
+          supplier_id?: string
+          unit_price?: number
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_price_quotes_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_price_quotes_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppliers: {
         Row: {
           backup_supplier_id: string | null
