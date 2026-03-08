@@ -132,6 +132,8 @@ interface DataState {
   updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
   addProfile: (profile: { email: string; name: string; role: Role; pin?: string }) => Promise<void>;
   updateProfile: (id: string, updates: Partial<Profile>) => Promise<void>;
+  resetDailyTasks: () => Promise<void>;
+  createEmployee: (data: { name: string; role: Role; pin: string }) => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
