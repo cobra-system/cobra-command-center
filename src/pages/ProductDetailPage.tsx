@@ -4,11 +4,11 @@ import { useData, useAuth, type Priority, type OrderStatus } from "@/contexts/Ap
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-
 import { ArrowRight, Package, Boxes, TruckIcon, Pencil, ExternalLink } from "lucide-react";
 import ProductIssuesTab from "@/components/ProductIssuesTab";
 import ProductEditDialog from "@/components/products/ProductEditDialog";
 import SupplierComparisonPanel from "@/components/SupplierComparisonPanel";
+import { InlineEditField } from "@/components/InlineEditField";
 import { toast } from "sonner";
 
 export default function ProductDetailPage() {
@@ -16,12 +16,9 @@ export default function ProductDetailPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { products, orders, updateProduct, suppliers } = useData();
-
   const [editOpen, setEditOpen] = useState(false);
-  
 
   const product = products.find(p => p.id === id);
-
   if (!product) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -31,6 +28,7 @@ export default function ProductDetailPage() {
     );
   }
 
+  const isManager = currentUser?.role === "MANAGER";
   const relatedOrders = orders.filter(o => o.items.some(item => item.name === product.name || item.product_id === product.id));
 
   const stockStatus = product.stock_qty === 0
@@ -39,22 +37,30 @@ export default function ProductDetailPage() {
     ? { label: "מלאי נמוך", className: "bg-warning/15 text-warning" }
     : { label: "תקין", className: "bg-success/15 text-success" };
 
-  const details: { label: string; value: string | number | undefined | null }[] = [
-    { label: "קטגוריה", value: product.category },
-    { label: "חטיבה", value: product.division },
-    { label: "מק״ט", value: product.sku },
-    { label: "סוג מוצר", value: product.product_type },
-    { label: "תיאור", value: product.description },
-    { label: "ספק", value: product.supplier },
-    { label: "מקור ספק", value: product.supplier_origin },
-    { label: "שיטת משלוח", value: product.shipping },
-    { label: "מחיר רכישה", value: product.purchase_price ? `$${product.purchase_price}` : undefined },
-    { label: "מחיר מכירה", value: product.sale_price ? `$${product.sale_price}` : undefined },
-    { label: "מכירות חודשיות", value: product.monthly_sales },
-    { label: "הזמנה חודשית", value: product.monthly_order },
-    { label: "מלאי קיים", value: product.stock_qty },
-    { label: "בדרך", value: product.incoming_qty },
-    { label: "הערות", value: product.notes },
+  const handleInlineSave = async (field: string, value: string) => {
+    const numericFields = ["purchase_price", "sale_price", "monthly_sales", "monthly_order", "stock_qty", "incoming_qty"];
+    const updates: Record<string, any> = {};
+    updates[field] = numericFields.includes(field) ? (value ? Number(value) : null) : (value || null);
+    await updateProduct(product.id, updates);
+    toast.success("עודכן");
+  };
+
+  const details: { label: string; field: string; value: string | number | undefined | null; isSupplierLink?: boolean }[] = [
+    { label: "קטגוריה", field: "category", value: product.category },
+    { label: "חטיבה", field: "division", value: product.division },
+    { label: "מק״ט", field: "sku", value: product.sku },
+    { label: "סוג מוצר", field: "product_type", value: product.product_type },
+    { label: "תיאור", field: "description", value: product.description },
+    { label: "ספק", field: "supplier", value: product.supplier, isSupplierLink: true },
+    { label: "מקור ספק", field: "supplier_origin", value: product.supplier_origin },
+    { label: "שיטת משלוח", field: "shipping", value: product.shipping },
+    { label: "מחיר רכישה", field: "purchase_price", value: product.purchase_price },
+    { label: "מחיר מכירה", field: "sale_price", value: product.sale_price },
+    { label: "מכירות חודשיות", field: "monthly_sales", value: product.monthly_sales },
+    { label: "הזמנה חודשית", field: "monthly_order", value: product.monthly_order },
+    { label: "מלאי קיים", field: "stock_qty", value: product.stock_qty },
+    { label: "בדרך", field: "incoming_qty", value: product.incoming_qty },
+    { label: "הערות", field: "notes", value: product.notes },
   ];
 
   const handleSaveEdit = async (id: string, updates: Record<string, any>) => {
@@ -88,18 +94,29 @@ export default function ProductDetailPage() {
         <div className="flex items-center gap-2 mb-4"><Package className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">פרטי מוצר</h2></div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {details.filter(d => d.value != null && d.value !== "").map(d => {
-            const supplierMatch = d.label === "ספק" && typeof d.value === "string" ? suppliers.find(s => s.company === d.value) : null;
-            return (
-              <div key={d.label} className="space-y-1">
-                <p className="text-xs text-muted-foreground">{d.label}</p>
-                {supplierMatch ? (
+            const supplierMatch = d.isSupplierLink && typeof d.value === "string" ? suppliers.find(s => s.company === d.value) : null;
+            
+            if (supplierMatch) {
+              return (
+                <div key={d.label} className="space-y-1">
+                  <p className="text-xs text-muted-foreground">{d.label}</p>
                   <button onClick={() => navigate(`/suppliers/${supplierMatch.id}`)} className="text-sm font-medium text-primary hover:underline">
                     {d.value}
                   </button>
-                ) : (
-                  <p className="text-sm font-medium text-foreground">{d.value}</p>
-                )}
-              </div>
+                </div>
+              );
+            }
+
+            return (
+              <InlineEditField
+                key={d.label}
+                label={d.label}
+                value={d.value}
+                displayValue={d.field === "purchase_price" || d.field === "sale_price" ? (d.value ? `$${d.value}` : "—") : undefined}
+                type={["purchase_price", "sale_price", "monthly_sales", "monthly_order", "stock_qty", "incoming_qty"].includes(d.field) ? "number" : "text"}
+                onSave={(v) => handleInlineSave(d.field, v)}
+                disabled={!isManager}
+              />
             );
           })}
         </div>
@@ -107,10 +124,10 @@ export default function ProductDetailPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: "מלאי קיים", value: product.stock_qty, danger: product.stock_qty === 0 },
-          { label: "בדרך", value: product.incoming_qty },
-          { label: "מכירות חודשיות", value: product.monthly_sales ?? "—" },
-          { label: "הזמנה חודשית", value: product.monthly_order ?? "—" },
+          { label: "מלאי קיים", field: "stock_qty", value: product.stock_qty, danger: product.stock_qty === 0 },
+          { label: "בדרך", field: "incoming_qty", value: product.incoming_qty },
+          { label: "מכירות חודשיות", field: "monthly_sales", value: product.monthly_sales ?? "—" },
+          { label: "הזמנה חודשית", field: "monthly_order", value: product.monthly_order ?? "—" },
         ].map((item) => (
           <div key={item.label} className="bg-card rounded-xl border p-4 text-center">
             <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
@@ -184,7 +201,7 @@ export default function ProductDetailPage() {
                 {relatedOrders.map(order => {
                   const relevantItem = order.items.find(i => i.name === product.name || i.product_id === product.id);
                   return (
-                    <tr key={order.id}>
+                    <tr key={order.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/orders/${order.id}`)}>
                       <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
                       <td className="p-3 text-muted-foreground">{order.supplier_name || "—"}</td>
                       <td className="p-3 text-muted-foreground">{relevantItem?.qty || "—"}</td>
