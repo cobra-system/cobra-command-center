@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppProvider, useAuth } from "@/contexts/AppContext";
+import { OutlookProvider } from "@/contexts/OutlookContext";
 import LoginPage from "@/pages/LoginPage";
 import ManagerLayout from "@/layouts/ManagerLayout";
 import EmployeeLayout from "@/layouts/EmployeeLayout";
