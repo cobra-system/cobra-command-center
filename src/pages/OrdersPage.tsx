@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { ChevronLeft, Plus, Trash2, CalendarIcon, Search } from "lucide-react";
+import { Plus, Trash2, CalendarIcon, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,11 +15,13 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
-const nextStatus: Partial<Record<string, OrderStatus>> = {
-  PENDING: "ORDERED",
-  ORDERED: "SHIPPED",
-  SHIPPED: "ARRIVED",
-};
+const allStatuses: { value: OrderStatus; label: string }[] = [
+  { value: "PENDING", label: "ממתין" },
+  { value: "ORDERED", label: "הוזמן" },
+  { value: "SHIPPED", label: "נשלח" },
+  { value: "ARRIVED", label: "הגיע" },
+  { value: "CANCELLED", label: "בוטל" },
+];
 
 const priorities: { value: Priority; label: string }[] = [
   { value: "P0", label: "P0 — דחוף" },
@@ -27,18 +30,16 @@ const priorities: { value: Priority; label: string }[] = [
   { value: "P3", label: "P3 — נמוך" },
 ];
 
-const statusOptions: { value: string; label: string }[] = [
+const statusFilterOptions = [
   { value: "all", label: "הכל" },
-  { value: "PENDING", label: "ממתין" },
-  { value: "ORDERED", label: "הוזמן" },
-  { value: "SHIPPED", label: "נשלח" },
-  { value: "ARRIVED", label: "הגיע" },
+  ...allStatuses.filter(s => s.value !== "CANCELLED"),
 ];
 
-interface ItemRow { name: string; qty: string; price: string; }
+interface ItemRow { name: string; qty: string; price: string; productId: string; }
 
 export default function OrdersPage() {
   const { orders, updateOrderStatus, addOrder, suppliers, products } = useData();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [priority, setPriority] = useState<Priority>("P2");
   const [supplierId, setSupplierId] = useState("");
@@ -46,9 +47,8 @@ export default function OrdersPage() {
   const [notes, setNotes] = useState("");
   const [etd, setEtd] = useState<Date>();
   const [eta, setEta] = useState<Date>();
-  const [items, setItems] = useState<ItemRow[]>([{ name: "", qty: "", price: "" }]);
+  const [items, setItems] = useState<ItemRow[]>([{ name: "", qty: "", price: "", productId: "" }]);
 
-  // Filters
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -65,10 +65,17 @@ export default function OrdersPage() {
     return true;
   });
 
-  const resetForm = () => { setPriority("P2"); setSupplierId(""); setShipping(""); setNotes(""); setEtd(undefined); setEta(undefined); setItems([{ name: "", qty: "", price: "" }]); };
+  const resetForm = () => { setPriority("P2"); setSupplierId(""); setShipping(""); setNotes(""); setEtd(undefined); setEta(undefined); setItems([{ name: "", qty: "", price: "", productId: "" }]); };
   const updateItem = (idx: number, field: keyof ItemRow, value: string) => setItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
-  const addItemRow = () => setItems(prev => [...prev, { name: "", qty: "", price: "" }]);
+  const addItemRow = () => setItems(prev => [...prev, { name: "", qty: "", price: "", productId: "" }]);
   const removeItemRow = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
+
+  const selectProduct = (idx: number, productId: string) => {
+    const prod = products.find(p => p.id === productId);
+    if (prod) {
+      setItems(prev => prev.map((item, i) => i === idx ? { ...item, productId, name: prod.name, price: prod.purchase_price?.toString() || "" } : item));
+    }
+  };
 
   const handleSubmit = async () => {
     const validItems = items.filter(i => i.name.trim() && Number(i.qty) > 0);
@@ -86,7 +93,7 @@ export default function OrdersPage() {
       eta: eta?.toISOString(),
       total_price: validItems.reduce((s, i) => s + (Number(i.price) || 0) * Number(i.qty), 0) || undefined,
       notes: notes.trim() || undefined,
-      items: validItems.map(item => ({ name: item.name, qty: Number(item.qty), price: Number(item.price) || undefined })),
+      items: validItems.map(item => ({ name: item.name, qty: Number(item.qty), price: Number(item.price) || undefined, product_id: item.productId || undefined })),
     });
     resetForm();
     setOpen(false);
@@ -108,6 +115,12 @@ export default function OrdersPage() {
       </Popover>
     </div>
   );
+
+  const navigateToSupplier = (supplierName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const s = suppliers.find(s => s.company === supplierName);
+    if (s) navigate(`/suppliers/${s.id}`);
+  };
 
   return (
     <div className="space-y-5">
@@ -145,9 +158,9 @@ export default function OrdersPage() {
                   <div key={idx} className="flex gap-2 items-end">
                     <div className="flex-1">
                       {idx === 0 && <span className="text-xs text-muted-foreground">מוצר</span>}
-                      <Select value={item.name} onValueChange={v => updateItem(idx, "name", v)}>
+                      <Select value={item.productId} onValueChange={v => selectProduct(idx, v)}>
                         <SelectTrigger><SelectValue placeholder="בחר מוצר" /></SelectTrigger>
-                        <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent>
+                        <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
                     <div className="w-20">{idx === 0 && <span className="text-xs text-muted-foreground">כמות</span>}<Input type="number" value={item.qty} onChange={e => updateItem(idx, "qty", e.target.value)} placeholder="0" /></div>
@@ -170,7 +183,7 @@ export default function OrdersPage() {
           <Input placeholder="חיפוש לפי מוצר או ספק..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
         </div>
         <div className="flex bg-secondary rounded-lg p-1">
-          {statusOptions.map(s => (
+          {statusFilterOptions.map(s => (
             <button key={s.value} onClick={() => setStatusFilter(s.value)} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
               statusFilter === s.value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
             }`}>{s.label}</button>
@@ -196,28 +209,48 @@ export default function OrdersPage() {
               <th className="text-right p-3 font-semibold text-foreground">משלוח</th>
               <th className="text-right p-3 font-semibold text-foreground">סטטוס</th>
               <th className="text-right p-3 font-semibold text-foreground">ETA</th>
-              <th className="text-right p-3 font-semibold text-foreground">פעולה</th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
+              <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
             ) : filtered.map(order => (
-              <tr key={order.id}>
+              <tr key={order.id} className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => navigate(`/orders/${order.id}`)}>
                 <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
                 <td className="p-3 font-medium text-foreground">{order.items.map(i => i.name).join(", ")}</td>
                 <td className="p-3 text-muted-foreground">{order.items.reduce((s, i) => s + i.qty, 0)}</td>
-                <td className="p-3 text-muted-foreground">{order.supplier_name || "—"}</td>
-                <td className="p-3 text-muted-foreground">{order.shipping || "—"}</td>
-                <td className="p-3"><OrderStatusBadge status={order.status as OrderStatus} /></td>
-                <td className="p-3 text-muted-foreground text-xs">{order.eta ? new Date(order.eta).toLocaleDateString("he-IL") : "—"}</td>
                 <td className="p-3">
-                  {nextStatus[order.status] && (
-                    <Button size="sm" variant="outline" className="text-xs gap-1" onClick={() => updateOrderStatus(order.id, nextStatus[order.status]!)}>
-                      קדם סטטוס<ChevronLeft className="h-3 w-3" />
-                    </Button>
-                  )}
+                  {order.supplier_name ? (
+                    <button onClick={(e) => navigateToSupplier(order.supplier_name!, e)} className="text-primary hover:underline text-sm">
+                      {order.supplier_name}
+                    </button>
+                  ) : <span className="text-muted-foreground">—</span>}
                 </td>
+                <td className="p-3 text-muted-foreground">{order.shipping || "—"}</td>
+                <td className="p-3" onClick={e => e.stopPropagation()}>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button className="cursor-pointer"><OrderStatusBadge status={order.status as OrderStatus} /></button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-1" align="start">
+                      <div className="flex flex-col gap-0.5">
+                        {allStatuses.map(s => (
+                          <button
+                            key={s.value}
+                            onClick={() => updateOrderStatus(order.id, s.value)}
+                            className={cn(
+                              "px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted",
+                              order.status === s.value && "bg-muted"
+                            )}
+                          >
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </td>
+                <td className="p-3 text-muted-foreground text-xs">{order.eta ? new Date(order.eta).toLocaleDateString("he-IL") : "—"}</td>
               </tr>
             ))}
           </tbody>
