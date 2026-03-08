@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowRight, Package, Boxes, TruckIcon, Pencil, ExternalLink } from "lucide-react";
 import ProductIssuesTab from "@/components/ProductIssuesTab";
+import ProductEditDialog from "@/components/products/ProductEditDialog";
 import SupplierComparisonPanel from "@/components/SupplierComparisonPanel";
 import { toast } from "sonner";
 
