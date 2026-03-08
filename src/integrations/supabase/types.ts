@@ -53,6 +53,7 @@ export type Database = {
         Row: {
           center_id: string
           id: string
+          min_stock: number
           product_id: string
           quantity: number
           updated_at: string
@@ -60,6 +61,7 @@ export type Database = {
         Insert: {
           center_id: string
           id?: string
+          min_stock?: number
           product_id: string
           quantity?: number
           updated_at?: string
@@ -67,6 +69,7 @@ export type Database = {
         Update: {
           center_id?: string
           id?: string
+          min_stock?: number
           product_id?: string
           quantity?: number
           updated_at?: string
@@ -120,6 +123,61 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      inventory_transfers: {
+        Row: {
+          created_at: string
+          from_center_id: string | null
+          id: string
+          notes: string | null
+          product_id: string | null
+          quantity: number
+          to_center_id: string | null
+          transferred_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          from_center_id?: string | null
+          id?: string
+          notes?: string | null
+          product_id?: string | null
+          quantity?: number
+          to_center_id?: string | null
+          transferred_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          from_center_id?: string | null
+          id?: string
+          notes?: string | null
+          product_id?: string | null
+          quantity?: number
+          to_center_id?: string | null
+          transferred_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_transfers_from_center_id_fkey"
+            columns: ["from_center_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transfers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transfers_to_center_id_fkey"
+            columns: ["to_center_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_centers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       learning_journal: {
         Row: {
