@@ -32,6 +32,18 @@ export interface Product {
   stockQty: number;
   incomingQty: number;
   notes?: string;
+  components?: ProductComponent[];
+}
+
+export interface ProductComponent {
+  id: string;
+  name: string;
+  sku?: string;
+  supplier?: string;
+  origin?: string;
+  stockQty?: number;
+  price?: number;
+  notes?: string;
 }
 
 export interface Supplier {

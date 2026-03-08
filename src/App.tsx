@@ -49,6 +49,7 @@ function AppRoutes() {
       <Route element={<RequireManager />}>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/products" element={<ProductsPage />} />
+        <Route path="/products/:id" element={<ProductDetailPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/suppliers" element={<SuppliersPage />} />
         <Route path="/tasks" element={<TasksPage />} />
