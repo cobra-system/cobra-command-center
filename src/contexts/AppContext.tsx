@@ -164,6 +164,10 @@ interface DataState {
   addSupplier: (supplier: Omit<Supplier, "id">) => Promise<void>;
   updateSupplier: (id: string, updates: Partial<Supplier>) => Promise<void>;
   deleteSupplier: (id: string) => Promise<void>;
+  refreshRoleDefinitions: () => Promise<void>;
+  addRoleDefinition: (name: string) => Promise<void>;
+  updateRoleDefinition: (id: string, name: string) => Promise<void>;
+  deleteRoleDefinition: (id: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
