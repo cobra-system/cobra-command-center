@@ -68,6 +68,7 @@ export interface Supplier {
   payment_terms?: string | null;
   risk_level?: string | null;
   backup_supplier_id?: string | null;
+  website?: string | null;
 }
 
 export interface Order {
