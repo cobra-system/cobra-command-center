@@ -60,17 +60,16 @@ export default function DependencyMapPage() {
     products.forEach(p => {
       if (!p.supplier) return;
       const supplierName = p.supplier;
-      const existing = supplierMap.get(supplierName);
+      const existing = supplierMap[supplierName];
       if (existing) {
         existing.products.push(p.name);
       } else {
-        // Try to find risk level from suppliers table
         const supplierRecord = suppliers.find(s => s.company === supplierName);
-        supplierMap.set(supplierName, {
+        supplierMap[supplierName] = {
           company: supplierName,
           products: [p.name],
           risk: supplierRecord?.risk_level || "",
-        });
+        };
       }
 
       // Also check components
