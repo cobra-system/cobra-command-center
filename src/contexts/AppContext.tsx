@@ -92,6 +92,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
   }, []);
 
+  const addOrder = useCallback((order: Order) => {
+    setOrders(prev => [...prev, order]);
+  }, []);
+
   const addTask = useCallback((task: Task) => {
     setTasks(prev => [...prev, task]);
   }, []);
