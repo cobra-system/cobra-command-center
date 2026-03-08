@@ -122,6 +122,7 @@ export default function ProductDetailPage() {
                 onSave={(v) => handleInlineSave(d.field, v)}
                 disabled={!isManager}
                 options={d.options}
+                multiSelect={d.multiSelect}
               />
             );
           })}
