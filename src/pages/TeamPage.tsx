@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth, useData, roleLabel, type Role } from "@/contexts/AppContext";
+import { useAuth, useData, roleLabel, type Role, type RoleDefinition } from "@/contexts/AppContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
