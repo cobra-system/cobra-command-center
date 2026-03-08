@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   Settings,
+  BookOpen,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -22,6 +23,7 @@ const navItems = [
   { to: "/orders", icon: ShoppingCart, label: "הזמנות" },
   { to: "/suppliers", icon: Truck, label: "ספקים" },
   { to: "/tasks", icon: ListTodo, label: "משימות" },
+  { to: "/journal", icon: BookOpen, label: "יומן למידה" },
   { to: "/team", icon: Users, label: "צוות" },
   { to: "/settings", icon: Settings, label: "הגדרות" },
 ];
