@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState } from "react";
-import { useData, useAuth, type Priority, type OrderStatus } from "@/contexts/AppContext";
+import { useState, useMemo } from "react";
+import { useData, useAuth, categories, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,15 @@ export default function ProductDetailPage() {
   const { currentUser } = useAuth();
   const { products, orders, updateProduct, suppliers } = useData();
   const [editOpen, setEditOpen] = useState(false);
+
+  // Hooks must be before any early return
+  const categoryOptions = useMemo(() => categories.filter(c => c !== "הכל").map(c => ({ value: c, label: c })), []);
+  const supplierOptions = useMemo(() => suppliers.map(s => ({ value: s.company, label: s.company })), [suppliers]);
+  const productTypeOptions = [{ value: "פשוט", label: "פשוט" }, { value: "מורכב", label: "מורכב" }];
+  const shippingOptions = [
+    { value: "ים", label: "ים" }, { value: "אוויר", label: "אוויר" },
+    { value: "יבשה", label: "יבשה" }, { value: "אקספרס", label: "אקספרס" },
+  ];
 
   const product = products.find(p => p.id === id);
   if (!product) {
@@ -45,15 +54,15 @@ export default function ProductDetailPage() {
     toast.success("עודכן");
   };
 
-  const details: { label: string; field: string; value: string | number | undefined | null; isSupplierLink?: boolean }[] = [
-    { label: "קטגוריה", field: "category", value: product.category },
+  const details: { label: string; field: string; value: string | number | undefined | null; isSupplierLink?: boolean; options?: { value: string; label: string }[] }[] = [
+    { label: "קטגוריה", field: "category", value: product.category, options: categoryOptions },
     { label: "חטיבה", field: "division", value: product.division },
     { label: "מק״ט", field: "sku", value: product.sku },
-    { label: "סוג מוצר", field: "product_type", value: product.product_type },
+    { label: "סוג מוצר", field: "product_type", value: product.product_type, options: productTypeOptions },
     { label: "תיאור", field: "description", value: product.description },
-    { label: "ספק", field: "supplier", value: product.supplier, isSupplierLink: true },
+    { label: "ספק", field: "supplier", value: product.supplier, isSupplierLink: true, options: supplierOptions },
     { label: "מקור ספק", field: "supplier_origin", value: product.supplier_origin },
-    { label: "שיטת משלוח", field: "shipping", value: product.shipping },
+    { label: "שיטת משלוח", field: "shipping", value: product.shipping, options: shippingOptions },
     { label: "מחיר רכישה", field: "purchase_price", value: product.purchase_price },
     { label: "מחיר מכירה", field: "sale_price", value: product.sale_price },
     { label: "מכירות חודשיות", field: "monthly_sales", value: product.monthly_sales },
@@ -95,27 +104,23 @@ export default function ProductDetailPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {details.filter(d => d.value != null && d.value !== "").map(d => {
             const supplierMatch = d.isSupplierLink && typeof d.value === "string" ? suppliers.find(s => s.company === d.value) : null;
-            
-            if (supplierMatch) {
-              return (
-                <div key={d.label} className="space-y-1">
-                  <p className="text-xs text-muted-foreground">{d.label}</p>
-                  <button onClick={() => navigate(`/suppliers/${supplierMatch.id}`)} className="text-sm font-medium text-primary hover:underline">
-                    {d.value}
-                  </button>
-                </div>
-              );
-            }
 
             return (
               <InlineEditField
                 key={d.label}
                 label={d.label}
                 value={d.value}
-                displayValue={d.field === "purchase_price" || d.field === "sale_price" ? (d.value ? `$${d.value}` : "—") : undefined}
+                displayValue={
+                  supplierMatch ? (
+                    <button onClick={() => navigate(`/suppliers/${supplierMatch.id}`)} className="text-sm font-medium text-primary hover:underline">
+                      {d.value}
+                    </button>
+                  ) : d.field === "purchase_price" || d.field === "sale_price" ? (d.value ? `$${d.value}` : "—") : undefined
+                }
                 type={["purchase_price", "sale_price", "monthly_sales", "monthly_order", "stock_qty", "incoming_qty"].includes(d.field) ? "number" : "text"}
                 onSave={(v) => handleInlineSave(d.field, v)}
                 disabled={!isManager}
+                options={d.options}
               />
             );
           })}
