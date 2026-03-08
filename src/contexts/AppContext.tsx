@@ -139,6 +139,8 @@ interface DataState {
   addTaskNote: (taskId: string, note: string) => Promise<void>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   addOrder: (order: Omit<Order, "id" | "items"> & { items: Omit<OrderItem, "id" | "order_id">[] }) => Promise<void>;
+  updateOrder: (id: string, updates: Partial<Order>) => Promise<void>;
+  deleteOrder: (id: string) => Promise<void>;
   addTask: (task: Omit<Task, "id">) => Promise<void>;
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
