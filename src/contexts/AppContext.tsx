@@ -6,7 +6,7 @@ import { toast } from "sonner";
 // Re-export types for compatibility
 export type Role = "MANAGER" | "WAREHOUSE_MANAGER" | "LOGISTICS" | "DRIVER";
 export type OrderStatus = "PENDING" | "ORDERED" | "SHIPPED" | "ARRIVED" | "CANCELLED";
-export type Priority = "P0" | "P1" | "P2" | "P3";
+export type Priority = "דחוף" | "גבוה" | "בינוני" | "נמוך";
 export type TaskStatus = "TODO" | "IN_PROGRESS" | "DONE" | "BLOCKED";
 
 export interface Profile {
