@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth, type Supplier } from "@/contexts/AppContext";
-import { Search, Plus, Mail, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, Plus, Mail, ArrowUpDown, ArrowUp, ArrowDown, Globe } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,12 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import SupplierEmailTab from "@/components/SupplierEmailTab";
 import { toast } from "sonner";
 
-type SortKey = "company" | "contact_name" | "email" | "phone";
+type SortKey = "company" | "contact_name" | "email" | "phone" | "country";
 type SortDir = "asc" | "desc";
 
 const sortableColumns: { key: SortKey; label: string }[] = [
   { key: "company", label: "חברה" },
   { key: "contact_name", label: "איש קשר" },
+  { key: "country", label: "מקור" },
   { key: "email", label: "אימייל" },
   { key: "phone", label: "טלפון" },
 ];
@@ -52,9 +53,6 @@ export default function SuppliersPage() {
     return result;
   }, [suppliers, search, countryFilter, sortKey, sortDir]);
 
-  const abroad = useMemo(() => filtered.filter(s => s.country === "חול"), [filtered]);
-  const israel = useMemo(() => filtered.filter(s => s.country === "ישראל"), [filtered]);
-
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
       if (sortDir === "asc") setSortDir("desc");
@@ -70,16 +68,10 @@ export default function SuppliersPage() {
     return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   };
 
-  const sections = countryFilter === "all"
-    ? [{ title: "ספקים מחו״ל", list: abroad }, { title: "ספקים בישראל", list: israel }]
-    : countryFilter === "חול"
-    ? [{ title: "ספקים מחו״ל", list: abroad }]
-    : [{ title: "ספקים בישראל", list: israel }];
-
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold text-foreground">ספקים</h1>
+        <h1 className="text-2xl font-bold text-foreground">ספקים ({filtered.length})</h1>
         <div className="flex items-center gap-3">
           <Select value={countryFilter} onValueChange={setCountryFilter}>
             <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
@@ -99,49 +91,52 @@ export default function SuppliersPage() {
         </div>
       </div>
 
-      {sections.map(section => (
-        <div key={section.title}>
-          <h2 className="text-lg font-semibold text-foreground mb-3">{section.title} ({section.list.length})</h2>
-          <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="border-b bg-muted/50">
-                {sortableColumns.map(col => (
-                  <th key={col.key} className="text-right p-3 font-semibold text-foreground">
-                    <button onClick={() => toggleSort(col.key)} className="flex items-center gap-1 hover:text-accent transition-colors">
-                      {col.label}
-                      <SortIcon col={col.key} />
-                    </button>
-                  </th>
-                ))}
-                <th className="text-right p-3 font-semibold text-foreground">מוצרים</th>
-                <th className="text-right p-3 font-semibold text-foreground">תקשורת</th>
-              </tr></thead>
-              <tbody className="divide-y">
-                {section.list.length === 0 ? (
-                  <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">לא נמצאו ספקים</td></tr>
-                ) : section.list.map(s => (
-                  <tr key={s.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/suppliers/${s.id}`)}>
-                    <td className="p-3 font-medium text-foreground">{s.company}</td>
-                    <td className="p-3 text-muted-foreground">{s.contact_name}</td>
-                    <td className="p-3">{s.email ? <span className="text-accent text-xs" dir="ltr">{s.email}</span> : "—"}</td>
-                    <td className="p-3 text-muted-foreground" dir="ltr">{s.phone || "—"}</td>
-                    <td className="p-3 text-muted-foreground text-xs max-w-[200px] truncate">{s.products || "—"}</td>
-                    <td className="p-3">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setEmailSupplier({ id: s.id, company: s.company, email: s.email || null }); }}
-                        className="text-primary hover:text-primary/80 transition-colors"
-                        title="📧 תקשורת"
-                      >
-                        <Mail className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ))}
+      <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead><tr className="border-b bg-muted/50">
+            {sortableColumns.map(col => (
+              <th key={col.key} className="text-right p-3 font-semibold text-foreground">
+                <button onClick={() => toggleSort(col.key)} className="flex items-center gap-1 hover:text-accent transition-colors">
+                  {col.label}
+                  <SortIcon col={col.key} />
+                </button>
+              </th>
+            ))}
+            <th className="text-right p-3 font-semibold text-foreground">מוצרים</th>
+            <th className="text-right p-3 font-semibold text-foreground">תקשורת</th>
+          </tr></thead>
+          <tbody className="divide-y">
+            {filtered.length === 0 ? (
+              <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">לא נמצאו ספקים</td></tr>
+            ) : filtered.map(s => (
+              <tr key={s.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/suppliers/${s.id}`)}>
+                <td className="p-3 font-medium text-foreground">{s.company}</td>
+                <td className="p-3 text-muted-foreground">{s.contact_name}</td>
+                <td className="p-3">
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                    s.country === "ישראל" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" : "bg-muted text-muted-foreground"
+                  }`}>
+                    <Globe className="h-3 w-3" />
+                    {s.country || "—"}
+                  </span>
+                </td>
+                <td className="p-3">{s.email ? <span className="text-accent text-xs" dir="ltr">{s.email}</span> : "—"}</td>
+                <td className="p-3 text-muted-foreground" dir="ltr">{s.phone || "—"}</td>
+                <td className="p-3 text-muted-foreground text-xs max-w-[200px] truncate">{s.products || "—"}</td>
+                <td className="p-3">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setEmailSupplier({ id: s.id, company: s.company, email: s.email || null }); }}
+                    className="text-primary hover:text-primary/80 transition-colors"
+                    title="📧 תקשורת"
+                  >
+                    <Mail className="h-4 w-4" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {/* Email Dialog */}
       <Dialog open={!!emailSupplier} onOpenChange={() => setEmailSupplier(null)}>

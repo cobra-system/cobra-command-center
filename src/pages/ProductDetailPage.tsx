@@ -15,7 +15,7 @@ export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { products, orders, updateProduct } = useData();
+  const { products, orders, updateProduct, suppliers } = useData();
 
   const [editOpen, setEditOpen] = useState(false);
   
