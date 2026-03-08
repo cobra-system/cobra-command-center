@@ -13,33 +13,93 @@ import {
   FileText,
   CalendarClock,
   BarChart3,
+  Warehouse,
+  GripVertical,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import cobraLogo from "@/assets/cobra-logo.png";
 
-const navItems = [
-  { to: "/dashboard", icon: LayoutDashboard, label: "דשבורד" },
-  { to: "/products", icon: Package, label: "מוצרים" },
-  { to: "/orders", icon: ShoppingCart, label: "הזמנות" },
-  { to: "/documents", icon: FileText, label: "מסמכים" },
-  { to: "/suppliers", icon: Truck, label: "ספקים" },
-  { to: "/tasks", icon: ListTodo, label: "משימות" },
-  { to: "/reorder", icon: CalendarClock, label: "תכנון רכש" },
-  { to: "/reports", icon: BarChart3, label: "דוחות" },
-  { to: "/settings", icon: Settings, label: "הגדרות" },
+const defaultNavItems = [
+  { to: "/dashboard", icon: "LayoutDashboard", label: "דשבורד" },
+  { to: "/products", icon: "Package", label: "מוצרים" },
+  { to: "/orders", icon: "ShoppingCart", label: "הזמנות" },
+  { to: "/inventory", icon: "Warehouse", label: "מלאי" },
+  { to: "/documents", icon: "FileText", label: "מסמכים" },
+  { to: "/suppliers", icon: "Truck", label: "ספקים" },
+  { to: "/tasks", icon: "ListTodo", label: "משימות" },
+  { to: "/reorder", icon: "CalendarClock", label: "תכנון רכש" },
+  { to: "/reports", icon: "BarChart3", label: "דוחות" },
+  { to: "/settings", icon: "Settings", label: "הגדרות" },
 ];
+
+const iconMap: Record<string, any> = {
+  LayoutDashboard, Package, ShoppingCart, Truck, ListTodo,
+  Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical,
+};
+
+const NAV_ORDER_KEY = "cobra-nav-order";
+
+function getStoredOrder(): typeof defaultNavItems {
+  try {
+    const stored = localStorage.getItem(NAV_ORDER_KEY);
+    if (!stored) return defaultNavItems;
+    const order: string[] = JSON.parse(stored);
+    // Rebuild from stored order, adding any new items not in stored
+    const itemMap = new Map(defaultNavItems.map(i => [i.to, i]));
+    const result = order.filter(to => itemMap.has(to)).map(to => itemMap.get(to)!);
+    // Add any missing items
+    defaultNavItems.forEach(item => {
+      if (!result.find(r => r.to === item.to)) result.push(item);
+    });
+    return result;
+  } catch {
+    return defaultNavItems;
+  }
+}
 
 export default function ManagerLayout() {
   const { currentUser, logout } = useAuth();
   const { tasks } = useData();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [navItems, setNavItems] = useState(getStoredOrder);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const pendingCount = tasks.filter(t => t.status !== "DONE").length;
 
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  const handleDragStart = (index: number) => {
+    setDragIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDrop = (index: number) => {
+    if (dragIndex === null || dragIndex === index) {
+      setDragIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+    const newItems = [...navItems];
+    const [removed] = newItems.splice(dragIndex, 1);
+    newItems.splice(index, 0, removed);
+    setNavItems(newItems);
+    localStorage.setItem(NAV_ORDER_KEY, JSON.stringify(newItems.map(i => i.to)));
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    setDragOverIndex(null);
   };
 
   return (
@@ -59,26 +119,43 @@ export default function ManagerLayout() {
         </div>
 
         <nav className="flex-1 px-3 space-y-1">
-          {navItems.map(item => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                }`
-              }
-            >
-              <item.icon className="h-5 w-5" />
-              <span>{item.label}</span>
-              {item.to === "/tasks" && pendingCount > 0 && (
-                <span className="mr-auto flex items-center gap-1 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
-                  {pendingCount}
-                </span>
-              )}
-            </NavLink>
-          ))}
+          {navItems.map((item, index) => {
+            const Icon = iconMap[item.icon] || Package;
+            return (
+              <div
+                key={item.to}
+                draggable
+                onDragStart={() => handleDragStart(index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDrop={() => handleDrop(index)}
+                onDragEnd={handleDragEnd}
+                className={`flex items-center group transition-all ${
+                  dragOverIndex === index ? "border-t-2 border-primary" : ""
+                } ${dragIndex === index ? "opacity-40" : ""}`}
+              >
+                <div className="opacity-0 group-hover:opacity-60 cursor-grab active:cursor-grabbing px-0.5 text-sidebar-foreground/40">
+                  <GripVertical className="h-3.5 w-3.5" />
+                </div>
+                <NavLink
+                  to={item.to}
+                  onClick={() => setSidebarOpen(false)}
+                  className={({ isActive }) =>
+                    `flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                    }`
+                  }
+                >
+                  <Icon className="h-5 w-5" />
+                  <span>{item.label}</span>
+                  {item.to === "/tasks" && pendingCount > 0 && (
+                    <span className="mr-auto flex items-center gap-1 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
+                      {pendingCount}
+                    </span>
+                  )}
+                </NavLink>
+              </div>
+            );
+          })}
         </nav>
 
         <div className="p-3 border-t border-sidebar-border">
