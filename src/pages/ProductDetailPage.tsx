@@ -4,12 +4,10 @@ import { useData, useAuth, type Priority, type OrderStatus } from "@/contexts/Ap
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
 import { ArrowRight, Package, Boxes, TruckIcon, Pencil, ExternalLink } from "lucide-react";
 import ProductIssuesTab from "@/components/ProductIssuesTab";
+import ProductEditDialog from "@/components/products/ProductEditDialog";
 import SupplierComparisonPanel from "@/components/SupplierComparisonPanel";
 import { toast } from "sonner";
 
@@ -20,7 +18,7 @@ export default function ProductDetailPage() {
   const { products, orders, updateProduct } = useData();
 
   const [editOpen, setEditOpen] = useState(false);
-  const [editFields, setEditFields] = useState<Record<string, any>>({});
+  
 
   const product = products.find(p => p.id === id);
 
@@ -59,27 +57,9 @@ export default function ProductDetailPage() {
     { label: "הערות", value: product.notes },
   ];
 
-  const openEditDialog = () => {
-    setEditFields({
-      stock_qty: product.stock_qty,
-      incoming_qty: product.incoming_qty,
-      purchase_price: product.purchase_price || "",
-      sale_price: product.sale_price || "",
-      monthly_order: product.monthly_order || "",
-      notes: product.notes || "",
-    });
-    setEditOpen(true);
-  };
-
-  const handleSaveEdit = async () => {
-    const updates: Record<string, any> = {};
-    for (const key of Object.keys(editFields)) {
-      const val = editFields[key];
-      updates[key] = val === "" ? null : (typeof val === "string" && !isNaN(Number(val)) && key !== "notes" ? Number(val) : val);
-    }
-    await updateProduct(product.id, updates);
+  const handleSaveEdit = async (id: string, updates: Record<string, any>) => {
+    await updateProduct(id, updates);
     toast.success("המוצר עודכן");
-    setEditOpen(false);
   };
 
   return (
@@ -95,38 +75,14 @@ export default function ProductDetailPage() {
             <a href={product.end_product_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4 ml-1" />אתר המוצר</a>
           </Button>
         )}
-        <Button variant="outline" size="sm" onClick={openEditDialog}><Pencil className="h-4 w-4 ml-1" />עריכה</Button>
+        <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4 ml-1" />עריכה</Button>
         <span className={`px-3 py-1 rounded-full text-xs font-medium ${stockStatus.className}`}>{stockStatus.label}</span>
         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
           product.product_type === "מורכב" ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"
         }`}>{product.product_type}</span>
       </div>
 
-      {/* Edit Dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>עריכת מוצר</DialogTitle></DialogHeader>
-          <div className="space-y-3 pt-2">
-            {[
-              { key: "stock_qty", label: "מלאי קיים", type: "number" },
-              { key: "incoming_qty", label: "בדרך", type: "number" },
-              { key: "purchase_price", label: "מחיר רכישה ($)", type: "number" },
-              { key: "sale_price", label: "מחיר מכירה ($)", type: "number" },
-              { key: "monthly_order", label: "הזמנה חודשית", type: "number" },
-            ].map(f => (
-              <div key={f.key} className="space-y-1">
-                <Label>{f.label}</Label>
-                <Input type={f.type} value={editFields[f.key] ?? ""} onChange={e => setEditFields(prev => ({ ...prev, [f.key]: e.target.value }))} />
-              </div>
-            ))}
-            <div className="space-y-1">
-              <Label>הערות</Label>
-              <Textarea value={editFields.notes ?? ""} onChange={e => setEditFields(prev => ({ ...prev, notes: e.target.value }))} rows={2} />
-            </div>
-            <Button onClick={handleSaveEdit} className="w-full">שמור שינויים</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ProductEditDialog open={editOpen} onOpenChange={setEditOpen} product={product} onSave={handleSaveEdit} />
 
       <div className="bg-card rounded-xl border shadow-sm p-5">
         <div className="flex items-center gap-2 mb-4"><Package className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">פרטי מוצר</h2></div>
