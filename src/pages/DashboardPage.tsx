@@ -3,6 +3,7 @@ import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Package, Truck, ClipboardList, Users } from "lucide-react";
+import RecentSupplierEmails from "@/components/RecentSupplierEmails";
 
 export default function DashboardPage() {
   const { products, orders, tasks, suppliers } = useData();
