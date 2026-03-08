@@ -82,31 +82,7 @@ export default function ProductDetailPage() {
         }`}>{product.product_type}</span>
       </div>
 
-      {/* Edit Dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>עריכת מוצר</DialogTitle></DialogHeader>
-          <div className="space-y-3 pt-2">
-            {[
-              { key: "stock_qty", label: "מלאי קיים", type: "number" },
-              { key: "incoming_qty", label: "בדרך", type: "number" },
-              { key: "purchase_price", label: "מחיר רכישה ($)", type: "number" },
-              { key: "sale_price", label: "מחיר מכירה ($)", type: "number" },
-              { key: "monthly_order", label: "הזמנה חודשית", type: "number" },
-            ].map(f => (
-              <div key={f.key} className="space-y-1">
-                <Label>{f.label}</Label>
-                <Input type={f.type} value={editFields[f.key] ?? ""} onChange={e => setEditFields(prev => ({ ...prev, [f.key]: e.target.value }))} />
-              </div>
-            ))}
-            <div className="space-y-1">
-              <Label>הערות</Label>
-              <Textarea value={editFields.notes ?? ""} onChange={e => setEditFields(prev => ({ ...prev, notes: e.target.value }))} rows={2} />
-            </div>
-            <Button onClick={handleSaveEdit} className="w-full">שמור שינויים</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ProductEditDialog open={editOpen} onOpenChange={setEditOpen} product={product} onSave={handleSaveEdit} />
 
       <div className="bg-card rounded-xl border shadow-sm p-5">
         <div className="flex items-center gap-2 mb-4"><Package className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">פרטי מוצר</h2></div>
