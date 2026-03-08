@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { useData } from "@/contexts/AppContext";
-import { Search } from "lucide-react";
+import { Search, Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import SupplierEmailTab from "@/components/SupplierEmailTab";
 
 export default function SuppliersPage() {
   const { suppliers } = useData();
   const [search, setSearch] = useState("");
+  const [selectedSupplier, setSelectedSupplier] = useState<{ id: string; company: string; email: string | null } | null>(null);
 
   const filtered = suppliers.filter(s => {
     if (!search) return true;
@@ -39,10 +42,11 @@ export default function SuppliersPage() {
                 <th className="text-right p-3 font-semibold text-foreground">מוצרים</th>
                 <th className="text-right p-3 font-semibold text-foreground">Lead Time</th>
                 <th className="text-right p-3 font-semibold text-foreground">סיכון</th>
+                <th className="text-right p-3 font-semibold text-foreground">תקשורת</th>
               </tr></thead>
               <tbody className="divide-y">
                 {section.list.length === 0 ? (
-                  <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">לא נמצאו ספקים</td></tr>
+                  <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">לא נמצאו ספקים</td></tr>
                 ) : section.list.map(s => (
                   <tr key={s.id}>
                     <td className="p-3 font-medium text-foreground">{s.contact_name}</td>
@@ -50,15 +54,24 @@ export default function SuppliersPage() {
                     <td className="p-3">{s.email ? <a href={`mailto:${s.email}`} className="text-accent hover:underline text-xs" dir="ltr">{s.email}</a> : "—"}</td>
                     <td className="p-3 text-muted-foreground" dir="ltr">{s.phone || "—"}</td>
                     <td className="p-3 text-muted-foreground text-xs max-w-[200px] truncate">{s.products || "—"}</td>
-                    <td className="p-3 text-muted-foreground">{(s as any).lead_time_days ? `${(s as any).lead_time_days} ימים` : "—"}</td>
+                    <td className="p-3 text-muted-foreground">{s.lead_time_days ? `${s.lead_time_days} ימים` : "—"}</td>
                     <td className="p-3">
-                      {(s as any).risk_level ? (
+                      {s.risk_level ? (
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                          (s as any).risk_level === "גבוה" ? "bg-destructive/15 text-destructive" :
-                          (s as any).risk_level === "בינוני" ? "bg-warning/15 text-warning" :
+                          s.risk_level === "גבוה" ? "bg-destructive/15 text-destructive" :
+                          s.risk_level === "בינוני" ? "bg-warning/15 text-warning" :
                           "bg-success/15 text-success"
-                        }`}>{(s as any).risk_level}</span>
+                        }`}>{s.risk_level}</span>
                       ) : "—"}
+                    </td>
+                    <td className="p-3">
+                      <button
+                        onClick={() => setSelectedSupplier({ id: s.id, company: s.company, email: s.email || null })}
+                        className="text-primary hover:text-primary/80 transition-colors"
+                        title="📧 תקשורת"
+                      >
+                        <Mail className="h-4 w-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -67,6 +80,21 @@ export default function SuppliersPage() {
           </div>
         </div>
       ))}
+
+      {/* Email Dialog */}
+      <Dialog open={!!selectedSupplier} onOpenChange={() => setSelectedSupplier(null)}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>📧 תקשורת — {selectedSupplier?.company}</DialogTitle>
+          </DialogHeader>
+          {selectedSupplier && (
+            <SupplierEmailTab
+              supplierEmail={selectedSupplier.email || ""}
+              supplierName={selectedSupplier.company}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
