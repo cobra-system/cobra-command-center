@@ -87,7 +87,7 @@ export default function ManagerLayout() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{currentUser?.name}</p>
-              <p className="text-xs text-sidebar-foreground/50">{currentUser?.email}</p>
+              <p className="text-xs text-sidebar-foreground/50">{currentUser?.role}</p>
             </div>
             <button onClick={handleLogout} className="text-sidebar-foreground/50 hover:text-sidebar-foreground">
               <LogOut className="h-4 w-4" />
