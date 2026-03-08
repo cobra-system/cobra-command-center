@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Menu,
   X,
+  Settings,
 } from "lucide-react";
 import { useState } from "react";
 
