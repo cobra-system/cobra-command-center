@@ -49,7 +49,6 @@ export default function MyTaskDetailPage() {
         <Button variant="outline" size="sm" onClick={handleNote}>שמור הערה</Button>
       </div>
       <div className="fixed bottom-0 left-0 right-0 bg-card border-t p-4 space-y-2">
-        <Button variant="warning" className="w-full" onClick={() => handleStatusChange("IN_PROGRESS")}>🔄 בביצוע</Button>
         <Button variant="success" className="w-full" onClick={() => handleStatusChange("DONE")}>✅ הושלם</Button>
         <Button variant="destructive" className="w-full" onClick={() => handleStatusChange("BLOCKED")}>🚫 חסום — צריך עזרה</Button>
       </div>

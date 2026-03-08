@@ -10,7 +10,7 @@ export default function DashboardPage() {
   const kpis = [
     { label: "מוצרים פעילים", value: products.length, icon: Package, color: "text-primary" },
     { label: "הזמנות בדרך", value: orders.filter(o => o.status === "SHIPPED").length, icon: Truck, color: "text-accent" },
-    { label: "משימות פתוחות", value: tasks.filter(t => t.status === "TODO" || t.status === "IN_PROGRESS").length, icon: ClipboardList, color: "text-warning" },
+    { label: "משימות פתוחות", value: tasks.filter(t => t.status !== "DONE").length, icon: ClipboardList, color: "text-warning" },
     { label: "ספקים פעילים", value: suppliers.length, icon: Users, color: "text-success" },
   ];
   const catMap: Record<string, { stock: number; order: number }> = {};

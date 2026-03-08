@@ -17,7 +17,6 @@ import { toast } from "sonner";
 
 const columns: { status: TaskStatus; label: string; bgClass: string }[] = [
   { status: "TODO", label: "לביצוע", bgClass: "bg-[hsl(var(--todo))]" },
-  { status: "IN_PROGRESS", label: "בביצוע", bgClass: "bg-[hsl(var(--in-progress))]" },
   { status: "DONE", label: "הושלם", bgClass: "bg-[hsl(var(--done))]" },
   { status: "BLOCKED", label: "חסום", bgClass: "bg-[hsl(var(--blocked))]" },
 ];
@@ -191,7 +190,7 @@ export default function TasksPage() {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {columns.map(col => {
           const colTasks = getColumnTasks(col.status);
           return (

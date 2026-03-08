@@ -8,8 +8,6 @@ import {
   ListTodo,
   Users,
   LogOut,
-  Shield,
-  AlertTriangle,
   Menu,
   X,
   Settings,
@@ -18,6 +16,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { useState } from "react";
+import cobraLogo from "@/assets/cobra-logo.png";
 
 const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "דשבורד" },
@@ -55,10 +54,7 @@ export default function ManagerLayout() {
       {/* Sidebar */}
       <aside className={`fixed lg:static inset-y-0 right-0 z-50 w-64 bg-sidebar text-sidebar-foreground flex flex-col transition-transform lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}`}>
         <div className="p-5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <Shield className="h-7 w-7" />
-            <span className="text-xl font-black tracking-tight">COBRA.IO</span>
-          </div>
+          <img src={cobraLogo} alt="COBRA.IO" className="h-8" />
           <button className="lg:hidden text-sidebar-foreground" onClick={() => setSidebarOpen(false)}>
             <X className="h-5 w-5" />
           </button>
@@ -107,10 +103,7 @@ export default function ManagerLayout() {
       <main className="flex-1 min-h-screen">
         {/* Mobile header */}
         <header className="lg:hidden sticky top-0 z-30 bg-background border-b px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
-            <span className="font-bold text-primary">COBRA.IO</span>
-          </div>
+          <img src={cobraLogo} alt="COBRA.IO" className="h-6" />
           <button onClick={() => setSidebarOpen(true)}>
             <Menu className="h-6 w-6 text-foreground" />
           </button>
