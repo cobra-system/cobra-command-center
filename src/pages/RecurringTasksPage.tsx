@@ -343,13 +343,13 @@ export default function RecurringTasksPage() {
 
               <div className="space-y-2">
                 <Label>שיוך לעובד</Label>
-                <Select value={assigneeId} onValueChange={setAssigneeId}>
-                  <SelectTrigger><SelectValue placeholder="בחר (אופציונלי)" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">ללא שיוך</SelectItem>
-                    {profiles.map(p => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
+              <Select value={assigneeId || "none"} onValueChange={(v) => setAssigneeId(v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="בחר (אופציונלי)" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">ללא שיוך</SelectItem>
+                  {profiles.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
                   </SelectContent>
                 </Select>
               </div>
