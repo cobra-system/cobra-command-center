@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Lock, Users, Mail, CheckCircle, LogOut, Plus, Pencil, Trash2, User, Settings, Tag } from "lucide-react";
+import { Lock, Users, Mail, CheckCircle, LogOut, Plus, Pencil, Trash2, User, Settings, Tag, Server } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export default function SettingsPage() {
   const { currentUser } = useAuth();
