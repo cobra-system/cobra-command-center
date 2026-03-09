@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Plus, RotateCcw, Pencil, Trash2, Search } from "lucide-react";
+import { CalendarIcon, Plus, RotateCcw, Pencil, Trash2, Search, Repeat2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -256,7 +256,12 @@ export default function TasksPage() {
                     {task.due_date && <p className="text-xs text-muted-foreground">📅 {format(new Date(task.due_date), "dd/MM/yyyy")}</p>}
                     {task.notes && <p className="text-xs text-muted-foreground truncate">💬 {task.notes}</p>}
                     {task.is_daily && <span className="inline-block text-xs bg-warning/15 text-warning px-2 py-0.5 rounded-full">יומית</span>}
-                    {task.recurring_task_id && <span className="inline-block text-xs bg-accent/15 text-accent px-2 py-0.5 rounded-full">חוזרת</span>}
+                    {task.recurring_task_id && (
+                      <span className="inline-flex items-center gap-1 text-xs bg-accent/15 text-accent px-2 py-0.5 rounded-full">
+                        <Repeat2 className="w-3 h-3" />
+                        חוזרת
+                      </span>
+                    )}
                     <div className="flex flex-wrap gap-1 pt-1">
                       {columns.filter(c => c.status !== task.status).map(c => (
                         <button key={c.status} onClick={() => updateTaskStatus(task.id, c.status)} className="text-[10px] px-2 py-1 rounded bg-muted text-muted-foreground hover:bg-muted/80 transition-colors">{c.label}</button>
