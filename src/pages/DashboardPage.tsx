@@ -3,13 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { useAuth, useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 import { Package, Truck, ClipboardList, Users, Zap, AlertTriangle, ScrollText, Wrench } from "lucide-react";
 import RecentSupplierEmails from "@/components/RecentSupplierEmails";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 const priorityOrder: Record<string, number> = { "דחוף": 0, "גבוה": 1, "בינוני": 2, "נמוך": 3 };
+
+const SEVERITY_COLORS: Record<string, string> = {
+  "נמוך": "hsl(var(--muted-foreground))",
+  "בינוני": "hsl(var(--warning))",
+  "גבוה": "hsl(var(--accent))",
+  "קריטי": "hsl(var(--destructive))",
+};
 
 export default function DashboardPage() {
   const { products, orders, tasks, suppliers } = useData();
@@ -18,6 +25,8 @@ export default function DashboardPage() {
   const [stuckWorkflows, setStuckWorkflows] = useState<{ id: string; supplier: string; step: string; hours: number }[]>([]);
   const [expiringLicenses, setExpiringLicenses] = useState<{ id: string; name: string; daysLeft: number }[]>([]);
   const [topIssueProducts, setTopIssueProducts] = useState<{ product_id: string; name: string; count: number }[]>([]);
+  const [severityData, setSeverityData] = useState<{ name: string; value: number }[]>([]);
+  const [monthlyTrend, setMonthlyTrend] = useState<{ month: string; count: number }[]>([]);
 
   useEffect(() => {
     const fetchWorkflows = async () => {
@@ -27,7 +36,6 @@ export default function DashboardPage() {
         .eq("status", "active");
       setActiveWorkflows(count || 0);
 
-      // Fetch stuck workflows (>48h since last update)
       const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
       const { data: stuck } = await supabase
         .from("workflow_instances")
@@ -58,7 +66,6 @@ export default function DashboardPage() {
     };
     fetchWorkflows();
 
-    // Fetch expiring licenses
     const fetchLicenses = async () => {
       const { data } = await supabase
         .from("compliance_items")
@@ -69,11 +76,7 @@ export default function DashboardPage() {
       if (data) {
         const now = Date.now();
         const expiring = data
-          .map(d => ({
-            id: d.id,
-            name: d.name,
-            daysLeft: Math.ceil((new Date(d.expiry_date!).getTime() - now) / (1000 * 60 * 60 * 24)),
-          }))
+          .map(d => ({ id: d.id, name: d.name, daysLeft: Math.ceil((new Date(d.expiry_date!).getTime() - now) / (1000 * 60 * 60 * 24)) }))
           .filter(d => d.daysLeft <= 90 && d.daysLeft > 0)
           .slice(0, 3);
         setExpiringLicenses(expiring);
@@ -81,24 +84,42 @@ export default function DashboardPage() {
     };
     fetchLicenses();
 
-    // Fetch top products with open issues
+    // Fetch all issues for stats + top products
     const fetchIssues = async () => {
       const { data } = await supabase
         .from("product_issues")
-        .select("product_id")
-        .neq("status", "נסגר");
-      if (data && data.length > 0) {
-        const countMap: Record<string, number> = {};
-        data.forEach((d: any) => { countMap[d.product_id] = (countMap[d.product_id] || 0) + 1; });
-        const sorted = Object.entries(countMap)
-          .sort(([, a], [, b]) => b - a)
-          .slice(0, 3)
-          .map(([pid, count]) => {
-            const prod = products.find(p => p.id === pid);
-            return { product_id: pid, name: prod?.name || "מוצר לא ידוע", count };
-          });
-        setTopIssueProducts(sorted);
+        .select("product_id, severity, status, reported_date");
+      if (!data || data.length === 0) return;
+
+      // Top products with open issues
+      const openIssues = data.filter((d: any) => d.status !== "נסגר");
+      const countMap: Record<string, number> = {};
+      openIssues.forEach((d: any) => { countMap[d.product_id] = (countMap[d.product_id] || 0) + 1; });
+      const sorted = Object.entries(countMap)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 3)
+        .map(([pid, count]) => {
+          const prod = products.find(p => p.id === pid);
+          return { product_id: pid, name: prod?.name || "מוצר לא ידוע", count };
+        });
+      setTopIssueProducts(sorted);
+
+      // Severity distribution (all issues)
+      const sevMap: Record<string, number> = {};
+      data.forEach((d: any) => { sevMap[d.severity] = (sevMap[d.severity] || 0) + 1; });
+      setSeverityData(Object.entries(sevMap).map(([name, value]) => ({ name, value })));
+
+      // Monthly trend (last 6 months)
+      const now = new Date();
+      const months: { month: string; count: number }[] = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const label = d.toLocaleDateString("he-IL", { month: "short", year: "2-digit" });
+        const count = data.filter((issue: any) => issue.reported_date?.startsWith(key)).length;
+        months.push({ month: label, count });
       }
+      setMonthlyTrend(months);
     };
     fetchIssues();
   }, []);
@@ -137,37 +158,23 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-foreground">דשבורד</h1>
       
-      {/* Active workflows alert */}
       {activeWorkflows > 0 && (
-        <div
-          onClick={() => navigate("/workflows")}
-          className="bg-primary/10 border border-primary/30 rounded-xl p-4 cursor-pointer hover:bg-primary/15 transition-colors"
-        >
+        <div onClick={() => navigate("/workflows")} className="bg-primary/10 border border-primary/30 rounded-xl p-4 cursor-pointer hover:bg-primary/15 transition-colors">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
-              <Zap className="h-5 w-5 text-primary" />
-            </div>
+            <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center"><Zap className="h-5 w-5 text-primary" /></div>
             <div className="flex-1">
               <h3 className="font-semibold text-foreground">תהליכים ממתינים לפעולה</h3>
               <p className="text-sm text-muted-foreground">יש {activeWorkflows} תהליכי רכש פעילים שדורשים טיפול</p>
             </div>
-            <span className="bg-primary text-primary-foreground text-sm font-bold px-3 py-1 rounded-full">
-              {activeWorkflows}
-            </span>
+            <span className="bg-primary text-primary-foreground text-sm font-bold px-3 py-1 rounded-full">{activeWorkflows}</span>
           </div>
         </div>
       )}
 
-      {/* Stuck workflows alert */}
       {stuckWorkflows.length > 0 && (
-        <div
-          onClick={() => navigate("/workflows")}
-          className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 cursor-pointer hover:bg-destructive/15 transition-colors"
-        >
+        <div onClick={() => navigate("/workflows")} className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 cursor-pointer hover:bg-destructive/15 transition-colors">
           <div className="flex items-center gap-3 mb-2">
-            <div className="h-10 w-10 rounded-full bg-destructive/20 flex items-center justify-center">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-            </div>
+            <div className="h-10 w-10 rounded-full bg-destructive/20 flex items-center justify-center"><AlertTriangle className="h-5 w-5 text-destructive" /></div>
             <div className="flex-1">
               <h3 className="font-semibold text-foreground">⚠️ תהליכים תקועים</h3>
               <p className="text-sm text-muted-foreground">{stuckWorkflows.length} תהליכים לא עודכנו מעל 48 שעות</p>
@@ -193,6 +200,7 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-card rounded-xl border p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-foreground mb-3">הזמנות פתוחות</h2>
@@ -226,64 +234,82 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-      {/* Expiring licenses widget */}
+
       {expiringLicenses.length > 0 && (
-        <div
-          onClick={() => navigate("/compliance")}
-          className="bg-warning/10 border border-warning/30 rounded-xl p-4 cursor-pointer hover:bg-warning/15 transition-colors"
-        >
+        <div onClick={() => navigate("/compliance")} className="bg-warning/10 border border-warning/30 rounded-xl p-4 cursor-pointer hover:bg-warning/15 transition-colors">
           <div className="flex items-center gap-3 mb-2">
-            <div className="h-10 w-10 rounded-full bg-warning/20 flex items-center justify-center">
-              <ScrollText className="h-5 w-5 text-warning" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-foreground">⚠️ רישיונות שפגים בקרוב</h3>
-            </div>
+            <div className="h-10 w-10 rounded-full bg-warning/20 flex items-center justify-center"><ScrollText className="h-5 w-5 text-warning" /></div>
+            <div className="flex-1"><h3 className="font-semibold text-foreground">⚠️ רישיונות שפגים בקרוב</h3></div>
           </div>
           <div className="space-y-1 mr-13">
             {expiringLicenses.map(lic => (
               <div key={lic.id} className="flex items-center justify-between text-sm">
                 <span className="text-foreground">{lic.name}</span>
-                <span className={cn(
-                  "text-xs font-medium px-2 py-0.5 rounded-full",
-                  lic.daysLeft <= 30 ? "bg-destructive/15 text-destructive" : "bg-warning/15 text-warning"
-                )}>
-                  {lic.daysLeft} ימים
-                </span>
+                <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", lic.daysLeft <= 30 ? "bg-destructive/15 text-destructive" : "bg-warning/15 text-warning")}>{lic.daysLeft} ימים</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Top products with issues */}
       {topIssueProducts.length > 0 && (
-        <div
-          onClick={() => navigate("/issues")}
-          className="bg-destructive/5 border border-destructive/20 rounded-xl p-4 cursor-pointer hover:bg-destructive/10 transition-colors"
-        >
+        <div onClick={() => navigate("/issues")} className="bg-destructive/5 border border-destructive/20 rounded-xl p-4 cursor-pointer hover:bg-destructive/10 transition-colors">
           <div className="flex items-center gap-3 mb-2">
-            <div className="h-10 w-10 rounded-full bg-destructive/20 flex items-center justify-center">
-              <Wrench className="h-5 w-5 text-destructive" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-foreground">🔧 מוצרים עם הכי הרבה תקלות פתוחות</h3>
-            </div>
+            <div className="h-10 w-10 rounded-full bg-destructive/20 flex items-center justify-center"><Wrench className="h-5 w-5 text-destructive" /></div>
+            <div className="flex-1"><h3 className="font-semibold text-foreground">🔧 מוצרים עם הכי הרבה תקלות פתוחות</h3></div>
           </div>
           <div className="space-y-1 mr-13">
             {topIssueProducts.map(p => (
               <div key={p.product_id} className="flex items-center justify-between text-sm">
                 <span className="text-foreground">{p.name}</span>
-                <span className="bg-destructive/15 text-destructive text-xs font-medium px-2 py-0.5 rounded-full">
-                  {p.count} תקלות
-                </span>
+                <span className="bg-destructive/15 text-destructive text-xs font-medium px-2 py-0.5 rounded-full">{p.count} תקלות</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Recent Supplier Emails */}
+      {/* Issue Statistics */}
+      {(severityData.length > 0 || monthlyTrend.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {severityData.length > 0 && (
+            <div className="bg-card rounded-xl border p-5 shadow-sm">
+              <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Wrench className="h-5 w-5 text-primary" />
+                התפלגות תקלות לפי חומרה
+              </h2>
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie data={severityData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, value }) => `${name} (${value})`}>
+                    {severityData.map((entry) => (
+                      <Cell key={entry.name} fill={SEVERITY_COLORS[entry.name] || "hsl(var(--muted))"} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+          {monthlyTrend.length > 0 && (
+            <div className="bg-card rounded-xl border p-5 shadow-sm">
+              <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-warning" />
+                מגמת תקלות חודשית
+              </h2>
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={monthlyTrend}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" fontSize={12} />
+                  <YAxis fontSize={12} allowDecimals={false} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="count" name="תקלות" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: "hsl(var(--primary))" }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      )}
+
       <RecentSupplierEmails />
       <div className="bg-card rounded-xl border p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-foreground mb-4">מלאי קיים לעומת הזמנה חודשית</h2>
