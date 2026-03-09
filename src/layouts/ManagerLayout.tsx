@@ -42,7 +42,7 @@ const defaultNavItems = [
 
 const iconMap: Record<string, any> = {
   LayoutDashboard, Package, ShoppingCart, Truck, ListTodo,
-  Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical, Server, Repeat, Zap, ScrollText,
+  Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical, Server, Repeat, Zap, ScrollText, Wrench,
 };
 
 const NAV_ORDER_KEY = "cobra-nav-order";

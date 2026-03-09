@@ -398,9 +398,14 @@ export default function ProductDetailPage() {
         )}
       </div>
 
+      {/* Product Licenses Tab */}
+      <div className="bg-card rounded-xl border shadow-sm p-5">
+        <ProductLicensesTab productId={product.id} isManager={isManager} />
+      </div>
+
       {/* Product Issues Tab */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
-        <ProductIssuesTab productId={product.id} />
+        <ProductIssuesTab productId={product.id} productName={product.name} />
       </div>
     </div>
   );
