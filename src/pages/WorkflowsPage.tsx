@@ -14,8 +14,10 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { he } from "date-fns/locale";
-import { Zap, Check, Circle, CalendarIcon, Mail, Loader2, ChevronLeft, XCircle } from "lucide-react";
+import { Zap, Check, Circle, CalendarIcon, Mail, Loader2, ChevronLeft, XCircle, Plus, Trash2, GripVertical, Settings } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface WorkflowStep {
