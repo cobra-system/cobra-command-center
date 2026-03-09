@@ -261,9 +261,17 @@ export default function WorkflowsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <Zap className="h-6 w-6 text-primary" />
-          תהליכים פעילים
+          תהליכים
         </h1>
       </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="instances">תהליכים פעילים</TabsTrigger>
+          <TabsTrigger value="templates">תבניות</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="instances" className="space-y-4 mt-4">
 
       {/* Status filter */}
       <div className="flex gap-2">
