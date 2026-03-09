@@ -111,6 +111,33 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Stuck workflows alert */}
+      {stuckWorkflows.length > 0 && (
+        <div
+          onClick={() => navigate("/workflows")}
+          className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 cursor-pointer hover:bg-destructive/15 transition-colors"
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <div className="h-10 w-10 rounded-full bg-destructive/20 flex items-center justify-center">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-foreground">⚠️ תהליכים תקועים</h3>
+              <p className="text-sm text-muted-foreground">{stuckWorkflows.length} תהליכים לא עודכנו מעל 48 שעות</p>
+            </div>
+          </div>
+          <div className="space-y-1 mr-13">
+            {stuckWorkflows.slice(0, 3).map(sw => (
+              <div key={sw.id} className="flex items-center gap-2 text-sm">
+                <span className="text-destructive font-medium">{sw.supplier}</span>
+                <span className="text-muted-foreground">— תקוע ב: {sw.step}</span>
+                <span className="text-xs text-muted-foreground">({sw.hours} שעות)</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map(k => (
           <div key={k.label} className="bg-card rounded-xl border p-5 shadow-sm">
