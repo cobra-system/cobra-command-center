@@ -94,15 +94,22 @@ export default function CompliancePage() {
     return map;
   }, [products]);
 
+  // Build categories from items + defaults
+  const allCategories = useMemo(() => {
+    const cats = new Set(DEFAULT_CATEGORIES);
+    items.forEach(i => cats.add(i.category));
+    return Array.from(cats);
+  }, [items]);
+
   const grouped = useMemo(() => {
     const groups: Record<string, ComplianceItem[]> = {};
-    CATEGORIES.forEach(c => { groups[c.value] = []; });
+    allCategories.forEach(c => { groups[c] = []; });
     items.forEach(item => {
       if (!groups[item.category]) groups[item.category] = [];
       groups[item.category].push(item);
     });
     return groups;
-  }, [items]);
+  }, [items, allCategories]);
 
   const handleUpload = async (itemId: string) => {
     const input = document.createElement("input");
