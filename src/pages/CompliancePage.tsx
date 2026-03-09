@@ -164,8 +164,8 @@ export default function CompliancePage() {
         )}
       </div>
 
-      {CATEGORIES.map(cat => {
-        const catItems = grouped[cat.value] || [];
+      {allCategories.map(cat => {
+        const catItems = grouped[cat] || [];
         if (catItems.length === 0) return null;
         return (
           <div key={cat.value} className="space-y-3">
