@@ -75,6 +75,7 @@ function AppRoutes() {
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/sap" element={<SapSettingsPage />} />
+        <Route path="/compliance" element={<CompliancePage />} />
       </Route>
 
       <Route element={<RequireAuth />}>
