@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertTriangle, Plus, Mail, MessageCircle, CheckCircle, ArrowLeft } from "lucide-react";
+import { AlertTriangle, Plus, Mail, MessageCircle, CheckCircle, ArrowLeft, ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -23,6 +23,7 @@ interface ProductIssue {
   resolved_date: string | null;
   ticket_number: string | null;
   diagnostic_source: string | null;
+  image_url: string | null;
   created_at: string;
 }
 
@@ -39,6 +40,54 @@ const issueStatusColors: Record<string, string> = {
   "נסגר": "bg-success/15 text-success",
 };
 
+// Image upload helper
+async function uploadIssueImage(file: File): Promise<string | null> {
+  const ext = file.name.split(".").pop();
+  const path = `${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from("issue-images").upload(path, file);
+  if (error) { toast.error("שגיאה בהעלאת תמונה"); return null; }
+  const { data } = supabase.storage.from("issue-images").getPublicUrl(path);
+  return data.publicUrl;
+}
+
+// Image picker component
+function ImagePicker({ imageFile, setImageFile, previewUrl, setPreviewUrl }: {
+  imageFile: File | null; setImageFile: (f: File | null) => void;
+  previewUrl: string | null; setPreviewUrl: (u: string | null) => void;
+}) {
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) { toast.error("הקובץ גדול מדי (מקסימום 5MB)"); return; }
+    setImageFile(f);
+    setPreviewUrl(URL.createObjectURL(f));
+  };
+
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">צילום מסך / תמונה</Label>
+      {previewUrl ? (
+        <div className="relative inline-block">
+          <img src={previewUrl} alt="preview" className="h-24 rounded-lg border object-cover" />
+          <button
+            type="button"
+            onClick={() => { setImageFile(null); setPreviewUrl(null); }}
+            className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      ) : (
+        <label className="flex items-center gap-2 border border-dashed rounded-lg p-3 cursor-pointer hover:bg-muted/30 transition-colors">
+          <ImagePlus className="h-5 w-5 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">הוסף תמונה</span>
+          <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
+        </label>
+      )}
+    </div>
+  );
+}
+
 // Diagnostic Wizard Component
 function DiagnosticWizard({ productId, onClose, onSaved }: { productId: string; onClose: () => void; onSaved: () => void }) {
   const [step, setStep] = useState(1);
@@ -49,6 +98,8 @@ function DiagnosticWizard({ productId, onClose, onSaved }: { productId: string; 
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState("בינוני");
   const [saving, setSaving] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const diagnosticSteps: Record<string, string>[] = [];
   if (source) diagnosticSteps.push({ step: "מקור", value: source === "app" ? "אפליקציה" : "מוצר" });
@@ -58,6 +109,9 @@ function DiagnosticWizard({ productId, onClose, onSaved }: { productId: string; 
   const handleSave = async () => {
     if (!description.trim()) { toast.error("נא להזין תיאור"); return; }
     setSaving(true);
+
+    let imageUrl: string | null = null;
+    if (imageFile) imageUrl = await uploadIssueImage(imageFile);
 
     const status = source === "device" && resolved === true ? "נסגר" : "פתוח";
     const resolvedDate = resolved === true ? new Date().toISOString().split("T")[0] : null;
@@ -73,6 +127,7 @@ function DiagnosticWizard({ productId, onClose, onSaved }: { productId: string; 
       ticket_number: ticketNumber || null,
       diagnostic_source: source,
       diagnostic_steps: diagnosticSteps,
+      image_url: imageUrl,
     } as any);
 
     toast.success("תקלה דווחה בהצלחה");
@@ -83,7 +138,6 @@ function DiagnosticWizard({ productId, onClose, onSaved }: { productId: string; 
 
   return (
     <div className="space-y-4">
-      {/* Step indicator */}
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         {[1, 2, 3, 4].map(s => (
           <div key={s} className={`h-2 flex-1 rounded-full ${s <= step ? "bg-primary" : "bg-muted"}`} />
@@ -128,24 +182,20 @@ function DiagnosticWizard({ productId, onClose, onSaved }: { productId: string; 
       {step === 3 && (
         <div className="space-y-4">
           <h3 className="font-semibold text-foreground">שלח פנייה ל-iStar</h3>
-          
           <Button variant="outline" className="w-full justify-start gap-2" asChild>
             <a href="mailto:support@istar.com.tw?subject=PROOF%20Issue%20Report">
               <Mail className="h-4 w-4 text-primary" />
               שלח אימייל ל- support@istar.com.tw
             </a>
           </Button>
-
           <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 flex items-start gap-2">
             <MessageCircle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
             <p className="text-sm text-warning font-medium">⚠️ אל תשכח לעדכן גם ב-WeChat</p>
           </div>
-
           <div className="space-y-1">
             <Label className="text-xs">מספר פנייה (Ticket Number)</Label>
             <Input value={ticketNumber} onChange={e => setTicketNumber(e.target.value)} placeholder="T-XXXXX" dir="ltr" />
           </div>
-
           <Button onClick={() => setStep(4)} className="w-full">המשך לסיכום</Button>
         </div>
       )}
@@ -153,8 +203,6 @@ function DiagnosticWizard({ productId, onClose, onSaved }: { productId: string; 
       {step === 4 && (
         <div className="space-y-4">
           <h3 className="font-semibold text-foreground">סיכום ושמירה</h3>
-          
-          {/* Diagnostic summary */}
           {diagnosticSteps.length > 0 && (
             <div className="bg-muted/50 rounded-lg p-3 space-y-1">
               <p className="text-xs font-medium text-foreground mb-1">מהלך אבחון:</p>
@@ -163,7 +211,6 @@ function DiagnosticWizard({ productId, onClose, onSaved }: { productId: string; 
               ))}
             </div>
           )}
-
           <div className="space-y-1">
             <Label className="text-xs">מדווח</Label>
             <Input value={reporter} onChange={e => setReporter(e.target.value)} placeholder="שם הלקוח / טכנאי" />
@@ -172,6 +219,7 @@ function DiagnosticWizard({ productId, onClose, onSaved }: { productId: string; 
             <Label className="text-xs">תיאור התקלה *</Label>
             <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} placeholder="תאר את הבעיה..." />
           </div>
+          <ImagePicker imageFile={imageFile} setImageFile={setImageFile} previewUrl={previewUrl} setPreviewUrl={setPreviewUrl} />
           <div className="space-y-1">
             <Label className="text-xs">חומרה</Label>
             <Select value={severity} onValueChange={setSeverity}>
@@ -198,16 +246,26 @@ function SimpleIssueForm({ productId, onClose, onSaved }: { productId: string; o
   const [reporter, setReporter] = useState("");
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState("בינוני");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const handleAdd = async () => {
     if (!description.trim()) return;
+    setSaving(true);
+
+    let imageUrl: string | null = null;
+    if (imageFile) imageUrl = await uploadIssueImage(imageFile);
+
     await supabase.from("product_issues").insert({
       product_id: productId,
       reporter: reporter.trim() || "לא צוין",
       description: description.trim(),
       severity,
-    });
+      image_url: imageUrl,
+    } as any);
     toast.success("תקלה דווחה בהצלחה");
+    setSaving(false);
     onClose();
     onSaved();
   };
@@ -222,6 +280,7 @@ function SimpleIssueForm({ productId, onClose, onSaved }: { productId: string; o
         <Label>תיאור התקלה *</Label>
         <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} placeholder="תאר את הבעיה..." />
       </div>
+      <ImagePicker imageFile={imageFile} setImageFile={setImageFile} previewUrl={previewUrl} setPreviewUrl={setPreviewUrl} />
       <div className="space-y-1">
         <Label>חומרה</Label>
         <Select value={severity} onValueChange={setSeverity}>
@@ -234,7 +293,9 @@ function SimpleIssueForm({ productId, onClose, onSaved }: { productId: string; o
           </SelectContent>
         </Select>
       </div>
-      <Button onClick={handleAdd} disabled={!description.trim()} className="w-full">דווח תקלה</Button>
+      <Button onClick={handleAdd} disabled={saving || !description.trim()} className="w-full">
+        {saving ? "שומר..." : "דווח תקלה"}
+      </Button>
     </div>
   );
 }
@@ -243,8 +304,8 @@ export default function ProductIssuesTab({ productId, productName }: { productId
   const [issues, setIssues] = useState<ProductIssue[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewImage, setViewImage] = useState<string | null>(null);
 
-  // Check if product is PROOF-related
   const isProof = productName ? /proof|פרוף/i.test(productName) : false;
 
   const fetchIssues = useCallback(async () => {
@@ -299,6 +360,13 @@ export default function ProductIssuesTab({ productId, productName }: { productId
         </Dialog>
       </div>
 
+      {/* Image viewer dialog */}
+      <Dialog open={!!viewImage} onOpenChange={() => setViewImage(null)}>
+        <DialogContent className="sm:max-w-lg p-2">
+          {viewImage && <img src={viewImage} alt="issue" className="w-full rounded-lg" />}
+        </DialogContent>
+      </Dialog>
+
       {issues.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-6">אין תקלות מתועדות למוצר זה 🎉</p>
       ) : (
@@ -309,6 +377,7 @@ export default function ProductIssuesTab({ productId, productName }: { productId
                 <th className="text-right p-3 font-semibold text-foreground">תאריך</th>
                 <th className="text-right p-3 font-semibold text-foreground">מדווח</th>
                 <th className="text-right p-3 font-semibold text-foreground">תיאור</th>
+                <th className="text-right p-3 font-semibold text-foreground">תמונה</th>
                 <th className="text-right p-3 font-semibold text-foreground">חומרה</th>
                 <th className="text-right p-3 font-semibold text-foreground">סטטוס</th>
                 <th className="text-right p-3 font-semibold text-foreground">פנייה</th>
@@ -321,6 +390,18 @@ export default function ProductIssuesTab({ productId, productName }: { productId
                   <td className="p-3 text-muted-foreground text-xs">{format(new Date(issue.reported_date), "dd/MM/yy")}</td>
                   <td className="p-3 text-foreground">{issue.reporter}</td>
                   <td className="p-3 text-foreground max-w-[300px] truncate">{issue.description}</td>
+                  <td className="p-3">
+                    {issue.image_url ? (
+                      <img
+                        src={issue.image_url}
+                        alt="תקלה"
+                        className="h-10 w-10 rounded object-cover cursor-pointer border hover:opacity-80 transition-opacity"
+                        onClick={() => setViewImage(issue.image_url)}
+                      />
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
+                  </td>
                   <td className="p-3">
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${severityColors[issue.severity] || "bg-muted text-muted-foreground"}`}>
                       {issue.severity}
