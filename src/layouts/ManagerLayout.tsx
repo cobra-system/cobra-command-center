@@ -34,12 +34,10 @@ const defaultNavItems = [
   { to: "/documents", icon: "FileText", label: "מסמכים" },
   { to: "/suppliers", icon: "Truck", label: "ספקים" },
   { to: "/tasks", icon: "ListTodo", label: "משימות" },
-  { to: "/recurring-tasks", icon: "Repeat", label: "משימות חוזרות" },
-  { to: "/compliance", icon: "ScrollText", label: "רישיונות" },
+  { to: "/issues", icon: "Wrench", label: "תקלות" },
   { to: "/reorder", icon: "CalendarClock", label: "תכנון רכש" },
   { to: "/reports", icon: "BarChart3", label: "דוחות" },
   { to: "/settings", icon: "Settings", label: "הגדרות" },
-  { to: "/sap", icon: "Server", label: "SAP B1" },
 ];
 
 const iconMap: Record<string, any> = {
