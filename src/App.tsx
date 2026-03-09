@@ -18,6 +18,7 @@ import OrderDetailPage from "@/pages/OrderDetailPage";
 import SuppliersPage from "@/pages/SuppliersPage";
 import SupplierDetailPage from "@/pages/SupplierDetailPage";
 import TasksPage from "@/pages/TasksPage";
+import RecurringTasksPage from "@/pages/RecurringTasksPage";
 import SettingsPage from "@/pages/SettingsPage";
 import DocumentsPage from "@/pages/DocumentsPage";
 import ReorderPage from "@/pages/ReorderPage";
@@ -65,6 +66,7 @@ function AppRoutes() {
         <Route path="/suppliers" element={<SuppliersPage />} />
         <Route path="/suppliers/:id" element={<SupplierDetailPage />} />
         <Route path="/tasks" element={<TasksPage />} />
+        <Route path="/recurring-tasks" element={<RecurringTasksPage />} />
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/reorder" element={<ReorderPage />} />
