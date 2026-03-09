@@ -69,6 +69,7 @@ function AppRoutes() {
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/recurring-tasks" element={<RecurringTasksPage />} />
         <Route path="/inventory" element={<InventoryPage />} />
+        <Route path="/workflows" element={<WorkflowsPage />} />
         <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/reorder" element={<ReorderPage />} />
         <Route path="/reports" element={<ReportsPage />} />
