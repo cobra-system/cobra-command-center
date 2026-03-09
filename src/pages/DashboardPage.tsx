@@ -256,6 +256,33 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Top products with issues */}
+      {topIssueProducts.length > 0 && (
+        <div
+          onClick={() => navigate("/issues")}
+          className="bg-destructive/5 border border-destructive/20 rounded-xl p-4 cursor-pointer hover:bg-destructive/10 transition-colors"
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <div className="h-10 w-10 rounded-full bg-destructive/20 flex items-center justify-center">
+              <Wrench className="h-5 w-5 text-destructive" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-foreground">🔧 מוצרים עם הכי הרבה תקלות פתוחות</h3>
+            </div>
+          </div>
+          <div className="space-y-1 mr-13">
+            {topIssueProducts.map(p => (
+              <div key={p.product_id} className="flex items-center justify-between text-sm">
+                <span className="text-foreground">{p.name}</span>
+                <span className="bg-destructive/15 text-destructive text-xs font-medium px-2 py-0.5 rounded-full">
+                  {p.count} תקלות
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Recent Supplier Emails */}
       <RecentSupplierEmails />
       <div className="bg-card rounded-xl border p-5 shadow-sm">
