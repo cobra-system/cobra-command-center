@@ -119,7 +119,7 @@ export default function WorkflowsPage() {
           .eq("instance_id", inst.id)
           .order("step_index", { ascending: true });
 
-        return { ...inst, template, order, step_logs: logs || [] } as WorkflowInstance;
+        return { ...inst, template: parsedTemplate, order, step_logs: logs || [] } as WorkflowInstance;
       }));
       setInstances(enriched);
     }
