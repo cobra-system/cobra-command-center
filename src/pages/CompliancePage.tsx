@@ -180,14 +180,14 @@ export default function CompliancePage() {
                     <div className="flex items-start justify-between">
                       <div className="min-w-0">
                         <h3 className="font-semibold text-foreground text-sm">{item.name}</h3>
-                        {productName && (
-                          <button
-                            onClick={() => navigate(`/products/${item.product_id}`)}
-                            className="flex items-center gap-1 text-xs text-primary hover:underline mt-0.5"
-                          >
-                            <Package className="h-3 w-3" />
-                            {productName}
-                          </button>
+                        {linkedProductNames.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            {linkedProductNames.map((pn, i) => (
+                              <button key={i} onClick={() => navigate(`/products/${linkedProductIds[i]}`)} className="flex items-center gap-1 text-xs text-primary hover:underline">
+                                <Package className="h-3 w-3" />{pn}
+                              </button>
+                            ))}
+                          </div>
                         )}
                       </div>
                       <StatusBadge status={item.status} daysLeft={daysLeft} />
