@@ -525,6 +525,216 @@ export default function WorkflowsPage() {
           )}
         </DialogContent>
       </Dialog>
+        </TabsContent>
+
+        <TabsContent value="templates" className="space-y-4 mt-4">
+          <div className="flex justify-end">
+            <Button onClick={() => { setEditingTemplate(null); setTemplateDialogOpen(true); }}>
+              <Plus className="h-4 w-4 ml-1" />
+              תבנית חדשה
+            </Button>
+          </div>
+
+          {templates.length === 0 ? (
+            <div className="bg-card rounded-xl border p-8 text-center text-muted-foreground">אין תבניות</div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {templates.map(tpl => (
+                <div key={tpl.id} className="bg-card rounded-xl border p-5">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-semibold text-foreground">{tpl.name}</h3>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingTemplate(tpl); setTemplateDialogOpen(true); }}>
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">{tpl.description || "ללא תיאור"}</p>
+                  <div className="space-y-1">
+                    {tpl.steps.map((s, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-medium">{i + 1}</span>
+                        {s.name}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">קטגוריה: {tpl.category || "—"}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Template create/edit dialog */}
+      <TemplateFormDialog
+        open={templateDialogOpen}
+        onOpenChange={setTemplateDialogOpen}
+        template={editingTemplate}
+        onSaved={() => { setTemplateDialogOpen(false); fetchData(); }}
+      />
     </div>
+  );
+}
+
+const ACTION_OPTIONS = [
+  { value: "upload_file", label: "העלאת קובץ" },
+  { value: "send_email", label: "שליחת מייל" },
+  { value: "approve", label: "אישור" },
+  { value: "input_eta", label: "הזנת ETA" },
+  { value: "confirm", label: "אישור סופי" },
+];
+
+function TemplateFormDialog({ open, onOpenChange, template, onSaved }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  template: WorkflowTemplate | null;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("procurement");
+  const [steps, setSteps] = useState<{ name: string; description: string; action: string; email_to: string; note: string }[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (template) {
+      setName(template.name);
+      setDescription(template.description || "");
+      setCategory(template.category || "procurement");
+      setSteps(template.steps.map(s => ({
+        name: s.name,
+        description: s.description,
+        action: s.action,
+        email_to: s.email_to || "",
+        note: s.note || "",
+      })));
+    } else {
+      setName("");
+      setDescription("");
+      setCategory("procurement");
+      setSteps([{ name: "", description: "", action: "confirm", email_to: "", note: "" }]);
+    }
+  }, [template, open]);
+
+  const addStep = () => setSteps([...steps, { name: "", description: "", action: "confirm", email_to: "", note: "" }]);
+  const removeStep = (idx: number) => setSteps(steps.filter((_, i) => i !== idx));
+  const updateStep = (idx: number, field: string, value: string) => {
+    const updated = [...steps];
+    (updated[idx] as any)[field] = value;
+    setSteps(updated);
+  };
+
+  const handleSave = async () => {
+    if (!name.trim() || steps.length === 0) {
+      toast({ title: "נא למלא שם ולהוסיף שלב אחד לפחות", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    const stepsJson = steps.map((s, i) => ({
+      index: i,
+      name: s.name,
+      description: s.description,
+      action: s.action,
+      ...(s.email_to ? { email_to: s.email_to } : {}),
+      ...(s.note ? { note: s.note } : {}),
+      required: true,
+    }));
+
+    if (template) {
+      const { error } = await supabase
+        .from("workflow_templates")
+        .update({ name, description: description || null, category, steps: stepsJson })
+        .eq("id", template.id);
+      if (error) toast({ title: "שגיאה בעדכון", variant: "destructive" });
+      else toast({ title: "✅ התבנית עודכנה" });
+    } else {
+      const { error } = await supabase
+        .from("workflow_templates")
+        .insert({ name, description: description || null, category, steps: stepsJson });
+      if (error) toast({ title: "שגיאה ביצירה", variant: "destructive" });
+      else toast({ title: "✅ תבנית חדשה נוצרה" });
+    }
+    setSaving(false);
+    onSaved();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{template ? "עריכת תבנית" : "יצירת תבנית חדשה"}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label className="text-xs">שם התבנית</Label>
+              <Input value={name} onChange={e => setName(e.target.value)} placeholder="למשל: הזמנת רכש מחו״ל" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">קטגוריה</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="procurement">רכש</SelectItem>
+                  <SelectItem value="logistics">לוגיסטיקה</SelectItem>
+                  <SelectItem value="quality">בקרת איכות</SelectItem>
+                  <SelectItem value="other">אחר</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">תיאור</Label>
+            <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} placeholder="תיאור התהליך..." />
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold">שלבים</Label>
+              <Button variant="outline" size="sm" onClick={addStep}>
+                <Plus className="h-3.5 w-3.5 ml-1" />
+                הוסף שלב
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {steps.map((step, idx) => (
+              <div key={idx} className="border rounded-lg p-3 space-y-2 bg-muted/20">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                    <GripVertical className="h-3 w-3" />
+                    שלב {idx + 1}
+                  </span>
+                  {steps.length > 1 && (
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeStep(idx)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input placeholder="שם השלב" value={step.name} onChange={e => updateStep(idx, "name", e.target.value)} className="text-sm" />
+                  <Select value={step.action} onValueChange={v => updateStep(idx, "action", v)}>
+                    <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {ACTION_OPTIONS.map(a => <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Input placeholder="תיאור השלב" value={step.description} onChange={e => updateStep(idx, "description", e.target.value)} className="text-sm" />
+                {step.action === "send_email" && (
+                  <Input placeholder="כתובת מייל" value={step.email_to} onChange={e => updateStep(idx, "email_to", e.target.value)} className="text-sm" dir="ltr" />
+                )}
+                <Input placeholder="הערה (אופציונלי)" value={step.note} onChange={e => updateStep(idx, "note", e.target.value)} className="text-sm" />
+              </div>
+            ))}
+          </div>
+
+          <Button onClick={handleSave} disabled={saving} className="w-full">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin ml-1" /> : null}
+            {template ? "שמור שינויים" : "צור תבנית"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
