@@ -14,6 +14,7 @@ export default function DashboardPage() {
   const { products, orders, tasks, suppliers } = useData();
   const navigate = useNavigate();
   const [activeWorkflows, setActiveWorkflows] = useState(0);
+  const [stuckWorkflows, setStuckWorkflows] = useState<{ id: string; supplier: string; step: string; hours: number }[]>([]);
 
   useEffect(() => {
     const fetchWorkflows = async () => {
@@ -22,6 +23,35 @@ export default function DashboardPage() {
         .select("*", { count: "exact", head: true })
         .eq("status", "active");
       setActiveWorkflows(count || 0);
+
+      // Fetch stuck workflows (>48h since last update)
+      const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+      const { data: stuck } = await supabase
+        .from("workflow_instances")
+        .select("id, updated_at, order_id, current_step, template_id")
+        .eq("status", "active")
+        .lt("updated_at", cutoff);
+
+      if (stuck && stuck.length > 0) {
+        const enriched = await Promise.all(stuck.map(async (s) => {
+          let supplier = "לא ידוע";
+          if (s.order_id) {
+            const { data: o } = await supabase.from("orders").select("supplier_name").eq("id", s.order_id).single();
+            if (o?.supplier_name) supplier = o.supplier_name;
+          }
+          let step = `שלב ${s.current_step + 1}`;
+          if (s.template_id) {
+            const { data: t } = await supabase.from("workflow_templates").select("steps").eq("id", s.template_id).single();
+            if (t?.steps && Array.isArray(t.steps)) {
+              const stepData = (t.steps as any[])[s.current_step];
+              if (stepData?.name) step = stepData.name;
+            }
+          }
+          const hours = Math.round((Date.now() - new Date(s.updated_at).getTime()) / (1000 * 60 * 60));
+          return { id: s.id, supplier, step, hours };
+        }));
+        setStuckWorkflows(enriched);
+      }
     };
     fetchWorkflows();
   }, []);
