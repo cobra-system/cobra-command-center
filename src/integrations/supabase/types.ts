@@ -221,6 +221,27 @@ export type Database = {
         }
         Relationships: []
       }
+      login_attempts: {
+        Row: {
+          attempted_at: string
+          id: string
+          ip_address: string
+          success: boolean
+        }
+        Insert: {
+          attempted_at?: string
+          id?: string
+          ip_address: string
+          success?: boolean
+        }
+        Update: {
+          attempted_at?: string
+          id?: string
+          ip_address?: string
+          success?: boolean
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           id: string
@@ -602,6 +623,63 @@ export type Database = {
           },
         ]
       }
+      recurring_tasks: {
+        Row: {
+          assignee_id: string | null
+          assignee_name: string | null
+          created_at: string | null
+          day_of_month: number | null
+          day_of_week: number | null
+          days_before: number | null
+          description: string | null
+          frequency: string
+          id: string
+          is_active: boolean | null
+          last_generated: string | null
+          next_due: string | null
+          priority: string | null
+          time_of_day: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          assignee_id?: string | null
+          assignee_name?: string | null
+          created_at?: string | null
+          day_of_month?: number | null
+          day_of_week?: number | null
+          days_before?: number | null
+          description?: string | null
+          frequency: string
+          id?: string
+          is_active?: boolean | null
+          last_generated?: string | null
+          next_due?: string | null
+          priority?: string | null
+          time_of_day?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          assignee_id?: string | null
+          assignee_name?: string | null
+          created_at?: string | null
+          day_of_month?: number | null
+          day_of_week?: number | null
+          days_before?: number | null
+          description?: string | null
+          frequency?: string
+          id?: string
+          is_active?: boolean | null
+          last_generated?: string | null
+          next_due?: string | null
+          priority?: string | null
+          time_of_day?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       role_definitions: {
         Row: {
           created_at: string
@@ -901,6 +979,7 @@ export type Database = {
           milestone: string | null
           notes: string | null
           priority: string
+          recurring_task_id: string | null
           start_date: string | null
           status: string
           title: string
@@ -918,6 +997,7 @@ export type Database = {
           milestone?: string | null
           notes?: string | null
           priority?: string
+          recurring_task_id?: string | null
           start_date?: string | null
           status?: string
           title: string
@@ -935,12 +1015,21 @@ export type Database = {
           milestone?: string | null
           notes?: string | null
           priority?: string
+          recurring_task_id?: string | null
           start_date?: string | null
           status?: string
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tasks_recurring_task_id_fkey"
+            columns: ["recurring_task_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -972,7 +1061,20 @@ export type Database = {
         }
         Returns: boolean
       }
+      hash_pin: { Args: { raw_pin: string }; Returns: string }
       is_manager: { Args: never; Returns: boolean }
+      login_by_pin: {
+        Args: { input_pin: string }
+        Returns: {
+          id: string
+          name: string
+          role: Database["public"]["Enums"]["app_role"]
+        }[]
+      }
+      verify_pin: {
+        Args: { hashed_pin: string; raw_pin: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "MANAGER" | "WAREHOUSE_MANAGER" | "LOGISTICS" | "DRIVER"
