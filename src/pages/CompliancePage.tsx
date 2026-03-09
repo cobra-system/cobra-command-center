@@ -1,0 +1,299 @@
+import { useState, useEffect, useMemo } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AppContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { he } from "date-fns/locale";
+import { ScrollText, Plus, Upload, CalendarIcon, Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+
+interface ComplianceItem {
+  id: string;
+  name: string;
+  product_id: string | null;
+  category: string;
+  expiry_date: string | null;
+  renewal_contact: string | null;
+  document_url: string | null;
+  status: string;
+  notes: string | null;
+  created_at: string;
+}
+
+const CATEGORIES = [
+  { value: "תקשורת", label: "תקשורת" },
+  { value: "יבוא", label: "יבוא" },
+  { value: "דיגום", label: "דיגום" },
+  { value: "אישורים", label: "אישורים" },
+];
+
+function getDaysRemaining(expiryDate: string | null): number | null {
+  if (!expiryDate) return null;
+  const now = new Date();
+  const exp = new Date(expiryDate);
+  return Math.ceil((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function StatusBadge({ status, daysLeft }: { status: string; daysLeft: number | null }) {
+  if (status === "missing" || daysLeft === null) {
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">⬜ חסר</span>;
+  }
+  if (daysLeft < 0) {
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/15 text-destructive">🔴 פג תוקף</span>;
+  }
+  if (daysLeft <= 30) {
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/15 text-destructive">🔴 {daysLeft} ימים</span>;
+  }
+  if (daysLeft <= 90) {
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-warning/15 text-warning">🟡 {daysLeft} ימים</span>;
+  }
+  return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-success/15 text-success">🟢 {daysLeft} ימים</span>;
+}
+
+export default function CompliancePage() {
+  const { currentUser } = useAuth();
+  const isManager = currentUser?.role === "MANAGER";
+  const [items, setItems] = useState<ComplianceItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [addOpen, setAddOpen] = useState(false);
+
+  const fetchItems = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("compliance_items")
+      .select("*")
+      .order("expiry_date", { ascending: true });
+    if (data) setItems(data as ComplianceItem[]);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchItems(); }, []);
+
+  const grouped = useMemo(() => {
+    const groups: Record<string, ComplianceItem[]> = {};
+    CATEGORIES.forEach(c => { groups[c.value] = []; });
+    items.forEach(item => {
+      if (!groups[item.category]) groups[item.category] = [];
+      groups[item.category].push(item);
+    });
+    return groups;
+  }, [items]);
+
+  const handleUpload = async (itemId: string) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".pdf,.jpg,.jpeg,.png,.doc,.docx";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      const filePath = `compliance/${itemId}/${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("documents")
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) {
+        toast({ title: "שגיאה בהעלאה", description: uploadError.message, variant: "destructive" });
+        return;
+      }
+
+      const { data: urlData } = supabase.storage.from("documents").getPublicUrl(filePath);
+
+      await supabase
+        .from("compliance_items")
+        .update({ document_url: urlData.publicUrl })
+        .eq("id", itemId);
+
+      toast({ title: "✅ מסמך הועלה בהצלחה" });
+      fetchItems();
+    };
+    input.click();
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <ScrollText className="h-6 w-6 text-primary" />
+          רישיונות ואישורים
+        </h1>
+        {isManager && (
+          <Button onClick={() => setAddOpen(true)}>
+            <Plus className="h-4 w-4 ml-1" />
+            הוסף רישיון
+          </Button>
+        )}
+      </div>
+
+      {CATEGORIES.map(cat => {
+        const catItems = grouped[cat.value] || [];
+        if (catItems.length === 0) return null;
+
+        return (
+          <div key={cat.value} className="space-y-3">
+            <h2 className="text-lg font-semibold text-foreground">{cat.label}</h2>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {catItems.map(item => {
+                const daysLeft = getDaysRemaining(item.expiry_date);
+                return (
+                  <div key={item.id} className="bg-card rounded-xl border p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <h3 className="font-semibold text-foreground text-sm">{item.name}</h3>
+                      <StatusBadge status={item.status} daysLeft={daysLeft} />
+                    </div>
+
+                    <div className="space-y-1 text-xs text-muted-foreground">
+                      {item.expiry_date && (
+                        <p>תוקף: {new Date(item.expiry_date).toLocaleDateString("he-IL")}</p>
+                      )}
+                      {item.renewal_contact && <p>איש קשר: {item.renewal_contact}</p>}
+                      {item.notes && <p className="text-foreground/70">{item.notes}</p>}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {item.document_url ? (
+                        <a
+                          href={item.document_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary hover:underline"
+                        >
+                          📄 צפה במסמך
+                        </a>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">אין מסמך</span>
+                      )}
+                      {isManager && (
+                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleUpload(item.id)}>
+                          <Upload className="h-3 w-3 ml-1" />
+                          העלה
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
+      <AddComplianceDialog open={addOpen} onOpenChange={setAddOpen} onSaved={() => { setAddOpen(false); fetchItems(); }} />
+    </div>
+  );
+}
+
+function AddComplianceDialog({ open, onOpenChange, onSaved }: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState("אישורים");
+  const [expiryDate, setExpiryDate] = useState<Date>();
+  const [renewalContact, setRenewalContact] = useState("");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!name.trim()) {
+      toast({ title: "נא להזין שם", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+
+    const daysLeft = expiryDate ? Math.ceil((expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+    let status = "active";
+    if (!expiryDate) status = "missing";
+    else if (daysLeft! < 0) status = "expired";
+    else if (daysLeft! <= 60) status = "expiring_soon";
+
+    const { error } = await supabase.from("compliance_items").insert({
+      name,
+      category,
+      expiry_date: expiryDate?.toISOString().split("T")[0] || null,
+      renewal_contact: renewalContact || null,
+      notes: notes || null,
+      status,
+    });
+
+    if (error) {
+      toast({ title: "שגיאה ביצירה", variant: "destructive" });
+    } else {
+      toast({ title: "✅ רישיון נוסף" });
+      setName("");
+      setCategory("אישורים");
+      setExpiryDate(undefined);
+      setRenewalContact("");
+      setNotes("");
+      onSaved();
+    }
+    setSaving(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader><DialogTitle>הוסף רישיון / אישור</DialogTitle></DialogHeader>
+        <div className="space-y-4 pt-2">
+          <div className="space-y-1">
+            <Label className="text-xs">שם</Label>
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder="שם הרישיון או האישור" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">קטגוריה</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">תאריך תפוגה</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full justify-start text-right font-normal text-sm", !expiryDate && "text-muted-foreground")}>
+                  <CalendarIcon className="h-4 w-4 ml-2" />
+                  {expiryDate ? format(expiryDate, "dd/MM/yyyy") : "בחר תאריך"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={expiryDate} onSelect={setExpiryDate} initialFocus className="p-3 pointer-events-auto" />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">איש קשר לחידוש</Label>
+            <Input value={renewalContact} onChange={e => setRenewalContact(e.target.value)} placeholder="שם ופרטי קשר" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">הערות</Label>
+            <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
+          </div>
+          <Button onClick={handleSave} disabled={saving} className="w-full">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin ml-1" /> : null}
+            הוסף רישיון
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
