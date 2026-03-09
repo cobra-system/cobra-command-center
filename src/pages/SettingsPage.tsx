@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 
 export default function SettingsPage() {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const { profiles, updateProfile, createEmployee, refreshProfiles, roleDefinitions, addRoleDefinition, updateRoleDefinition, deleteRoleDefinition } = useData();
   const { isConnected, accountName, login, logout: outlookLogout, loading: outlookLoading } = useOutlook();
 
