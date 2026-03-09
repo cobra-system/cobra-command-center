@@ -1049,6 +1049,119 @@ export type Database = {
         }
         Relationships: []
       }
+      workflow_instances: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          current_step: number
+          id: string
+          order_id: string | null
+          status: string
+          template_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          current_step?: number
+          id?: string
+          order_id?: string | null
+          status?: string
+          template_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          current_step?: number
+          id?: string
+          order_id?: string | null
+          status?: string
+          template_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_instances_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_instances_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_step_logs: {
+        Row: {
+          action_data: Json | null
+          completed_at: string
+          completed_by: string | null
+          id: string
+          instance_id: string
+          notes: string | null
+          step_index: number
+        }
+        Insert: {
+          action_data?: Json | null
+          completed_at?: string
+          completed_by?: string | null
+          id?: string
+          instance_id: string
+          notes?: string | null
+          step_index: number
+        }
+        Update: {
+          action_data?: Json | null
+          completed_at?: string
+          completed_by?: string | null
+          id?: string
+          instance_id?: string
+          notes?: string | null
+          step_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_step_logs_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_templates: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          steps: Json
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          steps?: Json
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          steps?: Json
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
