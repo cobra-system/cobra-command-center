@@ -468,6 +468,47 @@ export default function WorkflowsPage() {
               );
             })}
           </div>
+
+          {/* Cancel workflow button */}
+          {selectedInstance?.status === "active" && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" className="w-full mt-4 text-destructive hover:text-destructive hover:bg-destructive/10">
+                  <XCircle className="h-4 w-4 ml-1" />
+                  בטל תהליך
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>ביטול תהליך</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    האם לבטל את התהליך? פעולה זו אינה הפיכה.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <Textarea
+                  placeholder="סיבת הביטול..."
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="my-2"
+                  rows={2}
+                />
+                <AlertDialogFooter className="flex-row-reverse gap-2">
+                  <AlertDialogCancel>ביטול</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => cancelWorkflow(selectedInstance.id)}
+                    disabled={!cancelReason.trim() || cancellingId === selectedInstance.id}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {cancellingId === selectedInstance.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "אשר ביטול"
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </DialogContent>
       </Dialog>
     </div>
