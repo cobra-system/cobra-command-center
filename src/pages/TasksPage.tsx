@@ -256,6 +256,7 @@ export default function TasksPage() {
                     {task.due_date && <p className="text-xs text-muted-foreground">📅 {format(new Date(task.due_date), "dd/MM/yyyy")}</p>}
                     {task.notes && <p className="text-xs text-muted-foreground truncate">💬 {task.notes}</p>}
                     {task.is_daily && <span className="inline-block text-xs bg-warning/15 text-warning px-2 py-0.5 rounded-full">יומית</span>}
+                    {task.recurring_task_id && <span className="inline-block text-xs bg-accent/15 text-accent px-2 py-0.5 rounded-full">חוזרת</span>}
                     <div className="flex flex-wrap gap-1 pt-1">
                       {columns.filter(c => c.status !== task.status).map(c => (
                         <button key={c.status} onClick={() => updateTaskStatus(task.id, c.status)} className="text-[10px] px-2 py-1 rounded bg-muted text-muted-foreground hover:bg-muted/80 transition-colors">{c.label}</button>
