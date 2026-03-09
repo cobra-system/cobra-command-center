@@ -13,8 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { he } from "date-fns/locale";
-import { Zap, Check, Circle, CalendarIcon, Mail, Loader2, ChevronLeft } from "lucide-react";
+import { Zap, Check, Circle, CalendarIcon, Mail, Loader2, ChevronLeft, XCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface WorkflowStep {
   index: number;
@@ -73,7 +74,9 @@ export default function WorkflowsPage() {
   const [stepNotes, setStepNotes] = useState("");
   const [etaDate, setEtaDate] = useState<Date>();
   const [completing, setCompleting] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<"active" | "completed" | "all">("active");
+  const [statusFilter, setStatusFilter] = useState<"active" | "completed" | "cancelled" | "all">("active");
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -205,6 +208,40 @@ export default function WorkflowsPage() {
     window.open(`mailto:${email}?subject=${subject}`, "_blank");
   };
 
+  const cancelWorkflow = async (instanceId: string) => {
+    if (!cancelReason.trim()) {
+      toast({ title: "נא להזין סיבת ביטול", variant: "destructive" });
+      return;
+    }
+    
+    setCancellingId(instanceId);
+    
+    // Insert cancellation log
+    await supabase.from("workflow_step_logs").insert({
+      instance_id: instanceId,
+      step_index: -1,
+      completed_by: currentUser?.name || "Unknown",
+      notes: `ביטול: ${cancelReason}`
+    });
+
+    // Update instance status
+    const { error } = await supabase
+      .from("workflow_instances")
+      .update({ status: "cancelled" })
+      .eq("id", instanceId);
+
+    if (error) {
+      toast({ title: "שגיאה בביטול התהליך", variant: "destructive" });
+    } else {
+      toast({ title: "❌ התהליך בוטל", description: cancelReason });
+    }
+
+    setCancellingId(null);
+    setCancelReason("");
+    setSelectedInstance(null);
+    fetchData();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -224,7 +261,7 @@ export default function WorkflowsPage() {
 
       {/* Status filter */}
       <div className="flex gap-2">
-        {(["active", "completed", "all"] as const).map(status => (
+        {(["active", "completed", "cancelled", "all"] as const).map(status => (
           <button
             key={status}
             onClick={() => setStatusFilter(status)}
@@ -235,7 +272,7 @@ export default function WorkflowsPage() {
                 : "bg-secondary text-muted-foreground hover:text-foreground"
             )}
           >
-            {status === "active" ? "פעילים" : status === "completed" ? "הושלמו" : "הכל"}
+            {status === "active" ? "פעילים" : status === "completed" ? "הושלמו" : status === "cancelled" ? "בוטלו" : "הכל"}
           </button>
         ))}
       </div>
@@ -272,8 +309,8 @@ export default function WorkflowsPage() {
                       {inst.order?.items.map(i => i.name).join(", ") || inst.template?.name}
                     </p>
                   </div>
-                  <Badge variant={inst.status === "completed" ? "default" : "secondary"}>
-                    {inst.status === "completed" ? "הושלם" : "פעיל"}
+                  <Badge variant={inst.status === "completed" ? "default" : inst.status === "cancelled" ? "destructive" : "secondary"}>
+                    {inst.status === "completed" ? "הושלם" : inst.status === "cancelled" ? "בוטל" : "פעיל"}
                   </Badge>
                 </div>
 
@@ -431,6 +468,47 @@ export default function WorkflowsPage() {
               );
             })}
           </div>
+
+          {/* Cancel workflow button */}
+          {selectedInstance?.status === "active" && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" className="w-full mt-4 text-destructive hover:text-destructive hover:bg-destructive/10">
+                  <XCircle className="h-4 w-4 ml-1" />
+                  בטל תהליך
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>ביטול תהליך</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    האם לבטל את התהליך? פעולה זו אינה הפיכה.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <Textarea
+                  placeholder="סיבת הביטול..."
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="my-2"
+                  rows={2}
+                />
+                <AlertDialogFooter className="flex-row-reverse gap-2">
+                  <AlertDialogCancel>ביטול</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => cancelWorkflow(selectedInstance.id)}
+                    disabled={!cancelReason.trim() || cancellingId === selectedInstance.id}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {cancellingId === selectedInstance.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "אשר ביטול"
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </DialogContent>
       </Dialog>
     </div>

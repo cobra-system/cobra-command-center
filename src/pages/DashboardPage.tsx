@@ -1,17 +1,30 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth, useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Package, Truck, ClipboardList, Users } from "lucide-react";
+import { Package, Truck, ClipboardList, Users, Zap } from "lucide-react";
 import RecentSupplierEmails from "@/components/RecentSupplierEmails";
+import { supabase } from "@/integrations/supabase/client";
 
 const priorityOrder: Record<string, number> = { "דחוף": 0, "גבוה": 1, "בינוני": 2, "נמוך": 3 };
 
 export default function DashboardPage() {
   const { products, orders, tasks, suppliers } = useData();
   const navigate = useNavigate();
+  const [activeWorkflows, setActiveWorkflows] = useState(0);
+
+  useEffect(() => {
+    const fetchWorkflows = async () => {
+      const { count } = await supabase
+        .from("workflow_instances")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "active");
+      setActiveWorkflows(count || 0);
+    };
+    fetchWorkflows();
+  }, []);
 
   const kpis = [
     { label: "מוצרים פעילים", value: products.length, icon: Package, color: "text-primary" },
@@ -46,6 +59,28 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-foreground">דשבורד</h1>
+      
+      {/* Active workflows alert */}
+      {activeWorkflows > 0 && (
+        <div
+          onClick={() => navigate("/workflows")}
+          className="bg-primary/10 border border-primary/30 rounded-xl p-4 cursor-pointer hover:bg-primary/15 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
+              <Zap className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-foreground">תהליכים ממתינים לפעולה</h3>
+              <p className="text-sm text-muted-foreground">יש {activeWorkflows} תהליכי רכש פעילים שדורשים טיפול</p>
+            </div>
+            <span className="bg-primary text-primary-foreground text-sm font-bold px-3 py-1 rounded-full">
+              {activeWorkflows}
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map(k => (
           <div key={k.label} className="bg-card rounded-xl border p-5 shadow-sm">
