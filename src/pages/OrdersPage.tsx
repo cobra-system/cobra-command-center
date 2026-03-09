@@ -231,6 +231,33 @@ export default function OrdersPage() {
                     <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-warning/15 text-warning">ממתין</span>
                   )}
                 </td>
+                <td className="p-3" onClick={e => e.stopPropagation()}>
+                  <button
+                    onClick={async () => {
+                      const { data: tpl } = await supabase
+                        .from("workflow_templates")
+                        .select("id")
+                        .eq("category", "procurement")
+                        .limit(1)
+                        .single();
+                      if (!tpl) return;
+                      const { error } = await supabase
+                        .from("workflow_instances")
+                        .insert({ template_id: tpl.id, order_id: order.id });
+                      if (error) {
+                        toast({ title: "שגיאה", description: "לא ניתן להפעיל תהליך", variant: "destructive" });
+                      } else {
+                        toast({ title: "✅ תהליך רכש הופעל", description: order.items.map(i => i.name).join(", ") });
+                        navigate("/workflows");
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+                    title="הפעל תהליך רכש"
+                  >
+                    <Zap className="h-3.5 w-3.5" />
+                    תהליך
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
