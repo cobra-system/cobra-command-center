@@ -362,7 +362,7 @@ function OrderWorkflowTimeline({ orderId }: { orderId: string }) {
   );
 }
 
-
+function OrderEditDialog({ open, onOpenChange, order, suppliers, onSave }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   order: any;
