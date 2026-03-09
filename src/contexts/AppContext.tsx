@@ -122,6 +122,7 @@ export interface Task {
   deliverable?: string | null;
   notes?: string | null;
   is_daily: boolean;
+  recurring_task_id?: string | null;
 }
 
 interface AuthState {
