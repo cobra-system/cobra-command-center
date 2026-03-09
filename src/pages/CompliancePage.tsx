@@ -72,6 +72,17 @@ export default function CompliancePage() {
       .select("*")
       .order("expiry_date", { ascending: true });
     if (data) setItems(data as ComplianceItem[]);
+
+    // Fetch product links
+    const { data: links } = await supabase.from("compliance_product_links").select("compliance_item_id, product_id");
+    if (links) {
+      const map: Record<string, string[]> = {};
+      links.forEach((l: any) => {
+        if (!map[l.compliance_item_id]) map[l.compliance_item_id] = [];
+        map[l.compliance_item_id].push(l.product_id);
+      });
+      setProductLinks(map);
+    }
     setLoading(false);
   };
 
