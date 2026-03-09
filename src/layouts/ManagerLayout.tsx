@@ -17,6 +17,7 @@ import {
   GripVertical,
   Server,
   Repeat,
+  Zap,
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import cobraLogo from "@/assets/cobra-logo.png";
@@ -26,6 +27,7 @@ const defaultNavItems = [
   { to: "/dashboard", icon: "LayoutDashboard", label: "דשבורד" },
   { to: "/products", icon: "Package", label: "מוצרים" },
   { to: "/orders", icon: "ShoppingCart", label: "הזמנות" },
+  { to: "/workflows", icon: "Zap", label: "תהליכים" },
   { to: "/inventory", icon: "Warehouse", label: "מלאי" },
   { to: "/documents", icon: "FileText", label: "מסמכים" },
   { to: "/suppliers", icon: "Truck", label: "ספקים" },
@@ -39,7 +41,7 @@ const defaultNavItems = [
 
 const iconMap: Record<string, any> = {
   LayoutDashboard, Package, ShoppingCart, Truck, ListTodo,
-  Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical, Server, Repeat,
+  Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical, Server, Repeat, Zap,
 };
 
 const NAV_ORDER_KEY = "cobra-nav-order";

@@ -26,6 +26,7 @@ import ReportsPage from "@/pages/ReportsPage";
 import MyTasksPage from "@/pages/MyTasksPage";
 import MyTaskDetailPage from "@/pages/MyTaskDetailPage";
 import InventoryPage from "@/pages/InventoryPage";
+import WorkflowsPage from "@/pages/WorkflowsPage";
 import NotFound from "@/pages/NotFound";
 import SapSettingsPage from "@/pages/SapSettingsPage";
 
@@ -68,6 +69,7 @@ function AppRoutes() {
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/recurring-tasks" element={<RecurringTasksPage />} />
         <Route path="/inventory" element={<InventoryPage />} />
+        <Route path="/workflows" element={<WorkflowsPage />} />
         <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/reorder" element={<ReorderPage />} />
         <Route path="/reports" element={<ReportsPage />} />

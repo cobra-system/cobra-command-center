@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { Plus, Trash2, CalendarIcon, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Trash2, CalendarIcon, Search, ArrowUpDown, ArrowUp, ArrowDown, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { NewOrderDialog } from "@/components/orders/NewOrderDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 const allStatuses: { value: OrderStatus; label: string }[] = [
   { value: "PENDING", label: "ממתין" },
@@ -176,11 +178,12 @@ export default function OrdersPage() {
               <ThButton field="eta">ETA</ThButton>
               <ThButton field="total_price">סה״כ</ThButton>
               <ThButton field="payment">תשלום</ThButton>
+              <th className="text-right p-3 font-semibold text-foreground">פעולות</th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={11} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
+              <tr><td colSpan={12} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
             ) : filtered.map(order => (
               <tr key={order.id} className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => navigate(`/orders/${order.id}`)}>
                 <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
@@ -227,6 +230,33 @@ export default function OrdersPage() {
                   ) : (
                     <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-warning/15 text-warning">ממתין</span>
                   )}
+                </td>
+                <td className="p-3" onClick={e => e.stopPropagation()}>
+                  <button
+                    onClick={async () => {
+                      const { data: tpl } = await supabase
+                        .from("workflow_templates")
+                        .select("id")
+                        .eq("category", "procurement")
+                        .limit(1)
+                        .single();
+                      if (!tpl) return;
+                      const { error } = await supabase
+                        .from("workflow_instances")
+                        .insert({ template_id: tpl.id, order_id: order.id });
+                      if (error) {
+                        toast({ title: "שגיאה", description: "לא ניתן להפעיל תהליך", variant: "destructive" });
+                      } else {
+                        toast({ title: "✅ תהליך רכש הופעל", description: order.items.map(i => i.name).join(", ") });
+                        navigate("/workflows");
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+                    title="הפעל תהליך רכש"
+                  >
+                    <Zap className="h-3.5 w-3.5" />
+                    תהליך
+                  </button>
                 </td>
               </tr>
             ))}
