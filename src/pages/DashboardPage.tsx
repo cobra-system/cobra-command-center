@@ -1,17 +1,30 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth, useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Package, Truck, ClipboardList, Users } from "lucide-react";
+import { Package, Truck, ClipboardList, Users, Zap } from "lucide-react";
 import RecentSupplierEmails from "@/components/RecentSupplierEmails";
+import { supabase } from "@/integrations/supabase/client";
 
 const priorityOrder: Record<string, number> = { "דחוף": 0, "גבוה": 1, "בינוני": 2, "נמוך": 3 };
 
 export default function DashboardPage() {
   const { products, orders, tasks, suppliers } = useData();
   const navigate = useNavigate();
+  const [activeWorkflows, setActiveWorkflows] = useState(0);
+
+  useEffect(() => {
+    const fetchWorkflows = async () => {
+      const { count } = await supabase
+        .from("workflow_instances")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "active");
+      setActiveWorkflows(count || 0);
+    };
+    fetchWorkflows();
+  }, []);
 
   const kpis = [
     { label: "מוצרים פעילים", value: products.length, icon: Package, color: "text-primary" },
