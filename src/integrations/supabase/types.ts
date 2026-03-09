@@ -141,6 +141,42 @@ export type Database = {
           },
         ]
       }
+      compliance_product_links: {
+        Row: {
+          compliance_item_id: string
+          created_at: string
+          id: string
+          product_id: string
+        }
+        Insert: {
+          compliance_item_id: string
+          created_at?: string
+          id?: string
+          product_id: string
+        }
+        Update: {
+          compliance_item_id?: string
+          created_at?: string
+          id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compliance_product_links_compliance_item_id_fkey"
+            columns: ["compliance_item_id"]
+            isOneToOne: false
+            referencedRelation: "compliance_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compliance_product_links_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       distribution_centers: {
         Row: {
           address: string | null
@@ -447,6 +483,8 @@ export type Database = {
         Row: {
           created_at: string
           description: string
+          diagnostic_source: string | null
+          diagnostic_steps: Json | null
           id: string
           product_id: string
           reported_date: string
@@ -455,11 +493,14 @@ export type Database = {
           resolved_date: string | null
           severity: string
           status: string
+          ticket_number: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           description?: string
+          diagnostic_source?: string | null
+          diagnostic_steps?: Json | null
           id?: string
           product_id: string
           reported_date?: string
@@ -468,11 +509,14 @@ export type Database = {
           resolved_date?: string | null
           severity?: string
           status?: string
+          ticket_number?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           description?: string
+          diagnostic_source?: string | null
+          diagnostic_steps?: Json | null
           id?: string
           product_id?: string
           reported_date?: string
@@ -481,6 +525,7 @@ export type Database = {
           resolved_date?: string | null
           severity?: string
           status?: string
+          ticket_number?: string | null
           updated_at?: string
         }
         Relationships: [
