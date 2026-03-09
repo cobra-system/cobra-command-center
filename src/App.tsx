@@ -30,6 +30,7 @@ import WorkflowsPage from "@/pages/WorkflowsPage";
 import NotFound from "@/pages/NotFound";
 import SapSettingsPage from "@/pages/SapSettingsPage";
 import CompliancePage from "@/pages/CompliancePage";
+import IssuesPage from "@/pages/IssuesPage";
 const queryClient = new QueryClient();
 
 function RequireManager() {
