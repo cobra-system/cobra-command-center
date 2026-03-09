@@ -15,6 +15,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const [activeWorkflows, setActiveWorkflows] = useState(0);
   const [stuckWorkflows, setStuckWorkflows] = useState<{ id: string; supplier: string; step: string; hours: number }[]>([]);
+  const [expiringLicenses, setExpiringLicenses] = useState<{ id: string; name: string; daysLeft: number }[]>([]);
 
   useEffect(() => {
     const fetchWorkflows = async () => {
