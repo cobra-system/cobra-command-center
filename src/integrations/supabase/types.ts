@@ -486,6 +486,7 @@ export type Database = {
           diagnostic_source: string | null
           diagnostic_steps: Json | null
           id: string
+          image_url: string | null
           product_id: string
           reported_date: string
           reporter: string
@@ -502,6 +503,7 @@ export type Database = {
           diagnostic_source?: string | null
           diagnostic_steps?: Json | null
           id?: string
+          image_url?: string | null
           product_id: string
           reported_date?: string
           reporter?: string
@@ -518,6 +520,7 @@ export type Database = {
           diagnostic_source?: string | null
           diagnostic_steps?: Json | null
           id?: string
+          image_url?: string | null
           product_id?: string
           reported_date?: string
           reporter?: string
