@@ -60,6 +60,7 @@ export default function CompliancePage() {
   const navigate = useNavigate();
   const isManager = currentUser?.role === "MANAGER";
   const [items, setItems] = useState<ComplianceItem[]>([]);
+  const [productLinks, setProductLinks] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ComplianceItem | null>(null);
