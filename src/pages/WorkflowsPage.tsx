@@ -208,6 +208,40 @@ export default function WorkflowsPage() {
     window.open(`mailto:${email}?subject=${subject}`, "_blank");
   };
 
+  const cancelWorkflow = async (instanceId: string) => {
+    if (!cancelReason.trim()) {
+      toast({ title: "נא להזין סיבת ביטול", variant: "destructive" });
+      return;
+    }
+    
+    setCancellingId(instanceId);
+    
+    // Insert cancellation log
+    await supabase.from("workflow_step_logs").insert({
+      instance_id: instanceId,
+      step_index: -1,
+      completed_by: currentUser?.name || "Unknown",
+      notes: `ביטול: ${cancelReason}`
+    });
+
+    // Update instance status
+    const { error } = await supabase
+      .from("workflow_instances")
+      .update({ status: "cancelled" })
+      .eq("id", instanceId);
+
+    if (error) {
+      toast({ title: "שגיאה בביטול התהליך", variant: "destructive" });
+    } else {
+      toast({ title: "❌ התהליך בוטל", description: cancelReason });
+    }
+
+    setCancellingId(null);
+    setCancelReason("");
+    setSelectedInstance(null);
+    fetchData();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
