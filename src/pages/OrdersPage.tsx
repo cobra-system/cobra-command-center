@@ -183,7 +183,7 @@ export default function OrdersPage() {
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={11} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
+              <tr><td colSpan={12} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
             ) : filtered.map(order => (
               <tr key={order.id} className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => navigate(`/orders/${order.id}`)}>
                 <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
