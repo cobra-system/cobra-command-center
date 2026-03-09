@@ -80,6 +80,27 @@ export default function DashboardPage() {
       }
     };
     fetchLicenses();
+
+    // Fetch top products with open issues
+    const fetchIssues = async () => {
+      const { data } = await supabase
+        .from("product_issues")
+        .select("product_id")
+        .neq("status", "נסגר");
+      if (data && data.length > 0) {
+        const countMap: Record<string, number> = {};
+        data.forEach((d: any) => { countMap[d.product_id] = (countMap[d.product_id] || 0) + 1; });
+        const sorted = Object.entries(countMap)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 3)
+          .map(([pid, count]) => {
+            const prod = products.find(p => p.id === pid);
+            return { product_id: pid, name: prod?.name || "מוצר לא ידוע", count };
+          });
+        setTopIssueProducts(sorted);
+      }
+    };
+    fetchIssues();
   }, []);
 
   const kpis = [
