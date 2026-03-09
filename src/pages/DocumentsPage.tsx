@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Plus, ChevronLeft, Search, Filter, Upload, CreditCard, AlertTriangle, Loader2 } from "lucide-react";
+import { FileText, Plus, ChevronLeft, Search, Filter, Upload, CreditCard, AlertTriangle, Loader2, ScrollText } from "lucide-react";
 import { toast } from "sonner";
 import { format, isThisWeek, isPast } from "date-fns";
 
