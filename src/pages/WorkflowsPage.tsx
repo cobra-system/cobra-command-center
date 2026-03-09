@@ -275,8 +275,8 @@ export default function WorkflowsPage() {
                       {inst.order?.items.map(i => i.name).join(", ") || inst.template?.name}
                     </p>
                   </div>
-                  <Badge variant={inst.status === "completed" ? "default" : "secondary"}>
-                    {inst.status === "completed" ? "הושלם" : "פעיל"}
+                  <Badge variant={inst.status === "completed" ? "default" : inst.status === "cancelled" ? "destructive" : "secondary"}>
+                    {inst.status === "completed" ? "הושלם" : inst.status === "cancelled" ? "בוטל" : "פעיל"}
                   </Badge>
                 </div>
 
