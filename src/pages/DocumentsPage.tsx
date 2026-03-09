@@ -61,6 +61,7 @@ const currencySymbol: Record<string, string> = { USD: "$", EUR: "€", ILS: "₪
 
 export default function DocumentsPage() {
   const { suppliers, products, orders } = useData();
+  const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [docs, setDocs] = useState<PurchaseDocument[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
