@@ -18,6 +18,7 @@ import OrderDetailPage from "@/pages/OrderDetailPage";
 import SuppliersPage from "@/pages/SuppliersPage";
 import SupplierDetailPage from "@/pages/SupplierDetailPage";
 import TasksPage from "@/pages/TasksPage";
+import RecurringTasksPage from "@/pages/RecurringTasksPage";
 import SettingsPage from "@/pages/SettingsPage";
 import DocumentsPage from "@/pages/DocumentsPage";
 import ReorderPage from "@/pages/ReorderPage";
