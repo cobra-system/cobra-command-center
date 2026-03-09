@@ -91,6 +91,56 @@ export type Database = {
           },
         ]
       }
+      compliance_items: {
+        Row: {
+          category: string
+          created_at: string
+          document_url: string | null
+          expiry_date: string | null
+          id: string
+          name: string
+          notes: string | null
+          product_id: string | null
+          renewal_contact: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          document_url?: string | null
+          expiry_date?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          product_id?: string | null
+          renewal_contact?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          document_url?: string | null
+          expiry_date?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          product_id?: string | null
+          renewal_contact?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compliance_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       distribution_centers: {
         Row: {
           address: string | null
