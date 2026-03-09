@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowRight, Package, Boxes, TruckIcon, Pencil, ExternalLink, Plus, Trash2, Save, X } from "lucide-react";
 import ProductIssuesTab from "@/components/ProductIssuesTab";
+import ProductLicensesTab from "@/components/ProductLicensesTab";
 import ProductEditDialog from "@/components/products/ProductEditDialog";
 import SupplierComparisonPanel from "@/components/SupplierComparisonPanel";
 import { InlineEditField } from "@/components/InlineEditField";
