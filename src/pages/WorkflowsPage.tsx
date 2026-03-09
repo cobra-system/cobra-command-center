@@ -74,7 +74,9 @@ export default function WorkflowsPage() {
   const [stepNotes, setStepNotes] = useState("");
   const [etaDate, setEtaDate] = useState<Date>();
   const [completing, setCompleting] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<"active" | "completed" | "all">("active");
+  const [statusFilter, setStatusFilter] = useState<"active" | "completed" | "cancelled" | "all">("active");
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
