@@ -82,7 +82,7 @@ export default function WorkflowsPage() {
     const { data: tData } = await supabase
       .from("workflow_templates")
       .select("*");
-    if (tData) setTemplates(tData as WorkflowTemplate[]);
+    if (tData) setTemplates(tData.map(t => ({ ...t, steps: t.steps as unknown as WorkflowStep[] })));
     
     // Fetch instances with order info
     const { data: iData } = await supabase
@@ -93,7 +93,8 @@ export default function WorkflowsPage() {
     if (iData) {
       // Fetch orders and step logs for each instance
       const enriched = await Promise.all(iData.map(async (inst) => {
-        const template = tData?.find(t => t.id === inst.template_id) as WorkflowTemplate | undefined;
+        const template = tData?.find(t => t.id === inst.template_id);
+        const parsedTemplate = template ? { ...template, steps: template.steps as unknown as WorkflowStep[] } : undefined;
         
         let order = null;
         if (inst.order_id) {
