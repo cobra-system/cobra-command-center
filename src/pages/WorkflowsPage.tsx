@@ -227,7 +227,7 @@ export default function WorkflowsPage() {
 
       {/* Status filter */}
       <div className="flex gap-2">
-        {(["active", "completed", "all"] as const).map(status => (
+        {(["active", "completed", "cancelled", "all"] as const).map(status => (
           <button
             key={status}
             onClick={() => setStatusFilter(status)}
@@ -238,7 +238,7 @@ export default function WorkflowsPage() {
                 : "bg-secondary text-muted-foreground hover:text-foreground"
             )}
           >
-            {status === "active" ? "פעילים" : status === "completed" ? "הושלמו" : "הכל"}
+            {status === "active" ? "פעילים" : status === "completed" ? "הושלמו" : status === "cancelled" ? "בוטלו" : "הכל"}
           </button>
         ))}
       </div>
