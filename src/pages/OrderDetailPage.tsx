@@ -1,9 +1,11 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useData, useAuth, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Pencil, Trash2, CreditCard } from "lucide-react";
+import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Pencil, Trash2, CreditCard, Zap, Check } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
