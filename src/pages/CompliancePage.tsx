@@ -168,12 +168,13 @@ export default function CompliancePage() {
         const catItems = grouped[cat] || [];
         if (catItems.length === 0) return null;
         return (
-          <div key={cat.value} className="space-y-3">
-            <h2 className="text-lg font-semibold text-foreground">{cat.label}</h2>
+          <div key={cat} className="space-y-3">
+            <h2 className="text-lg font-semibold text-foreground">{cat}</h2>
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {catItems.map(item => {
                 const daysLeft = getDaysRemaining(item.expiry_date);
-                const productName = item.product_id ? productMap[item.product_id] : null;
+                const linkedProductIds = productLinks[item.id] || [];
+                const linkedProductNames = linkedProductIds.map(pid => productMap[pid]).filter(Boolean);
                 return (
                   <div key={item.id} className="bg-card rounded-xl border p-4 space-y-3">
                     <div className="flex items-start justify-between">
