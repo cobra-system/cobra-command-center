@@ -248,31 +248,53 @@ export default function OrdersPage() {
                   )}
                 </td>
                 <td className="p-3" onClick={e => e.stopPropagation()}>
-                  <button
-                    onClick={async () => {
-                      const { data: tpl } = await supabase
-                        .from("workflow_templates")
-                        .select("id")
-                        .eq("category", "procurement")
-                        .limit(1)
-                        .single();
-                      if (!tpl) return;
-                      const { error } = await supabase
-                        .from("workflow_instances")
-                        .insert({ template_id: tpl.id, order_id: order.id });
-                      if (error) {
-                        toast({ title: "שגיאה", description: "לא ניתן להפעיל תהליך", variant: "destructive" });
-                      } else {
-                        toast({ title: "✅ תהליך רכש הופעל", description: order.items.map(i => i.name).join(", ") });
-                        navigate("/workflows");
-                      }
-                    }}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
-                    title="הפעל תהליך רכש"
-                  >
-                    <Zap className="h-3.5 w-3.5" />
-                    תהליך
-                  </button>
+                  {orderWorkflows[order.id] ? (
+                    <button
+                      onClick={() => navigate("/workflows")}
+                      className={cn(
+                        "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-colors",
+                        orderWorkflows[order.id].status === "completed"
+                          ? "bg-success/15 text-success"
+                          : orderWorkflows[order.id].status === "cancelled"
+                          ? "bg-destructive/15 text-destructive"
+                          : "bg-primary/15 text-primary"
+                      )}
+                    >
+                      {orderWorkflows[order.id].status === "completed" ? (
+                        <><CheckCircle className="h-3 w-3" />הושלם</>
+                      ) : orderWorkflows[order.id].status === "cancelled" ? (
+                        <>בוטל</>
+                      ) : (
+                        <><Zap className="h-3 w-3" />שלב {orderWorkflows[order.id].current_step + 1}</>
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={async () => {
+                        const { data: tpl } = await supabase
+                          .from("workflow_templates")
+                          .select("id")
+                          .eq("category", "procurement")
+                          .limit(1)
+                          .single();
+                        if (!tpl) return;
+                        const { error } = await supabase
+                          .from("workflow_instances")
+                          .insert({ template_id: tpl.id, order_id: order.id });
+                        if (error) {
+                          toast({ title: "שגיאה", description: "לא ניתן להפעיל תהליך", variant: "destructive" });
+                        } else {
+                          toast({ title: "✅ תהליך רכש הופעל", description: order.items.map(i => i.name).join(", ") });
+                          setOrderWorkflows(prev => ({ ...prev, [order.id]: { status: "active", current_step: 0 } }));
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+                      title="הפעל תהליך רכש"
+                    >
+                      <Zap className="h-3.5 w-3.5" />
+                      הפעל
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

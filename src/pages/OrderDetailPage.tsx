@@ -225,6 +225,9 @@ export default function OrderDetailPage() {
         </div>
       </div>
 
+      {/* Workflow Timeline */}
+      <OrderWorkflowTimeline orderId={order.id} />
+
       {/* Notes */}
       <div className="bg-card rounded-xl border p-4 space-y-2">
         <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
