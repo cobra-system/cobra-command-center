@@ -55,6 +55,29 @@ export default function DashboardPage() {
       }
     };
     fetchWorkflows();
+
+    // Fetch expiring licenses
+    const fetchLicenses = async () => {
+      const { data } = await supabase
+        .from("compliance_items")
+        .select("id, name, expiry_date")
+        .not("expiry_date", "is", null)
+        .order("expiry_date", { ascending: true })
+        .limit(10);
+      if (data) {
+        const now = Date.now();
+        const expiring = data
+          .map(d => ({
+            id: d.id,
+            name: d.name,
+            daysLeft: Math.ceil((new Date(d.expiry_date!).getTime() - now) / (1000 * 60 * 60 * 24)),
+          }))
+          .filter(d => d.daysLeft <= 90 && d.daysLeft > 0)
+          .slice(0, 3);
+        setExpiringLicenses(expiring);
+      }
+    };
+    fetchLicenses();
   }, []);
 
   const kpis = [
