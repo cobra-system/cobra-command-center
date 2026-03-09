@@ -203,6 +203,36 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      {/* Expiring licenses widget */}
+      {expiringLicenses.length > 0 && (
+        <div
+          onClick={() => navigate("/compliance")}
+          className="bg-warning/10 border border-warning/30 rounded-xl p-4 cursor-pointer hover:bg-warning/15 transition-colors"
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <div className="h-10 w-10 rounded-full bg-warning/20 flex items-center justify-center">
+              <ScrollText className="h-5 w-5 text-warning" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-foreground">⚠️ רישיונות שפגים בקרוב</h3>
+            </div>
+          </div>
+          <div className="space-y-1 mr-13">
+            {expiringLicenses.map(lic => (
+              <div key={lic.id} className="flex items-center justify-between text-sm">
+                <span className="text-foreground">{lic.name}</span>
+                <span className={cn(
+                  "text-xs font-medium px-2 py-0.5 rounded-full",
+                  lic.daysLeft <= 30 ? "bg-destructive/15 text-destructive" : "bg-warning/15 text-warning"
+                )}>
+                  {lic.daysLeft} ימים
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Recent Supplier Emails */}
       <RecentSupplierEmails />
       <div className="bg-card rounded-xl border p-5 shadow-sm">
