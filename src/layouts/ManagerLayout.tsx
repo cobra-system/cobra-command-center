@@ -17,6 +17,7 @@ import {
   GripVertical,
   Server,
   Repeat,
+  Zap,
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import cobraLogo from "@/assets/cobra-logo.png";
