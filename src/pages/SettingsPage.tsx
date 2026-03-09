@@ -180,9 +180,12 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <Settings className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold text-foreground">הגדרות</h1>
+        <Button variant="outline" size="sm" onClick={() => navigate("/sap")} className="gap-1">
+          <Server className="h-3.5 w-3.5" />SAP B1
+        </Button>
       </div>
 
       {/* Manager Profile */}

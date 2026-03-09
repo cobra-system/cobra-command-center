@@ -127,7 +127,12 @@ export default function TasksPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold text-foreground">משימות</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-foreground">משימות</h1>
+          <Button variant="outline" size="sm" onClick={() => navigate("/recurring-tasks")} className="gap-1">
+            <Repeat className="h-3.5 w-3.5" />משימות חוזרות
+          </Button>
+        </div>
         <div className="flex items-center gap-2">
           {tasks.some(t => t.is_daily && t.status !== "TODO") && (
             <Button variant="outline" onClick={async () => { await resetDailyTasks(); toast.success("משימות יומיות אופסו"); }}>

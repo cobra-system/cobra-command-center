@@ -267,9 +267,12 @@ export default function DocumentsPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <FileText className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold text-foreground">מסמכים</h1>
+          <Button variant="outline" size="sm" onClick={() => navigate("/compliance")} className="gap-1">
+            <ScrollText className="h-3.5 w-3.5" />רישיונות ואישורים
+          </Button>
         </div>
         <div className="flex gap-2">
           {/* Upload button */}
