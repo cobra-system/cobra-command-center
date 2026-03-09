@@ -4,9 +4,10 @@ import { useAuth, useData, type Priority, type OrderStatus } from "@/contexts/Ap
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Package, Truck, ClipboardList, Users, Zap, AlertTriangle } from "lucide-react";
+import { Package, Truck, ClipboardList, Users, Zap, AlertTriangle, ScrollText } from "lucide-react";
 import RecentSupplierEmails from "@/components/RecentSupplierEmails";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 const priorityOrder: Record<string, number> = { "דחוף": 0, "גבוה": 1, "בינוני": 2, "נמוך": 3 };
 
@@ -15,6 +16,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const [activeWorkflows, setActiveWorkflows] = useState(0);
   const [stuckWorkflows, setStuckWorkflows] = useState<{ id: string; supplier: string; step: string; hours: number }[]>([]);
+  const [expiringLicenses, setExpiringLicenses] = useState<{ id: string; name: string; daysLeft: number }[]>([]);
 
   useEffect(() => {
     const fetchWorkflows = async () => {
@@ -54,6 +56,29 @@ export default function DashboardPage() {
       }
     };
     fetchWorkflows();
+
+    // Fetch expiring licenses
+    const fetchLicenses = async () => {
+      const { data } = await supabase
+        .from("compliance_items")
+        .select("id, name, expiry_date")
+        .not("expiry_date", "is", null)
+        .order("expiry_date", { ascending: true })
+        .limit(10);
+      if (data) {
+        const now = Date.now();
+        const expiring = data
+          .map(d => ({
+            id: d.id,
+            name: d.name,
+            daysLeft: Math.ceil((new Date(d.expiry_date!).getTime() - now) / (1000 * 60 * 60 * 24)),
+          }))
+          .filter(d => d.daysLeft <= 90 && d.daysLeft > 0)
+          .slice(0, 3);
+        setExpiringLicenses(expiring);
+      }
+    };
+    fetchLicenses();
   }, []);
 
   const kpis = [
@@ -179,6 +204,36 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      {/* Expiring licenses widget */}
+      {expiringLicenses.length > 0 && (
+        <div
+          onClick={() => navigate("/compliance")}
+          className="bg-warning/10 border border-warning/30 rounded-xl p-4 cursor-pointer hover:bg-warning/15 transition-colors"
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <div className="h-10 w-10 rounded-full bg-warning/20 flex items-center justify-center">
+              <ScrollText className="h-5 w-5 text-warning" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-foreground">⚠️ רישיונות שפגים בקרוב</h3>
+            </div>
+          </div>
+          <div className="space-y-1 mr-13">
+            {expiringLicenses.map(lic => (
+              <div key={lic.id} className="flex items-center justify-between text-sm">
+                <span className="text-foreground">{lic.name}</span>
+                <span className={cn(
+                  "text-xs font-medium px-2 py-0.5 rounded-full",
+                  lic.daysLeft <= 30 ? "bg-destructive/15 text-destructive" : "bg-warning/15 text-warning"
+                )}>
+                  {lic.daysLeft} ימים
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Recent Supplier Emails */}
       <RecentSupplierEmails />
       <div className="bg-card rounded-xl border p-5 shadow-sm">

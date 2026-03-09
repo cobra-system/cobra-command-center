@@ -29,7 +29,7 @@ import InventoryPage from "@/pages/InventoryPage";
 import WorkflowsPage from "@/pages/WorkflowsPage";
 import NotFound from "@/pages/NotFound";
 import SapSettingsPage from "@/pages/SapSettingsPage";
-
+import CompliancePage from "@/pages/CompliancePage";
 const queryClient = new QueryClient();
 
 function RequireManager() {
@@ -75,6 +75,7 @@ function AppRoutes() {
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/sap" element={<SapSettingsPage />} />
+        <Route path="/compliance" element={<CompliancePage />} />
       </Route>
 
       <Route element={<RequireAuth />}>
