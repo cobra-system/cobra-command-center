@@ -48,6 +48,22 @@ export default function OrdersPage() {
   const { orders, updateOrderStatus, addOrder, suppliers, products } = useData();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [orderWorkflows, setOrderWorkflows] = useState<Record<string, { status: string; current_step: number }>>({});
+
+  useEffect(() => {
+    const fetchWorkflows = async () => {
+      const { data } = await supabase
+        .from("workflow_instances")
+        .select("order_id, status, current_step")
+        .not("order_id", "is", null);
+      if (data) {
+        const map: Record<string, { status: string; current_step: number }> = {};
+        data.forEach(w => { if (w.order_id) map[w.order_id] = { status: w.status, current_step: w.current_step }; });
+        setOrderWorkflows(map);
+      }
+    };
+    fetchWorkflows();
+  }, [orders]);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
