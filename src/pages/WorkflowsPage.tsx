@@ -80,6 +80,9 @@ export default function WorkflowsPage() {
   const [statusFilter, setStatusFilter] = useState<"active" | "completed" | "cancelled" | "all">("active");
   const [cancelReason, setCancelReason] = useState("");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("instances");
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<WorkflowTemplate | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
