@@ -333,9 +333,10 @@ function ComplianceFormDialog({ open, onOpenChange, item, products, onSaved }: {
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                  {DEFAULT_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <Input placeholder="או הקלד קטגוריה חדשה..." className="mt-1 text-xs h-8" onBlur={e => { if (e.target.value.trim()) setCategory(e.target.value.trim()); }} />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">מוצר מקושר</Label>
