@@ -31,6 +31,7 @@ const priorityOptions: { value: Priority; label: string }[] = [
 
 export default function TasksPage() {
   const { tasks, updateTaskStatus, addTask, updateTask, deleteTask, profiles, resetDailyTasks } = useData();
+  const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [open, setOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
