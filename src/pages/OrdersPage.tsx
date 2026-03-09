@@ -178,6 +178,7 @@ export default function OrdersPage() {
               <ThButton field="eta">ETA</ThButton>
               <ThButton field="total_price">סה״כ</ThButton>
               <ThButton field="payment">תשלום</ThButton>
+              <th className="text-right p-3 font-semibold text-foreground">פעולות</th>
             </tr>
           </thead>
           <tbody className="divide-y">
