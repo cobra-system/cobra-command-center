@@ -9,10 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Lock, Users, Mail, CheckCircle, LogOut, Plus, Pencil, Trash2, User, Settings, Tag } from "lucide-react";
+import { Lock, Users, Mail, CheckCircle, LogOut, Plus, Pencil, Trash2, User, Settings, Tag, Server } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export default function SettingsPage() {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const { profiles, updateProfile, createEmployee, refreshProfiles, roleDefinitions, addRoleDefinition, updateRoleDefinition, deleteRoleDefinition } = useData();
   const { isConnected, accountName, login, logout: outlookLogout, loading: outlookLoading } = useOutlook();
 
@@ -178,9 +180,12 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <Settings className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold text-foreground">הגדרות</h1>
+        <Button variant="outline" size="sm" onClick={() => navigate("/sap")} className="gap-1">
+          <Server className="h-3.5 w-3.5" />SAP B1
+        </Button>
       </div>
 
       {/* Manager Profile */}

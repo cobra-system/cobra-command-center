@@ -4,7 +4,7 @@ import { useAuth, useData, type Priority, type OrderStatus } from "@/contexts/Ap
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Package, Truck, ClipboardList, Users, Zap, AlertTriangle, ScrollText } from "lucide-react";
+import { Package, Truck, ClipboardList, Users, Zap, AlertTriangle, ScrollText, Wrench } from "lucide-react";
 import RecentSupplierEmails from "@/components/RecentSupplierEmails";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ export default function DashboardPage() {
   const [activeWorkflows, setActiveWorkflows] = useState(0);
   const [stuckWorkflows, setStuckWorkflows] = useState<{ id: string; supplier: string; step: string; hours: number }[]>([]);
   const [expiringLicenses, setExpiringLicenses] = useState<{ id: string; name: string; daysLeft: number }[]>([]);
+  const [topIssueProducts, setTopIssueProducts] = useState<{ product_id: string; name: string; count: number }[]>([]);
 
   useEffect(() => {
     const fetchWorkflows = async () => {
@@ -79,6 +80,27 @@ export default function DashboardPage() {
       }
     };
     fetchLicenses();
+
+    // Fetch top products with open issues
+    const fetchIssues = async () => {
+      const { data } = await supabase
+        .from("product_issues")
+        .select("product_id")
+        .neq("status", "נסגר");
+      if (data && data.length > 0) {
+        const countMap: Record<string, number> = {};
+        data.forEach((d: any) => { countMap[d.product_id] = (countMap[d.product_id] || 0) + 1; });
+        const sorted = Object.entries(countMap)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 3)
+          .map(([pid, count]) => {
+            const prod = products.find(p => p.id === pid);
+            return { product_id: pid, name: prod?.name || "מוצר לא ידוע", count };
+          });
+        setTopIssueProducts(sorted);
+      }
+    };
+    fetchIssues();
   }, []);
 
   const kpis = [
@@ -227,6 +249,33 @@ export default function DashboardPage() {
                   lic.daysLeft <= 30 ? "bg-destructive/15 text-destructive" : "bg-warning/15 text-warning"
                 )}>
                   {lic.daysLeft} ימים
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Top products with issues */}
+      {topIssueProducts.length > 0 && (
+        <div
+          onClick={() => navigate("/issues")}
+          className="bg-destructive/5 border border-destructive/20 rounded-xl p-4 cursor-pointer hover:bg-destructive/10 transition-colors"
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <div className="h-10 w-10 rounded-full bg-destructive/20 flex items-center justify-center">
+              <Wrench className="h-5 w-5 text-destructive" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-foreground">🔧 מוצרים עם הכי הרבה תקלות פתוחות</h3>
+            </div>
+          </div>
+          <div className="space-y-1 mr-13">
+            {topIssueProducts.map(p => (
+              <div key={p.product_id} className="flex items-center justify-between text-sm">
+                <span className="text-foreground">{p.name}</span>
+                <span className="bg-destructive/15 text-destructive text-xs font-medium px-2 py-0.5 rounded-full">
+                  {p.count} תקלות
                 </span>
               </div>
             ))}

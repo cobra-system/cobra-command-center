@@ -30,6 +30,7 @@ import WorkflowsPage from "@/pages/WorkflowsPage";
 import NotFound from "@/pages/NotFound";
 import SapSettingsPage from "@/pages/SapSettingsPage";
 import CompliancePage from "@/pages/CompliancePage";
+import IssuesPage from "@/pages/IssuesPage";
 const queryClient = new QueryClient();
 
 function RequireManager() {
@@ -68,6 +69,7 @@ function AppRoutes() {
         <Route path="/suppliers/:id" element={<SupplierDetailPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/recurring-tasks" element={<RecurringTasksPage />} />
+        <Route path="/issues" element={<IssuesPage />} />
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/workflows" element={<WorkflowsPage />} />
         <Route path="/documents" element={<DocumentsPage />} />

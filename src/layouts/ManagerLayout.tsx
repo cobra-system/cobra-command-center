@@ -19,6 +19,7 @@ import {
   Repeat,
   Zap,
   ScrollText,
+  Wrench,
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import cobraLogo from "@/assets/cobra-logo.png";
@@ -33,17 +34,15 @@ const defaultNavItems = [
   { to: "/documents", icon: "FileText", label: "מסמכים" },
   { to: "/suppliers", icon: "Truck", label: "ספקים" },
   { to: "/tasks", icon: "ListTodo", label: "משימות" },
-  { to: "/recurring-tasks", icon: "Repeat", label: "משימות חוזרות" },
-  { to: "/compliance", icon: "ScrollText", label: "רישיונות" },
+  { to: "/issues", icon: "Wrench", label: "תקלות" },
   { to: "/reorder", icon: "CalendarClock", label: "תכנון רכש" },
   { to: "/reports", icon: "BarChart3", label: "דוחות" },
   { to: "/settings", icon: "Settings", label: "הגדרות" },
-  { to: "/sap", icon: "Server", label: "SAP B1" },
 ];
 
 const iconMap: Record<string, any> = {
   LayoutDashboard, Package, ShoppingCart, Truck, ListTodo,
-  Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical, Server, Repeat, Zap, ScrollText,
+  Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical, Server, Repeat, Zap, ScrollText, Wrench,
 };
 
 const NAV_ORDER_KEY = "cobra-nav-order";

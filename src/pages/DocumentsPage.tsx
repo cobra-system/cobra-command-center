@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useData, useAuth } from "@/contexts/AppContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Plus, ChevronLeft, Search, Filter, Upload, CreditCard, AlertTriangle, Loader2 } from "lucide-react";
+import { FileText, Plus, ChevronLeft, Search, Filter, Upload, CreditCard, AlertTriangle, Loader2, ScrollText } from "lucide-react";
 import { toast } from "sonner";
 import { format, isThisWeek, isPast } from "date-fns";
 
@@ -60,6 +61,7 @@ const currencySymbol: Record<string, string> = { USD: "$", EUR: "€", ILS: "₪
 
 export default function DocumentsPage() {
   const { suppliers, products, orders } = useData();
+  const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [docs, setDocs] = useState<PurchaseDocument[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -265,9 +267,12 @@ export default function DocumentsPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <FileText className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold text-foreground">מסמכים</h1>
+          <Button variant="outline" size="sm" onClick={() => navigate("/compliance")} className="gap-1">
+            <ScrollText className="h-3.5 w-3.5" />רישיונות ואישורים
+          </Button>
         </div>
         <div className="flex gap-2">
           {/* Upload button */}

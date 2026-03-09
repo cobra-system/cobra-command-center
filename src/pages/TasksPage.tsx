@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useData, useAuth, type TaskStatus, type Priority, type Task } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Plus, RotateCcw, Pencil, Trash2, Search } from "lucide-react";
+import { CalendarIcon, Plus, RotateCcw, Pencil, Trash2, Search, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -31,6 +31,7 @@ const priorityOptions: { value: Priority; label: string }[] = [
 
 export default function TasksPage() {
   const { tasks, updateTaskStatus, addTask, updateTask, deleteTask, profiles, resetDailyTasks } = useData();
+  const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [open, setOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -126,7 +127,12 @@ export default function TasksPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold text-foreground">משימות</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-foreground">משימות</h1>
+          <Button variant="outline" size="sm" onClick={() => navigate("/recurring-tasks")} className="gap-1">
+            <Repeat className="h-3.5 w-3.5" />משימות חוזרות
+          </Button>
+        </div>
         <div className="flex items-center gap-2">
           {tasks.some(t => t.is_daily && t.status !== "TODO") && (
             <Button variant="outline" onClick={async () => { await resetDailyTasks(); toast.success("משימות יומיות אופסו"); }}>

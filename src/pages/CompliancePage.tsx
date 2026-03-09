@@ -29,12 +29,7 @@ interface ComplianceItem {
   created_at: string;
 }
 
-const CATEGORIES = [
-  { value: "תקשורת", label: "תקשורת" },
-  { value: "יבוא", label: "יבוא" },
-  { value: "דיגום", label: "דיגום" },
-  { value: "אישורים", label: "אישורים" },
-];
+const DEFAULT_CATEGORIES = ["תקשורת", "יבוא", "דיגום", "אישורים"];
 
 function getDaysRemaining(expiryDate: string | null): number | null {
   if (!expiryDate) return null;
@@ -65,6 +60,7 @@ export default function CompliancePage() {
   const navigate = useNavigate();
   const isManager = currentUser?.role === "MANAGER";
   const [items, setItems] = useState<ComplianceItem[]>([]);
+  const [productLinks, setProductLinks] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ComplianceItem | null>(null);
@@ -76,6 +72,17 @@ export default function CompliancePage() {
       .select("*")
       .order("expiry_date", { ascending: true });
     if (data) setItems(data as ComplianceItem[]);
+
+    // Fetch product links
+    const { data: links } = await supabase.from("compliance_product_links").select("compliance_item_id, product_id");
+    if (links) {
+      const map: Record<string, string[]> = {};
+      links.forEach((l: any) => {
+        if (!map[l.compliance_item_id]) map[l.compliance_item_id] = [];
+        map[l.compliance_item_id].push(l.product_id);
+      });
+      setProductLinks(map);
+    }
     setLoading(false);
   };
 
@@ -87,15 +94,22 @@ export default function CompliancePage() {
     return map;
   }, [products]);
 
+  // Build categories from items + defaults
+  const allCategories = useMemo(() => {
+    const cats = new Set(DEFAULT_CATEGORIES);
+    items.forEach(i => cats.add(i.category));
+    return Array.from(cats);
+  }, [items]);
+
   const grouped = useMemo(() => {
     const groups: Record<string, ComplianceItem[]> = {};
-    CATEGORIES.forEach(c => { groups[c.value] = []; });
+    allCategories.forEach(c => { groups[c] = []; });
     items.forEach(item => {
       if (!groups[item.category]) groups[item.category] = [];
       groups[item.category].push(item);
     });
     return groups;
-  }, [items]);
+  }, [items, allCategories]);
 
   const handleUpload = async (itemId: string) => {
     const input = document.createElement("input");
@@ -150,29 +164,30 @@ export default function CompliancePage() {
         )}
       </div>
 
-      {CATEGORIES.map(cat => {
-        const catItems = grouped[cat.value] || [];
+      {allCategories.map(cat => {
+        const catItems = grouped[cat] || [];
         if (catItems.length === 0) return null;
         return (
-          <div key={cat.value} className="space-y-3">
-            <h2 className="text-lg font-semibold text-foreground">{cat.label}</h2>
+          <div key={cat} className="space-y-3">
+            <h2 className="text-lg font-semibold text-foreground">{cat}</h2>
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {catItems.map(item => {
                 const daysLeft = getDaysRemaining(item.expiry_date);
-                const productName = item.product_id ? productMap[item.product_id] : null;
+                const linkedProductIds = productLinks[item.id] || [];
+                const linkedProductNames = linkedProductIds.map(pid => productMap[pid]).filter(Boolean);
                 return (
                   <div key={item.id} className="bg-card rounded-xl border p-4 space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="min-w-0">
                         <h3 className="font-semibold text-foreground text-sm">{item.name}</h3>
-                        {productName && (
-                          <button
-                            onClick={() => navigate(`/products/${item.product_id}`)}
-                            className="flex items-center gap-1 text-xs text-primary hover:underline mt-0.5"
-                          >
-                            <Package className="h-3 w-3" />
-                            {productName}
-                          </button>
+                        {linkedProductNames.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            {linkedProductNames.map((pn, i) => (
+                              <button key={i} onClick={() => navigate(`/products/${linkedProductIds[i]}`)} className="flex items-center gap-1 text-xs text-primary hover:underline">
+                                <Package className="h-3 w-3" />{pn}
+                              </button>
+                            ))}
+                          </div>
                         )}
                       </div>
                       <StatusBadge status={item.status} daysLeft={daysLeft} />
@@ -318,9 +333,10 @@ function ComplianceFormDialog({ open, onOpenChange, item, products, onSaved }: {
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                  {DEFAULT_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <Input placeholder="או הקלד קטגוריה חדשה..." className="mt-1 text-xs h-8" onBlur={e => { if (e.target.value.trim()) setCategory(e.target.value.trim()); }} />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">מוצר מקושר</Label>
