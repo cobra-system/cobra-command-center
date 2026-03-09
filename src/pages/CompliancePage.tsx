@@ -29,12 +29,7 @@ interface ComplianceItem {
   created_at: string;
 }
 
-const CATEGORIES = [
-  { value: "תקשורת", label: "תקשורת" },
-  { value: "יבוא", label: "יבוא" },
-  { value: "דיגום", label: "דיגום" },
-  { value: "אישורים", label: "אישורים" },
-];
+const DEFAULT_CATEGORIES = ["תקשורת", "יבוא", "דיגום", "אישורים"];
 
 function getDaysRemaining(expiryDate: string | null): number | null {
   if (!expiryDate) return null;
