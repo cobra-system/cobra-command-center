@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { Package, Truck, ClipboardList, Users, Zap, AlertTriangle, ScrollText } from "lucide-react";
 import RecentSupplierEmails from "@/components/RecentSupplierEmails";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 const priorityOrder: Record<string, number> = { "דחוף": 0, "גבוה": 1, "בינוני": 2, "נמוך": 3 };
 
