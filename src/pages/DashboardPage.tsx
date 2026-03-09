@@ -4,7 +4,7 @@ import { useAuth, useData, type Priority, type OrderStatus } from "@/contexts/Ap
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Package, Truck, ClipboardList, Users, Zap } from "lucide-react";
+import { Package, Truck, ClipboardList, Users, Zap, AlertTriangle } from "lucide-react";
 import RecentSupplierEmails from "@/components/RecentSupplierEmails";
 import { supabase } from "@/integrations/supabase/client";
 
