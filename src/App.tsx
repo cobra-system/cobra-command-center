@@ -18,7 +18,6 @@ import OrderDetailPage from "@/pages/OrderDetailPage";
 import SuppliersPage from "@/pages/SuppliersPage";
 import SupplierDetailPage from "@/pages/SupplierDetailPage";
 import TasksPage from "@/pages/TasksPage";
-import RecurringTasksPage from "@/pages/RecurringTasksPage";
 import SettingsPage from "@/pages/SettingsPage";
 import DocumentsPage from "@/pages/DocumentsPage";
 import ReorderPage from "@/pages/ReorderPage";
@@ -26,7 +25,7 @@ import ReportsPage from "@/pages/ReportsPage";
 import MyTasksPage from "@/pages/MyTasksPage";
 import MyTaskDetailPage from "@/pages/MyTaskDetailPage";
 import InventoryPage from "@/pages/InventoryPage";
-import WorkflowsPage from "@/pages/WorkflowsPage";
+
 import NotFound from "@/pages/NotFound";
 import SapSettingsPage from "@/pages/SapSettingsPage";
 import CompliancePage from "@/pages/CompliancePage";
@@ -68,10 +67,10 @@ function AppRoutes() {
         <Route path="/suppliers" element={<SuppliersPage />} />
         <Route path="/suppliers/:id" element={<SupplierDetailPage />} />
         <Route path="/tasks" element={<TasksPage />} />
-        <Route path="/recurring-tasks" element={<RecurringTasksPage />} />
+        <Route path="/recurring-tasks" element={<Navigate to="/tasks" replace />} />
         <Route path="/issues" element={<IssuesPage />} />
         <Route path="/inventory" element={<InventoryPage />} />
-        <Route path="/workflows" element={<WorkflowsPage />} />
+        <Route path="/workflows" element={<Navigate to="/tasks" replace />} />
         <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/reorder" element={<ReorderPage />} />
         <Route path="/reports" element={<ReportsPage />} />
