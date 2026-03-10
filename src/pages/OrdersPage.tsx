@@ -45,7 +45,7 @@ const statusFilterOptions = [
 ];
 
 export default function OrdersPage() {
-  const { orders, updateOrderStatus, addOrder, suppliers, products } = useData();
+  const { orders, updateOrderStatus, updateOrder, addOrder, suppliers, products } = useData();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [orderWorkflows, setOrderWorkflows] = useState<Record<string, { status: string; current_step: number }>>({});
@@ -240,12 +240,34 @@ export default function OrdersPage() {
                 <td className="p-3 text-muted-foreground text-xs">{order.etd ? new Date(order.etd).toLocaleDateString("he-IL") : "—"}</td>
                 <td className="p-3 text-muted-foreground text-xs">{order.eta ? new Date(order.eta).toLocaleDateString("he-IL") : "—"}</td>
                 <td className="p-3 text-muted-foreground text-xs">{order.total_price ? `$${order.total_price.toLocaleString()}` : "—"}</td>
-                <td className="p-3">
-                  {order.payment_date ? (
-                    <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-success/15 text-success">שולם</span>
-                  ) : (
-                    <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-warning/15 text-warning">ממתין</span>
-                  )}
+                <td className="p-3" onClick={e => e.stopPropagation()}>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button className="cursor-pointer">
+                        {order.payment_date ? (
+                          <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-success/15 text-success">שולם</span>
+                        ) : (
+                          <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-warning/15 text-warning">ממתין</span>
+                        )}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-1" align="start">
+                      <div className="flex flex-col gap-0.5">
+                        <button
+                          onClick={() => updateOrder(order.id, { payment_date: new Date().toISOString() })}
+                          className={cn("px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted", order.payment_date && "bg-muted")}
+                        >
+                          שולם ✓
+                        </button>
+                        <button
+                          onClick={() => updateOrder(order.id, { payment_date: null })}
+                          className={cn("px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted", !order.payment_date && "bg-muted")}
+                        >
+                          ממתין
+                        </button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </td>
                 <td className="p-3" onClick={e => e.stopPropagation()}>
                   {orderWorkflows[order.id] ? (

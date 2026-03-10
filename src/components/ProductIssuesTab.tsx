@@ -89,7 +89,7 @@ function ImagePicker({ imageFile, setImageFile, previewUrl, setPreviewUrl }: {
 }
 
 // Diagnostic Wizard Component
-function DiagnosticWizard({ productId, onClose, onSaved }: { productId: string; onClose: () => void; onSaved: () => void }) {
+export function DiagnosticWizard({ productId, onClose, onSaved }: { productId: string; onClose: () => void; onSaved: () => void }) {
   const [step, setStep] = useState(1);
   const [source, setSource] = useState<"app" | "device" | null>(null);
   const [resolved, setResolved] = useState<boolean | null>(null);
@@ -242,7 +242,7 @@ function DiagnosticWizard({ productId, onClose, onSaved }: { productId: string; 
 }
 
 // Simple form for non-PROOF products
-function SimpleIssueForm({ productId, onClose, onSaved }: { productId: string; onClose: () => void; onSaved: () => void }) {
+export function SimpleIssueForm({ productId, onClose, onSaved }: { productId: string; onClose: () => void; onSaved: () => void }) {
   const [reporter, setReporter] = useState("");
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState("בינוני");

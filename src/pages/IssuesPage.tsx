@@ -3,7 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useData } from "@/contexts/AppContext";
 import { useNavigate } from "react-router-dom";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Wrench } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Loader2, Wrench, Plus } from "lucide-react";
+import { DiagnosticWizard, SimpleIssueForm } from "@/components/ProductIssuesTab";
 
 interface Issue {
   id: string;
@@ -37,11 +40,17 @@ export default function IssuesPage() {
   const [filterProduct, setFilterProduct] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterSeverity, setFilterSeverity] = useState("all");
+  const [newIssueOpen, setNewIssueOpen] = useState(false);
+  const [newIssueProductId, setNewIssueProductId] = useState("");
+
+  const refreshIssues = async () => {
+    const { data } = await supabase.from("product_issues").select("id, product_id, reported_date, reporter, description, severity, status, ticket_number, diagnostic_source").order("reported_date", { ascending: false });
+    if (data) setIssues(data as Issue[]);
+  };
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("product_issues").select("id, product_id, reported_date, reporter, description, severity, status, ticket_number, diagnostic_source").order("reported_date", { ascending: false });
-      if (data) setIssues(data as Issue[]);
+      await refreshIssues();
       setLoading(false);
     })();
   }, []);
@@ -70,10 +79,15 @@ export default function IssuesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-        <Wrench className="h-6 w-6 text-primary" />
-        תקלות
-      </h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <Wrench className="h-6 w-6 text-primary" />
+          תקלות
+        </h1>
+        <Button onClick={() => { setNewIssueProductId(""); setNewIssueOpen(true); }}>
+          <Plus className="h-4 w-4 ml-2" />פתח תקלה
+        </Button>
+      </div>
 
       <div className="flex flex-wrap gap-3">
         <Select value={filterProduct} onValueChange={setFilterProduct}>
@@ -134,6 +148,42 @@ export default function IssuesPage() {
           </tbody>
         </table>
       </div>
+
+      {/* New Issue Dialog */}
+      <Dialog open={newIssueOpen} onOpenChange={open => { setNewIssueOpen(open); if (!open) setNewIssueProductId(""); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader><DialogTitle>פתיחת תקלה חדשה</DialogTitle></DialogHeader>
+          {!newIssueProductId ? (
+            <div className="space-y-3 pt-2">
+              <p className="text-sm text-muted-foreground">בחר מוצר לפתיחת תקלה:</p>
+              <Select onValueChange={setNewIssueProductId}>
+                <SelectTrigger><SelectValue placeholder="בחר מוצר..." /></SelectTrigger>
+                <SelectContent>
+                  {products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            (() => {
+              const prod = products.find(p => p.id === newIssueProductId);
+              const isProof = prod && (prod.name.includes("PROOF") || prod.name.includes("פרוף"));
+              return isProof ? (
+                <DiagnosticWizard
+                  productId={newIssueProductId}
+                  onClose={() => { setNewIssueOpen(false); setNewIssueProductId(""); }}
+                  onSaved={() => { setNewIssueOpen(false); setNewIssueProductId(""); refreshIssues(); }}
+                />
+              ) : (
+                <SimpleIssueForm
+                  productId={newIssueProductId}
+                  onClose={() => { setNewIssueOpen(false); setNewIssueProductId(""); }}
+                  onSaved={() => { setNewIssueOpen(false); setNewIssueProductId(""); refreshIssues(); }}
+                />
+              );
+            })()
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
