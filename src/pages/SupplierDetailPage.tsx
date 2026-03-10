@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { useData, useAuth, type Supplier, type SupplierContact, type Priority, type OrderStatus } from "@/contexts/AppContext";
+import { useData, useAuth, type Supplier, type SupplierContact, type Priority, type OrderStatus, type Product } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowRight, Pencil, Trash2, ExternalLink, Mail, Phone, Globe, TruckIcon, UserPlus, Users, X } from "lucide-react";
+import { ArrowRight, Pencil, Trash2, ExternalLink, Mail, Phone, Globe, TruckIcon, UserPlus, Users, X, Link2, Search } from "lucide-react";
 import { InlineEditField } from "@/components/InlineEditField";
 import SapSyncBadge from "@/components/SapSyncBadge";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,13 +18,17 @@ export default function SupplierDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { suppliers, orders, products, updateSupplier, deleteSupplier, refreshSuppliers } = useData();
+  const { suppliers, orders, products, updateSupplier, deleteSupplier, refreshSuppliers, updateProduct } = useData();
 
   const [editOpen, setEditOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [newContact, setNewContact] = useState({ name: "", role: "", email: "", phone: "" });
   const [savingContact, setSavingContact] = useState(false);
+  const [linkProductOpen, setLinkProductOpen] = useState(false);
+  const [linkProductSearch, setLinkProductSearch] = useState("");
+  const [linkProductId, setLinkProductId] = useState("");
+  const [linkingSaving, setLinkingSaving] = useState(false);
 
   const supplier = suppliers.find(s => s.id === id);
 
@@ -89,6 +93,20 @@ export default function SupplierDetailPage() {
     await supabase.from("supplier_contacts").delete().eq("id", contactId);
     await refreshSuppliers();
     toast.success("איש קשר נמחק");
+  };
+
+  const handleLinkProduct = async () => {
+    if (!linkProductId) return;
+    setLinkingSaving(true);
+    try {
+      await updateProduct(linkProductId, { supplier: supplier.company });
+      setLinkProductOpen(false);
+      setLinkProductId("");
+      setLinkProductSearch("");
+      toast.success("מוצר שויך לספק");
+    } finally {
+      setLinkingSaving(false);
+    }
   };
 
   return (
@@ -214,7 +232,14 @@ export default function SupplierDetailPage() {
 
       {/* Related Products */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
-        <h2 className="text-lg font-semibold text-foreground mb-4">מוצרים משויכים ({relatedProducts.length + componentProducts.length})</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-foreground">מוצרים משויכים ({relatedProducts.length + componentProducts.length})</h2>
+          {isManager && (
+            <Button size="sm" variant="outline" onClick={() => setLinkProductOpen(true)}>
+              <Link2 className="h-3.5 w-3.5 ml-1" />שייך מוצר
+            </Button>
+          )}
+        </div>
         {(relatedProducts.length > 0 || componentProducts.length > 0) ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -281,6 +306,45 @@ export default function SupplierDetailPage() {
           <p className="text-sm text-muted-foreground py-4 text-center">אין הזמנות קשורות לספק זה</p>
         )}
       </div>
+
+      {/* Link Product Dialog */}
+      <Dialog open={linkProductOpen} onOpenChange={open => { setLinkProductOpen(open); if (!open) { setLinkProductSearch(""); setLinkProductId(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>שיוך מוצר לספק</DialogTitle></DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div className="relative">
+              <Search className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="חפש מוצר..."
+                className="pr-9"
+                value={linkProductSearch}
+                onChange={e => { setLinkProductSearch(e.target.value); setLinkProductId(""); }}
+              />
+            </div>
+            <div className="max-h-60 overflow-y-auto divide-y rounded-lg border">
+              {products
+                .filter(p => p.supplier !== supplier.company && p.name.toLowerCase().includes(linkProductSearch.toLowerCase()))
+                .slice(0, 30)
+                .map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => { setLinkProductId(p.id); setLinkProductSearch(p.name); }}
+                    className={`w-full text-right px-3 py-2 text-sm hover:bg-muted/50 transition-colors ${linkProductId === p.id ? "bg-primary/10 text-primary font-medium" : ""}`}
+                  >
+                    <span>{p.name}</span>
+                    <span className="text-xs text-muted-foreground mr-2 font-mono">{p.sku}</span>
+                  </button>
+                ))}
+              {products.filter(p => p.supplier !== supplier.company && p.name.toLowerCase().includes(linkProductSearch.toLowerCase())).length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">אין מוצרים להצגה</p>
+              )}
+            </div>
+            <Button onClick={handleLinkProduct} className="w-full" disabled={!linkProductId || linkingSaving}>
+              {linkingSaving ? "משייך..." : "שייך מוצר"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Dialog */}
       <SupplierEditDialog open={editOpen} onOpenChange={setEditOpen} supplier={supplier} onSave={updateSupplier} />

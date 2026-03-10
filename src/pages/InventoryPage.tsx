@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Plus, Warehouse, ArrowDown, Phone, User, Trash2, Building2, ArrowLeftRight, AlertTriangle, History } from "lucide-react";
+import { Plus, Warehouse, ArrowDown, Phone, User, Trash2, Building2, ArrowLeftRight, AlertTriangle, History, Users, Crown } from "lucide-react";
 import { toast } from "sonner";
 
 interface DistributionCenter {
@@ -98,6 +98,8 @@ export default function InventoryPage() {
 
   const mainCenter = centers.find(c => c.is_main);
   const bondedCenters = centers.filter(c => !c.is_main);
+  const mgmtCenter = bondedCenters.find(c => c.name.includes("יבואנים"));
+  const regularBondedCenters = bondedCenters.filter(c => !c.name.includes("יבואנים"));
   const getContactsForCenter = (centerId: string) => contacts.filter(c => c.center_id === centerId);
   const getTotalQty = (centerId: string) => inventory.filter(i => i.center_id === centerId).reduce((sum, i) => sum + i.quantity, 0);
 
@@ -263,8 +265,37 @@ export default function InventoryPage() {
               </CardContent>
             </Card>
           )}
+          {mgmtCenter && (
+            <Card className="border-2 border-amber-500/30 bg-amber-500/5">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <Crown className="h-5 w-5 text-amber-600" />
+                  <CardTitle className="text-base">ניהול הבונדדים</CardTitle>
+                  <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-700 dark:text-amber-400">
+                    לובינסקי · פריזבי · דלק מוטורס
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-3">
+                  {getContactsForCenter(mgmtCenter.id).map(ct => (
+                    <div key={ct.id} className="flex items-center gap-2 text-sm bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-1.5">
+                      <User className="h-3.5 w-3.5 text-amber-600" />
+                      <span className="font-medium">{ct.name}</span>
+                      {ct.role && <span className="text-muted-foreground text-xs">({ct.role})</span>}
+                      {ct.phone && (
+                        <a href={`tel:${ct.phone}`} className="text-primary hover:underline flex items-center gap-1 text-xs" dir="ltr">
+                          <Phone className="h-3 w-3" />{ct.phone}
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {bondedCenters.map(center => (
+            {regularBondedCenters.map(center => (
               <Card key={center.id} className="relative group">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
