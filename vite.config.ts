@@ -19,4 +19,7 @@ export default defineConfig(({ mode }) => ({
     },
     dedupe: ["react", "react-dom", "react/jsx-runtime"],
   },
+  optimizeDeps: {
+    include: ["@azure/msal-browser", "@azure/msal-react"],
+  },
 }));
