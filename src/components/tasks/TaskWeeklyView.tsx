@@ -1,51 +1,92 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useData, useAuth, type Task, type Priority } from "@/contexts/AppContext";
+import { supabase } from "@/integrations/supabase/client";
 import { PriorityBadge } from "@/components/PriorityBadge";
-import { format, startOfWeek, addDays, isSameDay, isToday, isPast, addWeeks, subWeeks } from "date-fns";
+import { format, startOfWeek, addDays, isSameDay, isToday, isPast, addWeeks, subWeeks, getDay, getDate } from "date-fns";
 import { he } from "date-fns/locale";
-import { ChevronRight, ChevronLeft, CalendarDays, AlertTriangle, Users } from "lucide-react";
+import { ChevronRight, ChevronLeft, CalendarDays, AlertTriangle, Users, Repeat, Zap, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import RecurringTasksPanel from "@/components/tasks/RecurringTasksPanel";
+import WorkflowsPanel from "@/components/tasks/WorkflowsPanel";
 
 const dayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 
+interface RecurringTask {
+  id: string;
+  title: string;
+  description: string | null;
+  frequency: string;
+  day_of_week: number | null;
+  day_of_month: number | null;
+  days_before: number;
+  priority: string;
+  assignee_id: string | null;
+  assignee_name: string | null;
+  is_active: boolean;
+  next_due: string | null;
+}
+
+interface WorkflowStep {
+  index: number; name: string; description: string; action: string;
+}
+interface WorkflowTemplate {
+  id: string; name: string; steps: WorkflowStep[];
+}
+interface WorkflowInstance {
+  id: string; template_id: string; current_step: number; status: string;
+  template?: WorkflowTemplate;
+}
+
 function ProgressRing({ done, total }: { done: number; total: number }) {
-  const r = 18;
+  const r = 20;
   const circumference = 2 * Math.PI * r;
   const pct = total > 0 ? done / total : 0;
   const offset = circumference * (1 - pct);
 
   return (
-    <svg width="44" height="44" viewBox="0 0 44 44" className="shrink-0">
-      <circle
-        cx="22" cy="22" r={r}
-        fill="none" strokeWidth="3"
-        className="stroke-muted-foreground/20"
-      />
+    <svg width="50" height="50" viewBox="0 0 50 50" className="shrink-0">
+      <circle cx="25" cy="25" r={r} fill="none" strokeWidth="3" className="stroke-muted-foreground/20" />
       {total > 0 && (
         <circle
-          cx="22" cy="22" r={r}
-          fill="none" strokeWidth="3"
+          cx="25" cy="25" r={r} fill="none" strokeWidth="3"
           className={cn(pct === 1 ? "stroke-emerald-500" : "stroke-primary")}
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           strokeLinecap="round"
-          transform="rotate(-90 22 22)"
+          transform="rotate(-90 25 25)"
           style={{ transition: "stroke-dashoffset 0.4s ease" }}
         />
       )}
-      <text
-        x="22" y="26"
-        textAnchor="middle"
-        fontSize="9"
-        fontWeight="700"
-        className="fill-foreground"
-      >
+      <text x="25" y="29" textAnchor="middle" fontSize="10" fontWeight="700" className="fill-foreground">
         {total > 0 ? `${Math.round(pct * 100)}%` : "—"}
       </text>
     </svg>
   );
+}
+
+function recurringMatchesDay(rt: RecurringTask, day: Date): boolean {
+  const dayOfWeek = getDay(day); // 0=Sun
+  const dayOfMonth = getDate(day);
+  switch (rt.frequency) {
+    case "daily":
+      return true;
+    case "weekly":
+      return rt.day_of_week === dayOfWeek;
+    case "biweekly":
+      return rt.day_of_week === dayOfWeek;
+    case "monthly":
+      return rt.day_of_month === dayOfMonth;
+    case "quarterly":
+    case "biannual":
+    case "annual":
+      return rt.day_of_month === dayOfMonth;
+    default:
+      return false;
+  }
 }
 
 export default function TaskWeeklyView() {
@@ -55,6 +96,39 @@ export default function TaskWeeklyView() {
   const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [dragOverDay, setDragOverDay] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Recurring tasks
+  const [recurringTasks, setRecurringTasks] = useState<RecurringTask[]>([]);
+  const [workflowInstances, setWorkflowInstances] = useState<WorkflowInstance[]>([]);
+
+  const loadRecurring = useCallback(async () => {
+    const { data } = await supabase.from("recurring_tasks").select("*").eq("is_active", true);
+    if (data) setRecurringTasks(data as RecurringTask[]);
+  }, []);
+
+  const loadWorkflows = useCallback(async () => {
+    const { data: instances } = await supabase
+      .from("workflow_instances")
+      .select("id, template_id, current_step, status")
+      .eq("status", "active");
+    if (!instances) return;
+    const { data: templates } = await supabase.from("workflow_templates").select("id, name, steps");
+    if (templates) {
+      const enriched = instances.map(inst => ({
+        ...inst,
+        template: templates.find(t => t.id === inst.template_id) as WorkflowTemplate | undefined,
+      }));
+      setWorkflowInstances(enriched as WorkflowInstance[]);
+    } else {
+      setWorkflowInstances(instances as WorkflowInstance[]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadRecurring();
+    loadWorkflows();
+  }, [loadRecurring, loadWorkflows]);
 
   const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
 
@@ -68,13 +142,11 @@ export default function TaskWeeklyView() {
     [weekStart]
   );
 
-  // Filtered tasks based on employee selection
   const filteredTasks = useMemo(() =>
     tasks.filter(t => assigneeFilter === "all" || t.assignee_id === assigneeFilter),
     [tasks, assigneeFilter]
   );
 
-  // Tasks with due dates mapped to days
   const tasksByDay = useMemo(() => {
     const map = new Map<string, Task[]>();
     days.forEach(day => {
@@ -92,13 +164,24 @@ export default function TaskWeeklyView() {
     return map;
   }, [filteredTasks, days]);
 
-  // Unscheduled tasks (no due date, not done)
+  const recurringByDay = useMemo(() => {
+    const map = new Map<string, RecurringTask[]>();
+    days.forEach(day => {
+      const key = format(day, "yyyy-MM-dd");
+      map.set(key, recurringTasks.filter(rt => recurringMatchesDay(rt, day)));
+    });
+    return map;
+  }, [recurringTasks, days]);
+
+  // Active workflow instances show on today (or first day of week if past)
+  const todayKey = format(isToday(days[0]) ? days[0] : days.find(d => isToday(d)) ?? days[0], "yyyy-MM-dd");
+  const workflowsForToday = workflowInstances;
+
   const unscheduled = useMemo(() =>
     filteredTasks.filter(t => !t.due_date && t.status !== "DONE"),
     [filteredTasks]
   );
 
-  // Overdue tasks (past due, not done)
   const overdue = useMemo(() =>
     filteredTasks.filter(t => t.due_date && isPast(new Date(t.due_date)) && !isToday(new Date(t.due_date)) && t.status !== "DONE"),
     [filteredTasks]
@@ -119,10 +202,19 @@ export default function TaskWeeklyView() {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Top bar: week navigation + employee filter */}
+    <div className="space-y-5">
+      {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-foreground">ניהול משימות</h1>
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground border rounded-lg px-3 py-1.5 bg-muted/30">
+            <CalendarDays className="h-4 w-4" />
+            <span>{format(days[0], "d MMM", { locale: he })} – {format(days[6], "d MMM yyyy", { locale: he })}</span>
+          </div>
+        </div>
+
         <div className="flex items-center gap-2">
+          {/* Week navigation */}
           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekOffset(w => w - 1)}>
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -132,26 +224,27 @@ export default function TaskWeeklyView() {
           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekOffset(w => w + 1)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <CalendarDays className="h-4 w-4" />
-            <span>{format(days[0], "d MMM", { locale: he })} – {format(days[6], "d MMM yyyy", { locale: he })}</span>
-          </div>
-        </div>
 
-        {/* Employee filter */}
-        <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-muted-foreground" />
-          <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-            <SelectTrigger className="h-8 text-xs w-40">
-              <SelectValue placeholder="כל העובדים" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">כל העובדים</SelectItem>
-              {assignableUsers.map(u => (
-                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Employee filter */}
+          <div className="flex items-center gap-1.5">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+              <SelectTrigger className="h-8 text-xs w-40">
+                <SelectValue placeholder="כל העובדים" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">כל העובדים</SelectItem>
+                {assignableUsers.map(u => (
+                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Settings drawer */}
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSettingsOpen(true)}>
+            <Settings className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
@@ -171,12 +264,31 @@ export default function TaskWeeklyView() {
         </div>
       )}
 
+      {/* Legend */}
+      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-primary/60" />
+          משימות
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-violet-500/70" />
+          חוזרות
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-amber-500/70" />
+          תהליכים
+        </span>
+      </div>
+
       {/* Weekly grid */}
       <div className="grid grid-cols-7 gap-2">
         {days.map((day, i) => {
           const key = format(day, "yyyy-MM-dd");
           const dayTasks = tasksByDay.get(key) || [];
+          const dayRecurring = recurringByDay.get(key) || [];
+          const dayWorkflows = key === todayKey ? workflowsForToday : [];
           const doneTasks = dayTasks.filter(t => t.status === "DONE").length;
+          const totalItems = dayTasks.length + dayRecurring.length + dayWorkflows.length;
           const today = isToday(day);
           const isDropTarget = dragOverDay === key;
 
@@ -184,28 +296,25 @@ export default function TaskWeeklyView() {
             <div
               key={key}
               className={cn(
-                "rounded-xl border min-h-[240px] flex flex-col transition-all",
+                "rounded-xl border min-h-[320px] flex flex-col transition-all",
                 today ? "border-primary bg-primary/5" : "border-border/50 bg-card/50",
                 isDropTarget && "ring-2 ring-primary/60 bg-primary/10 border-primary/40"
               )}
               onDragOver={e => { e.preventDefault(); setDragOverDay(key); }}
               onDragLeave={e => {
-                // Only clear if leaving the column entirely
-                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                  setDragOverDay(null);
-                }
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverDay(null);
               }}
               onDrop={() => handleDrop(day)}
             >
               {/* Day header */}
               <div className={cn(
-                "px-2 py-2 border-b flex flex-col items-center gap-1",
+                "px-2 py-2.5 border-b flex flex-col items-center gap-1",
                 today ? "border-primary/20" : "border-border/30"
               )}>
-                <p className={cn("text-[11px] font-medium", today ? "text-primary" : "text-muted-foreground")}>
+                <p className={cn("text-xs font-semibold tracking-wide", today ? "text-primary" : "text-muted-foreground")}>
                   {dayNames[i]}
                 </p>
-                <p className={cn("text-lg font-bold leading-none", today ? "text-primary" : "text-foreground")}>
+                <p className={cn("text-xl font-bold leading-none", today ? "text-primary" : "text-foreground")}>
                   {format(day, "d")}
                 </p>
                 <ProgressRing done={doneTasks} total={dayTasks.length} />
@@ -217,15 +326,17 @@ export default function TaskWeeklyView() {
               </div>
 
               {/* Tasks */}
-              <div className="flex-1 p-1.5 space-y-1 overflow-y-auto max-h-[280px]">
-                {dayTasks.length === 0 && !isDropTarget && (
+              <div className="flex-1 p-1.5 space-y-1 overflow-y-auto max-h-[380px]">
+                {totalItems === 0 && !isDropTarget && (
                   <p className="text-[10px] text-muted-foreground/40 text-center pt-4">—</p>
                 )}
-                {isDropTarget && dayTasks.length === 0 && (
+                {isDropTarget && totalItems === 0 && (
                   <div className="h-full flex items-center justify-center">
                     <p className="text-[11px] text-primary/60">שחרר כאן</p>
                   </div>
                 )}
+
+                {/* Regular tasks */}
                 {dayTasks.map(task => (
                   <WeeklyTaskCard
                     key={task.id}
@@ -237,13 +348,23 @@ export default function TaskWeeklyView() {
                     onDragEnd={() => { setDragTaskId(null); setDragOverDay(null); }}
                   />
                 ))}
+
+                {/* Recurring task cards */}
+                {dayRecurring.map(rt => (
+                  <RecurringTaskCard key={`r-${rt.id}`} rt={rt} showAssignee={assigneeFilter === "all"} />
+                ))}
+
+                {/* Workflow step cards */}
+                {dayWorkflows.map(wf => (
+                  <WorkflowCard key={`wf-${wf.id}`} instance={wf} onRefresh={loadWorkflows} />
+                ))}
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Unscheduled tasks – also a drop zone to remove due date */}
+      {/* Unscheduled tasks */}
       <div
         className={cn(
           "mt-4 rounded-xl border-2 border-dashed transition-all p-3",
@@ -288,9 +409,36 @@ export default function TaskWeeklyView() {
           </>
         )}
       </div>
+
+      {/* Settings drawer */}
+      <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <SheetContent side="left" className="w-[600px] max-w-[95vw] overflow-y-auto">
+          <SheetHeader className="mb-4">
+            <SheetTitle>ניהול חוזרות ותהליכים</SheetTitle>
+          </SheetHeader>
+          <Tabs defaultValue="recurring">
+            <TabsList className="w-full mb-4">
+              <TabsTrigger value="recurring" className="flex-1 gap-1.5">
+                <Repeat className="h-3.5 w-3.5" />חוזרות
+              </TabsTrigger>
+              <TabsTrigger value="workflows" className="flex-1 gap-1.5">
+                <Zap className="h-3.5 w-3.5" />תהליכים
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="recurring">
+              <RecurringTasksPanel />
+            </TabsContent>
+            <TabsContent value="workflows">
+              <WorkflowsPanel />
+            </TabsContent>
+          </Tabs>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
+
+// ─── Regular task card ────────────────────────────────────────────────────────
 
 interface WeeklyTaskCardProps {
   task: Task;
@@ -309,7 +457,7 @@ function WeeklyTaskCard({ task, showAssignee, isDragging, onToggle, onDragStart,
   return (
     <div
       className={cn(
-        "rounded-lg px-2 py-1.5 text-[11px] cursor-grab active:cursor-grabbing transition-all border select-none",
+        "rounded-lg px-2 py-2 text-[11px] cursor-grab active:cursor-grabbing transition-all border select-none",
         isDone ? "bg-success/10 border-success/20 opacity-60" :
         isUrgent ? "bg-destructive/10 border-destructive/20" :
         "bg-card border-border/40 hover:shadow-sm",
@@ -334,6 +482,70 @@ function WeeklyTaskCard({ task, showAssignee, isDragging, onToggle, onDragStart,
           <span className="text-[9px] text-muted-foreground/60 truncate">{task.assignee_name}</span>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Recurring task card ──────────────────────────────────────────────────────
+
+function RecurringTaskCard({ rt, showAssignee }: { rt: RecurringTask; showAssignee: boolean }) {
+  const initials = rt.assignee_name ? rt.assignee_name.trim().charAt(0).toUpperCase() : null;
+
+  return (
+    <div className="rounded-lg px-2 py-2 text-[11px] border border-violet-500/30 bg-violet-500/10 select-none">
+      <div className="flex items-start gap-1">
+        <Repeat className="h-3 w-3 text-violet-400 shrink-0 mt-0.5" />
+        <p className="font-medium leading-tight line-clamp-2 text-violet-900 dark:text-violet-200">{rt.title}</p>
+      </div>
+      {showAssignee && initials && (
+        <div className="flex items-center gap-1 mt-1">
+          <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-violet-500/20 text-violet-600 dark:text-violet-300 text-[8px] font-bold shrink-0">
+            {initials}
+          </span>
+          <span className="text-[9px] text-muted-foreground/60 truncate">{rt.assignee_name}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Workflow step card ───────────────────────────────────────────────────────
+
+function WorkflowCard({ instance, onRefresh }: { instance: WorkflowInstance; onRefresh: () => void }) {
+  const currentStep = instance.template?.steps?.[instance.current_step];
+  const [completing, setCompleting] = useState(false);
+
+  const completeStep = async () => {
+    setCompleting(true);
+    const nextStep = instance.current_step + 1;
+    const totalSteps = instance.template?.steps?.length ?? 0;
+    if (nextStep >= totalSteps) {
+      await supabase.from("workflow_instances").update({ status: "completed", current_step: nextStep }).eq("id", instance.id);
+    } else {
+      await supabase.from("workflow_instances").update({ current_step: nextStep }).eq("id", instance.id);
+    }
+    setCompleting(false);
+    onRefresh();
+  };
+
+  if (!currentStep) return null;
+
+  return (
+    <div
+      className="rounded-lg px-2 py-2 text-[11px] border border-amber-500/30 bg-amber-500/10 select-none cursor-pointer hover:bg-amber-500/20 transition-colors"
+      onClick={completing ? undefined : completeStep}
+    >
+      <div className="flex items-start gap-1">
+        <Zap className="h-3 w-3 text-amber-500 shrink-0 mt-0.5" />
+        <div className="min-w-0">
+          <p className="font-medium leading-tight line-clamp-1 text-amber-900 dark:text-amber-200">
+            {instance.template?.name}
+          </p>
+          <p className="text-[10px] text-amber-700/70 dark:text-amber-300/60 line-clamp-1 mt-0.5">
+            שלב {instance.current_step + 1}: {currentStep.name}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
