@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "cobra": {
+      "command": "npx",
+      "args": ["tsx", "mcp-server/src/index.ts"],
+      "env": {
+        "SUPABASE_URL": "https://pjruyvhtivbeikxrnipg.supabase.co",
+        "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqcnV5dmh0aXZiZWlreHJuaXBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5ODcxODcsImV4cCI6MjA4ODU2MzE4N30.ZrNrNHLWpfK9xCX3o_bx_GVVAlaFLBVsG782-0syOUw"
+      }
+    }
+  }
+}
