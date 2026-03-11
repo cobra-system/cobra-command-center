@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Plus, Warehouse, ArrowDown, Phone, User, Trash2, Building2, ArrowLeftRight, AlertTriangle, History, Users, Crown } from "lucide-react";
+import { Plus, Warehouse, ArrowDown, Phone, User, Trash2, Building2, ArrowLeftRight, AlertTriangle, History, Users, Crown, Search, ArrowUpDown, ArrowUp, ArrowDown as ArrowDownIcon } from "lucide-react";
 import { toast } from "sonner";
 
 interface DistributionCenter {
@@ -58,7 +58,10 @@ export default function InventoryPage() {
   const [inventory, setInventory] = useState<CenterInventoryItem[]>([]);
   const [transfers, setTransfers] = useState<InventoryTransfer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("flow");
+  const [detailSearch, setDetailSearch] = useState("");
+  const [detailSortKey, setDetailSortKey] = useState<"name" | "sku" | "total" | null>(null);
+  const [detailSortDir, setDetailSortDir] = useState<"asc" | "desc">("asc");
   const [selectedCenter, setSelectedCenter] = useState<string | null>(null);
 
   const [showAddCenter, setShowAddCenter] = useState(false);
@@ -223,7 +226,6 @@ export default function InventoryPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full justify-start">
-          <TabsTrigger value="overview">סקירה כללית</TabsTrigger>
           <TabsTrigger value="flow">זרימת מלאי</TabsTrigger>
           <TabsTrigger value="details">פירוט מלאי</TabsTrigger>
           <TabsTrigger value="transfers" className="flex items-center gap-1">
@@ -232,120 +234,58 @@ export default function InventoryPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-4">
-          {mainCenter && (
-            <Card className="border-2 border-primary/30">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-lg">{mainCenter.name}</CardTitle>
-                  <Badge variant="default">ראשי</Badge>
-                  {mainCenter.city && <span className="text-sm text-muted-foreground">· {mainCenter.city}</span>}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-4 mb-3">
-                  {getContactsForCenter(mainCenter.id).map(ct => (
-                    <div key={ct.id} className="flex items-center gap-2 text-sm bg-muted/50 rounded-lg px-3 py-1.5">
-                      <User className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span>{ct.name}</span>
-                      {ct.role && <span className="text-muted-foreground">({ct.role})</span>}
-                      {ct.phone && (
-                        <a href={`tel:${ct.phone}`} className="text-primary hover:underline flex items-center gap-1" dir="ltr">
-                          <Phone className="h-3 w-3" />{ct.phone}
-                        </a>
-                      )}
-                    </div>
-                  ))}
-                  <Button size="sm" variant="ghost" onClick={() => { setAddContactCenterId(mainCenter.id); setShowAddContact(true); }}>
-                    <Plus className="h-3 w-3 ml-1" /> איש קשר
-                  </Button>
-                </div>
-                <p className="text-sm text-muted-foreground">סה״כ יחידות: <strong className="text-foreground">{getTotalQty(mainCenter.id)}</strong></p>
-              </CardContent>
-            </Card>
-          )}
-          {mgmtCenter && (
-            <Card className="border-2 border-amber-500/30 bg-amber-500/5">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Crown className="h-5 w-5 text-amber-600" />
-                  <CardTitle className="text-base">ניהול הבונדדים</CardTitle>
-                  <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-700 dark:text-amber-400">
-                    לובינסקי · פריזבי · דלק מוטורס
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-3">
-                  {getContactsForCenter(mgmtCenter.id).map(ct => (
-                    <div key={ct.id} className="flex items-center gap-2 text-sm bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-1.5">
-                      <User className="h-3.5 w-3.5 text-amber-600" />
-                      <span className="font-medium">{ct.name}</span>
-                      {ct.role && <span className="text-muted-foreground text-xs">({ct.role})</span>}
-                      {ct.phone && (
-                        <a href={`tel:${ct.phone}`} className="text-primary hover:underline flex items-center gap-1 text-xs" dir="ltr">
-                          <Phone className="h-3 w-3" />{ct.phone}
-                        </a>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {regularBondedCenters.map(center => (
-              <Card key={center.id} className="relative group">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Warehouse className="h-4 w-4 text-muted-foreground" />
-                      <CardTitle className="text-base">{center.name}</CardTitle>
-                    </div>
-                    {!center.is_main && (
-                      <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDeleteCenter(center.id)}>
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
-                    )}
-                  </div>
-                  <Badge variant="secondary" className="w-fit text-xs">{center.type === 'bonded' ? 'בונדד' : center.type === 'custom' ? 'מותאם' : 'ראשי'}</Badge>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {getContactsForCenter(center.id).map(ct => (
-                    <div key={ct.id} className="flex items-center gap-2 text-xs">
-                      <User className="h-3 w-3 text-muted-foreground" />
-                      <span className="font-medium">{ct.name}</span>
-                      {ct.role && <span className="text-muted-foreground">· {ct.role}</span>}
-                      {ct.phone && (
-                        <a href={`tel:${ct.phone}`} className="text-primary hover:underline flex items-center gap-1 mr-auto" dir="ltr">
-                          <Phone className="h-3 w-3" />{ct.phone}
-                        </a>
-                      )}
-                    </div>
-                  ))}
-                  <Button size="sm" variant="ghost" className="text-xs h-6" onClick={() => { setAddContactCenterId(center.id); setShowAddContact(true); }}>
-                    <Plus className="h-3 w-3 ml-1" /> איש קשר
-                  </Button>
-                  <div className="pt-2 border-t">
-                    <p className="text-xs text-muted-foreground">סה״כ יחידות: <strong className="text-foreground">{getTotalQty(center.id)}</strong></p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
         <TabsContent value="flow">
           <FlowVisualization mainCenter={mainCenter} bondedCenters={bondedCenters} inventory={inventory} products={products} />
         </TabsContent>
 
         <TabsContent value="details" className="space-y-4">
+          {/* Center filter */}
           <div className="flex gap-2 flex-wrap">
             <Button variant={selectedCenter === null ? "default" : "outline"} size="sm" onClick={() => setSelectedCenter(null)}>כל המרכזים</Button>
             {centers.map(c => (
               <Button key={c.id} variant={selectedCenter === c.id ? "default" : "outline"} size="sm" onClick={() => setSelectedCenter(c.id)}>{c.name}</Button>
             ))}
+          </div>
+          {/* Search + sort */}
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="חיפוש לפי שם מוצר או SKU..."
+                value={detailSearch}
+                onChange={e => setDetailSearch(e.target.value)}
+                className="pr-9"
+              />
+            </div>
+            <div className="flex gap-1">
+              {([
+                { key: "name" as const, label: "שם" },
+                { key: "sku" as const, label: "SKU" },
+                { key: "total" as const, label: "סה״כ" },
+              ]).map(({ key, label }) => (
+                <Button
+                  key={key}
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => {
+                    if (detailSortKey === key) {
+                      setDetailSortDir(d => d === "asc" ? "desc" : "asc");
+                    } else {
+                      setDetailSortKey(key);
+                      setDetailSortDir("asc");
+                    }
+                  }}
+                >
+                  {label}
+                  {detailSortKey === key ? (
+                    detailSortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDownIcon className="h-3 w-3" />
+                  ) : (
+                    <ArrowUpDown className="h-3 w-3 opacity-40" />
+                  )}
+                </Button>
+              ))}
+            </div>
           </div>
           <Card>
             <div className="overflow-x-auto">
@@ -354,7 +294,7 @@ export default function InventoryPage() {
                   <TableRow>
                     <TableHead className="text-right">מוצר</TableHead>
                     <TableHead className="text-right">SKU</TableHead>
-                    {(selectedCenter ? [centers.find(c => c.id === selectedCenter)!] : centers).map(c => (
+                    {(selectedCenter ? [centers.find(c => c.id === selectedCenter)!].filter(Boolean) : centers).map(c => (
                       <TableHead key={c.id} className="text-center min-w-[140px]">
                         <div>{c.name}</div>
                         <div className="text-[10px] text-muted-foreground font-normal">כמות / מינימום</div>
@@ -364,45 +304,67 @@ export default function InventoryPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products.map(p => {
-                    const displayCenters = selectedCenter ? [centers.find(c => c.id === selectedCenter)!] : centers;
-                    const totalForProduct = displayCenters.reduce((sum, c) => {
-                      const inv = inventory.find(i => i.center_id === c.id && i.product_id === p.id);
-                      return sum + (inv?.quantity || 0);
-                    }, 0);
-                    return (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-medium text-right">{p.name}</TableCell>
-                        <TableCell className="text-muted-foreground text-xs text-right" dir="ltr">{p.sku}</TableCell>
-                        {displayCenters.map(c => {
-                          const inv = inventory.find(i => i.center_id === c.id && i.product_id === p.id);
-                          const isLow = inv && inv.min_stock > 0 && inv.quantity < inv.min_stock;
-                          return (
-                            <TableCell key={c.id} className="text-center">
-                              <div className="flex items-center justify-center gap-1">
-                                <Input
-                                  type="number" min={0}
-                                  value={inv?.quantity ?? 0}
-                                  onChange={e => handleUpdateInventory(c.id, p.id, parseInt(e.target.value) || 0)}
-                                  className={`w-16 h-7 text-center text-sm ${isLow ? "border-destructive bg-destructive/5" : ""}`}
-                                />
-                                <span className="text-muted-foreground text-xs">/</span>
-                                <Input
-                                  type="number" min={0}
-                                  value={inv?.min_stock ?? 0}
-                                  onChange={e => handleUpdateMinStock(c.id, p.id, parseInt(e.target.value) || 0)}
-                                  className="w-14 h-7 text-center text-xs text-muted-foreground"
-                                  title="סף מינימום"
-                                />
-                                {isLow && <AlertTriangle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />}
-                              </div>
-                            </TableCell>
-                          );
-                        })}
-                        <TableCell className="text-center font-bold">{totalForProduct}</TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {(() => {
+                    const displayCenters = selectedCenter
+                      ? [centers.find(c => c.id === selectedCenter)!].filter(Boolean)
+                      : centers;
+                    let filtered = products.filter(p => {
+                      if (!detailSearch) return true;
+                      const q = detailSearch.toLowerCase();
+                      return p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
+                    });
+                    if (detailSortKey) {
+                      filtered = [...filtered].sort((a, b) => {
+                        let cmp = 0;
+                        if (detailSortKey === "name") cmp = a.name.localeCompare(b.name, "he");
+                        else if (detailSortKey === "sku") cmp = a.sku.localeCompare(b.sku);
+                        else if (detailSortKey === "total") {
+                          const aTotal = displayCenters.reduce((s, c) => s + (inventory.find(i => i.center_id === c.id && i.product_id === a.id)?.quantity || 0), 0);
+                          const bTotal = displayCenters.reduce((s, c) => s + (inventory.find(i => i.center_id === c.id && i.product_id === b.id)?.quantity || 0), 0);
+                          cmp = aTotal - bTotal;
+                        }
+                        return detailSortDir === "asc" ? cmp : -cmp;
+                      });
+                    }
+                    return filtered.map(p => {
+                      const totalForProduct = displayCenters.reduce((sum, c) => {
+                        const inv = inventory.find(i => i.center_id === c.id && i.product_id === p.id);
+                        return sum + (inv?.quantity || 0);
+                      }, 0);
+                      return (
+                        <TableRow key={p.id}>
+                          <TableCell className="font-medium text-right">{p.name}</TableCell>
+                          <TableCell className="text-muted-foreground text-xs text-right" dir="ltr">{p.sku}</TableCell>
+                          {displayCenters.map(c => {
+                            const inv = inventory.find(i => i.center_id === c.id && i.product_id === p.id);
+                            const isLow = inv && inv.min_stock > 0 && inv.quantity < inv.min_stock;
+                            return (
+                              <TableCell key={c.id} className="text-center">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Input
+                                    type="number" min={0}
+                                    value={inv?.quantity ?? 0}
+                                    onChange={e => handleUpdateInventory(c.id, p.id, parseInt(e.target.value) || 0)}
+                                    className={`w-16 h-7 text-center text-sm ${isLow ? "border-destructive bg-destructive/5" : ""}`}
+                                  />
+                                  <span className="text-muted-foreground text-xs">/</span>
+                                  <Input
+                                    type="number" min={0}
+                                    value={inv?.min_stock ?? 0}
+                                    onChange={e => handleUpdateMinStock(c.id, p.id, parseInt(e.target.value) || 0)}
+                                    className="w-14 h-7 text-center text-xs text-muted-foreground"
+                                    title="סף מינימום"
+                                  />
+                                  {isLow && <AlertTriangle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />}
+                                </div>
+                              </TableCell>
+                            );
+                          })}
+                          <TableCell className="text-center font-bold">{totalForProduct}</TableCell>
+                        </TableRow>
+                      );
+                    });
+                  })()}
                 </TableBody>
               </Table>
             </div>

@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ArrowRight, Package, Boxes, TruckIcon, Pencil, ExternalLink, Plus, Trash2, Save, X } from "lucide-react";
 import ProductIssuesTab from "@/components/ProductIssuesTab";
 import ProductLicensesTab from "@/components/ProductLicensesTab";
+import DocumentsSection from "@/components/DocumentsSection";
 import ProductEditDialog from "@/components/products/ProductEditDialog";
 import SupplierComparisonPanel from "@/components/SupplierComparisonPanel";
 import { InlineEditField } from "@/components/InlineEditField";
@@ -397,6 +398,9 @@ export default function ProductDetailPage() {
           <p className="text-sm text-muted-foreground py-4 text-center">אין הזמנות קשורות למוצר זה</p>
         )}
       </div>
+
+      {/* Documents */}
+      <DocumentsSection productId={product.id} />
 
       {/* Product Licenses Tab */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
