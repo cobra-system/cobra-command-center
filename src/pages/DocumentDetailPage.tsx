@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { InlineEditField } from "@/components/InlineEditField";
-import { ArrowRight, FileText, Upload, ExternalLink, X, Loader2 } from "lucide-react";
+import { ArrowRight, FileText, Upload, ExternalLink, X, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
+import type { Payment } from "@/components/documents/types";
+import { docStatusFlow, docStatusColors, currencySymbol, payStatusColors, paymentTypeLabels } from "@/components/documents/constants";
 
 interface PurchaseDocument {
   id: string;
@@ -29,15 +31,6 @@ interface PurchaseDocument {
   notes: string | null;
   created_at: string;
 }
-
-const docStatusFlow = ["ממתין לאישור", "אושר", "נשלח לספק", "בוצע"];
-const docStatusColors: Record<string, string> = {
-  "ממתין לאישור": "bg-warning/15 text-warning",
-  "אושר": "bg-primary/15 text-primary",
-  "נשלח לספק": "bg-accent/15 text-accent",
-  "בוצע": "bg-success/15 text-success",
-};
-const currencySymbol: Record<string, string> = { USD: "$", EUR: "€", ILS: "₪" };
 
 function FilePreview({ url, filename }: { url: string; filename?: string }) {
   const [urlValid, setUrlValid] = useState<boolean | null>(null);
@@ -132,14 +125,19 @@ export default function DocumentDetailPage() {
   const { currentUser } = useAuth();
 
   const [doc, setDoc] = useState<PurchaseDocument | null>(null);
+  const [linkedPayments, setLinkedPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
   const fetchDoc = useCallback(async () => {
     if (!id) return;
     setLoading(true);
-    const { data } = await supabase.from("purchase_documents").select("*").eq("id", id).single();
-    if (data) setDoc(data as PurchaseDocument);
+    const [docRes, paysRes] = await Promise.all([
+      supabase.from("purchase_documents").select("*").eq("id", id).single(),
+      supabase.from("supplier_payments").select("*").eq("document_id", id).order("created_at", { ascending: false }),
+    ]);
+    if (docRes.data) setDoc(docRes.data as PurchaseDocument);
+    if (paysRes.data) setLinkedPayments(paysRes.data as Payment[]);
     setLoading(false);
   }, [id]);
 
@@ -211,6 +209,7 @@ export default function DocumentDetailPage() {
   const productName = products.find(p => p.id === doc.product_id)?.name;
   const linkedOrder = orders.find(o => o.id === (doc as any).order_id);
   const linkedTask = tasks.find(t => t.id === (doc as any).task_id);
+  const currentStepIdx = docStatusFlow.indexOf(doc.status);
 
   return (
     <div className="space-y-6">
@@ -410,6 +409,84 @@ export default function DocumentDetailPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Status Timeline */}
+      <div className="bg-card rounded-xl border shadow-sm p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-foreground">מצב מסמך</h2>
+          {currentStepIdx >= 0 && currentStepIdx < docStatusFlow.length - 1 && (
+            <Button size="sm" onClick={() => handleStatusChange(docStatusFlow[currentStepIdx + 1])}>
+              <Check className="h-4 w-4 ml-1" />קדם ל: {docStatusFlow[currentStepIdx + 1]}
+            </Button>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {docStatusFlow.map((step, i) => {
+            const isActive = i <= currentStepIdx;
+            const isCurrent = i === currentStepIdx;
+            return (
+              <div key={step} className="flex-1">
+                <div className={cn(
+                  "text-center py-2 px-1 rounded-lg text-xs font-medium border transition-colors",
+                  isCurrent ? `${docStatusColors[step]} border-current` : isActive ? "bg-muted text-foreground border-transparent" : "bg-muted/30 text-muted-foreground border-transparent"
+                )}>
+                  {step}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {doc.approval_date && (
+          <p className="text-xs text-muted-foreground mt-3">אושר ב-{format(new Date(doc.approval_date), "dd/MM/yyyy")}</p>
+        )}
+      </div>
+
+      {/* Linked Payments */}
+      <div className="bg-card rounded-xl border shadow-sm p-5">
+        <h2 className="text-base font-semibold text-foreground mb-4">תשלומים מקושרים ({linkedPayments.length})</h2>
+        {linkedPayments.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">אין תשלומים מקושרים למסמך זה</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b bg-muted/50">
+                <th className="text-right p-3 font-semibold text-foreground">סכום</th>
+                <th className="text-right p-3 font-semibold text-foreground">סוג</th>
+                <th className="text-right p-3 font-semibold text-foreground">מועד פירעון</th>
+                <th className="text-right p-3 font-semibold text-foreground">סטטוס</th>
+                <th className="text-right p-3 font-semibold text-foreground">פעולה</th>
+              </tr></thead>
+              <tbody className="divide-y">
+                {linkedPayments.map(p => {
+                  const isOverdue = p.status !== "שולם" && p.due_date && isPast(new Date(p.due_date));
+                  const displayStatus = isOverdue ? "מאוחר" : p.status;
+                  return (
+                    <tr key={p.id} className={isOverdue ? "bg-destructive/5" : ""}>
+                      <td className="p-3 font-mono" dir="ltr">{currencySymbol[p.currency] || ""}{p.amount.toLocaleString()}</td>
+                      <td className="p-3 text-muted-foreground">{paymentTypeLabels[p.payment_type] || p.payment_type}</td>
+                      <td className="p-3 text-muted-foreground text-xs">{p.due_date ? format(new Date(p.due_date), "dd/MM/yy") : "—"}</td>
+                      <td className="p-3">
+                        <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", payStatusColors[displayStatus] || "bg-muted text-muted-foreground")}>
+                          {displayStatus}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        {p.status !== "שולם" && (
+                          <Button variant="outline" size="sm" onClick={async () => {
+                            await supabase.from("supplier_payments").update({ status: "שולם", paid_date: new Date().toISOString().split("T")[0] }).eq("id", p.id);
+                            toast.success("סומן כשולם");
+                            fetchDoc();
+                          }}>סמן כשולם</Button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
