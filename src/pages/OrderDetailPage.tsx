@@ -290,8 +290,8 @@ export default function OrderDetailPage() {
         )}
       </div>
 
-      {/* Documents */}
-      {order.supplier_id && <DocumentsSection supplierId={order.supplier_id} />}
+      {/* Documents linked to this order */}
+      <DocumentsSection orderId={order.id} />
 
       {/* Edit Dialog */}
       <OrderEditDialog open={editOpen} onOpenChange={setEditOpen} order={order} suppliers={suppliers} onSave={updateOrder} />
