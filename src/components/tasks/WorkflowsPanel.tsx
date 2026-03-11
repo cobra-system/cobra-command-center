@@ -17,8 +17,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { he } from "date-fns/locale";
-import { Zap, Check, CalendarIcon, Mail, Loader2, ChevronLeft, XCircle, Plus, Trash2, GripVertical, Settings } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { Zap, Check, CalendarIcon, Mail, Loader2, ChevronLeft, XCircle, Plus, Trash2, GripVertical, Settings, Copy } from "lucide-react";
+import { toast } from "sonner";
 
 interface WorkflowStep {
   index: number; name: string; description: string; action: string;
@@ -108,7 +108,7 @@ export default function WorkflowsPanel() {
     await supabase.from("workflow_instances").update({
       current_step: isLast ? idx : idx + 1, status: isLast ? "completed" : "active",
     }).eq("id", selectedInstance.id);
-    toast({ title: "✅ שלב הושלם", description: step.name });
+    toast.success(`שלב הושלם: ${step.name}`);
     setStepNotes(""); setEtaDate(undefined); setCompleting(false); setSelectedInstance(null); fetchData();
   };
 
@@ -117,8 +117,25 @@ export default function WorkflowsPanel() {
     setCancellingId(id);
     await supabase.from("workflow_step_logs").insert({ instance_id: id, step_index: -1, completed_by: currentUser?.name || "Unknown", notes: `ביטול: ${cancelReason}` });
     await supabase.from("workflow_instances").update({ status: "cancelled" }).eq("id", id);
-    toast({ title: "❌ התהליך בוטל" });
+    toast.success("התהליך בוטל");
     setCancellingId(null); setCancelReason(""); setSelectedInstance(null); fetchData();
+  };
+
+  const deleteTemplate = async (id: string) => {
+    await supabase.from("workflow_templates").delete().eq("id", id);
+    toast.success("תבנית נמחקה");
+    fetchData();
+  };
+
+  const duplicateTemplate = async (tpl: WorkflowTemplate) => {
+    await supabase.from("workflow_templates").insert({
+      name: `${tpl.name} (עותק)`,
+      description: tpl.description || null,
+      category: tpl.category,
+      steps: tpl.steps as any,
+    });
+    toast.success("תבנית שוכפלה");
+    fetchData();
   };
 
   if (loading) return <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
@@ -187,9 +204,31 @@ export default function WorkflowsPanel() {
                 <div key={tpl.id} className="bg-card rounded-xl border p-4">
                   <div className="flex items-start justify-between mb-2">
                     <h4 className="text-sm font-semibold text-foreground">{tpl.name}</h4>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingTemplate(tpl); setTemplateDialogOpen(true); }}>
-                      <Settings className="h-3.5 w-3.5" />
-                    </Button>
+                    <div className="flex items-center gap-0.5">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => duplicateTemplate(tpl)} title="שכפל">
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingTemplate(tpl); setTemplateDialogOpen(true); }}>
+                        <Settings className="h-3.5 w-3.5" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>מחיקת תבנית</AlertDialogTitle>
+                            <AlertDialogDescription>למחוק את "{tpl.name}"?</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>ביטול</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteTemplate(tpl.id)} className="bg-destructive text-destructive-foreground">מחק</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
                   <p className="text-xs text-muted-foreground mb-2">{tpl.description || "—"}</p>
                   <div className="space-y-0.5">
@@ -322,6 +361,14 @@ function TemplateFormDialog({ open, onOpenChange, template, onSaved }: { open: b
     setSaving(false); onSaved();
   };
 
+  const moveStep = (idx: number, dir: -1 | 1) => {
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= steps.length) return;
+    const newSteps = [...steps];
+    [newSteps[idx], newSteps[newIdx]] = [newSteps[newIdx], newSteps[idx]];
+    setSteps(newSteps);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
@@ -345,7 +392,13 @@ function TemplateFormDialog({ open, onOpenChange, template, onSaved }: { open: b
           {steps.map((step, idx) => (
             <div key={idx} className="border rounded-lg p-3 space-y-2 bg-muted/20">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground flex items-center gap-1"><GripVertical className="h-3 w-3" />שלב {idx + 1}</span>
+                <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <GripVertical className="h-3 w-3" />שלב {idx + 1}
+                  <div className="flex gap-0.5 mr-2">
+                    <button onClick={() => moveStep(idx, -1)} disabled={idx === 0} className="text-xs px-1 rounded hover:bg-muted disabled:opacity-30">▲</button>
+                    <button onClick={() => moveStep(idx, 1)} disabled={idx === steps.length - 1} className="text-xs px-1 rounded hover:bg-muted disabled:opacity-30">▼</button>
+                  </div>
+                </span>
                 {steps.length > 1 && <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => setSteps(steps.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3" /></Button>}
               </div>
               <div className="grid grid-cols-2 gap-2">

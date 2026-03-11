@@ -23,6 +23,8 @@ export default function SupplierDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [addContactOpen, setAddContactOpen] = useState(false);
+  const [editContactOpen, setEditContactOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<SupplierContact | null>(null);
   const [newContact, setNewContact] = useState({ name: "", role: "", email: "", phone: "" });
   const [savingContact, setSavingContact] = useState(false);
   const [linkProductOpen, setLinkProductOpen] = useState(false);
@@ -45,7 +47,6 @@ export default function SupplierDetailPage() {
   const relatedOrders = orders.filter(o => o.supplier_id === supplier.id || o.supplier_name === supplier.company);
   const relatedProducts = products.filter(p => p.supplier === supplier.company);
   
-  // Products where a component references this supplier
   const componentProducts = products
     .filter(p => p.product_type === "מורכב" && p.components?.some(c => c.supplier === supplier.company))
     .filter(p => !relatedProducts.some(rp => rp.id === p.id))
@@ -87,6 +88,37 @@ export default function SupplierDetailPage() {
     } finally {
       setSavingContact(false);
     }
+  };
+
+  const handleEditContact = async () => {
+    if (!editingContact || !newContact.name.trim()) return;
+    setSavingContact(true);
+    try {
+      await supabase.from("supplier_contacts").update({
+        name: newContact.name,
+        role: newContact.role || null,
+        email: newContact.email || null,
+        phone: newContact.phone || null,
+      }).eq("id", editingContact.id);
+      await refreshSuppliers();
+      setNewContact({ name: "", role: "", email: "", phone: "" });
+      setEditContactOpen(false);
+      setEditingContact(null);
+      toast.success("איש קשר עודכן");
+    } finally {
+      setSavingContact(false);
+    }
+  };
+
+  const openEditContact = (contact: SupplierContact) => {
+    setEditingContact(contact);
+    setNewContact({
+      name: contact.name,
+      role: contact.role || "",
+      email: contact.email || "",
+      phone: contact.phone || "",
+    });
+    setEditContactOpen(true);
   };
 
   const handleDeleteContact = async (contactId: string) => {
@@ -185,7 +217,7 @@ export default function SupplierDetailPage() {
               <h2 className="text-lg font-semibold text-foreground">אנשי קשר ({contacts.length})</h2>
             </div>
             {isManager && (
-              <Button variant="outline" size="sm" onClick={() => setAddContactOpen(true)}>
+              <Button variant="outline" size="sm" onClick={() => { setNewContact({ name: "", role: "", email: "", phone: "" }); setAddContactOpen(true); }}>
                 <UserPlus className="h-4 w-4 ml-1" />הוסף איש קשר
               </Button>
             )}
@@ -217,9 +249,14 @@ export default function SupplierDetailPage() {
                     </div>
                   </div>
                   {isManager && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteContact(contact.id)}>
-                      <X className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => openEditContact(contact)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteContact(contact.id)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -353,29 +390,15 @@ export default function SupplierDetailPage() {
       <Dialog open={addContactOpen} onOpenChange={setAddContactOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>הוספת איש קשר</DialogTitle></DialogHeader>
-          <div className="space-y-3 pt-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">שם *</Label>
-                <Input value={newContact.name} onChange={e => setNewContact(p => ({ ...p, name: e.target.value }))} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">תפקיד</Label>
-                <Input value={newContact.role} onChange={e => setNewContact(p => ({ ...p, role: e.target.value }))} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">אימייל</Label>
-                <Input type="email" value={newContact.email} onChange={e => setNewContact(p => ({ ...p, email: e.target.value }))} dir="ltr" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">טלפון</Label>
-                <Input value={newContact.phone} onChange={e => setNewContact(p => ({ ...p, phone: e.target.value }))} dir="ltr" />
-              </div>
-            </div>
-            <Button onClick={handleAddContact} className="w-full" disabled={savingContact || !newContact.name.trim()}>
-              {savingContact ? "שומר..." : "הוסף"}
-            </Button>
-          </div>
+          <ContactForm contact={newContact} setContact={setNewContact} saving={savingContact} onSubmit={handleAddContact} submitLabel="הוסף" />
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Contact Dialog */}
+      <Dialog open={editContactOpen} onOpenChange={(open) => { setEditContactOpen(open); if (!open) setEditingContact(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>עריכת איש קשר</DialogTitle></DialogHeader>
+          <ContactForm contact={newContact} setContact={setNewContact} saving={savingContact} onSubmit={handleEditContact} submitLabel="שמור שינויים" />
         </DialogContent>
       </Dialog>
 
@@ -390,6 +413,41 @@ export default function SupplierDetailPage() {
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// Reusable contact form
+function ContactForm({ contact, setContact, saving, onSubmit, submitLabel }: {
+  contact: { name: string; role: string; email: string; phone: string };
+  setContact: (c: any) => void;
+  saving: boolean;
+  onSubmit: () => void;
+  submitLabel: string;
+}) {
+  return (
+    <div className="space-y-3 pt-2">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label className="text-xs">שם *</Label>
+          <Input value={contact.name} onChange={e => setContact((p: any) => ({ ...p, name: e.target.value }))} />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">תפקיד</Label>
+          <Input value={contact.role} onChange={e => setContact((p: any) => ({ ...p, role: e.target.value }))} />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">אימייל</Label>
+          <Input type="email" value={contact.email} onChange={e => setContact((p: any) => ({ ...p, email: e.target.value }))} dir="ltr" />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">טלפון</Label>
+          <Input value={contact.phone} onChange={e => setContact((p: any) => ({ ...p, phone: e.target.value }))} dir="ltr" />
+        </div>
+      </div>
+      <Button onClick={onSubmit} className="w-full" disabled={saving || !contact.name.trim()}>
+        {saving ? "שומר..." : submitLabel}
+      </Button>
     </div>
   );
 }

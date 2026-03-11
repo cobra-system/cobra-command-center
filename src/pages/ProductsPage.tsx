@@ -1,11 +1,13 @@
 import { useState, useMemo, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
-import { useData, categories, type Product } from "@/contexts/AppContext";
-import { Search, ChevronDown, ChevronUp, Boxes, Plus, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { useData, useAuth, categories, type Product } from "@/contexts/AppContext";
+import { Search, ChevronDown, ChevronUp, Boxes, Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import ProductFormDialog from "@/components/products/ProductFormDialog";
+import { toast } from "sonner";
 
 type SortKey = "name" | "sku" | "product_type" | "supplier" | "stock_qty" | "incoming_qty" | "purchase_price" | "monthly_order";
 type SortDir = "asc" | "desc";
@@ -22,7 +24,8 @@ const sortableColumns: { key: SortKey; label: string }[] = [
 ];
 
 export default function ProductsPage() {
-  const { products, suppliers } = useData();
+  const { products, suppliers, deleteProduct } = useData();
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [category, setCategory] = useState("הכל");
   const [typeFilter, setTypeFilter] = useState<"all" | "מוגמר" | "מורכב">("all");
@@ -33,6 +36,8 @@ export default function ProductsPage() {
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  const isManager = currentUser?.role === "MANAGER";
 
   const filtered = useMemo(() => {
     let result = products.filter(p => {
@@ -77,6 +82,11 @@ export default function ProductsPage() {
     return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   };
 
+  const handleDelete = async (productId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await deleteProduct(productId);
+    toast.success("המוצר נמחק");
+  };
 
   const toggleExpand = (id: string) => setExpandedId(prev => prev === id ? null : id);
   const openAdd = () => { setEditProduct(null); setFormOpen(true); };
@@ -135,11 +145,12 @@ export default function ProductsPage() {
                   </button>
                 </th>
               ))}
+              {isManager && <th className="text-right p-3 font-semibold text-foreground w-10"></th>}
             </tr>
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">לא נמצאו מוצרים</td></tr>
+              <tr><td colSpan={isManager ? 10 : 9} className="p-8 text-center text-muted-foreground">לא נמצאו מוצרים</td></tr>
             ) : filtered.map(p => {
               const isComposite = p.product_type === "מורכב";
               const isExpanded = expandedId === p.id;
@@ -189,12 +200,33 @@ export default function ProductsPage() {
                     <td className="p-3 text-muted-foreground">{p.incoming_qty || "—"}</td>
                     <td className="p-3 text-muted-foreground">{p.purchase_price ? `$${p.purchase_price}` : "—"}</td>
                     <td className="p-3 text-muted-foreground">{p.monthly_order || "—"}</td>
+                    {isManager && (
+                      <td className="p-3" onClick={e => e.stopPropagation()}>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <button className="p-1 rounded hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100">
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            </button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>מחיקת מוצר</AlertDialogTitle>
+                              <AlertDialogDescription>האם למחוק את "{p.name}"? פעולה זו לא ניתנת לביטול.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>ביטול</AlertDialogCancel>
+                              <AlertDialogAction onClick={(e) => handleDelete(p.id, e)} className="bg-destructive text-destructive-foreground">מחק</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </td>
+                    )}
                   </tr>
 
                   {/* Expanded components */}
                   {isExpanded && hasComponents && (
                     <tr>
-                      <td colSpan={9} className="p-0">
+                      <td colSpan={isManager ? 10 : 9} className="p-0">
                         <div className="bg-muted/30 border-t border-b px-6 py-3">
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
@@ -235,7 +267,7 @@ export default function ProductsPage() {
                   )}
                   {isExpanded && isComposite && !hasComponents && (
                     <tr>
-                      <td colSpan={9} className="p-0">
+                      <td colSpan={isManager ? 10 : 9} className="p-0">
                         <div className="bg-muted/30 border-t border-b px-6 py-4 text-center text-xs text-muted-foreground">
                           לא הוגדרו רכיבים למוצר זה
                         </div>
