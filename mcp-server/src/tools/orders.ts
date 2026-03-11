@@ -1,0 +1,144 @@
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import { supabase } from "../supabase.js";
+
+export function registerOrderTools(server: McpServer) {
+  server.tool(
+    "list_orders",
+    "רשימת הזמנות — List orders, optionally filtered by status/supplier/priority",
+    {
+      status: z.string().optional().describe("Filter by status"),
+      supplier_id: z.string().uuid().optional().describe("Filter by supplier UUID"),
+      priority: z.string().optional().describe("Filter by priority"),
+      limit: z.number().default(50).describe("Max results"),
+    },
+    async ({ status, supplier_id, priority, limit }) => {
+      let query = supabase
+        .from("orders")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+      if (status) query = query.eq("status", status);
+      if (supplier_id) query = query.eq("supplier_id", supplier_id);
+      if (priority) query = query.eq("priority", priority);
+
+      const { data, error } = await query;
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "get_order",
+    "פרטי הזמנה — Get a single order with its items",
+    {
+      id: z.string().uuid().describe("Order UUID"),
+    },
+    async ({ id }) => {
+      const [orderRes, itemsRes] = await Promise.all([
+        supabase.from("orders").select("*").eq("id", id).single(),
+        supabase.from("order_items").select("*").eq("order_id", id),
+      ]);
+
+      if (orderRes.error) return { content: [{ type: "text" as const, text: `Error: ${orderRes.error.message}` }] };
+
+      const result = {
+        ...orderRes.data,
+        items: itemsRes.data || [],
+      };
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "create_order",
+    "יצירת הזמנה חדשה — Create a new order",
+    {
+      supplier_id: z.string().uuid().optional().describe("Supplier UUID"),
+      supplier_name: z.string().optional().describe("Supplier name"),
+      status: z.string().default("חדשה").describe("Order status"),
+      priority: z.string().default("רגיל").describe("Order priority"),
+      notes: z.string().optional().describe("Order notes"),
+      eta: z.string().optional().describe("Estimated arrival date (YYYY-MM-DD)"),
+      etd: z.string().optional().describe("Estimated departure date (YYYY-MM-DD)"),
+      items: z.array(z.object({
+        name: z.string().describe("Item name"),
+        qty: z.number().describe("Quantity"),
+        product_id: z.string().uuid().optional().describe("Product UUID"),
+        price: z.number().optional().describe("Unit price"),
+      })).optional().describe("Order line items"),
+    },
+    async ({ supplier_id, supplier_name, status, priority, notes, eta, etd, items }) => {
+      const { data: order, error: orderError } = await supabase
+        .from("orders")
+        .insert({
+          supplier_id: supplier_id || null,
+          supplier_name: supplier_name || null,
+          status,
+          priority,
+          notes: notes || null,
+          eta: eta || null,
+          etd: etd || null,
+        })
+        .select()
+        .single();
+
+      if (orderError) return { content: [{ type: "text" as const, text: `Error creating order: ${orderError.message}` }] };
+
+      if (items && items.length > 0) {
+        const orderItems = items.map((item) => ({
+          order_id: order.id,
+          name: item.name,
+          qty: item.qty,
+          product_id: item.product_id || null,
+          price: item.price || null,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from("order_items")
+          .insert(orderItems);
+
+        if (itemsError) {
+          return { content: [{ type: "text" as const, text: `Order created but items failed: ${itemsError.message}\nOrder: ${JSON.stringify(order, null, 2)}` }] };
+        }
+      }
+
+      return { content: [{ type: "text" as const, text: `Order created:\n${JSON.stringify(order, null, 2)}` }] };
+    }
+  );
+
+  server.tool(
+    "update_order",
+    "עדכון הזמנה — Update order status, dates, notes, etc.",
+    {
+      id: z.string().uuid().describe("Order UUID"),
+      status: z.string().optional().describe("New status"),
+      priority: z.string().optional().describe("New priority"),
+      notes: z.string().optional().describe("Updated notes"),
+      eta: z.string().optional().describe("Updated ETA (YYYY-MM-DD)"),
+      etd: z.string().optional().describe("Updated ETD (YYYY-MM-DD)"),
+      shipping: z.string().optional().describe("Shipping info"),
+    },
+    async ({ id, ...fields }) => {
+      const updates: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(fields)) {
+        if (value !== undefined) updates[key] = value;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return { content: [{ type: "text" as const, text: "No fields to update" }] };
+      }
+
+      const { data, error } = await supabase
+        .from("orders")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Order updated:\n${JSON.stringify(data, null, 2)}` }] };
+    }
+  );
+}
