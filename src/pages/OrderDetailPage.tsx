@@ -67,32 +67,76 @@ export default function OrderDetailPage() {
     toast.success("עודכן");
   };
 
-  const InfoCard = ({ icon: Icon, label, value, field, editable = false }: { icon: any; label: string; value: string | React.ReactNode; field?: string; editable?: boolean }) => {
-    if (editable && isManager && field && typeof value === "string") {
-      return (
-        <div className="bg-card rounded-xl border p-4 space-y-1">
-          <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
-            <Icon className="h-3.5 w-3.5" />
-            {label}
-          </div>
-          <InlineEditField
-            value={value === "—" ? "" : value}
-            onSave={(v) => handleInlineSave(field, v)}
-            type={field === "total_price" ? "number" : "text"}
-          />
-        </div>
-      );
-    }
+  const handleDateSave = async (field: string, date: Date | undefined) => {
+    await updateOrder(order.id, { [field]: date ? date.toISOString() : null } as any);
+    toast.success("עודכן");
+  };
+
+  // Inline date picker card
+  const DateCard = ({ icon: Icon, label, field, value }: { icon: any; label: string; field: string; value: string | null | undefined }) => {
+    const [open, setOpen] = useState(false);
+    const date = value ? new Date(value) : undefined;
     return (
       <div className="bg-card rounded-xl border p-4 space-y-1">
         <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
-          <Icon className="h-3.5 w-3.5" />
-          {label}
+          <Icon className="h-3.5 w-3.5" />{label}
         </div>
-        <div className="text-sm font-semibold text-foreground">{value}</div>
+        {isManager ? (
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <button className="text-sm font-semibold text-foreground hover:text-primary hover:underline text-right w-full" title="לחץ לעריכה">
+                {date ? date.toLocaleDateString("he-IL") : <span className="text-muted-foreground font-normal">לחץ לבחירה</span>}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <CalendarComp
+                mode="single"
+                selected={date}
+                onSelect={(d) => { handleDateSave(field, d); setOpen(false); }}
+                initialFocus
+                className="p-3 pointer-events-auto"
+              />
+              {date && (
+                <div className="px-3 pb-3">
+                  <button onClick={() => { handleDateSave(field, undefined); setOpen(false); }} className="text-xs text-destructive hover:underline">נקה תאריך</button>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
+        ) : (
+          <div className="text-sm font-semibold text-foreground">{date ? date.toLocaleDateString("he-IL") : "—"}</div>
+        )}
       </div>
     );
   };
+
+  // Inline text/number card
+  const EditCard = ({ icon: Icon, label, field, value, type = "text" }: { icon: any; label: string; field: string; value: string | null | undefined; type?: "text" | "number" }) => (
+    <div className="bg-card rounded-xl border p-4 space-y-1">
+      <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
+        <Icon className="h-3.5 w-3.5" />{label}
+      </div>
+      {isManager ? (
+        <InlineEditField
+          value={value ?? ""}
+          onSave={(v) => handleInlineSave(field, v)}
+          type={type}
+        />
+      ) : (
+        <div className="text-sm font-semibold text-foreground">{value || "—"}</div>
+      )}
+    </div>
+  );
+
+  // Read-only info card
+  const InfoCard = ({ icon: Icon, label, value }: { icon: any; label: string; value: any }) => (
+    <div className="bg-card rounded-xl border p-4 space-y-1">
+      <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
+        <Icon className="h-3.5 w-3.5" />{label}
+      </div>
+      <div className="text-sm font-semibold text-foreground">{value || "—"}</div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -146,15 +190,15 @@ export default function OrderDetailPage() {
           }
         />
         <InfoCard icon={Calendar} label="תאריך הזמנה" value={order.order_date ? new Date(order.order_date).toLocaleDateString("he-IL") : "—"} />
-        <InfoCard icon={DollarSign} label="סה״כ" value={order.total_price ? `$${order.total_price.toLocaleString()}` : "—"} field="total_price" editable />
+        <EditCard icon={DollarSign} label="סה״כ" field="total_price" value={order.total_price?.toString() ?? ""} type="number" />
       </div>
 
       {/* Dates & shipping */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <InfoCard icon={Calendar} label="ETD (יציאה)" value={order.etd ? new Date(order.etd).toLocaleDateString("he-IL") : "—"} />
-        <InfoCard icon={Calendar} label="ETA (הגעה)" value={order.eta ? new Date(order.eta).toLocaleDateString("he-IL") : "—"} />
-        <InfoCard icon={Truck} label="שיטת משלוח" value={order.shipping || "—"} field="shipping" editable />
-        <InfoCard icon={CreditCard} label="תאריך תשלום" value={order.payment_date ? new Date(order.payment_date).toLocaleDateString("he-IL") : "—"} />
+        <DateCard icon={Calendar} label="ETD (יציאה)" field="etd" value={order.etd} />
+        <DateCard icon={Calendar} label="ETA (הגעה)" field="eta" value={order.eta} />
+        <EditCard icon={Truck} label="שיטת משלוח" field="shipping" value={order.shipping ?? ""} />
+        <DateCard icon={CreditCard} label="תאריך תשלום" field="payment_date" value={order.payment_date} />
       </div>
 
       {/* Items */}
