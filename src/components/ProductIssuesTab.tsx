@@ -1,15 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useData } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertTriangle, Plus, Mail, MessageCircle, CheckCircle, ArrowLeft, ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface ProductIssue {
   id: string;
@@ -39,6 +42,9 @@ const issueStatusColors: Record<string, string> = {
   "בטיפול": "bg-warning/15 text-warning",
   "נסגר": "bg-success/15 text-success",
 };
+
+const issueStatuses = ["פתוח", "בטיפול", "נסגר"];
+const severities = ["נמוך", "בינוני", "גבוה", "קריטי"];
 
 // Image upload helper
 async function uploadIssueImage(file: File): Promise<string | null> {
@@ -225,10 +231,7 @@ export function DiagnosticWizard({ productId, onClose, onSaved }: { productId: s
             <Select value={severity} onValueChange={setSeverity}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="נמוך">נמוך</SelectItem>
-                <SelectItem value="בינוני">בינוני</SelectItem>
-                <SelectItem value="גבוה">גבוה</SelectItem>
-                <SelectItem value="קריטי">קריטי</SelectItem>
+                {severities.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -286,10 +289,7 @@ export function SimpleIssueForm({ productId, onClose, onSaved }: { productId: st
         <Select value={severity} onValueChange={setSeverity}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="נמוך">נמוך</SelectItem>
-            <SelectItem value="בינוני">בינוני</SelectItem>
-            <SelectItem value="גבוה">גבוה</SelectItem>
-            <SelectItem value="קריטי">קריטי</SelectItem>
+            {severities.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -301,6 +301,7 @@ export function SimpleIssueForm({ productId, onClose, onSaved }: { productId: st
 }
 
 export default function ProductIssuesTab({ productId, productName }: { productId: string; productName?: string }) {
+  const { profiles } = useData();
   const [issues, setIssues] = useState<ProductIssue[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -321,11 +322,10 @@ export default function ProductIssuesTab({ productId, productName }: { productId
 
   useEffect(() => { fetchIssues(); }, [fetchIssues]);
 
-  const updateIssueStatus = async (issueId: string, newStatus: string) => {
-    const updates: Record<string, any> = { status: newStatus };
-    if (newStatus === "נסגר") updates.resolved_date = new Date().toISOString().split("T")[0];
+  const updateIssueField = async (issueId: string, updates: Record<string, any>) => {
+    if (updates.status === "נסגר") updates.resolved_date = new Date().toISOString().split("T")[0];
     await supabase.from("product_issues").update(updates).eq("id", issueId);
-    toast.success(`סטטוס עודכן ל-${newStatus}`);
+    toast.success("עודכן");
     fetchIssues();
   };
 
@@ -381,7 +381,7 @@ export default function ProductIssuesTab({ productId, productName }: { productId
                 <th className="text-right p-3 font-semibold text-foreground">חומרה</th>
                 <th className="text-right p-3 font-semibold text-foreground">סטטוס</th>
                 <th className="text-right p-3 font-semibold text-foreground">פנייה</th>
-                <th className="text-right p-3 font-semibold text-foreground">פעולה</th>
+                <th className="text-right p-3 font-semibold text-foreground">פתרון</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -403,23 +403,63 @@ export default function ProductIssuesTab({ productId, productName }: { productId
                     )}
                   </td>
                   <td className="p-3">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${severityColors[issue.severity] || "bg-muted text-muted-foreground"}`}>
-                      {issue.severity}
-                    </span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className={`px-2 py-0.5 rounded text-xs font-medium cursor-pointer ${severityColors[issue.severity] || "bg-muted text-muted-foreground"}`}>
+                          {issue.severity}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-1" align="start">
+                        <div className="flex flex-col gap-0.5">
+                          {severities.map(s => (
+                            <button
+                              key={s}
+                              onClick={() => updateIssueField(issue.id, { severity: s })}
+                              className={cn("px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted", issue.severity === s && "bg-muted")}
+                            >
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </td>
                   <td className="p-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${issueStatusColors[issue.status] || "bg-muted text-muted-foreground"}`}>
-                      {issue.status}
-                    </span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className={`px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer ${issueStatusColors[issue.status] || "bg-muted text-muted-foreground"}`}>
+                          {issue.status}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-1" align="start">
+                        <div className="flex flex-col gap-0.5">
+                          {issueStatuses.map(s => (
+                            <button
+                              key={s}
+                              onClick={() => updateIssueField(issue.id, { status: s })}
+                              className={cn("px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted", issue.status === s && "bg-muted")}
+                            >
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </td>
                   <td className="p-3 text-xs text-muted-foreground font-mono">{issue.ticket_number || "—"}</td>
-                  <td className="p-3">
-                    {issue.status === "פתוח" && (
-                      <Button variant="outline" size="sm" onClick={() => updateIssueStatus(issue.id, "בטיפול")}>בטיפול</Button>
-                    )}
-                    {issue.status === "בטיפול" && (
-                      <Button variant="outline" size="sm" className="border-success/50 text-success hover:bg-success/10" onClick={() => updateIssueStatus(issue.id, "נסגר")}>סגור</Button>
-                    )}
+                  <td className="p-3 text-xs">
+                    {issue.resolution ? (
+                      <span className="text-foreground">{issue.resolution}</span>
+                    ) : issue.status !== "נסגר" ? (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button className="text-primary hover:underline text-xs">הוסף פתרון</button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-2" align="start">
+                          <ResolutionInput issueId={issue.id} onSave={(resolution) => updateIssueField(issue.id, { resolution, status: "נסגר" })} />
+                        </PopoverContent>
+                      </Popover>
+                    ) : "—"}
                   </td>
                 </tr>
               ))}
@@ -427,6 +467,18 @@ export default function ProductIssuesTab({ productId, productName }: { productId
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+function ResolutionInput({ issueId, onSave }: { issueId: string; onSave: (resolution: string) => void }) {
+  const [value, setValue] = useState("");
+  return (
+    <div className="space-y-2">
+      <Textarea value={value} onChange={e => setValue(e.target.value)} placeholder="תאר את הפתרון..." rows={2} className="text-sm" />
+      <Button size="sm" className="w-full" disabled={!value.trim()} onClick={() => onSave(value.trim())}>
+        סגור עם פתרון
+      </Button>
     </div>
   );
 }

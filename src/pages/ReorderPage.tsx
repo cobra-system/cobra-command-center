@@ -1,8 +1,13 @@
-import { useMemo } from "react";
-import { useData } from "@/contexts/AppContext";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useData, useAuth } from "@/contexts/AppContext";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CalendarClock, AlertTriangle, CheckCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { CalendarClock, AlertTriangle, CheckCircle, ShoppingCart } from "lucide-react";
 import { format, addDays } from "date-fns";
+import { InlineEditField } from "@/components/InlineEditField";
+import { toast } from "sonner";
 
 interface ReorderRow {
   id: string;
@@ -20,7 +25,10 @@ interface ReorderRow {
 }
 
 export default function ReorderPage() {
-  const { products, loading } = useData();
+  const { products, updateProduct, loading } = useData();
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
+  const isManager = currentUser?.role === "MANAGER";
 
   const rows = useMemo<ReorderRow[]>(() => {
     return products
@@ -73,6 +81,13 @@ export default function ReorderPage() {
     return <span className="text-success">🟢</span>;
   };
 
+  const handleLeadTimeUpdate = async (productId: string, value: string) => {
+    const num = parseInt(value);
+    if (isNaN(num) || num < 0) return;
+    await updateProduct(productId, { lead_time_days: num });
+    toast.success("Lead Time עודכן");
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
@@ -113,17 +128,20 @@ export default function ReorderPage() {
               <th className="text-right p-3 font-semibold text-foreground">ימים לאזילה</th>
               <th className="text-right p-3 font-semibold text-foreground">Lead Time</th>
               <th className="text-right p-3 font-semibold text-foreground">צריך להזמין עד</th>
+              {isManager && <th className="text-right p-3 font-semibold text-foreground">פעולה</th>}
             </tr>
           </thead>
           <tbody className="divide-y">
             {rows.length === 0 ? (
-              <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">אין מוצרים עם נתוני מכירות לחישוב</td></tr>
+              <tr><td colSpan={isManager ? 9 : 8} className="p-8 text-center text-muted-foreground">אין מוצרים עם נתוני מכירות לחישוב</td></tr>
             ) : (
               rows.map(r => (
                 <tr key={r.id} className={`hover:bg-muted/30 transition-colors ${r.status === "danger" ? "bg-destructive/5" : r.status === "warning" ? "bg-warning/5" : ""}`}>
                   <td className="p-3 text-center text-lg">{statusIcon(r.status)}</td>
                   <td className="p-3">
-                    <p className="font-medium text-foreground">{r.name}</p>
+                    <button onClick={() => navigate(`/products/${r.id}`)} className="text-primary hover:underline">
+                      <p className="font-medium">{r.name}</p>
+                    </button>
                     <p className="text-xs text-muted-foreground font-mono" dir="ltr">{r.sku}</p>
                   </td>
                   <td className="p-3 text-foreground font-semibold">{r.stock_qty}</td>
@@ -134,7 +152,20 @@ export default function ReorderPage() {
                       {r.days_until_stockout !== null ? `${r.days_until_stockout} ימים` : "—"}
                     </span>
                   </td>
-                  <td className="p-3 text-muted-foreground">{r.lead_time_days ? `${r.lead_time_days} ימים` : "—"}</td>
+                  <td className="p-3">
+                    {isManager ? (
+                      <InlineEditField
+                        value={r.lead_time_days?.toString() || ""}
+                        onSave={(v) => handleLeadTimeUpdate(r.id, v)}
+                        type="number"
+                        displayValue={
+                          <span className="text-muted-foreground">{r.lead_time_days ? `${r.lead_time_days} ימים` : "—"}</span>
+                        }
+                      />
+                    ) : (
+                      <span className="text-muted-foreground">{r.lead_time_days ? `${r.lead_time_days} ימים` : "—"}</span>
+                    )}
+                  </td>
                   <td className="p-3 text-xs">
                     {r.order_by_date ? (
                       <span className={`font-medium ${r.status === "danger" ? "text-destructive" : "text-foreground"}`}>
@@ -142,6 +173,20 @@ export default function ReorderPage() {
                       </span>
                     ) : "—"}
                   </td>
+                  {isManager && (
+                    <td className="p-3">
+                      {r.status === "danger" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs h-7 border-destructive/50 text-destructive hover:bg-destructive/10"
+                          onClick={() => navigate(`/orders?create=true&product=${r.id}`)}
+                        >
+                          <ShoppingCart className="h-3 w-3 ml-1" />הזמן
+                        </Button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))
             )}

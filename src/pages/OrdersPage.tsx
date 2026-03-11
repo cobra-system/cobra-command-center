@@ -1,22 +1,18 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
+import { useData, useAuth, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { Plus, Trash2, CalendarIcon, Search, ArrowUpDown, ArrowUp, ArrowDown, Zap, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 import { NewOrderDialog } from "@/components/orders/NewOrderDialog";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 const allStatuses: { value: OrderStatus; label: string }[] = [
   { value: "PENDING", label: "ממתין" },
@@ -45,10 +41,11 @@ const statusFilterOptions = [
 ];
 
 export default function OrdersPage() {
-  const { orders, updateOrderStatus, updateOrder, addOrder, suppliers, products } = useData();
+  const { orders, updateOrderStatus, updateOrder, addOrder, deleteOrder, suppliers, products } = useData();
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
   const [orderWorkflows, setOrderWorkflows] = useState<Record<string, { status: string; current_step: number }>>({});
+  const isManager = currentUser?.role === "MANAGER";
 
   useEffect(() => {
     const fetchWorkflows = async () => {
@@ -68,7 +65,7 @@ export default function OrdersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
-  const [paymentFilter, setPaymentFilter] = useState("all"); // all | paid | unpaid
+  const [paymentFilter, setPaymentFilter] = useState("all");
 
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>(null);
@@ -133,6 +130,12 @@ export default function OrdersPage() {
     if (s) navigate(`/suppliers/${s.id}`);
   };
 
+  const handleDeleteOrder = async (orderId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await deleteOrder(orderId);
+    toast.success("ההזמנה נמחקה");
+  };
+
   const ThButton = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
     <th className="text-right p-3 font-semibold text-foreground">
       <button onClick={() => toggleSort(field)} className="flex items-center gap-1 hover:text-primary transition-colors">
@@ -195,11 +198,12 @@ export default function OrdersPage() {
               <ThButton field="total_price">סה״כ</ThButton>
               <ThButton field="payment">תשלום</ThButton>
               <th className="text-right p-3 font-semibold text-foreground">תהליך</th>
+              {isManager && <th className="text-right p-3 font-semibold text-foreground w-10"></th>}
             </tr>
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={12} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
+              <tr><td colSpan={isManager ? 13 : 12} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
             ) : filtered.map(order => (
               <tr key={order.id} className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => navigate(`/orders/${order.id}`)}>
                 <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
@@ -271,17 +275,14 @@ export default function OrdersPage() {
                 </td>
                 <td className="p-3" onClick={e => e.stopPropagation()}>
                   {orderWorkflows[order.id] ? (
-                    <button
-                      onClick={() => navigate("/workflows")}
-                      className={cn(
-                        "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-colors",
-                        orderWorkflows[order.id].status === "completed"
-                          ? "bg-success/15 text-success"
-                          : orderWorkflows[order.id].status === "cancelled"
-                          ? "bg-destructive/15 text-destructive"
-                          : "bg-primary/15 text-primary"
-                      )}
-                    >
+                    <span className={cn(
+                      "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium",
+                      orderWorkflows[order.id].status === "completed"
+                        ? "bg-success/15 text-success"
+                        : orderWorkflows[order.id].status === "cancelled"
+                        ? "bg-destructive/15 text-destructive"
+                        : "bg-primary/15 text-primary"
+                    )}>
                       {orderWorkflows[order.id].status === "completed" ? (
                         <><CheckCircle className="h-3 w-3" />הושלם</>
                       ) : orderWorkflows[order.id].status === "cancelled" ? (
@@ -289,7 +290,7 @@ export default function OrdersPage() {
                       ) : (
                         <><Zap className="h-3 w-3" />שלב {orderWorkflows[order.id].current_step + 1}</>
                       )}
-                    </button>
+                    </span>
                   ) : (
                     <button
                       onClick={async () => {
@@ -304,9 +305,9 @@ export default function OrdersPage() {
                           .from("workflow_instances")
                           .insert({ template_id: tpl.id, order_id: order.id });
                         if (error) {
-                          toast({ title: "שגיאה", description: "לא ניתן להפעיל תהליך", variant: "destructive" });
+                          toast.error("לא ניתן להפעיל תהליך");
                         } else {
-                          toast({ title: "✅ תהליך רכש הופעל", description: order.items.map(i => i.name).join(", ") });
+                          toast.success("תהליך רכש הופעל");
                           setOrderWorkflows(prev => ({ ...prev, [order.id]: { status: "active", current_step: 0 } }));
                         }
                       }}
@@ -318,6 +319,27 @@ export default function OrdersPage() {
                     </button>
                   )}
                 </td>
+                {isManager && (
+                  <td className="p-3" onClick={e => e.stopPropagation()}>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button className="p-1 rounded hover:bg-destructive/10 transition-colors">
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>מחיקת הזמנה</AlertDialogTitle>
+                          <AlertDialogDescription>האם למחוק את ההזמנה? פעולה זו לא ניתנת לביטול.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>ביטול</AlertDialogCancel>
+                          <AlertDialogAction onClick={(e) => handleDeleteOrder(order.id, e)} className="bg-destructive text-destructive-foreground">מחק</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

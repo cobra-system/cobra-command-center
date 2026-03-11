@@ -4,10 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { format, startOfWeek, addDays, isSameDay, isToday, isPast, addWeeks, subWeeks, getDay, getDate } from "date-fns";
 import { he } from "date-fns/locale";
-import { ChevronRight, ChevronLeft, CalendarDays, AlertTriangle, Users, Repeat, Zap, Settings } from "lucide-react";
+import { ChevronRight, ChevronLeft, CalendarDays, AlertTriangle, Users, Repeat, Zap, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import RecurringTasksPanel from "@/components/tasks/RecurringTasksPanel";
@@ -41,6 +45,13 @@ interface WorkflowInstance {
   template?: WorkflowTemplate;
 }
 
+const priorityOptions: { value: Priority; label: string }[] = [
+  { value: "דחוף", label: "דחוף" },
+  { value: "גבוה", label: "גבוה" },
+  { value: "בינוני", label: "בינוני" },
+  { value: "נמוך", label: "נמוך" },
+];
+
 function ProgressRing({ done, total }: { done: number; total: number }) {
   const r = 20;
   const circumference = 2 * Math.PI * r;
@@ -69,23 +80,17 @@ function ProgressRing({ done, total }: { done: number; total: number }) {
 }
 
 function recurringMatchesDay(rt: RecurringTask, day: Date): boolean {
-  const dayOfWeek = getDay(day); // 0=Sun
+  const dayOfWeek = getDay(day);
   const dayOfMonth = getDate(day);
   switch (rt.frequency) {
-    case "daily":
-      return true;
-    case "weekly":
-      return rt.day_of_week === dayOfWeek;
-    case "biweekly":
-      return rt.day_of_week === dayOfWeek;
-    case "monthly":
-      return rt.day_of_month === dayOfMonth;
+    case "daily": return true;
+    case "weekly": return rt.day_of_week === dayOfWeek;
+    case "biweekly": return rt.day_of_week === dayOfWeek;
+    case "monthly": return rt.day_of_month === dayOfMonth;
     case "quarterly":
     case "biannual":
-    case "annual":
-      return rt.day_of_month === dayOfMonth;
-    default:
-      return false;
+    case "annual": return rt.day_of_month === dayOfMonth;
+    default: return false;
   }
 }
 
@@ -97,6 +102,7 @@ export default function TaskWeeklyView() {
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [dragOverDay, setDragOverDay] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   // Recurring tasks
   const [recurringTasks, setRecurringTasks] = useState<RecurringTask[]>([]);
@@ -117,7 +123,7 @@ export default function TaskWeeklyView() {
     if (templates) {
       const enriched = instances.map(inst => ({
         ...inst,
-        template: templates.find(t => t.id === inst.template_id) as WorkflowTemplate | undefined,
+        template: templates.find(t => t.id === inst.template_id) as unknown as WorkflowTemplate | undefined,
       }));
       setWorkflowInstances(enriched as WorkflowInstance[]);
     } else {
@@ -173,7 +179,6 @@ export default function TaskWeeklyView() {
     return map;
   }, [recurringTasks, days]);
 
-  // Active workflow instances show on today (or first day of week if past)
   const todayKey = format(isToday(days[0]) ? days[0] : days.find(d => isToday(d)) ?? days[0], "yyyy-MM-dd");
   const workflowsForToday = workflowInstances;
 
@@ -214,7 +219,6 @@ export default function TaskWeeklyView() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Week navigation */}
           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekOffset(w => w - 1)}>
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -225,7 +229,6 @@ export default function TaskWeeklyView() {
             <ChevronLeft className="h-4 w-4" />
           </Button>
 
-          {/* Employee filter */}
           <div className="flex items-center gap-1.5">
             <Users className="h-4 w-4 text-muted-foreground" />
             <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
@@ -241,7 +244,6 @@ export default function TaskWeeklyView() {
             </Select>
           </div>
 
-          {/* Settings drawer */}
           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSettingsOpen(true)}>
             <Settings className="h-4 w-4" />
           </Button>
@@ -256,7 +258,7 @@ export default function TaskWeeklyView() {
             <p className="text-sm font-medium text-destructive">{overdue.length} משימות באיחור</p>
             <div className="flex flex-wrap gap-1 mt-1.5">
               {overdue.slice(0, 5).map(t => (
-                <span key={t.id} className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded-full">{t.title}</span>
+                <span key={t.id} className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded-full cursor-pointer hover:bg-destructive/20" onClick={() => setSelectedTask(t)}>{t.title}</span>
               ))}
               {overdue.length > 5 && <span className="text-xs text-destructive">+{overdue.length - 5} נוספות</span>}
             </div>
@@ -344,6 +346,7 @@ export default function TaskWeeklyView() {
                     showAssignee={assigneeFilter === "all"}
                     isDragging={dragTaskId === task.id}
                     onToggle={() => updateTaskStatus(task.id, task.status === "DONE" ? "TODO" : "DONE")}
+                    onClick={() => setSelectedTask(task)}
                     onDragStart={() => setDragTaskId(task.id)}
                     onDragEnd={() => { setDragTaskId(null); setDragOverDay(null); }}
                   />
@@ -395,6 +398,7 @@ export default function TaskWeeklyView() {
                   draggable
                   onDragStart={() => setDragTaskId(task.id)}
                   onDragEnd={() => { setDragTaskId(null); setDragOverDay(null); }}
+                  onClick={() => setSelectedTask(task)}
                 >
                   <p className="text-xs font-medium text-foreground leading-tight line-clamp-2">{task.title}</p>
                   <div className="flex items-center justify-between">
@@ -434,7 +438,176 @@ export default function TaskWeeklyView() {
           </Tabs>
         </SheetContent>
       </Sheet>
+
+      {/* Task Detail Dialog */}
+      <TaskDetailDialog
+        task={selectedTask}
+        onClose={() => setSelectedTask(null)}
+        profiles={profiles}
+        currentUser={currentUser}
+        onUpdate={updateTask}
+        onStatusChange={updateTaskStatus}
+      />
     </div>
+  );
+}
+
+// ─── Task Detail Dialog ───────────────────────────────────────────────────────
+
+function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdate, onStatusChange }: {
+  task: Task | null;
+  onClose: () => void;
+  profiles: { id: string; name: string; role: string }[];
+  currentUser: { id: string; role: string; name: string } | null;
+  onUpdate: (id: string, updates: Partial<Task>) => Promise<void>;
+  onStatusChange: (id: string, status: any) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState<Priority>("בינוני");
+  const [assigneeId, setAssigneeId] = useState("");
+  const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    if (task) {
+      setTitle(task.title);
+      setDescription(task.description || "");
+      setPriority(task.priority as Priority);
+      setAssigneeId(task.assignee_id || "");
+      setNotes(task.notes || "");
+      setEditing(false);
+    }
+  }, [task]);
+
+  if (!task) return null;
+
+  const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
+
+  const handleSave = async () => {
+    const assignee = profiles.find(p => p.id === assigneeId);
+    await onUpdate(task.id, {
+      title: title.trim(),
+      description: description.trim() || null,
+      priority,
+      assignee_id: assigneeId || null,
+      assignee_name: assignee?.name || null,
+      notes: notes.trim() || null,
+    });
+    setEditing(false);
+  };
+
+  const statusOptions = [
+    { value: "TODO", label: "לביצוע" },
+    { value: "IN_PROGRESS", label: "בביצוע" },
+    { value: "DONE", label: "הושלם" },
+    { value: "BLOCKED", label: "חסום" },
+  ];
+
+  return (
+    <Dialog open={!!task} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center justify-between">
+            <span>{editing ? "עריכת משימה" : "פירוט משימה"}</span>
+            {!editing && (
+              <Button variant="ghost" size="sm" onClick={() => setEditing(true)} className="text-xs">
+                ✏️ עריכה
+              </Button>
+            )}
+          </DialogTitle>
+        </DialogHeader>
+
+        {editing ? (
+          <div className="space-y-3 pt-2">
+            <div className="space-y-1">
+              <Label className="text-xs">כותרת</Label>
+              <Input value={title} onChange={e => setTitle(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">תיאור</Label>
+              <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">עדיפות</Label>
+                <Select value={priority} onValueChange={v => setPriority(v as Priority)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{priorityOptions.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">שיוך</Label>
+                <Select value={assigneeId || "none"} onValueChange={v => setAssigneeId(v === "none" ? "" : v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">ללא</SelectItem>
+                    {assignableUsers.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">הערות</Label>
+              <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleSave} className="flex-1">שמור</Button>
+              <Button variant="outline" onClick={() => setEditing(false)} className="flex-1">ביטול</Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4 pt-2">
+            <div>
+              <h3 className="text-lg font-semibold text-foreground">{task.title}</h3>
+              {task.description && <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{task.description}</p>}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-muted/30 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground mb-1">עדיפות</p>
+                <PriorityBadge priority={task.priority as Priority} />
+              </div>
+              <div className="bg-muted/30 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground mb-1">סטטוס</p>
+                <Select value={task.status} onValueChange={v => onStatusChange(task.id, v)}>
+                  <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="bg-muted/30 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground mb-1">משויך ל</p>
+                <p className="text-sm font-medium text-foreground">{task.assignee_name || "לא משויך"}</p>
+              </div>
+              <div className="bg-muted/30 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground mb-1">תאריך יעד</p>
+                <p className="text-sm font-medium text-foreground">{task.due_date ? format(new Date(task.due_date), "dd/MM/yyyy") : "לא נקבע"}</p>
+              </div>
+            </div>
+
+            {task.notes && (
+              <div className="bg-muted/30 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground mb-1">הערות</p>
+                <p className="text-sm text-foreground whitespace-pre-wrap">{task.notes}</p>
+              </div>
+            )}
+
+            {task.deliverable && (
+              <div className="bg-muted/30 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground mb-1">תוצר</p>
+                <p className="text-sm text-foreground">{task.deliverable}</p>
+              </div>
+            )}
+
+            {task.is_daily && (
+              <span className="inline-block text-xs bg-warning/15 text-warning px-2 py-0.5 rounded-full">משימה יומית</span>
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -445,11 +618,12 @@ interface WeeklyTaskCardProps {
   showAssignee: boolean;
   isDragging: boolean;
   onToggle: () => void;
+  onClick: () => void;
   onDragStart: () => void;
   onDragEnd: () => void;
 }
 
-function WeeklyTaskCard({ task, showAssignee, isDragging, onToggle, onDragStart, onDragEnd }: WeeklyTaskCardProps) {
+function WeeklyTaskCard({ task, showAssignee, isDragging, onToggle, onClick, onDragStart, onDragEnd }: WeeklyTaskCardProps) {
   const isDone = task.status === "DONE";
   const isUrgent = task.priority === "דחוף";
   const initials = task.assignee_name ? task.assignee_name.trim().charAt(0).toUpperCase() : null;
@@ -466,7 +640,14 @@ function WeeklyTaskCard({ task, showAssignee, isDragging, onToggle, onDragStart,
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      onClick={onToggle}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
     >
       <p className={cn(
         "font-medium leading-tight line-clamp-2",
