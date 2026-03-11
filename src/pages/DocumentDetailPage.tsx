@@ -40,10 +40,41 @@ const docStatusColors: Record<string, string> = {
 const currencySymbol: Record<string, string> = { USD: "$", EUR: "€", ILS: "₪" };
 
 function FilePreview({ url, filename }: { url: string; filename?: string }) {
+  const [urlValid, setUrlValid] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(url, { method: "HEAD" })
+      .then(res => { if (!cancelled) setUrlValid(res.ok); })
+      .catch(() => { if (!cancelled) setUrlValid(false); });
+    return () => { cancelled = true; };
+  }, [url]);
+
+  if (urlValid === false) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-12 border rounded-lg bg-muted/20">
+        <FileText className="h-16 w-16 text-muted-foreground opacity-40" />
+        <p className="text-sm text-muted-foreground">הקובץ אינו זמין</p>
+        <p className="text-xs text-muted-foreground">יתכן שהקובץ נמחק או שהקישור אינו תקין</p>
+        <a href={url} target="_blank" rel="noopener noreferrer">
+          <Button variant="outline" size="sm"><ExternalLink className="h-4 w-4 ml-1" />נסה לפתוח ישירות</Button>
+        </a>
+      </div>
+    );
+  }
+
   const ext = (url.split("?")[0].split(".").pop() || "").toLowerCase();
   const isImage = ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext);
   const isPdf = ext === "pdf";
   const isOffice = ["doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(ext);
+
+  if (urlValid === null) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (isImage) {
     return (
@@ -99,7 +130,6 @@ export default function DocumentDetailPage() {
   const navigate = useNavigate();
   const { suppliers, products, orders, tasks } = useData();
   const { currentUser } = useAuth();
-  const isManager = currentUser?.role === "MANAGER";
 
   const [doc, setDoc] = useState<PurchaseDocument | null>(null);
   const [loading, setLoading] = useState(true);
@@ -228,51 +258,43 @@ export default function DocumentDetailPage() {
           <div className="bg-card rounded-xl border shadow-sm p-5">
             <h2 className="text-base font-semibold text-foreground mb-4">
               פרטי מסמך
-              {isManager && <span className="text-xs font-normal text-muted-foreground mr-2">לחץ פעמיים על שדה לעריכה</span>}
+              <span className="text-xs font-normal text-muted-foreground mr-2">לחץ פעמיים על שדה לעריכה</span>
             </h2>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 {/* Type */}
                 <InfoCell label="סוג">
-                  {isManager ? (
-                    <InlineEditField
-                      value={doc.type}
-                      onSave={v => handleFieldSave("type", v)}
-                      options={[
-                        { value: "PI", label: "PI — הצעת מחיר" },
-                        { value: "PO", label: "PO — הזמנת רכש" },
-                      ]}
-                    />
-                  ) : <p className="text-sm font-medium text-foreground">{doc.type}</p>}
+                  <InlineEditField
+                    value={doc.type}
+                    onSave={v => handleFieldSave("type", v)}
+                    options={[
+                      { value: "PI", label: "PI — הצעת מחיר" },
+                      { value: "PO", label: "PO — הזמנת רכש" },
+                    ]}
+                  />
                 </InfoCell>
 
                 {/* Currency */}
                 <InfoCell label="מטבע">
-                  {isManager ? (
-                    <InlineEditField
-                      value={doc.currency}
-                      onSave={v => handleFieldSave("currency", v)}
-                      options={[
-                        { value: "USD", label: "USD $" },
-                        { value: "EUR", label: "EUR €" },
-                        { value: "ILS", label: "ILS ₪" },
-                      ]}
-                    />
-                  ) : <p className="text-sm font-medium text-foreground">{doc.currency}</p>}
+                  <InlineEditField
+                    value={doc.currency}
+                    onSave={v => handleFieldSave("currency", v)}
+                    options={[
+                      { value: "USD", label: "USD $" },
+                      { value: "EUR", label: "EUR €" },
+                      { value: "ILS", label: "ILS ₪" },
+                    ]}
+                  />
                 </InfoCell>
 
                 {/* Quantity */}
                 <InfoCell label="כמות">
-                  {isManager ? (
-                    <InlineEditField value={doc.quantity?.toString() || ""} onSave={v => handleFieldSave("quantity", v)} type="number" />
-                  ) : <p className="text-sm font-medium text-foreground">{doc.quantity ?? "—"}</p>}
+                  <InlineEditField value={doc.quantity?.toString() || ""} onSave={v => handleFieldSave("quantity", v)} type="number" />
                 </InfoCell>
 
                 {/* Unit price */}
                 <InfoCell label="מחיר יחידה">
-                  {isManager ? (
-                    <InlineEditField value={doc.unit_price?.toString() || ""} onSave={v => handleFieldSave("unit_price", v)} type="number" />
-                  ) : <p className="text-sm font-medium text-foreground">{doc.unit_price ? `${currencySymbol[doc.currency] || ""}${doc.unit_price}` : "—"}</p>}
+                  <InlineEditField value={doc.unit_price?.toString() || ""} onSave={v => handleFieldSave("unit_price", v)} type="number" />
                 </InfoCell>
 
                 {/* Total - read only */}
@@ -292,119 +314,87 @@ export default function DocumentDetailPage() {
 
               {/* Supplier */}
               <InfoCell label="ספק">
-                {isManager ? (
-                  <InlineEditField
-                    value={doc.supplier_id || ""}
-                    displayValue={supplierName || "—"}
-                    onSave={v => handleFieldSave("supplier_id", v)}
-                    options={[
-                      { value: "", label: "ללא" },
-                      ...suppliers.map(s => ({ value: s.id, label: s.company })),
-                    ]}
-                  />
-                ) : (
-                  supplierName ? (
-                    <button onClick={() => navigate(`/suppliers/${doc.supplier_id}`)} className="text-sm font-medium text-primary hover:underline">{supplierName}</button>
-                  ) : <p className="text-sm text-muted-foreground">—</p>
-                )}
+                <InlineEditField
+                  value={doc.supplier_id || ""}
+                  displayValue={supplierName || "—"}
+                  onSave={v => handleFieldSave("supplier_id", v)}
+                  options={[
+                    { value: "", label: "ללא" },
+                    ...suppliers.map(s => ({ value: s.id, label: s.company })),
+                  ]}
+                />
               </InfoCell>
 
               {/* Product */}
               <InfoCell label="מוצר">
-                {isManager ? (
-                  <InlineEditField
-                    value={doc.product_id || ""}
-                    displayValue={productName || "—"}
-                    onSave={v => handleFieldSave("product_id", v)}
-                    options={[
-                      { value: "", label: "ללא" },
-                      ...products.map(p => ({ value: p.id, label: p.name })),
-                    ]}
-                  />
-                ) : (
-                  productName ? (
-                    <button onClick={() => navigate(`/products/${doc.product_id}`)} className="text-sm font-medium text-primary hover:underline">{productName}</button>
-                  ) : <p className="text-sm text-muted-foreground">—</p>
-                )}
+                <InlineEditField
+                  value={doc.product_id || ""}
+                  displayValue={productName || "—"}
+                  onSave={v => handleFieldSave("product_id", v)}
+                  options={[
+                    { value: "", label: "ללא" },
+                    ...products.map(p => ({ value: p.id, label: p.name })),
+                  ]}
+                />
               </InfoCell>
 
               {/* Linked order */}
               <InfoCell label="הזמנה מקושרת">
-                {isManager ? (
-                  <InlineEditField
-                    value={(doc as any).order_id || ""}
-                    displayValue={linkedOrder ? `${linkedOrder.supplier_name || ""} — ${linkedOrder.items?.map((i: any) => i.name).join(", ")}` : "—"}
-                    onSave={v => handleFieldSave("order_id", v)}
-                    options={[
-                      { value: "", label: "ללא" },
-                      ...orders.map(o => ({ value: o.id, label: `${o.supplier_name || o.id.slice(0, 8)} — ${o.items?.map((i: any) => i.name).join(", ")}` })),
-                    ]}
-                  />
-                ) : (
-                  linkedOrder ? (
-                    <button onClick={() => navigate(`/orders/${linkedOrder.id}`)} className="text-sm font-medium text-primary hover:underline">
-                      {linkedOrder.supplier_name} — {linkedOrder.items?.map((i: any) => i.name).join(", ")}
-                    </button>
-                  ) : <p className="text-sm text-muted-foreground">—</p>
-                )}
+                <InlineEditField
+                  value={(doc as any).order_id || ""}
+                  displayValue={linkedOrder ? `${linkedOrder.supplier_name || ""} — ${linkedOrder.items?.map((i: any) => i.name).join(", ")}` : "—"}
+                  onSave={v => handleFieldSave("order_id", v)}
+                  options={[
+                    { value: "", label: "ללא" },
+                    ...orders.map(o => ({ value: o.id, label: `${o.supplier_name || o.id.slice(0, 8)} — ${o.items?.map((i: any) => i.name).join(", ")}` })),
+                  ]}
+                />
               </InfoCell>
 
               {/* Linked task */}
               <InfoCell label="משימה מקושרת">
-                {isManager ? (
-                  <InlineEditField
-                    value={(doc as any).task_id || ""}
-                    displayValue={linkedTask?.title || "—"}
-                    onSave={v => handleFieldSave("task_id", v)}
-                    options={[
-                      { value: "", label: "ללא" },
-                      ...tasks.map(t => ({ value: t.id, label: t.title })),
-                    ]}
-                  />
-                ) : (
-                  linkedTask ? (
-                    <button onClick={() => navigate("/tasks")} className="text-sm font-medium text-primary hover:underline">{linkedTask.title}</button>
-                  ) : <p className="text-sm text-muted-foreground">—</p>
-                )}
+                <InlineEditField
+                  value={(doc as any).task_id || ""}
+                  displayValue={linkedTask?.title || "—"}
+                  onSave={v => handleFieldSave("task_id", v)}
+                  options={[
+                    { value: "", label: "ללא" },
+                    ...tasks.map(t => ({ value: t.id, label: t.title })),
+                  ]}
+                />
               </InfoCell>
 
               {/* Notes */}
               <InfoCell label="הערות">
-                {isManager ? (
-                  <InlineEditField
-                    value={doc.notes || ""}
-                    onSave={v => handleFieldSave("notes", v)}
-                    displayValue={doc.notes ? <span className="whitespace-pre-wrap">{doc.notes}</span> : <span className="text-muted-foreground">לחץ פעמיים להוספת הערה</span>}
-                  />
-                ) : (
-                  doc.notes ? <p className="text-sm text-foreground whitespace-pre-wrap">{doc.notes}</p> : <p className="text-sm text-muted-foreground">—</p>
-                )}
+                <InlineEditField
+                  value={doc.notes || ""}
+                  onSave={v => handleFieldSave("notes", v)}
+                  displayValue={doc.notes ? <span className="whitespace-pre-wrap">{doc.notes}</span> : <span className="text-muted-foreground">לחץ פעמיים להוספת הערה</span>}
+                />
               </InfoCell>
             </div>
           </div>
 
           {/* File upload section */}
-          {isManager && (
-            <div className="bg-card rounded-xl border shadow-sm p-5">
-              <h2 className="text-base font-semibold text-foreground mb-3">קובץ מצורף</h2>
-              {doc.file_url ? (
-                <div className="flex items-center gap-2">
-                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-primary hover:underline">
-                    <ExternalLink className="h-4 w-4" />פתח קובץ
-                  </a>
-                  <Button variant="ghost" size="sm" onClick={handleRemoveFile} className="text-destructive hover:text-destructive">
-                    <X className="h-4 w-4 ml-1" />הסר
-                  </Button>
-                </div>
-              ) : (
-                <label className="flex items-center gap-2 border border-dashed rounded-lg p-4 cursor-pointer hover:bg-muted/30 transition-colors">
-                  {uploading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : <Upload className="h-5 w-5 text-muted-foreground" />}
-                  <span className="text-sm text-muted-foreground">{uploading ? "מעלה..." : "העלה קובץ (PDF, Word, Excel, תמונה)"}</span>
-                  <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt,.csv" className="hidden" onChange={handleFileUpload} disabled={uploading} />
-                </label>
-              )}
-            </div>
-          )}
+          <div className="bg-card rounded-xl border shadow-sm p-5">
+            <h2 className="text-base font-semibold text-foreground mb-3">קובץ מצורף</h2>
+            {doc.file_url ? (
+              <div className="flex items-center gap-2">
+                <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-primary hover:underline">
+                  <ExternalLink className="h-4 w-4" />פתח קובץ
+                </a>
+                <Button variant="ghost" size="sm" onClick={handleRemoveFile} className="text-destructive hover:text-destructive">
+                  <X className="h-4 w-4 ml-1" />הסר
+                </Button>
+              </div>
+            ) : (
+              <label className="flex items-center gap-2 border border-dashed rounded-lg p-4 cursor-pointer hover:bg-muted/30 transition-colors">
+                {uploading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : <Upload className="h-5 w-5 text-muted-foreground" />}
+                <span className="text-sm text-muted-foreground">{uploading ? "מעלה..." : "העלה קובץ (PDF, Word, Excel, תמונה)"}</span>
+                <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt,.csv" className="hidden" onChange={handleFileUpload} disabled={uploading} />
+              </label>
+            )}
+          </div>
         </div>
 
         {/* Right: File preview */}
@@ -416,7 +406,7 @@ export default function DocumentDetailPage() {
             <div className="flex flex-col items-center justify-center gap-4 py-16 text-muted-foreground border rounded-lg bg-muted/10">
               <FileText className="h-16 w-16 opacity-30" />
               <p className="text-sm">אין קובץ מצורף</p>
-              {isManager && <p className="text-xs">העלה קובץ מהעמודה השמאלית</p>}
+              <p className="text-xs">העלה קובץ מהעמודה השמאלית</p>
             </div>
           )}
         </div>
