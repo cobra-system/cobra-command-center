@@ -3,12 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useData, useAuth } from "@/contexts/AppContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { InlineEditField } from "@/components/InlineEditField";
 import { ArrowRight, FileText, Upload, ExternalLink, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -43,11 +40,41 @@ const docStatusColors: Record<string, string> = {
 const currencySymbol: Record<string, string> = { USD: "$", EUR: "€", ILS: "₪" };
 
 function FilePreview({ url, filename }: { url: string; filename?: string }) {
+  const [urlValid, setUrlValid] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(url, { method: "HEAD" })
+      .then(res => { if (!cancelled) setUrlValid(res.ok); })
+      .catch(() => { if (!cancelled) setUrlValid(false); });
+    return () => { cancelled = true; };
+  }, [url]);
+
+  if (urlValid === false) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-12 border rounded-lg bg-muted/20">
+        <FileText className="h-16 w-16 text-muted-foreground opacity-40" />
+        <p className="text-sm text-muted-foreground">הקובץ אינו זמין</p>
+        <p className="text-xs text-muted-foreground">יתכן שהקובץ נמחק או שהקישור אינו תקין</p>
+        <a href={url} target="_blank" rel="noopener noreferrer">
+          <Button variant="outline" size="sm"><ExternalLink className="h-4 w-4 ml-1" />נסה לפתוח ישירות</Button>
+        </a>
+      </div>
+    );
+  }
+
   const ext = (url.split("?")[0].split(".").pop() || "").toLowerCase();
   const isImage = ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext);
   const isPdf = ext === "pdf";
   const isOffice = ["doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(ext);
-  const isText = ["txt", "csv", "json"].includes(ext);
+
+  if (urlValid === null) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (isImage) {
     return (
@@ -63,12 +90,7 @@ function FilePreview({ url, filename }: { url: string; filename?: string }) {
   if (isPdf) {
     return (
       <div className="flex flex-col gap-2">
-        <iframe
-          src={url}
-          className="w-full rounded-lg border"
-          style={{ height: "70vh" }}
-          title={filename || "PDF"}
-        />
+        <iframe src={url} className="w-full rounded-lg border" style={{ height: "70vh" }} title={filename || "PDF"} />
         <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary hover:underline">
           <ExternalLink className="h-3 w-3" />פתח PDF בחלון חדש
         </a>
@@ -77,11 +99,10 @@ function FilePreview({ url, filename }: { url: string; filename?: string }) {
   }
 
   if (isOffice) {
-    const encodedUrl = encodeURIComponent(url);
     return (
       <div className="flex flex-col gap-2">
         <iframe
-          src={`https://docs.google.com/viewer?url=${encodedUrl}&embedded=true`}
+          src={`https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`}
           className="w-full rounded-lg border"
           style={{ height: "70vh" }}
           title={filename || "document"}
@@ -93,15 +114,12 @@ function FilePreview({ url, filename }: { url: string; filename?: string }) {
     );
   }
 
-  // Fallback for unknown types
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-12 border rounded-lg bg-muted/20">
       <FileText className="h-16 w-16 text-muted-foreground" />
       <p className="text-sm text-muted-foreground">{filename || "מסמך"}</p>
       <a href={url} target="_blank" rel="noopener noreferrer">
-        <Button variant="outline" size="sm">
-          <ExternalLink className="h-4 w-4 ml-1" />פתח / הורד קובץ
-        </Button>
+        <Button variant="outline" size="sm"><ExternalLink className="h-4 w-4 ml-1" />פתח / הורד קובץ</Button>
       </a>
     </div>
   );
@@ -112,69 +130,39 @@ export default function DocumentDetailPage() {
   const navigate = useNavigate();
   const { suppliers, products, orders, tasks } = useData();
   const { currentUser } = useAuth();
-  const isManager = currentUser?.role === "MANAGER";
 
   const [doc, setDoc] = useState<PurchaseDocument | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-
-  // Edit state
-  const [editType, setEditType] = useState("PI");
-  const [editSupplierId, setEditSupplierId] = useState("");
-  const [editProductId, setEditProductId] = useState("");
-  const [editOrderId, setEditOrderId] = useState("");
-  const [editTaskId, setEditTaskId] = useState("");
-  const [editQty, setEditQty] = useState("");
-  const [editUnitPrice, setEditUnitPrice] = useState("");
-  const [editCurrency, setEditCurrency] = useState("USD");
-  const [editNotes, setEditNotes] = useState("");
-  const [editing, setEditing] = useState(false);
 
   const fetchDoc = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     const { data } = await supabase.from("purchase_documents").select("*").eq("id", id).single();
-    if (data) {
-      const d = data as PurchaseDocument;
-      setDoc(d);
-      setEditType(d.type);
-      setEditSupplierId(d.supplier_id || "");
-      setEditProductId(d.product_id || "");
-      setEditOrderId((d as any).order_id || "");
-      setEditTaskId((d as any).task_id || "");
-      setEditQty(d.quantity?.toString() || "");
-      setEditUnitPrice(d.unit_price?.toString() || "");
-      setEditCurrency(d.currency || "USD");
-      setEditNotes(d.notes || "");
-    }
+    if (data) setDoc(data as PurchaseDocument);
     setLoading(false);
   }, [id]);
 
   useEffect(() => { fetchDoc(); }, [fetchDoc]);
 
-  const handleSave = async () => {
+  const handleFieldSave = async (field: string, rawValue: string) => {
     if (!doc) return;
-    setSaving(true);
-    const qty = Number(editQty) || 0;
-    const unitPrice = Number(editUnitPrice) || null;
-    const updates: Record<string, any> = {
-      type: editType,
-      supplier_id: editSupplierId || null,
-      product_id: editProductId || null,
-      quantity: qty,
-      unit_price: unitPrice,
-      total_price: unitPrice ? qty * unitPrice : null,
-      currency: editCurrency,
-      notes: editNotes || null,
-    };
-    // Try to set order_id and task_id if columns exist
-    if (editOrderId) updates.order_id = editOrderId;
-    if (editTaskId) updates.task_id = editTaskId;
+    const updates: Record<string, any> = {};
+
+    if (field === "quantity") {
+      const qty = Number(rawValue) || 0;
+      updates.quantity = qty;
+      if (doc.unit_price) updates.total_price = qty * doc.unit_price;
+    } else if (field === "unit_price") {
+      const price = Number(rawValue) || null;
+      updates.unit_price = price;
+      updates.total_price = price ? (doc.quantity || 0) * price : null;
+    } else {
+      updates[field] = rawValue || null;
+    }
+
     await supabase.from("purchase_documents").update(updates).eq("id", doc.id);
-    toast.success("מסמך עודכן");
-    setSaving(false);
-    setEditing(false);
+    toast.success("עודכן");
     fetchDoc();
   };
 
@@ -221,7 +209,8 @@ export default function DocumentDetailPage() {
 
   const supplierName = suppliers.find(s => s.id === doc.supplier_id)?.company;
   const productName = products.find(p => p.id === doc.product_id)?.name;
-  const supplierId = suppliers.find(s => s.id === doc.supplier_id)?.id;
+  const linkedOrder = orders.find(o => o.id === (doc as any).order_id);
+  const linkedTask = tasks.find(t => t.id === (doc as any).task_id);
 
   return (
     <div className="space-y-6">
@@ -231,7 +220,7 @@ export default function DocumentDetailPage() {
           <ArrowRight className="h-5 w-5" />
         </Button>
         <div className="flex-1">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className={`px-3 py-1 rounded text-sm font-bold ${doc.type === "PI" ? "bg-primary/15 text-primary" : "bg-accent/15 text-accent"}`}>
               {doc.type}
             </span>
@@ -261,153 +250,151 @@ export default function DocumentDetailPage() {
           </div>
           <p className="text-xs text-muted-foreground mt-1">נוצר: {format(new Date(doc.created_at), "dd/MM/yyyy HH:mm")}</p>
         </div>
-        {isManager && !editing && (
-          <Button variant="outline" size="sm" onClick={() => setEditing(true)}>✏️ עריכה</Button>
-        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left: Details / Edit */}
+        {/* Left: Details */}
         <div className="space-y-4">
           <div className="bg-card rounded-xl border shadow-sm p-5">
-            <h2 className="text-base font-semibold text-foreground mb-4">פרטי מסמך</h2>
-            {editing ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">סוג</Label>
-                    <Select value={editType} onValueChange={setEditType}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="PI">PI — הצעת מחיר</SelectItem>
-                        <SelectItem value="PO">PO — הזמנת רכש</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">מטבע</Label>
-                    <Select value={editCurrency} onValueChange={setEditCurrency}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="USD">USD $</SelectItem>
-                        <SelectItem value="EUR">EUR €</SelectItem>
-                        <SelectItem value="ILS">ILS ₪</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">ספק</Label>
-                  <Select value={editSupplierId || "none"} onValueChange={v => setEditSupplierId(v === "none" ? "" : v)}>
-                    <SelectTrigger><SelectValue placeholder="בחר ספק" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">ללא</SelectItem>
-                      {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.company}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">מוצר</Label>
-                  <Select value={editProductId || "none"} onValueChange={v => setEditProductId(v === "none" ? "" : v)}>
-                    <SelectTrigger><SelectValue placeholder="בחר מוצר" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">ללא</SelectItem>
-                      {products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">הזמנה מקושרת</Label>
-                  <Select value={editOrderId || "none"} onValueChange={v => setEditOrderId(v === "none" ? "" : v)}>
-                    <SelectTrigger><SelectValue placeholder="בחר הזמנה" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">ללא</SelectItem>
-                      {orders.map(o => <SelectItem key={o.id} value={o.id}>{o.supplier_name || o.id.slice(0, 8)} — {o.items?.map(i => i.name).join(", ")}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">משימה מקושרת</Label>
-                  <Select value={editTaskId || "none"} onValueChange={v => setEditTaskId(v === "none" ? "" : v)}>
-                    <SelectTrigger><SelectValue placeholder="בחר משימה" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">ללא</SelectItem>
-                      {tasks.map(t => <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1"><Label className="text-xs">כמות</Label><Input type="number" value={editQty} onChange={e => setEditQty(e.target.value)} /></div>
-                  <div className="space-y-1"><Label className="text-xs">מחיר יחידה</Label><Input type="number" value={editUnitPrice} onChange={e => setEditUnitPrice(e.target.value)} /></div>
-                </div>
-                <div className="space-y-1"><Label className="text-xs">הערות</Label><Textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={2} /></div>
-                <div className="flex gap-2">
-                  <Button onClick={handleSave} disabled={saving} className="flex-1">
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin ml-1" /> : null}שמור
-                  </Button>
-                  <Button variant="outline" onClick={() => setEditing(false)} className="flex-1">ביטול</Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <InfoRow label="ספק" value={supplierName} onClick={supplierId ? () => navigate(`/suppliers/${supplierId}`) : undefined} />
-                  <InfoRow label="מוצר" value={productName} onClick={doc.product_id ? () => navigate(`/products/${doc.product_id}`) : undefined} />
-                  <InfoRow label="כמות" value={doc.quantity?.toString()} />
-                  <InfoRow label="מחיר יחידה" value={doc.unit_price ? `${currencySymbol[doc.currency] || ""}${doc.unit_price}` : undefined} />
-                  <InfoRow label="סה״כ" value={doc.total_price ? `${currencySymbol[doc.currency] || ""}${doc.total_price.toLocaleString()}` : undefined} />
-                  <InfoRow label="מטבע" value={doc.currency} />
-                  {doc.approval_date && <InfoRow label="תאריך אישור" value={format(new Date(doc.approval_date), "dd/MM/yyyy")} />}
-                </div>
-                {doc.notes && (
-                  <div className="bg-muted/30 rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground mb-1">הערות</p>
-                    <p className="text-sm text-foreground whitespace-pre-wrap">{doc.notes}</p>
-                  </div>
-                )}
+            <h2 className="text-base font-semibold text-foreground mb-4">
+              פרטי מסמך
+              <span className="text-xs font-normal text-muted-foreground mr-2">לחץ פעמיים על שדה לעריכה</span>
+            </h2>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                {/* Type */}
+                <InfoCell label="סוג">
+                  <InlineEditField
+                    value={doc.type}
+                    onSave={v => handleFieldSave("type", v)}
+                    options={[
+                      { value: "PI", label: "PI — הצעת מחיר" },
+                      { value: "PO", label: "PO — הזמנת רכש" },
+                    ]}
+                  />
+                </InfoCell>
 
-                {/* Linked entities */}
-                {(editOrderId || editTaskId) && (
-                  <div className="space-y-2 pt-2 border-t">
-                    <p className="text-xs font-semibold text-foreground">קישורים</p>
-                    {editOrderId && (
-                      <button onClick={() => navigate(`/orders/${editOrderId}`)} className="text-xs text-primary hover:underline block">
-                        → הזמנה מקושרת
-                      </button>
-                    )}
-                    {editTaskId && (
-                      <button onClick={() => navigate(`/tasks?highlight=${editTaskId}`)} className="text-xs text-primary hover:underline block">
-                        → משימה מקושרת
-                      </button>
-                    )}
-                  </div>
+                {/* Currency */}
+                <InfoCell label="מטבע">
+                  <InlineEditField
+                    value={doc.currency}
+                    onSave={v => handleFieldSave("currency", v)}
+                    options={[
+                      { value: "USD", label: "USD $" },
+                      { value: "EUR", label: "EUR €" },
+                      { value: "ILS", label: "ILS ₪" },
+                    ]}
+                  />
+                </InfoCell>
+
+                {/* Quantity */}
+                <InfoCell label="כמות">
+                  <InlineEditField value={doc.quantity?.toString() || ""} onSave={v => handleFieldSave("quantity", v)} type="number" />
+                </InfoCell>
+
+                {/* Unit price */}
+                <InfoCell label="מחיר יחידה">
+                  <InlineEditField value={doc.unit_price?.toString() || ""} onSave={v => handleFieldSave("unit_price", v)} type="number" />
+                </InfoCell>
+
+                {/* Total - read only */}
+                <InfoCell label="סה״כ">
+                  <p className="text-sm font-medium text-foreground">
+                    {doc.total_price ? `${currencySymbol[doc.currency] || ""}${doc.total_price.toLocaleString()}` : "—"}
+                  </p>
+                </InfoCell>
+
+                {/* Approval date - read only */}
+                {doc.approval_date && (
+                  <InfoCell label="תאריך אישור">
+                    <p className="text-sm font-medium text-foreground">{format(new Date(doc.approval_date), "dd/MM/yyyy")}</p>
+                  </InfoCell>
                 )}
               </div>
-            )}
+
+              {/* Supplier */}
+              <InfoCell label="ספק">
+                <InlineEditField
+                  value={doc.supplier_id || ""}
+                  displayValue={supplierName || "—"}
+                  onSave={v => handleFieldSave("supplier_id", v)}
+                  options={[
+                    { value: "", label: "ללא" },
+                    ...suppliers.map(s => ({ value: s.id, label: s.company })),
+                  ]}
+                />
+              </InfoCell>
+
+              {/* Product */}
+              <InfoCell label="מוצר">
+                <InlineEditField
+                  value={doc.product_id || ""}
+                  displayValue={productName || "—"}
+                  onSave={v => handleFieldSave("product_id", v)}
+                  options={[
+                    { value: "", label: "ללא" },
+                    ...products.map(p => ({ value: p.id, label: p.name })),
+                  ]}
+                />
+              </InfoCell>
+
+              {/* Linked order */}
+              <InfoCell label="הזמנה מקושרת">
+                <InlineEditField
+                  value={(doc as any).order_id || ""}
+                  displayValue={linkedOrder ? `${linkedOrder.supplier_name || ""} — ${linkedOrder.items?.map((i: any) => i.name).join(", ")}` : "—"}
+                  onSave={v => handleFieldSave("order_id", v)}
+                  options={[
+                    { value: "", label: "ללא" },
+                    ...orders.map(o => ({ value: o.id, label: `${o.supplier_name || o.id.slice(0, 8)} — ${o.items?.map((i: any) => i.name).join(", ")}` })),
+                  ]}
+                />
+              </InfoCell>
+
+              {/* Linked task */}
+              <InfoCell label="משימה מקושרת">
+                <InlineEditField
+                  value={(doc as any).task_id || ""}
+                  displayValue={linkedTask?.title || "—"}
+                  onSave={v => handleFieldSave("task_id", v)}
+                  options={[
+                    { value: "", label: "ללא" },
+                    ...tasks.map(t => ({ value: t.id, label: t.title })),
+                  ]}
+                />
+              </InfoCell>
+
+              {/* Notes */}
+              <InfoCell label="הערות">
+                <InlineEditField
+                  value={doc.notes || ""}
+                  onSave={v => handleFieldSave("notes", v)}
+                  displayValue={doc.notes ? <span className="whitespace-pre-wrap">{doc.notes}</span> : <span className="text-muted-foreground">לחץ פעמיים להוספת הערה</span>}
+                />
+              </InfoCell>
+            </div>
           </div>
 
           {/* File upload section */}
-          {isManager && (
-            <div className="bg-card rounded-xl border shadow-sm p-5">
-              <h2 className="text-base font-semibold text-foreground mb-3">קובץ מצורף</h2>
-              {doc.file_url ? (
-                <div className="flex items-center gap-2">
-                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-primary hover:underline">
-                    <ExternalLink className="h-4 w-4" />פתח קובץ
-                  </a>
-                  <Button variant="ghost" size="sm" onClick={handleRemoveFile} className="text-destructive hover:text-destructive">
-                    <X className="h-4 w-4 ml-1" />הסר
-                  </Button>
-                </div>
-              ) : (
-                <label className="flex items-center gap-2 border border-dashed rounded-lg p-4 cursor-pointer hover:bg-muted/30 transition-colors">
-                  {uploading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : <Upload className="h-5 w-5 text-muted-foreground" />}
-                  <span className="text-sm text-muted-foreground">{uploading ? "מעלה..." : "העלה קובץ (PDF, Word, Excel, תמונה)"}</span>
-                  <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt,.csv" className="hidden" onChange={handleFileUpload} disabled={uploading} />
-                </label>
-              )}
-            </div>
-          )}
+          <div className="bg-card rounded-xl border shadow-sm p-5">
+            <h2 className="text-base font-semibold text-foreground mb-3">קובץ מצורף</h2>
+            {doc.file_url ? (
+              <div className="flex items-center gap-2">
+                <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-primary hover:underline">
+                  <ExternalLink className="h-4 w-4" />פתח קובץ
+                </a>
+                <Button variant="ghost" size="sm" onClick={handleRemoveFile} className="text-destructive hover:text-destructive">
+                  <X className="h-4 w-4 ml-1" />הסר
+                </Button>
+              </div>
+            ) : (
+              <label className="flex items-center gap-2 border border-dashed rounded-lg p-4 cursor-pointer hover:bg-muted/30 transition-colors">
+                {uploading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : <Upload className="h-5 w-5 text-muted-foreground" />}
+                <span className="text-sm text-muted-foreground">{uploading ? "מעלה..." : "העלה קובץ (PDF, Word, Excel, תמונה)"}</span>
+                <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt,.csv" className="hidden" onChange={handleFileUpload} disabled={uploading} />
+              </label>
+            )}
+          </div>
         </div>
 
         {/* Right: File preview */}
@@ -419,9 +406,7 @@ export default function DocumentDetailPage() {
             <div className="flex flex-col items-center justify-center gap-4 py-16 text-muted-foreground border rounded-lg bg-muted/10">
               <FileText className="h-16 w-16 opacity-30" />
               <p className="text-sm">אין קובץ מצורף</p>
-              {isManager && (
-                <p className="text-xs">העלה קובץ מהעמודה השמאלית</p>
-              )}
+              <p className="text-xs">העלה קובץ מהעמודה השמאלית</p>
             </div>
           )}
         </div>
@@ -430,19 +415,11 @@ export default function DocumentDetailPage() {
   );
 }
 
-function InfoRow({ label, value, onClick }: { label: string; value?: string | null; onClick?: () => void }) {
+function InfoCell({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="bg-muted/30 rounded-lg p-3">
       <p className="text-xs text-muted-foreground mb-1">{label}</p>
-      {value ? (
-        onClick ? (
-          <button onClick={onClick} className="text-sm font-medium text-primary hover:underline">{value}</button>
-        ) : (
-          <p className="text-sm font-medium text-foreground">{value}</p>
-        )
-      ) : (
-        <p className="text-sm text-muted-foreground">—</p>
-      )}
+      {children}
     </div>
   );
 }
