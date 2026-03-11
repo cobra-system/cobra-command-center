@@ -4,6 +4,7 @@ import { useData, useAuth, type Priority, type OrderStatus } from "@/contexts/Ap
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Pencil, Trash2, CreditCard, Zap, Check } from "lucide-react";
+import DocumentsSection from "@/components/DocumentsSection";
 import { supabase } from "@/integrations/supabase/client";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -244,6 +245,9 @@ export default function OrderDetailPage() {
           <p className="text-sm text-foreground whitespace-pre-wrap">{order.notes || "—"}</p>
         )}
       </div>
+
+      {/* Documents */}
+      {order.supplier_id && <DocumentsSection supplierId={order.supplier_id} />}
 
       {/* Edit Dialog */}
       <OrderEditDialog open={editOpen} onOpenChange={setEditOpen} order={order} suppliers={suppliers} onSave={updateOrder} />

@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowRight, Pencil, Trash2, ExternalLink, Mail, Phone, Globe, TruckIcon, UserPlus, Users, X, Link2, Search } from "lucide-react";
+import DocumentsSection from "@/components/DocumentsSection";
 import { InlineEditField } from "@/components/InlineEditField";
 import SapSyncBadge from "@/components/SapSyncBadge";
 import { supabase } from "@/integrations/supabase/client";
@@ -343,6 +344,9 @@ export default function SupplierDetailPage() {
           <p className="text-sm text-muted-foreground py-4 text-center">אין הזמנות קשורות לספק זה</p>
         )}
       </div>
+
+      {/* Documents */}
+      <DocumentsSection supplierId={supplier.id} />
 
       {/* Link Product Dialog */}
       <Dialog open={linkProductOpen} onOpenChange={open => { setLinkProductOpen(open); if (!open) { setLinkProductSearch(""); setLinkProductId(""); } }}>

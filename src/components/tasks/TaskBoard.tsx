@@ -19,7 +19,6 @@ import { toast } from "sonner";
 const columns: { status: TaskStatus; label: string; bgClass: string }[] = [
   { status: "TODO", label: "לביצוע", bgClass: "bg-[hsl(var(--todo))]" },
   { status: "DONE", label: "הושלם", bgClass: "bg-[hsl(var(--done))]" },
-  { status: "BLOCKED", label: "חסום", bgClass: "bg-[hsl(var(--blocked))]" },
 ];
 
 const priorityOptions: { value: Priority; label: string }[] = [
@@ -108,7 +107,10 @@ export default function TaskBoard() {
     toast.success("המשימה נמחקה");
   };
 
-  const getColumnTasks = (status: TaskStatus): Task[] => filteredTasks.filter(t => t.status === status);
+  const getColumnTasks = (status: TaskStatus): Task[] => {
+    if (status === "TODO") return filteredTasks.filter(t => t.status !== "DONE");
+    return filteredTasks.filter(t => t.status === "DONE");
+  };
 
   return (
     <div className="space-y-4">
@@ -242,10 +244,13 @@ export default function TaskBoard() {
                     {task.due_date && <p className="text-xs text-muted-foreground">📅 {format(new Date(task.due_date), "dd/MM/yyyy")}</p>}
                     {task.notes && <p className="text-xs text-muted-foreground truncate">💬 {task.notes}</p>}
                     {task.is_daily && <span className="inline-block text-xs bg-warning/15 text-warning px-2 py-0.5 rounded-full">יומית</span>}
-                    <div className="flex flex-wrap gap-1 pt-1">
-                      {columns.filter(c => c.status !== task.status).map(c => (
-                        <button key={c.status} onClick={() => updateTaskStatus(task.id, c.status)} className="text-[10px] px-2 py-1 rounded bg-muted text-muted-foreground hover:bg-muted/80 transition-colors">{c.label}</button>
-                      ))}
+                    <div className="pt-1">
+                      <button
+                        onClick={() => updateTaskStatus(task.id, task.status === "DONE" ? "TODO" : "DONE")}
+                        className={`text-[10px] px-2 py-1 rounded transition-colors ${task.status === "DONE" ? "bg-muted text-muted-foreground hover:bg-muted/80" : "bg-success/15 text-success hover:bg-success/25"}`}
+                      >
+                        {task.status === "DONE" ? "סמן כלא בוצע" : "✓ סמן כבוצע"}
+                      </button>
                     </div>
                   </div>
                 ))}

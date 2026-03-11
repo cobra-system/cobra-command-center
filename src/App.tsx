@@ -20,6 +20,7 @@ import SupplierDetailPage from "@/pages/SupplierDetailPage";
 import TasksPage from "@/pages/TasksPage";
 import SettingsPage from "@/pages/SettingsPage";
 import DocumentsPage from "@/pages/DocumentsPage";
+import DocumentDetailPage from "@/pages/DocumentDetailPage";
 import ReorderPage from "@/pages/ReorderPage";
 import ReportsPage from "@/pages/ReportsPage";
 import MyTasksPage from "@/pages/MyTasksPage";
@@ -72,6 +73,7 @@ function AppRoutes() {
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/workflows" element={<Navigate to="/tasks" replace />} />
         <Route path="/documents" element={<DocumentsPage />} />
+        <Route path="/documents/:id" element={<DocumentDetailPage />} />
         <Route path="/reorder" element={<ReorderPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/settings" element={<SettingsPage />} />

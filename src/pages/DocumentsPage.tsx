@@ -10,7 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Plus, ChevronLeft, Search, Filter, Upload, CreditCard, AlertTriangle, Loader2, ScrollText } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { FileText, Plus, Search, Upload, CreditCard, AlertTriangle, Loader2, ScrollText } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format, isThisWeek, isPast } from "date-fns";
 
@@ -466,27 +468,49 @@ export default function DocumentsPage() {
                 <th className="text-right p-3 font-semibold text-foreground">מחיר כולל</th>
                 <th className="text-right p-3 font-semibold text-foreground">סטטוס</th>
                 <th className="text-right p-3 font-semibold text-foreground">תאריך</th>
-                <th className="text-right p-3 font-semibold text-foreground">קובץ</th>
-                <th className="text-right p-3 font-semibold text-foreground">פעולה</th>
               </tr></thead>
               <tbody className="divide-y">
                 {filteredDocs.length === 0 ? (
-                  <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">אין מסמכים</td></tr>
+                  <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">אין מסמכים</td></tr>
                 ) : filteredDocs.map(doc => (
-                  <tr key={doc.id} className="hover:bg-muted/30">
+                  <tr
+                    key={doc.id}
+                    className="hover:bg-muted/30 cursor-pointer transition-colors"
+                    onClick={() => navigate(`/documents/${doc.id}`)}
+                  >
                     <td className="p-3"><span className={`px-2 py-0.5 rounded text-xs font-bold ${doc.type === "PI" ? "bg-primary/15 text-primary" : "bg-accent/15 text-accent"}`}>{doc.type}</span></td>
                     <td className="p-3 text-foreground">{supplierName(doc.supplier_id)}</td>
                     <td className="p-3 text-foreground">{productName(doc.product_id)}</td>
-                    <td className="p-3 text-muted-foreground">{doc.quantity}</td>
-                    <td className="p-3 text-muted-foreground font-mono" dir="ltr">{doc.total_price ? `${doc.total_price.toLocaleString()}` : "—"}</td>
-                    <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${docStatusColors[doc.status] || "bg-muted text-muted-foreground"}`}>{doc.status}</span></td>
-                    <td className="p-3 text-muted-foreground text-xs">{format(new Date(doc.created_at), "dd/MM/yy")}</td>
-                    <td className="p-3">{doc.file_url ? <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-primary text-xs hover:underline">📎 צפה</a> : "—"}</td>
-                    <td className="p-3">
-                      {docStatusFlow.indexOf(doc.status) < docStatusFlow.length - 1 && (
-                        <Button variant="outline" size="sm" onClick={() => advanceStatus(doc)}><ChevronLeft className="h-3 w-3 ml-1" />קדם</Button>
-                      )}
+                    <td className="p-3 text-muted-foreground">{doc.quantity || "—"}</td>
+                    <td className="p-3 text-muted-foreground font-mono" dir="ltr">{doc.total_price ? `${currencySymbol[doc.currency] || ""}${doc.total_price.toLocaleString()}` : "—"}</td>
+                    <td className="p-3" onClick={e => e.stopPropagation()}>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button className={cn("px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer", docStatusColors[doc.status] || "bg-muted text-muted-foreground")}>
+                            {doc.status}
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-1" align="start">
+                          <div className="flex flex-col gap-0.5">
+                            {docStatusFlow.map(s => (
+                              <button
+                                key={s}
+                                onClick={async () => {
+                                  const updates: Record<string, any> = { status: s };
+                                  if (s === "אושר") { updates.approval_date = new Date().toISOString(); updates.approved_by = currentUser?.id; }
+                                  await supabase.from("purchase_documents").update(updates).eq("id", doc.id);
+                                  fetchData();
+                                }}
+                                className={cn("px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted", doc.status === s && "bg-muted")}
+                              >
+                                {s}
+                              </button>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </td>
+                    <td className="p-3 text-muted-foreground text-xs">{format(new Date(doc.created_at), "dd/MM/yy")}</td>
                   </tr>
                 ))}
               </tbody>
@@ -504,26 +528,42 @@ export default function DocumentsPage() {
                 <th className="text-right p-3 font-semibold text-foreground">מועד פירעון</th>
                 <th className="text-right p-3 font-semibold text-foreground">סטטוס</th>
                 <th className="text-right p-3 font-semibold text-foreground">תאריך תשלום</th>
-                <th className="text-right p-3 font-semibold text-foreground">פעולה</th>
               </tr></thead>
               <tbody className="divide-y">
                 {filteredPayments.length === 0 ? (
-                  <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">אין תשלומים</td></tr>
+                  <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">אין תשלומים</td></tr>
                 ) : filteredPayments.map(p => {
                   const isOverdue = p.status !== "שולם" && p.due_date && isPast(new Date(p.due_date));
+                  const displayStatus = isOverdue ? "מאוחר" : p.status;
                   return (
                     <tr key={p.id} className={`hover:bg-muted/30 ${isOverdue ? "bg-destructive/5" : ""}`}>
                       <td className="p-3 font-medium text-foreground">{supplierName(p.supplier_id)}</td>
                       <td className="p-3 text-foreground font-mono" dir="ltr">{currencySymbol[p.currency] || ""}{p.amount.toLocaleString()}</td>
                       <td className="p-3 text-muted-foreground">{p.payment_type === "Deposit" ? "מקדמה" : p.payment_type === "Balance" ? "יתרה" : "מלא"}</td>
                       <td className="p-3 text-muted-foreground text-xs">{p.due_date ? format(new Date(p.due_date), "dd/MM/yy") : "—"}</td>
-                      <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${payStatusColors[isOverdue ? "מאוחר" : p.status] || "bg-muted text-muted-foreground"}`}>{isOverdue ? "מאוחר" : p.status}</span></td>
-                      <td className="p-3 text-muted-foreground text-xs">{p.paid_date ? format(new Date(p.paid_date), "dd/MM/yy") : "—"}</td>
                       <td className="p-3">
-                        {p.status !== "שולם" && (
-                          <Button variant="outline" size="sm" onClick={() => markPaid(p.id)}>סמן כשולם</Button>
-                        )}
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button className={cn("px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer", payStatusColors[displayStatus] || "bg-muted text-muted-foreground")}>
+                              {displayStatus}
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-1" align="start">
+                            <div className="flex flex-col gap-0.5">
+                              {["ממתין", "שולם", "מאוחר"].map(s => (
+                                <button
+                                  key={s}
+                                  onClick={() => markPaid(p.id)}
+                                  className={cn("px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted", p.status === s && "bg-muted")}
+                                >
+                                  {s === "שולם" ? "✓ שולם" : s}
+                                </button>
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       </td>
+                      <td className="p-3 text-muted-foreground text-xs">{p.paid_date ? format(new Date(p.paid_date), "dd/MM/yy") : "—"}</td>
                     </tr>
                   );
                 })}
