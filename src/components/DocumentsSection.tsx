@@ -23,7 +23,7 @@ export default function DocumentsSection({ supplierId, productId, orderId }: Pro
   const fetchData = useCallback(async () => {
     setLoading(true);
 
-    let docQuery = supabase.from("purchase_documents").select("*").order("created_at", { ascending: false });
+    let docQuery = supabase.from("purchase_documents").select("*").order("created_at", { ascending: false }) as any;
     if (supplierId) docQuery = docQuery.eq("supplier_id", supplierId);
     else if (productId) docQuery = docQuery.eq("product_id", productId);
     else if (orderId) docQuery = docQuery.eq("order_id", orderId);

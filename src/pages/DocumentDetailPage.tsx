@@ -18,8 +18,6 @@ interface PurchaseDocument {
   type: string;
   supplier_id: string | null;
   product_id: string | null;
-  order_id: string | null;
-  task_id: string | null;
   quantity: number;
   unit_price: number | null;
   total_price: number | null;
@@ -132,12 +130,14 @@ export default function DocumentDetailPage() {
   const fetchDoc = useCallback(async () => {
     if (!id) return;
     setLoading(true);
-    const [docRes, paysRes] = await Promise.all([
-      supabase.from("purchase_documents").select("*").eq("id", id).single(),
-      supabase.from("supplier_payments").select("*").eq("document_id", id).order("created_at", { ascending: false }),
-    ]);
-    if (docRes.data) setDoc(docRes.data as PurchaseDocument);
-    if (paysRes.data) setLinkedPayments(paysRes.data as Payment[]);
+    const docRes = await supabase.from("purchase_documents").select("*").eq("id", id).single();
+    if (docRes.data) setDoc(docRes.data as unknown as PurchaseDocument);
+    // Payments linked by order_id if available
+    const orderIdVal = (docRes.data as any)?.order_id;
+    if (orderIdVal) {
+      const paysRes = await supabase.from("supplier_payments").select("*").eq("order_id", orderIdVal).order("created_at", { ascending: false });
+      if (paysRes.data) setLinkedPayments(paysRes.data as unknown as Payment[]);
+    }
     setLoading(false);
   }, [id]);
 
