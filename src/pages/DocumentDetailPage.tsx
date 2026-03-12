@@ -18,8 +18,6 @@ interface PurchaseDocument {
   type: string;
   supplier_id: string | null;
   product_id: string | null;
-  order_id: string | null;
-  task_id: string | null;
   quantity: number;
   unit_price: number | null;
   total_price: number | null;
