@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useData, useAuth, type Task, type Priority } from "@/contexts/AppContext";
 import { supabase } from "@/integrations/supabase/client";
 import { PriorityBadge } from "@/components/PriorityBadge";
@@ -98,6 +99,7 @@ function recurringMatchesDay(rt: RecurringTask, day: Date): boolean {
 export default function TaskWeeklyView() {
   const { tasks, updateTaskStatus, updateTask, profiles } = useData();
   const { currentUser } = useAuth();
+  const [searchParams] = useSearchParams();
   const [weekOffset, setWeekOffset] = useState(0);
   const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
@@ -107,6 +109,7 @@ export default function TaskWeeklyView() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [createPickerOpen, setCreatePickerOpen] = useState(false);
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
+  const [highlightTaskId, setHighlightTaskId] = useState<string | null>(null);
 
   // Recurring tasks
   const [recurringTasks, setRecurringTasks] = useState<RecurringTask[]>([]);
@@ -139,6 +142,17 @@ export default function TaskWeeklyView() {
     loadRecurring();
     loadWorkflows();
   }, [loadRecurring, loadWorkflows]);
+
+  // Handle highlight from search params
+  useEffect(() => {
+    const highlightId = searchParams.get("highlight");
+    if (highlightId) {
+      setHighlightTaskId(highlightId);
+      // Auto-clear highlight after 3 seconds
+      const timeout = setTimeout(() => setHighlightTaskId(null), 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [searchParams]);
 
   const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
 
@@ -354,6 +368,7 @@ export default function TaskWeeklyView() {
                     task={task}
                     showAssignee={assigneeFilter === "all"}
                     isDragging={dragTaskId === task.id}
+                    isHighlighted={highlightTaskId === task.id}
                     onToggle={() => updateTaskStatus(task.id, task.status === "DONE" ? "TODO" : "DONE")}
                     onClick={() => setSelectedTask(task)}
                     onDragStart={() => setDragTaskId(task.id)}
@@ -664,13 +679,14 @@ interface WeeklyTaskCardProps {
   task: Task;
   showAssignee: boolean;
   isDragging: boolean;
+  isHighlighted?: boolean;
   onToggle: () => void;
   onClick: () => void;
   onDragStart: () => void;
   onDragEnd: () => void;
 }
 
-function WeeklyTaskCard({ task, showAssignee, isDragging, onToggle, onClick, onDragStart, onDragEnd }: WeeklyTaskCardProps) {
+function WeeklyTaskCard({ task, showAssignee, isDragging, isHighlighted, onToggle, onClick, onDragStart, onDragEnd }: WeeklyTaskCardProps) {
   const isDone = task.status === "DONE";
   const isUrgent = task.priority === "דחוף";
   const initials = task.assignee_name ? task.assignee_name.trim().charAt(0).toUpperCase() : null;
@@ -682,7 +698,8 @@ function WeeklyTaskCard({ task, showAssignee, isDragging, onToggle, onClick, onD
         isDone ? "bg-success/10 border-success/20 opacity-60" :
         isUrgent ? "bg-destructive/10 border-destructive/20" :
         "bg-card border-border/40 hover:shadow-sm",
-        isDragging && "opacity-40 scale-95"
+        isDragging && "opacity-40 scale-95",
+        isHighlighted && "ring-2 ring-yellow-400 ring-offset-2 bg-yellow-50/50"
       )}
       draggable
       onDragStart={onDragStart}

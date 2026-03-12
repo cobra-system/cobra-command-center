@@ -65,7 +65,7 @@ export default function GlobalSearch() {
     for (const t of tasks) {
       if (res.length >= limit) break;
       if (t.title.toLowerCase().includes(q) || (t.description || "").toLowerCase().includes(q)) {
-        res.push({ id: t.id, label: t.title, subtitle: t.assignee_name || undefined, type: "task", path: `/tasks` });
+        res.push({ id: t.id, label: t.title, subtitle: t.assignee_name || undefined, type: "task", path: `/tasks?highlight=${t.id}` });
       }
     }
 

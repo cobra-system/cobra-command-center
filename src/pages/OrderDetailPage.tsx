@@ -124,7 +124,25 @@ export default function OrderDetailPage() {
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-foreground">תיק הזמנה</h1>
           <p className="text-sm text-muted-foreground">
-            {order.items.map(i => i.name).join(", ")}
+            {order.items.map((i, idx) => {
+              const linkedProduct = i.product_id ? products.find(p => p.id === i.product_id) : products.find(p => p.name === i.name);
+              return (
+                <span key={idx}>
+                  {linkedProduct ? (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigate(`/products/${linkedProduct.id}`);
+                      }}
+                      className="text-primary hover:underline cursor-pointer"
+                    >
+                      {i.name}
+                    </button>
+                  ) : i.name}
+                  {idx < order.items.length - 1 && <span>, </span>}
+                </span>
+              );
+            })}
           </p>
         </div>
         {isManager && (

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { type Priority, type Order, type OrderItem, type Supplier, type Product, type ProductComponent } from "@/contexts/AppContext";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,10 +26,22 @@ interface Props {
   suppliers: Supplier[];
   products: Product[];
   addOrder: (order: Omit<Order, "id" | "items"> & { items: Omit<OrderItem, "id" | "order_id">[] }) => Promise<void>;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  defaultProductId?: string;
 }
 
-export function NewOrderDialog({ suppliers, products, addOrder }: Props) {
-  const [open, setOpen] = useState(false);
+export function NewOrderDialog({ suppliers, products, addOrder, open: controlledOpen, onOpenChange, defaultProductId }: Props) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = (v: boolean) => {
+    if (controlledOpen !== undefined && onOpenChange) {
+      onOpenChange(v);
+    } else {
+      setInternalOpen(v);
+    }
+  };
+
   const [priority, setPriority] = useState<Priority>("בינוני");
   const [supplierId, setSupplierId] = useState("");
   const [shipping, setShipping] = useState("");
@@ -48,6 +60,23 @@ export function NewOrderDialog({ suppliers, products, addOrder }: Props) {
     setEtd(undefined); setEta(undefined);
     setItems([{ type: "product", name: "", qty: "", price: "", productId: "", componentId: "" }]);
   };
+
+  // Handle defaultProductId when dialog opens
+  useEffect(() => {
+    if (open && defaultProductId) {
+      const prod = products.find(p => p.id === defaultProductId);
+      if (prod) {
+        setItems([{
+          type: "product",
+          name: prod.name,
+          qty: "1",
+          price: prod.purchase_price?.toString() || "",
+          productId: prod.id,
+          componentId: ""
+        }]);
+      }
+    }
+  }, [open, defaultProductId, products]);
 
   const updateItem = (idx: number, field: keyof ItemRow, value: string) =>
     setItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
