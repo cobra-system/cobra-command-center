@@ -1,6 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { useData } from "@/contexts/AppContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,12 +9,12 @@ import type { PurchaseDocument, Payment } from "@/components/documents/types";
 import DocumentSummaryCards from "@/components/documents/DocumentSummaryCards";
 import DocumentsTable from "@/components/documents/DocumentsTable";
 import PaymentsTable from "@/components/documents/PaymentsTable";
+import ComplianceTab from "@/components/documents/ComplianceTab";
 import DocumentFormDialog from "@/components/documents/DocumentFormDialog";
 import PaymentFormDialog from "@/components/documents/PaymentFormDialog";
 import FileUploadDialog from "@/components/documents/FileUploadDialog";
 
 export default function DocumentsPage() {
-  const navigate = useNavigate();
   const [docs, setDocs] = useState<PurchaseDocument[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,7 +22,9 @@ export default function DocumentsPage() {
   const [search, setSearch] = useState("");
 
   const [docDialogOpen, setDocDialogOpen] = useState(false);
+  const [editingDoc, setEditingDoc] = useState<PurchaseDocument | null>(null);
   const [payDialogOpen, setPayDialogOpen] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -49,14 +49,13 @@ export default function DocumentsPage() {
         <div className="flex items-center gap-3">
           <FileText className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold text-foreground">מסמכים</h1>
-          <Button variant="outline" size="sm" onClick={() => navigate("/compliance")} className="gap-1">
-            <ScrollText className="h-3.5 w-3.5" />רישיונות ואישורים
-          </Button>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setUploadDialogOpen(true)}>
-            <Upload className="h-4 w-4 ml-1" />העלה קובץ
-          </Button>
+          {tab !== "compliance" && (
+            <Button variant="outline" onClick={() => setUploadDialogOpen(true)}>
+              <Upload className="h-4 w-4 ml-1" />העלה קובץ
+            </Button>
+          )}
           {tab === "documents" && (
             <Button onClick={() => setDocDialogOpen(true)}>
               <Plus className="h-4 w-4 ml-1" />מסמך חדש
@@ -70,32 +69,67 @@ export default function DocumentsPage() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="חפש לפי ספק או מוצר..." className="pr-10" />
-      </div>
+      {/* Search (only for documents & payments tabs) */}
+      {tab !== "compliance" && (
+        <div className="relative max-w-sm">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="חפש לפי ספק או מוצר..." className="pr-10" />
+        </div>
+      )}
 
-      {/* Summary Cards */}
-      <DocumentSummaryCards docs={docs} payments={payments} />
+      {/* Summary Cards (only for documents & payments tabs) */}
+      {tab !== "compliance" && (
+        <DocumentSummaryCards docs={docs} payments={payments} />
+      )}
 
       {/* Tabs */}
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="documents" className="gap-1"><FileText className="h-4 w-4" />PI / PO ({docs.length})</TabsTrigger>
-          <TabsTrigger value="payments" className="gap-1"><CreditCard className="h-4 w-4" />תשלומים ({payments.length})</TabsTrigger>
+          <TabsTrigger value="documents" className="gap-1">
+            <FileText className="h-4 w-4" />PI / PO ({docs.length})
+          </TabsTrigger>
+          <TabsTrigger value="payments" className="gap-1">
+            <CreditCard className="h-4 w-4" />תשלומים ({payments.length})
+          </TabsTrigger>
+          <TabsTrigger value="compliance" className="gap-1">
+            <ScrollText className="h-4 w-4" />ציות ורישיונות
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="documents">
-          <DocumentsTable docs={docs} search={search} onRefresh={fetchData} />
+          <DocumentsTable
+            docs={docs}
+            search={search}
+            onRefresh={fetchData}
+            onEdit={doc => { setEditingDoc(doc); setDocDialogOpen(true); }}
+          />
         </TabsContent>
         <TabsContent value="payments">
-          <PaymentsTable payments={payments} search={search} onRefresh={fetchData} />
+          <PaymentsTable
+            payments={payments}
+            search={search}
+            onRefresh={fetchData}
+            onEdit={p => { setEditingPayment(p); setPayDialogOpen(true); }}
+          />
+        </TabsContent>
+        <TabsContent value="compliance">
+          <ComplianceTab />
         </TabsContent>
       </Tabs>
 
       {/* Dialogs */}
-      <DocumentFormDialog open={docDialogOpen} onOpenChange={setDocDialogOpen} onSaved={fetchData} />
-      <PaymentFormDialog open={payDialogOpen} onOpenChange={setPayDialogOpen} onSaved={fetchData} docs={docs} />
+      <DocumentFormDialog
+        open={docDialogOpen}
+        onOpenChange={v => { setDocDialogOpen(v); if (!v) setEditingDoc(null); }}
+        onSaved={fetchData}
+        editDocument={editingDoc}
+      />
+      <PaymentFormDialog
+        open={payDialogOpen}
+        onOpenChange={v => { setPayDialogOpen(v); if (!v) setEditingPayment(null); }}
+        onSaved={fetchData}
+        docs={docs}
+        editPayment={editingPayment}
+      />
       <FileUploadDialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen} onSaved={fetchData} />
     </div>
   );

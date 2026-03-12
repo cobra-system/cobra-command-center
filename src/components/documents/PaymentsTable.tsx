@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData } from "@/contexts/AppContext";
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Pencil } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -18,9 +19,10 @@ interface Props {
   payments: Payment[];
   search: string;
   onRefresh: () => void;
+  onEdit?: (payment: Payment) => void;
 }
 
-export default function PaymentsTable({ payments, search, onRefresh }: Props) {
+export default function PaymentsTable({ payments, search, onRefresh, onEdit }: Props) {
   const { suppliers } = useData();
   const navigate = useNavigate();
 
@@ -138,6 +140,7 @@ export default function PaymentsTable({ payments, search, onRefresh }: Props) {
               <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("paid_date")}>
                 <span className="flex items-center gap-1">תאריך תשלום <SortIcon field="paid_date" /></span>
               </th>
+              {onEdit && <th className="p-3" />}
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -184,6 +187,13 @@ export default function PaymentsTable({ payments, search, onRefresh }: Props) {
                     </Popover>
                   </td>
                   <td className="p-3 text-muted-foreground text-xs">{p.paid_date ? format(new Date(p.paid_date), "dd/MM/yy") : "—"}</td>
+                  {onEdit && (
+                    <td className="p-3">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(p)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
+                  )}
                 </tr>
               );
             })}

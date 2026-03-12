@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useData, useAuth, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
@@ -44,8 +44,11 @@ export default function OrdersPage() {
   const { orders, updateOrderStatus, updateOrder, addOrder, deleteOrder, suppliers, products } = useData();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [orderWorkflows, setOrderWorkflows] = useState<Record<string, { status: string; current_step: number }>>({});
   const isManager = currentUser?.role === "MANAGER";
+  const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
+  const [defaultProductId, setDefaultProductId] = useState<string | undefined>();
 
   useEffect(() => {
     const fetchWorkflows = async () => {
@@ -61,6 +64,17 @@ export default function OrdersPage() {
     };
     fetchWorkflows();
   }, [orders]);
+
+  // Handle query params for creating order from ReorderPage
+  useEffect(() => {
+    if (searchParams.get("create") === "true") {
+      const productId = searchParams.get("product");
+      if (productId) {
+        setShowNewOrderDialog(true);
+        setDefaultProductId(productId);
+      }
+    }
+  }, [searchParams]);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -130,6 +144,11 @@ export default function OrdersPage() {
     if (s) navigate(`/suppliers/${s.id}`);
   };
 
+  const navigateToProduct = (productId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/products/${productId}`);
+  };
+
   const handleDeleteOrder = async (orderId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     await deleteOrder(orderId);
@@ -149,7 +168,14 @@ export default function OrdersPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">הזמנות</h1>
-        <NewOrderDialog suppliers={suppliers} products={products} addOrder={addOrder} />
+        <NewOrderDialog
+          suppliers={suppliers}
+          products={products}
+          addOrder={addOrder}
+          open={showNewOrderDialog}
+          onOpenChange={setShowNewOrderDialog}
+          defaultProductId={defaultProductId}
+        />
       </div>
 
       {/* Filters */}
@@ -207,7 +233,20 @@ export default function OrdersPage() {
             ) : filtered.map(order => (
               <tr key={order.id} className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => navigate(`/orders/${order.id}`)}>
                 <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
-                <td className="p-3 font-medium text-foreground max-w-[200px] truncate">{order.items.map(i => i.name).join(", ")}</td>
+                <td className="p-3 font-medium text-foreground max-w-[200px] truncate" onClick={e => e.stopPropagation()}>
+                  {order.items.map((i, idx) => (
+                    <span key={idx}>
+                      {i.product_id ? (
+                        <button onClick={(e) => navigateToProduct(i.product_id!, e)} className="text-primary hover:underline text-sm">
+                          {i.name}
+                        </button>
+                      ) : (
+                        <span>{i.name}</span>
+                      )}
+                      {idx < order.items.length - 1 && <span>, </span>}
+                    </span>
+                  ))}
+                </td>
                 <td className="p-3 text-muted-foreground">{order.items.reduce((s, i) => s + i.qty, 0)}</td>
                 <td className="p-3">
                   {order.supplier_name ? (

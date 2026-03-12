@@ -207,6 +207,47 @@ export default function SupplierDetailPage() {
           <InlineEditField label="מוצרים" value={supplier.products} onSave={(v) => handleInlineSave("products", v)} disabled={!isManager} />
           <InlineEditField label="הערות" value={supplier.notes} onSave={(v) => handleInlineSave("notes", v)} disabled={!isManager} />
         </div>
+        <div className="mt-4 pt-4 border-t grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <InlineEditField
+            label="רמת סיכון"
+            value={supplier.risk_level}
+            onSave={(v) => handleInlineSave("risk_level", v)}
+            disabled={!isManager}
+            displayValue={supplier.risk_level ? (
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                supplier.risk_level === "low" ? "bg-success/15 text-success" :
+                supplier.risk_level === "medium" ? "bg-warning/15 text-warning" :
+                "bg-destructive/15 text-destructive"
+              }`}>
+                {supplier.risk_level === "low" ? "נמוך" : supplier.risk_level === "medium" ? "בינוני" : "גבוה"}
+              </span>
+            ) : "—"}
+          />
+          <InlineEditField
+            label="זמן הובלה (ימים)"
+            value={supplier.lead_time_days?.toString()}
+            onSave={(v) => handleInlineSave("lead_time_days", v)}
+            disabled={!isManager}
+            displayValue={supplier.lead_time_days ? `${supplier.lead_time_days} ימים` : "—"}
+          />
+          <InlineEditField
+            label="ספק גיבוי"
+            value={supplier.backup_supplier_id}
+            onSave={(v) => handleInlineSave("backup_supplier_id", v)}
+            disabled={!isManager}
+            displayValue={supplier.backup_supplier_id ? (
+              <button
+                onClick={() => {
+                  const backupSupplier = suppliers.find(s => s.id === supplier.backup_supplier_id);
+                  if (backupSupplier) navigate(`/suppliers/${backupSupplier.id}`);
+                }}
+                className="text-sm text-primary hover:underline"
+              >
+                {suppliers.find(s => s.id === supplier.backup_supplier_id)?.company || "—"}
+              </button>
+            ) : "—"}
+          />
+        </div>
       </div>
 
       {/* Additional Contacts */}

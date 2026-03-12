@@ -13,11 +13,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarComp } from "@/components/ui/calendar";
 import { InlineEditField } from "@/components/InlineEditField";
+import { DateInput } from "@/components/ui/date-input";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 import { toast } from "sonner";
 
 const allStatuses: { value: OrderStatus; label: string }[] = [
@@ -74,7 +72,6 @@ export default function OrderDetailPage() {
 
   // Inline date picker card
   const DateCard = ({ icon: Icon, label, field, value }: { icon: any; label: string; field: string; value: string | null | undefined }) => {
-    const [open, setOpen] = useState(false);
     const date = value ? new Date(value) : undefined;
     return (
       <div className="bg-card rounded-xl border p-4 space-y-1">
@@ -82,27 +79,7 @@ export default function OrderDetailPage() {
           <Icon className="h-3.5 w-3.5" />{label}
         </div>
         {isManager ? (
-          <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-              <button className="text-sm font-semibold text-foreground hover:text-primary hover:underline text-right w-full" title="לחץ לעריכה">
-                {date ? date.toLocaleDateString("he-IL") : <span className="text-muted-foreground font-normal">לחץ לבחירה</span>}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <CalendarComp
-                mode="single"
-                selected={date}
-                onSelect={(d) => { handleDateSave(field, d); setOpen(false); }}
-                initialFocus
-                className="p-3 pointer-events-auto"
-              />
-              {date && (
-                <div className="px-3 pb-3">
-                  <button onClick={() => { handleDateSave(field, undefined); setOpen(false); }} className="text-xs text-destructive hover:underline">נקה תאריך</button>
-                </div>
-              )}
-            </PopoverContent>
-          </Popover>
+          <DateInput value={date} onChange={d => handleDateSave(field, d)} clearable />
         ) : (
           <div className="text-sm font-semibold text-foreground">{date ? date.toLocaleDateString("he-IL") : "—"}</div>
         )}
@@ -147,7 +124,25 @@ export default function OrderDetailPage() {
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-foreground">תיק הזמנה</h1>
           <p className="text-sm text-muted-foreground">
-            {order.items.map(i => i.name).join(", ")}
+            {order.items.map((i, idx) => {
+              const linkedProduct = i.product_id ? products.find(p => p.id === i.product_id) : products.find(p => p.name === i.name);
+              return (
+                <span key={idx}>
+                  {linkedProduct ? (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigate(`/products/${linkedProduct.id}`);
+                      }}
+                      className="text-primary hover:underline cursor-pointer"
+                    >
+                      {i.name}
+                    </button>
+                  ) : i.name}
+                  {idx < order.items.length - 1 && <span>, </span>}
+                </span>
+              );
+            })}
           </p>
         </div>
         {isManager && (
@@ -447,17 +442,7 @@ function OrderEditDialog({ open, onOpenChange, order, suppliers, onSave }: {
   const DateField = ({ label, value, onChange }: { label: string; value?: Date; onChange: (d?: Date) => void }) => (
     <div className="space-y-1">
       <Label className="text-xs">{label}</Label>
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="outline" className={cn("w-full justify-start text-right font-normal text-sm", !value && "text-muted-foreground")}>
-            <Calendar className="h-4 w-4 ml-2" />
-            {value ? format(value, "dd/MM/yyyy") : "בחר תאריך"}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <CalendarComp mode="single" selected={value} onSelect={d => onChange(d)} initialFocus className="p-3 pointer-events-auto" />
-        </PopoverContent>
-      </Popover>
+      <DateInput value={value} onChange={onChange} clearable />
     </div>
   );
 

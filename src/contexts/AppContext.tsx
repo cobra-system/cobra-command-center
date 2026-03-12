@@ -423,94 +423,192 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Mutations
   const updateTaskStatus = useCallback(async (taskId: string, status: TaskStatus) => {
     ownMutationIds.current.add(taskId);
+    const prevTasks = tasks;
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status } : t));
-    await supabase.from("tasks").update({ status }).eq("id", taskId);
-  }, []);
+    const { error } = await supabase.from("tasks").update({ status }).eq("id", taskId);
+    if (error) {
+      setTasks(prevTasks);
+      toast.error("שגיאה בעדכון משימה: " + (error.message || "נסה שוב"));
+    }
+  }, [tasks]);
 
   const addTaskNote = useCallback(async (taskId: string, note: string) => {
     ownMutationIds.current.add(taskId);
+    const prevTasks = tasks;
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, notes: note } : t));
-    await supabase.from("tasks").update({ notes: note }).eq("id", taskId);
-  }, []);
+    const { error } = await supabase.from("tasks").update({ notes: note }).eq("id", taskId);
+    if (error) {
+      setTasks(prevTasks);
+      toast.error("שגיאה בשמירת הערה: " + (error.message || "נסה שוב"));
+    }
+  }, [tasks]);
 
   const updateOrderStatus = useCallback(async (orderId: string, status: OrderStatus) => {
+    const prevOrders = orders;
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
-    await supabase.from("orders").update({ status }).eq("id", orderId);
-  }, []);
+    const { error } = await supabase.from("orders").update({ status }).eq("id", orderId);
+    if (error) {
+      setOrders(prevOrders);
+      toast.error("שגיאה בעדכון סטטוס הזמנה: " + (error.message || "נסה שוב"));
+    }
+  }, [orders]);
 
   const addOrder = useCallback(async (order: Omit<Order, "id" | "items"> & { items: Omit<OrderItem, "id" | "order_id">[] }) => {
-    const { items, ...orderData } = order;
-    const { data: newOrder } = await supabase.from("orders").insert(orderData).select("id").single();
-    if (newOrder) {
-      const orderItems = items.map(item => ({ ...item, order_id: newOrder.id }));
-      await supabase.from("order_items").insert(orderItems);
-      await refreshOrders();
+    try {
+      const { items, ...orderData } = order;
+      const { data: newOrder, error: orderError } = await supabase.from("orders").insert(orderData).select("id").single();
+      if (orderError) {
+        toast.error("שגיאה ביצירת הזמנה: " + (orderError.message || "נסה שוב"));
+        return;
+      }
+      if (newOrder) {
+        const orderItems = items.map(item => ({ ...item, order_id: newOrder.id }));
+        const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
+        if (itemsError) {
+          toast.error("שגיאה בהוספת פריטים: " + (itemsError.message || "נסה שוב"));
+          return;
+        }
+        await refreshOrders();
+        toast.success("הזמנה נוצרה בהצלחה");
+      }
+    } catch (err) {
+      toast.error("שגיאה בלתי צפויה: " + (err instanceof Error ? err.message : "נסה שוב"));
     }
   }, [refreshOrders]);
 
   const updateOrder = useCallback(async (id: string, updates: Partial<Order>) => {
-    const { items, ...dbUpdates } = updates as any;
-    await supabase.from("orders").update(dbUpdates).eq("id", id);
-    await refreshOrders();
+    try {
+      const { items, ...dbUpdates } = updates as any;
+      const { error } = await supabase.from("orders").update(dbUpdates).eq("id", id);
+      if (error) {
+        toast.error("שגיאה בעדכון הזמנה: " + (error.message || "נסה שוב"));
+        return;
+      }
+      await refreshOrders();
+      toast.success("הזמנה עודכנה בהצלחה");
+    } catch (err) {
+      toast.error("שגיאה בלתי צפויה: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
   }, [refreshOrders]);
 
   const deleteOrder = useCallback(async (id: string) => {
-    await supabase.from("order_items").delete().eq("order_id", id);
-    await supabase.from("orders").delete().eq("id", id);
-    await refreshOrders();
+    try {
+      const { error: itemsError } = await supabase.from("order_items").delete().eq("order_id", id);
+      if (itemsError) throw itemsError;
+      const { error: orderError } = await supabase.from("orders").delete().eq("id", id);
+      if (orderError) throw orderError;
+      await refreshOrders();
+      toast.success("הזמנה נמחקה בהצלחה");
+    } catch (err) {
+      toast.error("שגיאה במחיקת הזמנה: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
   }, [refreshOrders]);
 
   const addTask = useCallback(async (task: Omit<Task, "id">) => {
-    await supabase.from("tasks").insert(task);
-    await refreshTasks();
+    try {
+      const { error } = await supabase.from("tasks").insert(task);
+      if (error) throw error;
+      await refreshTasks();
+      toast.success("משימה נוצרה בהצלחה");
+    } catch (err) {
+      toast.error("שגיאה ביצירת משימה: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
   }, [refreshTasks]);
 
   const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
     ownMutationIds.current.add(id);
+    const prevTasks = tasks;
     setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
-    await supabase.from("tasks").update(updates).eq("id", id);
-  }, []);
+    const { error } = await supabase.from("tasks").update(updates).eq("id", id);
+    if (error) {
+      setTasks(prevTasks);
+      toast.error("שגיאה בעדכון משימה: " + (error.message || "נסה שוב"));
+    }
+  }, [tasks]);
 
   const deleteTask = useCallback(async (id: string) => {
     ownMutationIds.current.add(id);
+    const prevTasks = tasks;
     setTasks(prev => prev.filter(t => t.id !== id));
-    await supabase.from("tasks").delete().eq("id", id);
-  }, []);
+    const { error } = await supabase.from("tasks").delete().eq("id", id);
+    if (error) {
+      setTasks(prevTasks);
+      toast.error("שגיאה במחיקת משימה: " + (error.message || "נסה שוב"));
+    }
+  }, [tasks]);
 
   const updateProduct = useCallback(async (id: string, updates: Partial<Product>) => {
-    const { components, ...dbUpdates } = updates as any;
-    await supabase.from("products").update(dbUpdates).eq("id", id);
-    await refreshProducts();
+    try {
+      const { components, ...dbUpdates } = updates as any;
+      const { error } = await supabase.from("products").update(dbUpdates).eq("id", id);
+      if (error) throw error;
+      await refreshProducts();
+      toast.success("מוצר עודכן בהצלחה");
+    } catch (err) {
+      toast.error("שגיאה בעדכון מוצר: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
   }, [refreshProducts]);
 
   const addProduct = useCallback(async (product: Omit<Product, "id" | "components">, components?: Omit<ProductComponent, "id" | "product_id">[]) => {
-    const { data: newProd } = await supabase.from("products").insert(product as any).select("id").single();
-    if (newProd && components && components.length > 0) {
-      await supabase.from("product_components").insert(components.map(c => ({ ...c, product_id: newProd.id })));
+    try {
+      const { data: newProd, error: prodError } = await supabase.from("products").insert(product as any).select("id").single();
+      if (prodError) throw prodError;
+      if (newProd && components && components.length > 0) {
+        const { error: compError } = await supabase.from("product_components").insert(components.map(c => ({ ...c, product_id: newProd.id })));
+        if (compError) throw compError;
+      }
+      await refreshProducts();
+      toast.success("מוצר נוצר בהצלחה");
+    } catch (err) {
+      toast.error("שגיאה ביצירת מוצר: " + (err instanceof Error ? err.message : "נסה שוב"));
     }
-    await refreshProducts();
   }, [refreshProducts]);
 
   const deleteProduct = useCallback(async (id: string) => {
-    await supabase.from("product_components").delete().eq("product_id", id);
-    await supabase.from("products").delete().eq("id", id);
-    await refreshProducts();
+    try {
+      const { error: compError } = await supabase.from("product_components").delete().eq("product_id", id);
+      if (compError) throw compError;
+      const { error: prodError } = await supabase.from("products").delete().eq("id", id);
+      if (prodError) throw prodError;
+      await refreshProducts();
+      toast.success("מוצר נמחק בהצלחה");
+    } catch (err) {
+      toast.error("שגיאה במחיקת מוצר: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
   }, [refreshProducts]);
 
   const addComponent = useCallback(async (component: Omit<ProductComponent, "id">) => {
-    await supabase.from("product_components").insert(component);
-    await refreshProducts();
+    try {
+      const { error } = await supabase.from("product_components").insert(component);
+      if (error) throw error;
+      await refreshProducts();
+      toast.success("רכיב נוסף בהצלחה");
+    } catch (err) {
+      toast.error("שגיאה בהוספת רכיב: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
   }, [refreshProducts]);
 
   const updateComponent = useCallback(async (id: string, updates: Partial<ProductComponent>) => {
-    const { product_id, ...dbUpdates } = updates as any;
-    await supabase.from("product_components").update(dbUpdates).eq("id", id);
-    await refreshProducts();
+    try {
+      const { product_id, ...dbUpdates } = updates as any;
+      const { error } = await supabase.from("product_components").update(dbUpdates).eq("id", id);
+      if (error) throw error;
+      await refreshProducts();
+      toast.success("רכיב עודכן בהצלחה");
+    } catch (err) {
+      toast.error("שגיאה בעדכון רכיב: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
   }, [refreshProducts]);
 
   const deleteComponent = useCallback(async (id: string) => {
-    await supabase.from("product_components").delete().eq("id", id);
-    await refreshProducts();
+    try {
+      const { error } = await supabase.from("product_components").delete().eq("id", id);
+      if (error) throw error;
+      await refreshProducts();
+      toast.success("רכיב נמחק בהצלחה");
+    } catch (err) {
+      toast.error("שגיאה במחיקת רכיב: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
   }, [refreshProducts]);
 
   const addProfile = useCallback(async (profile: { email: string; name: string; role: Role; pin?: string }) => {
@@ -518,8 +616,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [refreshProfiles]);
 
   const updateProfile = useCallback(async (id: string, updates: Partial<Profile>) => {
-    await supabase.from("profiles").update(updates).eq("id", id);
-    await refreshProfiles();
+    try {
+      const { error } = await supabase.from("profiles").update(updates).eq("id", id);
+      if (error) throw error;
+      await refreshProfiles();
+      toast.success("פרופיל עודכן בהצלחה");
+    } catch (err) {
+      toast.error("שגיאה בעדכון פרופיל: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
   }, [refreshProfiles]);
 
   const resetDailyTasks = useCallback(async () => {
@@ -555,33 +659,69 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [refreshProfiles]);
 
   const addSupplier = useCallback(async (supplier: Omit<Supplier, "id">) => {
-    await supabase.from("suppliers").insert(supplier as any);
-    await refreshSuppliers();
+    try {
+      const { error } = await supabase.from("suppliers").insert(supplier as any);
+      if (error) throw error;
+      await refreshSuppliers();
+      toast.success("ספק נוסף בהצלחה");
+    } catch (err) {
+      toast.error("שגיאה בהוספת ספק: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
   }, [refreshSuppliers]);
 
   const updateSupplier = useCallback(async (id: string, updates: Partial<Supplier>) => {
-    await supabase.from("suppliers").update(updates as any).eq("id", id);
-    await refreshSuppliers();
+    try {
+      const { error } = await supabase.from("suppliers").update(updates as any).eq("id", id);
+      if (error) throw error;
+      await refreshSuppliers();
+      toast.success("ספק עודכן בהצלחה");
+    } catch (err) {
+      toast.error("שגיאה בעדכון ספק: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
   }, [refreshSuppliers]);
 
   const deleteSupplier = useCallback(async (id: string) => {
-    await supabase.from("suppliers").delete().eq("id", id);
-    await refreshSuppliers();
+    try {
+      const { error } = await supabase.from("suppliers").delete().eq("id", id);
+      if (error) throw error;
+      await refreshSuppliers();
+      toast.success("ספק נמחק בהצלחה");
+    } catch (err) {
+      toast.error("שגיאה במחיקת ספק: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
   }, [refreshSuppliers]);
 
   const addRoleDefinition = useCallback(async (name: string) => {
-    await supabase.from("role_definitions").insert({ name } as any);
-    await refreshRoleDefinitions();
+    try {
+      const { error } = await supabase.from("role_definitions").insert({ name } as any);
+      if (error) throw error;
+      await refreshRoleDefinitions();
+      toast.success("תפקיד נוסף בהצלחה");
+    } catch (err) {
+      toast.error("שגיאה בהוספת תפקיד: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
   }, [refreshRoleDefinitions]);
 
   const updateRoleDefinition = useCallback(async (id: string, name: string) => {
-    await supabase.from("role_definitions").update({ name } as any).eq("id", id);
-    await refreshRoleDefinitions();
+    try {
+      const { error } = await supabase.from("role_definitions").update({ name } as any).eq("id", id);
+      if (error) throw error;
+      await refreshRoleDefinitions();
+      toast.success("תפקיד עודכן בהצלחה");
+    } catch (err) {
+      toast.error("שגיאה בעדכון תפקיד: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
   }, [refreshRoleDefinitions]);
 
   const deleteRoleDefinition = useCallback(async (id: string) => {
-    await supabase.from("role_definitions").delete().eq("id", id);
-    await refreshRoleDefinitions();
+    try {
+      const { error } = await supabase.from("role_definitions").delete().eq("id", id);
+      if (error) throw error;
+      await refreshRoleDefinitions();
+      toast.success("תפקיד נמחק בהצלחה");
+    } catch (err) {
+      toast.error("שגיאה במחיקת תפקיד: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
   }, [refreshRoleDefinitions]);
 
   return (

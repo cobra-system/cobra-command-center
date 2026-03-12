@@ -33,7 +33,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function IssuesPage() {
-  const { products } = useData();
+  const { products, suppliers } = useData();
   const navigate = useNavigate();
   const [issues, setIssues] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +60,18 @@ export default function IssuesPage() {
     products.forEach(p => { m[p.id] = p.name; });
     return m;
   }, [products]);
+
+  const getSupplierForProduct = (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product || !product.supplier) return null;
+    return suppliers.find(s => s.company === product.supplier || s.id === product.supplier);
+  };
+
+  const navigateToSupplier = (productId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const supplier = getSupplierForProduct(productId);
+    if (supplier) navigate(`/suppliers/${supplier.id}`);
+  };
 
   const filtered = useMemo(() => {
     return issues.filter(i => {
@@ -124,6 +136,7 @@ export default function IssuesPage() {
             <tr className="border-b bg-muted/50">
               <th className="text-right p-3 font-semibold text-foreground">תאריך</th>
               <th className="text-right p-3 font-semibold text-foreground">מוצר</th>
+              <th className="text-right p-3 font-semibold text-foreground">ספק</th>
               <th className="text-right p-3 font-semibold text-foreground">מדווח</th>
               <th className="text-right p-3 font-semibold text-foreground">תיאור</th>
               <th className="text-right p-3 font-semibold text-foreground">חומרה</th>
@@ -133,18 +146,28 @@ export default function IssuesPage() {
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">אין תקלות להצגה</td></tr>
-            ) : filtered.map(issue => (
-              <tr key={issue.id} className="hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => navigate(`/products/${issue.product_id}`)}>
-                <td className="p-3 text-xs text-muted-foreground">{new Date(issue.reported_date).toLocaleDateString("he-IL")}</td>
-                <td className="p-3 text-primary font-medium">{productMap[issue.product_id] || "—"}</td>
-                <td className="p-3 text-foreground">{issue.reporter}</td>
-                <td className="p-3 text-foreground max-w-[250px] truncate">{issue.description}</td>
-                <td className="p-3"><span className={`px-2 py-0.5 rounded text-xs font-medium ${severityColors[issue.severity] || "bg-muted text-muted-foreground"}`}>{issue.severity}</span></td>
-                <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[issue.status] || "bg-muted text-muted-foreground"}`}>{issue.status}</span></td>
-                <td className="p-3 text-xs text-muted-foreground font-mono">{issue.ticket_number || "—"}</td>
-              </tr>
-            ))}
+              <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">אין תקלות להצגה</td></tr>
+            ) : filtered.map(issue => {
+              const supplier = getSupplierForProduct(issue.product_id);
+              return (
+                <tr key={issue.id} className="hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => navigate(`/products/${issue.product_id}`)}>
+                  <td className="p-3 text-xs text-muted-foreground">{new Date(issue.reported_date).toLocaleDateString("he-IL")}</td>
+                  <td className="p-3 text-primary font-medium">{productMap[issue.product_id] || "—"}</td>
+                  <td className="p-3" onClick={supplier ? (e) => navigateToSupplier(issue.product_id, e) : undefined}>
+                    {supplier ? (
+                      <button className="text-primary hover:underline text-sm">{supplier.company}</button>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  <td className="p-3 text-foreground">{issue.reporter}</td>
+                  <td className="p-3 text-foreground max-w-[250px] truncate">{issue.description}</td>
+                  <td className="p-3"><span className={`px-2 py-0.5 rounded text-xs font-medium ${severityColors[issue.severity] || "bg-muted text-muted-foreground"}`}>{issue.severity}</span></td>
+                  <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[issue.status] || "bg-muted text-muted-foreground"}`}>{issue.status}</span></td>
+                  <td className="p-3 text-xs text-muted-foreground font-mono">{issue.ticket_number || "—"}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

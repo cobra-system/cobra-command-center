@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useData } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,14 +8,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type { PurchaseDocument } from "@/components/documents/types";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
+  editDocument?: PurchaseDocument | null;
 }
 
-export default function DocumentFormDialog({ open, onOpenChange, onSaved }: Props) {
+export default function DocumentFormDialog({ open, onOpenChange, onSaved, editDocument }: Props) {
   const { suppliers, products, orders } = useData();
 
   const [formType, setFormType] = useState("PI");
@@ -26,6 +28,22 @@ export default function DocumentFormDialog({ open, onOpenChange, onSaved }: Prop
   const [formUnitPrice, setFormUnitPrice] = useState("");
   const [formCurrency, setFormCurrency] = useState("USD");
   const [formNotes, setFormNotes] = useState("");
+
+  // Populate form when editing
+  useEffect(() => {
+    if (editDocument) {
+      setFormType(editDocument.type || "PI");
+      setFormSupplier(editDocument.supplier_id || "");
+      setFormProduct(editDocument.product_id || "");
+      setFormOrder(editDocument.order_id || "");
+      setFormQty(editDocument.quantity?.toString() || "");
+      setFormUnitPrice(editDocument.unit_price?.toString() || "");
+      setFormCurrency(editDocument.currency || "USD");
+      setFormNotes(editDocument.notes || "");
+    } else {
+      resetForm();
+    }
+  }, [editDocument, open]);
 
   const filteredOrders = formSupplier
     ? orders.filter(o => o.supplier_id === formSupplier || o.supplier_name === suppliers.find(s => s.id === formSupplier)?.company)
@@ -39,7 +57,7 @@ export default function DocumentFormDialog({ open, onOpenChange, onSaved }: Prop
   const handleSubmit = async () => {
     const qty = Number(formQty) || 0;
     const unitPrice = Number(formUnitPrice) || 0;
-    await supabase.from("purchase_documents").insert({
+    const payload = {
       type: formType,
       supplier_id: formSupplier || null,
       product_id: formProduct || null,
@@ -49,8 +67,24 @@ export default function DocumentFormDialog({ open, onOpenChange, onSaved }: Prop
       total_price: qty * unitPrice,
       currency: formCurrency,
       notes: formNotes || null,
-    });
-    toast.success("מסמך נוסף");
+    };
+
+    if (editDocument) {
+      const { error } = await supabase.from("purchase_documents").update(payload).eq("id", editDocument.id);
+      if (error) {
+        toast.error("שגיאה בעדכון מסמך: " + error.message);
+        return;
+      }
+      toast.success("מסמך עודכן");
+    } else {
+      const { error } = await supabase.from("purchase_documents").insert(payload);
+      if (error) {
+        toast.error("שגיאה בהוספת מסמך: " + error.message);
+        return;
+      }
+      toast.success("מסמך נוסף");
+    }
+
     resetForm();
     onOpenChange(false);
     onSaved();
@@ -59,7 +93,9 @@ export default function DocumentFormDialog({ open, onOpenChange, onSaved }: Prop
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) resetForm(); }}>
       <DialogContent className="sm:max-w-lg">
-        <DialogHeader><DialogTitle>הוסף מסמך חדש</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>{editDocument ? "עריכת מסמך" : "הוסף מסמך חדש"}</DialogTitle>
+        </DialogHeader>
         <div className="space-y-3 pt-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
@@ -114,7 +150,9 @@ export default function DocumentFormDialog({ open, onOpenChange, onSaved }: Prop
             <div className="space-y-1"><Label>מחיר יחידה</Label><Input type="number" value={formUnitPrice} onChange={e => setFormUnitPrice(e.target.value)} /></div>
           </div>
           <div className="space-y-1"><Label>הערות</Label><Textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} rows={2} /></div>
-          <Button onClick={handleSubmit} className="w-full">הוסף מסמך</Button>
+          <Button onClick={handleSubmit} className="w-full">
+            {editDocument ? "שמור שינויים" : "הוסף מסמך"}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
