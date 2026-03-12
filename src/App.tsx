@@ -28,8 +28,6 @@ import MyTaskDetailPage from "@/pages/MyTaskDetailPage";
 import InventoryPage from "@/pages/InventoryPage";
 
 import NotFound from "@/pages/NotFound";
-import SapSettingsPage from "@/pages/SapSettingsPage";
-import CompliancePage from "@/pages/CompliancePage";
 import IssuesPage from "@/pages/IssuesPage";
 const queryClient = new QueryClient();
 
@@ -77,8 +75,8 @@ function AppRoutes() {
         <Route path="/reorder" element={<ReorderPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/sap" element={<SapSettingsPage />} />
-        <Route path="/compliance" element={<CompliancePage />} />
+        <Route path="/sap" element={<Navigate to="/settings" replace />} />
+        <Route path="/compliance" element={<Navigate to="/documents" replace />} />
       </Route>
 
       <Route element={<RequireAuth />}>

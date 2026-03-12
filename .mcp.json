@@ -1,11 +1,11 @@
 {
   "mcpServers": {
     "cobra": {
-      "command": "npx",
-      "args": ["tsx", "mcp-server/src/index.ts"],
+      "command": "node",
+      "args": ["mcp-server/dist/index.js"],
       "env": {
-        "SUPABASE_URL": "https://pjruyvhtivbeikxrnipg.supabase.co",
-        "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqcnV5dmh0aXZiZWlreHJuaXBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5ODcxODcsImV4cCI6MjA4ODU2MzE4N30.ZrNrNHLWpfK9xCX3o_bx_GVVAlaFLBVsG782-0syOUw"
+        "SUPABASE_URL": "https://ljpdwezgahrrffnwajho.supabase.co",
+        "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqcGR3ZXpnYWhycmZmbndhamhvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzAxNjI0MSwiZXhwIjoyMDg4NTkyMjQxfQ.lfXs1ZhOrjb--2l9lIs8KgQwqtGx49l7k0Fk1E0rpCw"
       }
     }
   }

@@ -8,8 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DateInput } from "@/components/ui/date-input";
-import { ScrollText, Plus, Upload, Loader2, Pencil, Trash2, Package } from "lucide-react";
+import { Plus, Upload, Loader2, Pencil, Trash2, Package } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
@@ -51,7 +52,7 @@ function StatusBadge({ status, daysLeft }: { status: string; daysLeft: number | 
   return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-success/15 text-success">🟢 {daysLeft} ימים</span>;
 }
 
-export default function CompliancePage() {
+export default function ComplianceTab() {
   const { currentUser } = useAuth();
   const { products } = useData();
   const navigate = useNavigate();
@@ -70,7 +71,6 @@ export default function CompliancePage() {
       .order("expiry_date", { ascending: true });
     if (data) setItems(data as ComplianceItem[]);
 
-    // Fetch product links
     const { data: links } = await supabase.from("compliance_product_links").select("compliance_item_id, product_id");
     if (links) {
       const map: Record<string, string[]> = {};
@@ -91,7 +91,6 @@ export default function CompliancePage() {
     return map;
   }, [products]);
 
-  // Build categories from items + defaults
   const allCategories = useMemo(() => {
     const cats = new Set(DEFAULT_CATEGORIES);
     items.forEach(i => cats.add(i.category));
@@ -132,29 +131,26 @@ export default function CompliancePage() {
     else { toast({ title: "🗑️ רישיון נמחק" }); fetchItems(); }
   };
 
-  const openEdit = (item: ComplianceItem) => {
-    setEditingItem(item);
-    setDialogOpen(true);
-  };
-
-  const openAdd = () => {
-    setEditingItem(null);
-    setDialogOpen(true);
-  };
+  const openEdit = (item: ComplianceItem) => { setEditingItem(item); setDialogOpen(true); };
+  const openAdd = () => { setEditingItem(null); setDialogOpen(true); };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return (
+      <div className="space-y-4 pt-4">
+        <Skeleton className="h-6 w-32" />
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-36 w-full rounded-xl" />)}
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 pt-2">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <ScrollText className="h-6 w-6 text-primary" />
-          רישיונות ואישורים
-        </h1>
+        <p className="text-sm text-muted-foreground">מעקב רישיונות, אישורים ואחריות תקנות</p>
         {isManager && (
-          <Button onClick={openAdd}>
+          <Button size="sm" onClick={openAdd}>
             <Plus className="h-4 w-4 ml-1" />
             הוסף רישיון
           </Button>
@@ -166,7 +162,7 @@ export default function CompliancePage() {
         if (catItems.length === 0) return null;
         return (
           <div key={cat} className="space-y-3">
-            <h2 className="text-lg font-semibold text-foreground">{cat}</h2>
+            <h2 className="text-base font-semibold text-foreground">{cat}</h2>
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {catItems.map(item => {
                 const daysLeft = getDaysRemaining(item.expiry_date);
@@ -237,6 +233,13 @@ export default function CompliancePage() {
           </div>
         );
       })}
+
+      {items.length === 0 && (
+        <div className="text-center py-12 text-muted-foreground">
+          <p className="text-sm">אין רישיונות ואישורים עדיין</p>
+          {isManager && <p className="text-xs mt-1">לחץ על "הוסף רישיון" כדי להתחיל</p>}
+        </div>
+      )}
 
       <ComplianceFormDialog
         open={dialogOpen}

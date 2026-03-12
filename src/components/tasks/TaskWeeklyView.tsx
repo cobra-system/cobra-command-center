@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { format, startOfWeek, addDays, isSameDay, isToday, isPast, addWeeks, subWeeks, getDay, getDate } from "date-fns";
 import { he } from "date-fns/locale";
-import { ChevronRight, ChevronLeft, CalendarDays, AlertTriangle, Users, Repeat, Zap, Settings, X } from "lucide-react";
+import { ChevronRight, ChevronLeft, CalendarDays, AlertTriangle, Users, Repeat, Zap, Settings, X, Plus, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import RecurringTasksPanel from "@/components/tasks/RecurringTasksPanel";
 import WorkflowsPanel from "@/components/tasks/WorkflowsPanel";
+import TaskCreateDialog from "@/components/tasks/TaskCreateDialog";
 
 const dayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 
@@ -102,7 +103,10 @@ export default function TaskWeeklyView() {
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [dragOverDay, setDragOverDay] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState("recurring");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [createPickerOpen, setCreatePickerOpen] = useState(false);
+  const [taskCreateOpen, setTaskCreateOpen] = useState(false);
 
   // Recurring tasks
   const [recurringTasks, setRecurringTasks] = useState<RecurringTask[]>([]);
@@ -246,6 +250,11 @@ export default function TaskWeeklyView() {
 
           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSettingsOpen(true)}>
             <Settings className="h-4 w-4" />
+          </Button>
+
+          <Button size="sm" className="gap-1.5" onClick={() => setCreatePickerOpen(true)}>
+            <Plus className="h-4 w-4" />
+            צור
           </Button>
         </div>
       </div>
@@ -414,13 +423,51 @@ export default function TaskWeeklyView() {
         )}
       </div>
 
+      {/* Create type picker dialog */}
+      <Dialog open={createPickerOpen} onOpenChange={setCreatePickerOpen}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle>מה ברצונך ליצור?</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button
+              className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all text-center"
+              onClick={() => { setCreatePickerOpen(false); setTaskCreateOpen(true); }}
+            >
+              <ClipboardList className="h-8 w-8 text-primary" />
+              <div>
+                <p className="font-semibold text-foreground text-sm">משימה</p>
+                <p className="text-xs text-muted-foreground mt-0.5">חד פעמית או חוזרת</p>
+              </div>
+            </button>
+            <button
+              className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-border hover:border-amber-500 hover:bg-amber-500/5 transition-all text-center"
+              onClick={() => { setCreatePickerOpen(false); setSettingsTab("workflows"); setSettingsOpen(true); }}
+            >
+              <Zap className="h-8 w-8 text-amber-500" />
+              <div>
+                <p className="font-semibold text-foreground text-sm">תהליך</p>
+                <p className="text-xs text-muted-foreground mt-0.5">התחל workflow</p>
+              </div>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Task create dialog */}
+      <TaskCreateDialog
+        open={taskCreateOpen}
+        onOpenChange={setTaskCreateOpen}
+        onSaved={loadRecurring}
+      />
+
       {/* Settings drawer */}
       <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
         <SheetContent side="left" className="w-[600px] max-w-[95vw] overflow-y-auto">
           <SheetHeader className="mb-4">
             <SheetTitle>ניהול חוזרות ותהליכים</SheetTitle>
           </SheetHeader>
-          <Tabs defaultValue="recurring">
+          <Tabs value={settingsTab} onValueChange={setSettingsTab}>
             <TabsList className="w-full mb-4">
               <TabsTrigger value="recurring" className="flex-1 gap-1.5">
                 <Repeat className="h-3.5 w-3.5" />חוזרות
