@@ -1,14 +1,15 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData } from "@/contexts/AppContext";
-import { Search, Package, Truck, ShoppingCart, ListTodo, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Search, Package, Truck, ShoppingCart, ListTodo, FileText, CreditCard, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 interface SearchResult {
   id: string;
   label: string;
   subtitle?: string;
-  type: "product" | "supplier" | "order" | "task";
+  type: "product" | "supplier" | "order" | "task" | "document" | "payment";
   path: string;
 }
 
@@ -17,6 +18,8 @@ const typeConfig = {
   supplier: { icon: Truck, label: "ספק", color: "text-green-500" },
   order: { icon: ShoppingCart, label: "הזמנה", color: "text-orange-500" },
   task: { icon: ListTodo, label: "משימה", color: "text-purple-500" },
+  document: { icon: FileText, label: "מסמך", color: "text-red-500" },
+  payment: { icon: CreditCard, label: "תשלום", color: "text-emerald-500" },
 };
 
 export default function GlobalSearch() {
@@ -24,6 +27,8 @@ export default function GlobalSearch() {
   const { products, suppliers, orders, tasks } = useData();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,6 +37,18 @@ export default function GlobalSearch() {
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const [docsRes, paymentsRes] = await Promise.all([
+        supabase.from("purchase_documents").select("id, name, supplier_id"),
+        supabase.from("supplier_payments").select("id, supplier_id, notes, amount"),
+      ]);
+      if (docsRes.data) setDocuments(docsRes.data);
+      if (paymentsRes.data) setPayments(paymentsRes.data);
+    };
+    fetchData();
   }, []);
 
   const results = useMemo<SearchResult[]>(() => {
@@ -69,8 +86,22 @@ export default function GlobalSearch() {
       }
     }
 
+    for (const d of documents) {
+      if (res.length >= limit) break;
+      if ((d.name || "").toLowerCase().includes(q)) {
+        res.push({ id: d.id, label: d.name || "מסמך ללא שם", subtitle: "מסמך רכש", type: "document", path: `/documents` });
+      }
+    }
+
+    for (const p of payments) {
+      if (res.length >= limit) break;
+      if ((p.notes || "").toLowerCase().includes(q)) {
+        res.push({ id: p.id, label: `תשלום — $${p.amount || "—"}`, subtitle: p.notes || "ללא הערות", type: "payment", path: `/documents?tab=payments` });
+      }
+    }
+
     return res;
-  }, [query, products, suppliers, orders, tasks]);
+  }, [query, products, suppliers, orders, tasks, documents, payments]);
 
   const handleSelect = (result: SearchResult) => {
     navigate(result.path);

@@ -65,9 +65,10 @@ export default function ReportsPage() {
 
     const arrivedShipments = orders.filter(o => o.status === "ARRIVED" && inRange(o.eta || null)).length;
 
-    const tasksClosed = tasks.filter(t => t.status === "DONE").length;
-    const tasksOpened = tasks.length;
-    const tasksStillOpen = tasks.filter(t => t.status !== "DONE").length;
+    const tasksInRange = tasks.filter(t => inRange(t.due_date || null));
+    const tasksClosed = tasksInRange.filter(t => t.status === "DONE").length;
+    const tasksOpened = tasksInRange.length;
+    const tasksStillOpen = tasksInRange.filter(t => t.status !== "DONE").length;
 
     const issuesReported = issues.length;
     // Find product with most issues
