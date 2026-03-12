@@ -134,7 +134,7 @@ export default function DocumentDetailPage() {
       supabase.from("purchase_documents").select("*").eq("id", id).single(),
       supabase.from("supplier_payments").select("*").eq("document_id", id).order("created_at", { ascending: false }),
     ]);
-    if (docRes.data) setDoc(docRes.data as PurchaseDocument);
+    if (docRes.data) setDoc(docRes.data as unknown as PurchaseDocument);
     if (paysRes.data) setLinkedPayments(paysRes.data as Payment[]);
     setLoading(false);
   }, [id]);

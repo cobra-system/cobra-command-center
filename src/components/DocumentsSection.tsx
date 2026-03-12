@@ -29,7 +29,7 @@ export default function DocumentsSection({ supplierId, productId, orderId }: Pro
     else if (orderId) docQuery = docQuery.eq("order_id", orderId);
 
     const { data: docData } = await docQuery;
-    if (docData) setDocs(docData as PurchaseDocument[]);
+    if (docData) setDocs(docData as unknown as PurchaseDocument[]);
 
     // Fetch payments only for supplier context
     if (supplierId) {
