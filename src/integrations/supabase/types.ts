@@ -661,7 +661,6 @@ export type Database = {
           file_url: string | null
           id: string
           notes: string | null
-          order_id: string | null
           product_id: string | null
           quantity: number
           status: string
@@ -679,7 +678,6 @@ export type Database = {
           file_url?: string | null
           id?: string
           notes?: string | null
-          order_id?: string | null
           product_id?: string | null
           quantity?: number
           status?: string
@@ -697,7 +695,6 @@ export type Database = {
           file_url?: string | null
           id?: string
           notes?: string | null
-          order_id?: string | null
           product_id?: string | null
           quantity?: number
           status?: string
@@ -708,13 +705,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "purchase_documents_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "purchase_documents_product_id_fkey"
             columns: ["product_id"]
@@ -891,7 +881,6 @@ export type Database = {
           amount: number
           created_at: string
           currency: string
-          document_id: string | null
           due_date: string | null
           id: string
           notes: string | null
@@ -906,7 +895,6 @@ export type Database = {
           amount?: number
           created_at?: string
           currency?: string
-          document_id?: string | null
           due_date?: string | null
           id?: string
           notes?: string | null
@@ -921,7 +909,6 @@ export type Database = {
           amount?: number
           created_at?: string
           currency?: string
-          document_id?: string | null
           due_date?: string | null
           id?: string
           notes?: string | null
@@ -933,13 +920,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "supplier_payments_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "purchase_documents"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "supplier_payments_order_id_fkey"
             columns: ["order_id"]
