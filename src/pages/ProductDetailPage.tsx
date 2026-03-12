@@ -12,6 +12,7 @@ import { ArrowRight, Package, Boxes, TruckIcon, Pencil, ExternalLink, Plus, Tras
 import ProductIssuesTab from "@/components/ProductIssuesTab";
 import ProductLicensesTab from "@/components/ProductLicensesTab";
 import DocumentsSection from "@/components/DocumentsSection";
+import ComplianceTab from "@/components/documents/ComplianceTab";
 import ProductEditDialog from "@/components/products/ProductEditDialog";
 import SupplierComparisonPanel from "@/components/SupplierComparisonPanel";
 import { InlineEditField } from "@/components/InlineEditField";
@@ -405,6 +406,11 @@ export default function ProductDetailPage() {
       {/* Product Licenses Tab */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
         <ProductLicensesTab productId={product.id} isManager={isManager} />
+      </div>
+
+      {/* Compliance */}
+      <div className="bg-card rounded-xl border shadow-sm p-5">
+        <ComplianceTab productId={product.id} />
       </div>
 
       {/* Product Issues Tab */}

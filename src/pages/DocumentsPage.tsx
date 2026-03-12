@@ -22,7 +22,9 @@ export default function DocumentsPage() {
   const [search, setSearch] = useState("");
 
   const [docDialogOpen, setDocDialogOpen] = useState(false);
+  const [editingDoc, setEditingDoc] = useState<PurchaseDocument | null>(null);
   const [payDialogOpen, setPayDialogOpen] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -94,10 +96,20 @@ export default function DocumentsPage() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="documents">
-          <DocumentsTable docs={docs} search={search} onRefresh={fetchData} />
+          <DocumentsTable
+            docs={docs}
+            search={search}
+            onRefresh={fetchData}
+            onEdit={doc => { setEditingDoc(doc); setDocDialogOpen(true); }}
+          />
         </TabsContent>
         <TabsContent value="payments">
-          <PaymentsTable payments={payments} search={search} onRefresh={fetchData} />
+          <PaymentsTable
+            payments={payments}
+            search={search}
+            onRefresh={fetchData}
+            onEdit={p => { setEditingPayment(p); setPayDialogOpen(true); }}
+          />
         </TabsContent>
         <TabsContent value="compliance">
           <ComplianceTab />
@@ -105,8 +117,19 @@ export default function DocumentsPage() {
       </Tabs>
 
       {/* Dialogs */}
-      <DocumentFormDialog open={docDialogOpen} onOpenChange={setDocDialogOpen} onSaved={fetchData} />
-      <PaymentFormDialog open={payDialogOpen} onOpenChange={setPayDialogOpen} onSaved={fetchData} docs={docs} />
+      <DocumentFormDialog
+        open={docDialogOpen}
+        onOpenChange={v => { setDocDialogOpen(v); if (!v) setEditingDoc(null); }}
+        onSaved={fetchData}
+        editDocument={editingDoc}
+      />
+      <PaymentFormDialog
+        open={payDialogOpen}
+        onOpenChange={v => { setPayDialogOpen(v); if (!v) setEditingPayment(null); }}
+        onSaved={fetchData}
+        docs={docs}
+        editPayment={editingPayment}
+      />
       <FileUploadDialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen} onSaved={fetchData} />
     </div>
   );

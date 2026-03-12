@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth } from "@/contexts/AppContext";
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Pencil } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -18,9 +19,10 @@ interface Props {
   docs: PurchaseDocument[];
   search: string;
   onRefresh: () => void;
+  onEdit?: (doc: PurchaseDocument) => void;
 }
 
-export default function DocumentsTable({ docs, search, onRefresh }: Props) {
+export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Props) {
   const { suppliers, products, orders } = useData();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -143,6 +145,7 @@ export default function DocumentsTable({ docs, search, onRefresh }: Props) {
               <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("created_at")}>
                 <span className="flex items-center gap-1">תאריך <SortIcon field="created_at" /></span>
               </th>
+              {onEdit && <th className="p-3" />}
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -197,6 +200,13 @@ export default function DocumentsTable({ docs, search, onRefresh }: Props) {
                   {doc.approved_by ? format(new Date(doc.approval_date!), "dd/MM/yy") : "—"}
                 </td>
                 <td className="p-3 text-muted-foreground text-xs">{format(new Date(doc.created_at), "dd/MM/yy")}</td>
+                {onEdit && (
+                  <td className="p-3" onClick={e => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(doc)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

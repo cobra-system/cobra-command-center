@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useData } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,16 +8,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { PurchaseDocument } from "./types";
+import type { PurchaseDocument, Payment } from "./types";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
   docs: PurchaseDocument[];
+  editPayment?: Payment | null;
 }
 
-export default function PaymentFormDialog({ open, onOpenChange, onSaved, docs }: Props) {
+export default function PaymentFormDialog({ open, onOpenChange, onSaved, docs, editPayment }: Props) {
   const { suppliers, orders } = useData();
 
   const [paySupplier, setPaySupplier] = useState("");
@@ -28,6 +29,21 @@ export default function PaymentFormDialog({ open, onOpenChange, onSaved, docs }:
   const [payType, setPayType] = useState("Full");
   const [payDueDate, setPayDueDate] = useState("");
   const [payNotes, setPayNotes] = useState("");
+
+  useEffect(() => {
+    if (editPayment) {
+      setPaySupplier(editPayment.supplier_id || "");
+      setPayOrder(editPayment.order_id || "");
+      setPayDocument(editPayment.document_id || "");
+      setPayAmount(editPayment.amount?.toString() || "");
+      setPayCurrency(editPayment.currency || "USD");
+      setPayType(editPayment.payment_type || "Full");
+      setPayDueDate(editPayment.due_date || "");
+      setPayNotes(editPayment.notes || "");
+    } else {
+      resetForm();
+    }
+  }, [editPayment, open]);
 
   const filteredDocs = useMemo(() => {
     if (!paySupplier) return docs;
@@ -40,7 +56,7 @@ export default function PaymentFormDialog({ open, onOpenChange, onSaved, docs }:
   };
 
   const handleSubmit = async () => {
-    await supabase.from("supplier_payments").insert({
+    const payload = {
       supplier_id: paySupplier || null,
       order_id: payOrder || null,
       document_id: payDocument || null,
@@ -49,8 +65,24 @@ export default function PaymentFormDialog({ open, onOpenChange, onSaved, docs }:
       payment_type: payType,
       due_date: payDueDate || null,
       notes: payNotes || null,
-    });
-    toast.success("תשלום נוסף");
+    };
+
+    if (editPayment) {
+      const { error } = await supabase.from("supplier_payments").update(payload).eq("id", editPayment.id);
+      if (error) {
+        toast.error("שגיאה בעדכון תשלום: " + error.message);
+        return;
+      }
+      toast.success("תשלום עודכן");
+    } else {
+      const { error } = await supabase.from("supplier_payments").insert(payload);
+      if (error) {
+        toast.error("שגיאה בהוספת תשלום: " + error.message);
+        return;
+      }
+      toast.success("תשלום נוסף");
+    }
+
     resetForm();
     onOpenChange(false);
     onSaved();
@@ -59,7 +91,9 @@ export default function PaymentFormDialog({ open, onOpenChange, onSaved, docs }:
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) resetForm(); }}>
       <DialogContent className="sm:max-w-lg">
-        <DialogHeader><DialogTitle>הוסף תשלום חדש</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>{editPayment ? "עריכת תשלום" : "הוסף תשלום חדש"}</DialogTitle>
+        </DialogHeader>
         <div className="space-y-3 pt-2">
           <div className="space-y-1">
             <Label>ספק</Label>
@@ -115,7 +149,9 @@ export default function PaymentFormDialog({ open, onOpenChange, onSaved, docs }:
           </div>
           <div className="space-y-1"><Label>מועד פירעון</Label><Input type="date" value={payDueDate} onChange={e => setPayDueDate(e.target.value)} /></div>
           <div className="space-y-1"><Label>הערות</Label><Textarea value={payNotes} onChange={e => setPayNotes(e.target.value)} rows={2} /></div>
-          <Button onClick={handleSubmit} className="w-full">הוסף תשלום</Button>
+          <Button onClick={handleSubmit} className="w-full">
+            {editPayment ? "שמור שינויים" : "הוסף תשלום"}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

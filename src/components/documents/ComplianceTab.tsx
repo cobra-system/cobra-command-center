@@ -52,7 +52,7 @@ function StatusBadge({ status, daysLeft }: { status: string; daysLeft: number | 
   return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-success/15 text-success">🟢 {daysLeft} ימים</span>;
 }
 
-export default function ComplianceTab() {
+export default function ComplianceTab({ productId }: { productId?: string } = {}) {
   const { currentUser } = useAuth();
   const { products } = useData();
   const navigate = useNavigate();
@@ -97,15 +97,22 @@ export default function ComplianceTab() {
     return Array.from(cats);
   }, [items]);
 
+  const filteredItems = useMemo(() => {
+    if (!productId) return items;
+    return items.filter(item =>
+      item.product_id === productId || (productLinks[item.id] || []).includes(productId)
+    );
+  }, [items, productId, productLinks]);
+
   const grouped = useMemo(() => {
     const groups: Record<string, ComplianceItem[]> = {};
     allCategories.forEach(c => { groups[c] = []; });
-    items.forEach(item => {
+    filteredItems.forEach(item => {
       if (!groups[item.category]) groups[item.category] = [];
       groups[item.category].push(item);
     });
     return groups;
-  }, [items, allCategories]);
+  }, [filteredItems, allCategories]);
 
   const handleUpload = async (itemId: string) => {
     const input = document.createElement("input");
