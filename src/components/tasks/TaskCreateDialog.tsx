@@ -170,12 +170,10 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
           const fileUrl = await uploadAttachment(data.id);
           if (fileUrl) {
             // Store document reference linked to the task
-            await supabase.from("documents").insert({
-              name: attachedFile.name,
-              file_url: fileUrl,
-              entity_type: "task",
-              entity_id: data.id,
-            } as any).maybeSingle();
+            // File uploaded successfully, URL stored in task notes
+            await supabase.from("tasks").update({ 
+              notes: `📎 ${attachedFile.name}: ${fileUrl}` 
+            }).eq("id", data.id);
           }
           setUploading(false);
         }
