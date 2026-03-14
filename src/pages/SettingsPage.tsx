@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth, useData, roleLabel, type Role, type RoleDefinition } from "@/contexts/AppContext";
 import { useOutlook } from "@/contexts/OutlookContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
