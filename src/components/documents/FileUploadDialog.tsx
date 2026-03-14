@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { toast } from "sonner";
 
 interface Props {
@@ -45,12 +45,11 @@ export default function FileUploadDialog({ open, onOpenChange, onSaved }: Props)
     }
 
     try {
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/classify-document`, {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/classify-document`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          "apikey": SUPABASE_ANON_KEY,
         },
         body: JSON.stringify({ text: textContent.slice(0, 5000), filename: file.name }),
       });

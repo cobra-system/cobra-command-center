@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth, useData, roleLabel, type Role, type RoleDefinition } from "@/contexts/AppContext";
 import { useOutlook } from "@/contexts/OutlookContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -86,12 +86,11 @@ export default function SettingsPage() {
   // SAP helpers
   const callSapProxy = async (action: string, body?: any) => {
     const sess = await supabase.auth.getSession();
-    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-    const res = await fetch(`https://${projectId}.supabase.co/functions/v1/sap-proxy`, {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/sap-proxy`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${sess.data.session?.access_token}`,
       },
       body: JSON.stringify({ action, ...body }),
@@ -230,12 +229,11 @@ export default function SettingsPage() {
     if (editingId) {
       try {
         const sess = await supabase.auth.getSession();
-        const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-        const res = await fetch(`https://${projectId}.supabase.co/functions/v1/manage-employee`, {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/manage-employee`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            "apikey": SUPABASE_ANON_KEY,
             "Authorization": `Bearer ${sess.data.session?.access_token}`,
           },
           body: JSON.stringify({ action: "update", employee_id: editingId, name: empName.trim(), role: empRole, pin: empPin.length === 4 ? empPin : undefined }),
@@ -266,12 +264,11 @@ export default function SettingsPage() {
     setSubmitting(true);
     try {
       const sess = await supabase.auth.getSession();
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/manage-employee`, {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/manage-employee`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          "apikey": SUPABASE_ANON_KEY,
           "Authorization": `Bearer ${sess.data.session?.access_token}`,
         },
         body: JSON.stringify({ action: "delete", employee_id: id }),

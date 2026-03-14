@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import type { PurchaseDocument } from "./types";
 import { docStatusFlow, docStatusColors, currencySymbol } from "./constants";
 import { DocTypeBadge } from "./DocStatusBadge";

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase";
 
 
 export default function TeamPage() {
@@ -47,12 +47,11 @@ export default function TeamPage() {
       // Update via edge function
       try {
         const sess = await supabase.auth.getSession();
-        const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-        const res = await fetch(`https://${projectId}.supabase.co/functions/v1/manage-employee`, {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/manage-employee`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            "apikey": SUPABASE_ANON_KEY,
             "Authorization": `Bearer ${sess.data.session?.access_token}`,
           },
           body: JSON.stringify({
@@ -99,12 +98,11 @@ export default function TeamPage() {
     setSubmitting(true);
     try {
       const sess = await supabase.auth.getSession();
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/manage-employee`, {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/manage-employee`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          "apikey": SUPABASE_ANON_KEY,
           "Authorization": `Bearer ${sess.data.session?.access_token}`,
         },
         body: JSON.stringify({ action: "delete", employee_id: id }),

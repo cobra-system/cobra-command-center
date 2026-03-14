@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData } from "@/contexts/AppContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { Search, Package, Truck, ShoppingCart, ListTodo, FileText, CreditCard, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 

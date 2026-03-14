@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase";
 import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 
@@ -257,14 +257,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Login with PIN (via edge function)
   const loginWithPin = useCallback(async (pin: string): Promise<string | null> => {
     try {
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const url = `https://${projectId}.supabase.co/functions/v1/login-with-pin`;
+      const url = `${SUPABASE_URL}/functions/v1/login-with-pin`;
       
       const response = await fetch(url, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          "apikey": SUPABASE_ANON_KEY,
         },
         body: JSON.stringify({ pin }),
       });
@@ -637,14 +636,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const createEmployee = useCallback(async (data: { name: string; role: Role; pin: string }): Promise<string | null> => {
     try {
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const url = `https://${projectId}.supabase.co/functions/v1/create-employee`;
+      const url = `${SUPABASE_URL}/functions/v1/create-employee`;
       const sess = await supabase.auth.getSession();
       const response = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          "apikey": SUPABASE_ANON_KEY,
           "Authorization": `Bearer ${sess.data.session?.access_token}`,
         },
         body: JSON.stringify(data),
