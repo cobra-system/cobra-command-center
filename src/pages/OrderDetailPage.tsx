@@ -5,7 +5,7 @@ import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Pencil, Trash2, CreditCard, Zap, Check } from "lucide-react";
 import DocumentsSection from "@/components/DocumentsSection";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

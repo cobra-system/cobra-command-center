@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useData } from "@/contexts/AppContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

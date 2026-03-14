@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useData, type Priority, type TaskStatus } from "@/contexts/AppContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { TaskStatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";

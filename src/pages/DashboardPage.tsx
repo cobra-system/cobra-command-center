@@ -6,7 +6,7 @@ import { OrderStatusBadge } from "@/components/StatusBadge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 import { Package, Truck, ClipboardList, Users, Zap, AlertTriangle, ScrollText, Wrench } from "lucide-react";
 import RecentSupplierEmails from "@/components/RecentSupplierEmails";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 const priorityOrder: Record<string, number> = { "דחוף": 0, "גבוה": 1, "בינוני": 2, "נמוך": 3 };

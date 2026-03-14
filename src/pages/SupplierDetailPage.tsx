@@ -12,7 +12,7 @@ import { ArrowRight, Pencil, Trash2, ExternalLink, Mail, Phone, Globe, TruckIcon
 import DocumentsSection from "@/components/DocumentsSection";
 import { InlineEditField } from "@/components/InlineEditField";
 import SapSyncBadge from "@/components/SapSyncBadge";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 export default function SupplierDetailPage() {
