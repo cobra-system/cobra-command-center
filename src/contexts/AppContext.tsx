@@ -257,14 +257,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Login with PIN (via edge function)
   const loginWithPin = useCallback(async (pin: string): Promise<string | null> => {
     try {
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const url = `https://${projectId}.supabase.co/functions/v1/login-with-pin`;
+      const url = `${SUPABASE_URL}/functions/v1/login-with-pin`;
       
       const response = await fetch(url, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          "apikey": SUPABASE_ANON_KEY,
         },
         body: JSON.stringify({ pin }),
       });
