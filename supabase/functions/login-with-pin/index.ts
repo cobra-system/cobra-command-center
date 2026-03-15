@@ -96,25 +96,35 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step 3: Sign in with password
+    // Step 3: Sign in via GoTrue REST API directly
     if (userPassword) {
-      const signInClient = createClient(externalUrl, externalServiceKey);
-      const { data: signInData, error: signInError } = await signInClient.auth.signInWithPassword({
-        email: userEmail,
-        password: userPassword,
+      const gotrueResp = await fetch(`${externalUrl}/auth/v1/token?grant_type=password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": externalServiceKey,
+        },
+        body: JSON.stringify({ email: userEmail, password: userPassword }),
       });
-
-      if (signInError || !signInData?.session) {
-        // Fallback: try magic link approach via admin
+      
+      const gotrueBody = await gotrueResp.json();
+      
+      if (!gotrueResp.ok || !gotrueBody.access_token) {
         return new Response(
-          JSON.stringify({ error: "שגיאה בכניסה: " + (signInError?.message || "no session") }),
+          JSON.stringify({ error: "שגיאה בכניסה: " + (gotrueBody.error_description || gotrueBody.msg || JSON.stringify(gotrueBody)) }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
       return new Response(
         JSON.stringify({
-          session: signInData.session,
+          session: {
+            access_token: gotrueBody.access_token,
+            refresh_token: gotrueBody.refresh_token,
+            expires_in: gotrueBody.expires_in,
+            token_type: gotrueBody.token_type,
+            user: gotrueBody.user,
+          },
           profile: { id: profile.id, name: profile.name, role: profile.role },
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
