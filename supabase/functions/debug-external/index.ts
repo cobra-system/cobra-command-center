@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.98.0";
+import { Client } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,76 +11,62 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const dbUrl = Deno.env.get("EXTERNAL_DB_URL")!;
     const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL")!;
     const externalServiceKey = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabaseAdmin = createClient(externalUrl, externalServiceKey);
 
-    const results: Record<string, any> = {};
-
-    // Step 1: Create a temporary RPC function to inspect the trigger
-    const createInspectorFn = await fetch(`${externalUrl}/rest/v1/rpc/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": externalServiceKey,
-        "Authorization": `Bearer ${externalServiceKey}`,
-      },
+    const parsedUrl = new URL(dbUrl);
+    const client = new Client({
+      hostname: parsedUrl.hostname,
+      port: parseInt(parsedUrl.port) || 5432,
+      database: parsedUrl.pathname.slice(1),
+      user: parsedUrl.username,
+      password: decodeURIComponent(parsedUrl.password),
+      tls: { enabled: true, enforce: false },
     });
+    await client.connect();
 
-    // Use the SQL endpoint to run queries
-    // Supabase exposes pg_net or we can use the /sql endpoint if available
-    // Let's try the Supabase Management API approach via direct pg connection
+    const results: string[] = [];
 
-    // Alternative: Create a helper function via supabaseAdmin
-    // First, let's try to create a simple RPC that returns the trigger source
-    const sqlUrl = `${externalUrl}/rest/v1/`;
-    
-    // Actually, let's try to fix the trigger by creating a new version of handle_new_user
-    // that only uses columns we KNOW exist (id, name, role)
-    // We can do this by creating an RPC function that creates the fix
-
-    // Create a temporary function to get trigger info and fix it
-    const { data: createFnResult, error: createFnError } = await supabaseAdmin.rpc(
-      "create_fix_trigger_fn", {}
+    // Check raw_app_meta_data for each user
+    const users = await client.queryObject<{ 
+      id: string; email: string; raw_app_meta_data: any; raw_user_meta_data: any; confirmed_at: string | null
+    }>(
+      `SELECT id, email, raw_app_meta_data, raw_user_meta_data, confirmed_at FROM auth.users WHERE deleted_at IS NULL`
     );
-    results.createFn = createFnResult || createFnError?.message || "no such rpc";
-
-    // Since we can't run arbitrary SQL via PostgREST, let's use a different approach:
-    // Use the Supabase Database REST endpoint with service role
-    // The /pg endpoint or similar
     
-    // Let's try the supabase-js SQL method if available
-    // Actually in supabase-js v2 there's no direct SQL execution
-    
-    // Let's try creating a function via PostgREST by calling an existing function
-    // that can create other functions (this won't work either)
+    for (const u of users.rows) {
+      results.push(`${u.email}: app_meta=${JSON.stringify(u.raw_app_meta_data)} user_meta=${JSON.stringify(u.raw_user_meta_data)} confirmed=${u.confirmed_at}`);
+    }
 
-    // The real solution: We need to execute SQL on the external database.
-    // Options:
-    // 1. Use the Supabase Management API (requires management API key, not service role key)
-    // 2. Connect directly to the database via pg connection string
-    // 3. Ask user to run SQL in their Supabase dashboard
+    // Fix raw_app_meta_data - GoTrue needs this
+    for (const u of users.rows) {
+      await client.queryObject(
+        `UPDATE auth.users SET 
+          raw_app_meta_data = '{"provider":"email","providers":["email"]}'::jsonb,
+          updated_at = now()
+        WHERE id = '${u.id}'::uuid`
+      );
+      results.push(`Fixed app_meta for ${u.email}`);
+    }
 
-    // Let's try option 2 using Deno's postgres driver
-    // But we need the DB connection string for the external project
-    
-    // Actually, let's try the external project's SQL execution endpoint
-    const sqlResp = await fetch(`${externalUrl}/rest/v1/rpc/exec_sql`, {
+    await client.end();
+
+    // Now test GoTrue sign-in directly
+    const gotrueResp = await fetch(`${externalUrl}/auth/v1/token?grant_type=password`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "apikey": externalServiceKey,
-        "Authorization": `Bearer ${externalServiceKey}`,
-        "Prefer": "return=representation",
       },
-      body: JSON.stringify({
-        query: "SELECT prosrc FROM pg_proc WHERE proname = 'handle_new_user'"
-      }),
+      body: JSON.stringify({ email: "georgi@cobra.co.il", password: "cobra1111" }),
     });
-    results.execSqlStatus = sqlResp.status;
-    results.execSqlBody = await sqlResp.text();
+    
+    const body = await gotrueResp.text();
+    results.push(`\nGoTrue sign-in status: ${gotrueResp.status}`);
+    results.push(`GoTrue response: ${body.substring(0, 500)}`);
 
-    return new Response(JSON.stringify(results, null, 2), {
+    return new Response(JSON.stringify({ results }, null, 2), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -12,63 +12,82 @@ Deno.serve(async (req) => {
 
   try {
     const dbUrl = Deno.env.get("EXTERNAL_DB_URL")!;
-    const client = new Client(dbUrl);
+    const parsedUrl = new URL(dbUrl);
+    const client = new Client({
+      hostname: parsedUrl.hostname,
+      port: parseInt(parsedUrl.port) || 5432,
+      database: parsedUrl.pathname.slice(1),
+      user: parsedUrl.username,
+      password: decodeURIComponent(parsedUrl.password),
+      tls: { enabled: true, enforce: false },
+    });
     await client.connect();
 
     const results: string[] = [];
 
-    // Step 1: Check current trigger function
-    const triggerCheck = await client.queryObject<{ prosrc: string }>(
-      `SELECT prosrc FROM pg_proc WHERE proname = 'handle_new_user'`
+    // Check user details
+    const users = await client.queryObject<{ 
+      id: string; email: string; encrypted_password: string; 
+      email_confirmed_at: string | null; is_sso_user: boolean;
+      instance_id: string; aud: string;
+    }>(
+      `SELECT id, email, substring(encrypted_password, 1, 20) as encrypted_password, 
+              email_confirmed_at, is_sso_user, instance_id, aud 
+       FROM auth.users WHERE deleted_at IS NULL`
     );
-    results.push(`Current trigger source: ${triggerCheck.rows[0]?.prosrc || "NOT FOUND"}`);
-
-    // Step 2: Check profiles table columns
-    const cols = await client.queryObject<{ column_name: string }>(
-      `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' ORDER BY ordinal_position`
-    );
-    results.push(`Profiles columns: ${cols.rows.map(r => r.column_name).join(", ")}`);
-
-    // Step 3: Fix the trigger function to match our schema (id, name, role, pin)
-    await client.queryObject(`
-      CREATE OR REPLACE FUNCTION public.handle_new_user()
-      RETURNS trigger
-      LANGUAGE plpgsql
-      SECURITY DEFINER
-      SET search_path TO 'public'
-      AS $$
-      BEGIN
-        INSERT INTO public.profiles (id, name, role)
-        VALUES (
-          NEW.id,
-          COALESCE(NEW.raw_user_meta_data->>'name', NEW.email),
-          COALESCE((NEW.raw_user_meta_data->>'role')::app_role, 'DRIVER')
-        )
-        ON CONFLICT (id) DO NOTHING;
-        RETURN NEW;
-      END;
-      $$;
-    `);
-    results.push("Trigger function fixed with ON CONFLICT DO NOTHING");
-
-    // Step 4: Ensure the trigger exists on auth.users
-    const triggerExists = await client.queryObject<{ tgname: string }>(
-      `SELECT tgname FROM pg_trigger WHERE tgname = 'on_auth_user_created'`
-    );
-    if (triggerExists.rows.length === 0) {
-      await client.queryObject(`
-        CREATE TRIGGER on_auth_user_created
-        AFTER INSERT ON auth.users
-        FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-      `);
-      results.push("Trigger created on auth.users");
-    } else {
-      results.push("Trigger already exists on auth.users");
+    
+    for (const u of users.rows) {
+      results.push(`User: ${u.email} id=${u.id}`);
+      results.push(`  confirmed=${u.email_confirmed_at} sso=${u.is_sso_user} instance=${u.instance_id} aud=${u.aud}`);
+      results.push(`  pwd_prefix=${u.encrypted_password}`);
     }
 
-    // Step 5: Ensure extensions exist
-    await client.queryObject(`CREATE EXTENSION IF NOT EXISTS pgcrypto SCHEMA extensions`);
-    results.push("pgcrypto extension ensured");
+    // Check if instance_id is the issue - GoTrue expects specific instance_id
+    // Fix: ensure instance_id is the default '00000000-0000-0000-0000-000000000000'
+    const USERS = [
+      { email: "noam@cobra.co.il", password: "cobra2026" },
+      { email: "georgi@cobra.co.il", password: "cobra1111" },
+      { email: "ziv@cobra.co.il", password: "cobra2222" },
+    ];
+
+    for (const u of USERS) {
+      // Update password using bcrypt, confirm email, fix instance_id
+      await client.queryObject(
+        `UPDATE auth.users SET 
+          encrypted_password = crypt($1, gen_salt('bf')),
+          email_confirmed_at = COALESCE(email_confirmed_at, now()),
+          instance_id = '00000000-0000-0000-0000-000000000000',
+          aud = 'authenticated',
+          role = 'authenticated',
+          updated_at = now()
+        WHERE email = $2`,
+        [u.password, u.email]
+      );
+      results.push(`Updated password for ${u.email}`);
+    }
+
+    // Verify identities exist
+    const identities = await client.queryObject<{ user_id: string; provider: string }>(
+      `SELECT user_id, provider FROM auth.identities`
+    );
+    results.push(`\nIdentities: ${identities.rows.length}`);
+    for (const i of identities.rows) {
+      results.push(`  ${i.user_id} - ${i.provider}`);
+    }
+
+    // If any user is missing email identity, create it
+    for (const authUser of users.rows) {
+      const hasIdentity = identities.rows.some(i => i.user_id === authUser.id);
+      if (!hasIdentity) {
+        const uid = authUser.id;
+        const uemail = authUser.email;
+        await client.queryObject(
+          `INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
+           VALUES (gen_random_uuid(), '${uid}'::uuid, '${uid}', 'email', '{"sub":"${uid}","email":"${uemail}"}'::jsonb, now(), now(), now())`
+        );
+        results.push(`Created email identity for ${authUser.email}`);
+      }
+    }
 
     await client.end();
 
