@@ -237,8 +237,12 @@ CREATE TABLE IF NOT EXISTS public.recurring_tasks (
   updated_at timestamptz DEFAULT now()
 );
 
-ALTER TABLE public.tasks ADD CONSTRAINT tasks_recurring_task_id_fkey 
-  FOREIGN KEY (recurring_task_id) REFERENCES public.recurring_tasks(id) ON DELETE SET NULL;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'tasks_recurring_task_id_fkey') THEN
+    ALTER TABLE public.tasks ADD CONSTRAINT tasks_recurring_task_id_fkey 
+      FOREIGN KEY (recurring_task_id) REFERENCES public.recurring_tasks(id) ON DELETE SET NULL;
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS public.distribution_centers (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
