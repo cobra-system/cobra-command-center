@@ -65,14 +65,17 @@ export default function OrdersPage() {
     fetchWorkflows();
   }, [orders]);
 
-  // Handle query params for creating order from ReorderPage
+  const [defaultSupplierId, setDefaultSupplierId] = useState<string | undefined>();
+
+  // Handle query params for creating order from ReorderPage / Product / Supplier pages
   useEffect(() => {
-    if (searchParams.get("create") === "true") {
-      const productId = searchParams.get("product");
-      if (productId) {
-        setShowNewOrderDialog(true);
-        setDefaultProductId(productId);
-      }
+    const shouldCreate = searchParams.get("create") === "true" || searchParams.get("newOrder") === "true";
+    if (shouldCreate) {
+      const productId = searchParams.get("product") || searchParams.get("productId") || undefined;
+      const supplierId = searchParams.get("supplierId") || undefined;
+      if (productId) setDefaultProductId(productId);
+      if (supplierId) setDefaultSupplierId(supplierId);
+      setShowNewOrderDialog(true);
     }
   }, [searchParams]);
 
