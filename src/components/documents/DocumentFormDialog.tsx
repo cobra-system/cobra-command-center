@@ -17,9 +17,10 @@ interface Props {
   editDocument?: PurchaseDocument | null;
   defaultSupplierId?: string;
   defaultProductId?: string;
+  defaultOrderId?: string;
 }
 
-export default function DocumentFormDialog({ open, onOpenChange, onSaved, editDocument, defaultSupplierId, defaultProductId }: Props) {
+export default function DocumentFormDialog({ open, onOpenChange, onSaved, editDocument, defaultSupplierId, defaultProductId, defaultOrderId }: Props) {
   const { suppliers, products, orders } = useData();
 
   const [formType, setFormType] = useState("PI");
@@ -55,9 +56,15 @@ export default function DocumentFormDialog({ open, onOpenChange, onSaved, editDo
             if (s) setFormSupplier(s.id);
           }
         }
+        if (defaultOrderId) {
+          setFormOrder(defaultOrderId);
+          // Auto-set supplier from order
+          const ord = orders.find(o => o.id === defaultOrderId);
+          if (ord?.supplier_id && !defaultSupplierId) setFormSupplier(ord.supplier_id);
+        }
       }
     }
-  }, [editDocument, open, defaultSupplierId, defaultProductId]);
+  }, [editDocument, open, defaultSupplierId, defaultProductId, defaultOrderId]);
 
   const filteredOrders = formSupplier
     ? orders.filter(o => o.supplier_id === formSupplier || o.supplier_name === suppliers.find(s => s.id === formSupplier)?.company)
@@ -71,10 +78,11 @@ export default function DocumentFormDialog({ open, onOpenChange, onSaved, editDo
   const handleSubmit = async () => {
     const qty = Number(formQty) || 0;
     const unitPrice = Number(formUnitPrice) || 0;
-    const payload = {
+    const payload: any = {
       type: formType,
       supplier_id: formSupplier || null,
       product_id: formProduct || null,
+      order_id: formOrder || null,
       quantity: qty,
       unit_price: unitPrice,
       total_price: qty * unitPrice,

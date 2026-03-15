@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useData, useAuth, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { Plus, Trash2, CalendarIcon, Search, ArrowUpDown, ArrowUp, ArrowDown, Zap, CheckCircle } from "lucide-react";
+import { Plus, Trash2, Search, ArrowUpDown, ArrowUp, ArrowDown, Zap, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -40,12 +40,19 @@ const statusFilterOptions = [
   ...allStatuses.filter(s => s.value !== "CANCELLED"),
 ];
 
+interface WorkflowInfo {
+  id: string;
+  status: string;
+  current_step: number;
+  steps: { name: string }[];
+}
+
 export default function OrdersPage() {
   const { orders, updateOrderStatus, updateOrder, addOrder, deleteOrder, suppliers, products } = useData();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [orderWorkflows, setOrderWorkflows] = useState<Record<string, { status: string; current_step: number }>>({});
+  const [orderWorkflows, setOrderWorkflows] = useState<Record<string, WorkflowInfo>>({});
   const isManager = currentUser?.role === "MANAGER";
   const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
   const [defaultProductId, setDefaultProductId] = useState<string | undefined>();
@@ -54,11 +61,26 @@ export default function OrdersPage() {
     const fetchWorkflows = async () => {
       const { data } = await supabase
         .from("workflow_instances")
-        .select("order_id, status, current_step")
+        .select("id, order_id, status, current_step, template_id")
         .not("order_id", "is", null);
       if (data) {
-        const map: Record<string, { status: string; current_step: number }> = {};
-        data.forEach(w => { if (w.order_id) map[w.order_id] = { status: w.status, current_step: w.current_step }; });
+        const templateIds = [...new Set(data.map(w => w.template_id).filter(Boolean))];
+        let templates: Record<string, any[]> = {};
+        if (templateIds.length > 0) {
+          const { data: tpls } = await supabase.from("workflow_templates").select("id, steps").in("id", templateIds);
+          if (tpls) tpls.forEach(t => { templates[t.id] = (t.steps as any[]) || []; });
+        }
+        const map: Record<string, WorkflowInfo> = {};
+        data.forEach(w => {
+          if (w.order_id) {
+            map[w.order_id] = {
+              id: w.id,
+              status: w.status,
+              current_step: w.current_step,
+              steps: templates[w.template_id!] || []
+            };
+          }
+        });
         setOrderWorkflows(map);
       }
     };
@@ -67,7 +89,6 @@ export default function OrdersPage() {
 
   const [defaultSupplierId, setDefaultSupplierId] = useState<string | undefined>();
 
-  // Handle query params for creating order from ReorderPage / Product / Supplier pages
   useEffect(() => {
     const shouldCreate = searchParams.get("create") === "true" || searchParams.get("newOrder") === "true";
     if (shouldCreate) {
@@ -156,6 +177,33 @@ export default function OrdersPage() {
     e.stopPropagation();
     await deleteOrder(orderId);
     toast.success("ההזמנה נמחקה");
+  };
+
+  const handleWorkflowStepChange = async (orderId: string, wf: WorkflowInfo, newStep: number) => {
+    const totalSteps = wf.steps.length;
+    const newStatus = newStep >= totalSteps ? "completed" : "active";
+    await supabase.from("workflow_instances").update({
+      current_step: Math.min(newStep, totalSteps),
+      status: newStatus
+    }).eq("id", wf.id);
+    // Log the step completion if advancing
+    if (newStep > wf.current_step) {
+      for (let i = wf.current_step; i < newStep && i < totalSteps; i++) {
+        await supabase.from("workflow_step_logs").insert({
+          instance_id: wf.id,
+          step_index: i,
+          completed_by: "מנהל",
+        });
+      }
+    } else if (newStep < wf.current_step) {
+      // Going back - remove logs
+      await supabase.from("workflow_step_logs").delete().eq("instance_id", wf.id).gte("step_index", newStep);
+    }
+    setOrderWorkflows(prev => ({
+      ...prev,
+      [orderId]: { ...wf, current_step: Math.min(newStep, totalSteps), status: newStatus }
+    }));
+    toast.success(newStatus === "completed" ? "תהליך הושלם" : `שלב ${newStep + 1}`);
   };
 
   const ThButton = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
@@ -318,48 +366,67 @@ export default function OrdersPage() {
                 </td>
                 <td className="p-3" onClick={e => e.stopPropagation()}>
                   {orderWorkflows[order.id] ? (
-                    <span className={cn(
-                      "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium",
-                      orderWorkflows[order.id].status === "completed"
-                        ? "bg-success/15 text-success"
-                        : orderWorkflows[order.id].status === "cancelled"
-                        ? "bg-destructive/15 text-destructive"
-                        : "bg-primary/15 text-primary"
-                    )}>
-                      {orderWorkflows[order.id].status === "completed" ? (
-                        <><CheckCircle className="h-3 w-3" />הושלם</>
-                      ) : orderWorkflows[order.id].status === "cancelled" ? (
-                        <>בוטל</>
-                      ) : (
-                        <><Zap className="h-3 w-3" />שלב {orderWorkflows[order.id].current_step + 1}</>
-                      )}
-                    </span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className={cn(
+                          "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium cursor-pointer",
+                          orderWorkflows[order.id].status === "completed"
+                            ? "bg-success/15 text-success"
+                            : orderWorkflows[order.id].status === "cancelled"
+                            ? "bg-destructive/15 text-destructive"
+                            : "bg-primary/15 text-primary"
+                        )}>
+                          {orderWorkflows[order.id].status === "completed" ? (
+                            <><CheckCircle className="h-3 w-3" />הושלם</>
+                          ) : orderWorkflows[order.id].status === "cancelled" ? (
+                            <>בוטל</>
+                          ) : (
+                            <><Zap className="h-3 w-3" />שלב {orderWorkflows[order.id].current_step + 1}</>
+                          )}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-56 p-1" align="start">
+                        <div className="flex flex-col gap-0.5">
+                          {orderWorkflows[order.id].steps.map((step: any, idx: number) => {
+                            const wf = orderWorkflows[order.id];
+                            const isCompleted = idx < wf.current_step || wf.status === "completed";
+                            const isCurrent = idx === wf.current_step && wf.status === "active";
+                            return (
+                              <button
+                                key={idx}
+                                onClick={() => handleWorkflowStepChange(order.id, wf, idx)}
+                                className={cn(
+                                  "px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted flex items-center gap-2",
+                                  isCurrent && "bg-primary/10"
+                                )}
+                              >
+                                <span className={cn(
+                                  "w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0",
+                                  isCompleted ? "bg-success text-success-foreground" :
+                                  isCurrent ? "bg-primary text-primary-foreground" :
+                                  "bg-muted text-muted-foreground"
+                                )}>
+                                  {isCompleted ? "✓" : idx + 1}
+                                </span>
+                                {step.name}
+                              </button>
+                            );
+                          })}
+                          <button
+                            onClick={() => handleWorkflowStepChange(order.id, orderWorkflows[order.id], orderWorkflows[order.id].steps.length)}
+                            className={cn(
+                              "px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted flex items-center gap-2 border-t mt-1 pt-2",
+                              orderWorkflows[order.id].status === "completed" && "bg-success/10"
+                            )}
+                          >
+                            <CheckCircle className="h-3.5 w-3.5 text-success" />
+                            סיים תהליך
+                          </button>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   ) : (
-                    <button
-                      onClick={async () => {
-                        const { data: tpl } = await supabase
-                          .from("workflow_templates")
-                          .select("id")
-                          .eq("category", "procurement")
-                          .limit(1)
-                          .single();
-                        if (!tpl) return;
-                        const { error } = await supabase
-                          .from("workflow_instances")
-                          .insert({ template_id: tpl.id, order_id: order.id });
-                        if (error) {
-                          toast.error("לא ניתן להפעיל תהליך");
-                        } else {
-                          toast.success("תהליך רכש הופעל");
-                          setOrderWorkflows(prev => ({ ...prev, [order.id]: { status: "active", current_step: 0 } }));
-                        }
-                      }}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
-                      title="הפעל תהליך רכש"
-                    >
-                      <Zap className="h-3.5 w-3.5" />
-                      הפעל
-                    </button>
+                    <span className="text-xs text-muted-foreground">אוטומטי</span>
                   )}
                 </td>
                 {isManager && (

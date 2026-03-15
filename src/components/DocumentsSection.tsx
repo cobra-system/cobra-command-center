@@ -64,6 +64,7 @@ export default function DocumentsSection({ supplierId, productId, orderId }: Pro
           onSaved={fetchData}
           defaultSupplierId={supplierId}
           defaultProductId={productId}
+          defaultOrderId={orderId}
         />
         {docs.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">אין מסמכים משויכים</p>

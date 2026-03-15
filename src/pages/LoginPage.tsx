@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AppContext";
 import { useNavigate } from "react-router-dom";
-import { Shield } from "lucide-react";
+import cobraLogo from "@/assets/cobra-logo.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -62,10 +62,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-primary p-4">
       <div className="mb-8 text-center">
-        <div className="flex items-center justify-center gap-3 mb-2">
-          <Shield className="h-10 w-10 text-primary-foreground" />
-          <h1 className="text-4xl font-black text-primary-foreground tracking-tight">COBRA.IO</h1>
-        </div>
+        <img src={cobraLogo} alt="COBRA" className="h-20 w-auto brightness-0 invert mx-auto mb-3" />
         <p className="text-primary-foreground/70 text-sm">מערכת ניהול פנימית</p>
       </div>
 
@@ -93,7 +90,7 @@ export default function LoginPage() {
           <div className="bg-card rounded-xl p-6 shadow-xl space-y-4">
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">אימייל</label>
-              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@cobra.io" dir="ltr" className="text-left" />
+              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="noam@cobra.co.il" dir="ltr" className="text-left" />
             </div>
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">סיסמה</label>
