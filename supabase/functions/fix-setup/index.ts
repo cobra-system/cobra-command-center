@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
 
     const results: string[] = [];
 
-    // Fix PINs - set plaintext PINs for employee login
+    // Fix PINs and clean up duplicate profiles
     const { data: allProfiles } = await supabaseAdmin.from("profiles").select("id, name, role, pin");
     results.push(`Found ${allProfiles?.length || 0} profiles`);
 
@@ -27,47 +27,159 @@ Deno.serve(async (req) => {
         results.push(`Profile: ${p.name} (${p.role}) pin=${p.pin ? 'SET' : 'NULL'}`);
       }
 
-      // Find Georgi
-      const georgi = allProfiles.find((p: any) => p.name.includes("גיאורגי") || p.name.includes("ג'ורג'"));
-      if (georgi) {
-        const { error } = await supabaseAdmin.from("profiles").update({ pin: "1111" }).eq("id", georgi.id);
-        results.push(error ? `PIN Georgi error: ${error.message}` : `PIN Georgi (${georgi.name}) → 1111: OK`);
-      } else {
-        results.push("Georgi profile not found");
+      // Find and remove duplicates - keep the ones with full names
+      // Delete "ג'ורג'" (keep "גיאורגי גריגוריאנץ")
+      const georgiNew = allProfiles.find((p: any) => p.name === "גיאורגי גריגוריאנץ");
+      const georgiOld = allProfiles.find((p: any) => p.name === "ג'ורג'");
+      if (georgiNew && georgiOld) {
+        // Move tasks from old to new
+        await supabaseAdmin.from("tasks").update({ assignee_id: georgiNew.id, assignee_name: "גיאורגי גריגוריאנץ" }).eq("assignee_id", georgiOld.id);
+        // Delete old auth user (cascades to profile)
+        const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(georgiOld.id);
+        results.push(delErr ? `Delete old Georgi: ${delErr.message}` : "Delete old Georgi (ג'ורג'): OK");
       }
 
-      // Find Ziv
-      const ziv = allProfiles.find((p: any) => p.name.includes("זיו"));
-      if (ziv) {
-        const { error } = await supabaseAdmin.from("profiles").update({ pin: "2222" }).eq("id", ziv.id);
-        results.push(error ? `PIN Ziv error: ${error.message}` : `PIN Ziv (${ziv.name}) → 2222: OK`);
+      // Delete "זיו" (keep "זיו בוזגלו")
+      const zivNew = allProfiles.find((p: any) => p.name === "זיו בוזגלו");
+      const zivOld = allProfiles.find((p: any) => p.name === "זיו" && p.name !== "זיו בוזגלו");
+      if (zivNew && zivOld) {
+        await supabaseAdmin.from("tasks").update({ assignee_id: zivNew.id, assignee_name: "זיו בוזגלו" }).eq("assignee_id", zivOld.id);
+        const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(zivOld.id);
+        results.push(delErr ? `Delete old Ziv: ${delErr.message}` : "Delete old Ziv (זיו): OK");
+      }
+
+      // Delete "מנהל" duplicate if exists (keep "נועם")
+      const noam = allProfiles.find((p: any) => p.name === "נועם" && p.role === "MANAGER");
+      const mngr = allProfiles.find((p: any) => p.name === "מנהל" && p.role === "MANAGER");
+      if (noam && mngr) {
+        await supabaseAdmin.from("tasks").update({ assignee_id: noam.id }).eq("assignee_id", mngr.id);
+        const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(mngr.id);
+        results.push(delErr ? `Delete old Manager: ${delErr.message}` : "Delete old Manager (מנהל): OK");
+      }
+
+      // Set PINs on remaining profiles
+      if (georgiNew) {
+        const { error } = await supabaseAdmin.from("profiles").update({ pin: "1111" }).eq("id", georgiNew.id);
+        results.push(error ? `PIN Georgi error: ${error.message}` : `PIN Georgi → 1111: OK`);
+      }
+      if (zivNew) {
+        const { error } = await supabaseAdmin.from("profiles").update({ pin: "2222" }).eq("id", zivNew.id);
+        results.push(error ? `PIN Ziv error: ${error.message}` : `PIN Ziv → 2222: OK`);
+      }
+
+      // Fix admin - check if "נועם" has valid auth user, if not recreate
+      if (noam) {
+        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(noam.id);
+        if (authUser?.user) {
+          if (authUser.user.email !== "noam@cobra.co.il") {
+            const { error: emailError } = await supabaseAdmin.auth.admin.updateUserById(
+              noam.id, { email: "noam@cobra.co.il" }
+            );
+            results.push(emailError ? `Email error: ${emailError.message}` : "Email → noam@cobra.co.il: OK");
+          } else {
+            results.push("Email already noam@cobra.co.il");
+          }
+        } else {
+          // Orphan profile - delete it and create new admin
+          const { error: delProfErr } = await supabaseAdmin.from("profiles").delete().eq("id", noam.id);
+          results.push(`Delete orphan profile: ${delProfErr ? delProfErr.message : 'OK'}`);
+          
+          // Check if an auth user with this email already exists
+          const { data: { users: existingUsers } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 100 });
+          const existingAdmin = existingUsers?.find((u: any) => u.email === "noam@cobra.co.il");
+          
+          if (existingAdmin) {
+            // Auth user already exists, just ensure profile exists
+            const { data: existingProfile } = await supabaseAdmin.from("profiles").select("id").eq("id", existingAdmin.id).maybeSingle();
+            if (!existingProfile) {
+              await supabaseAdmin.from("profiles").insert({ id: existingAdmin.id, name: "נועם", role: "MANAGER" });
+            }
+            results.push(`Admin exists: ${existingAdmin.id} (${existingAdmin.email})`);
+          } else {
+            const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+              email: "noam@cobra.co.il",
+              password: "cobra2026",
+              email_confirm: true,
+              user_metadata: { name: "נועם", role: "MANAGER" }
+            });
+            if (createErr) {
+              results.push(`Create admin error: ${createErr.message}`);
+              // Try to list all auth users for debugging
+              results.push(`Total auth users: ${existingUsers?.length || 0}`);
+              existingUsers?.forEach((u: any) => results.push(`  Auth: ${u.email} (${u.id})`));
+            } else if (newUser?.user) {
+              results.push(`New admin created: ${newUser.user.id}`);
+            }
+          }
+        }
       } else {
-        results.push("Ziv profile not found");
+        // Auth users exist but are soft-deleted. Query GoTrue directly.
+        const gotrue = `${externalUrl}/auth/v1`;
+        
+        // List ALL users including deleted via GoTrue admin API
+        const usersResp = await fetch(`${gotrue}/admin/users?per_page=100`, {
+          headers: { 
+            'apikey': externalServiceKey, 
+            'Authorization': `Bearer ${externalServiceKey}` 
+          },
+        });
+        const usersData = await usersResp.json();
+        const allUsers = usersData.users || [];
+        results.push(`GoTrue total users: ${allUsers.length}`);
+        
+        for (const u of allUsers) {
+          results.push(`  User: ${u.email} id=${u.id} deleted=${u.deleted_at || 'null'}`);
+          
+          // If user is soft-deleted, re-activate by updating deleted_at to null
+          if (u.deleted_at) {
+            const updateResp = await fetch(`${gotrue}/admin/users/${u.id}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': externalServiceKey,
+                'Authorization': `Bearer ${externalServiceKey}`,
+              },
+              body: JSON.stringify({ 
+                email_confirm: true,
+              }),
+            });
+            const updateResult = await updateResp.json();
+            results.push(`  Reactivate ${u.email}: ${updateResp.status}`);
+
+            // Set password for the user
+            let pwd = 'cobra0000';
+            if (u.email === 'noam@cobra.co.il') pwd = 'cobra2026';
+            else if (u.email === 'georgi@cobra.co.il') pwd = 'cobra1111';
+            else if (u.email === 'ziv@cobra.co.il') pwd = 'cobra2222';
+            
+            const pwdResp = await fetch(`${gotrue}/admin/users/${u.id}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': externalServiceKey,
+                'Authorization': `Bearer ${externalServiceKey}`,
+              },
+              body: JSON.stringify({ password: pwd }),
+            });
+            results.push(`  Set password ${u.email}: ${pwdResp.status}`);
+
+            // Ensure profile exists
+            const profileName = u.email === 'noam@cobra.co.il' ? 'נועם' : 
+                               u.email === 'georgi@cobra.co.il' ? 'גיאורגי גריגוריאנץ' : 'זיו בוזגלו';
+            const profileRole = u.email === 'noam@cobra.co.il' ? 'MANAGER' : 
+                               u.email === 'georgi@cobra.co.il' ? 'WAREHOUSE_MANAGER' : 'LOGISTICS';
+            const pin = u.email === 'georgi@cobra.co.il' ? '1111' : u.email === 'ziv@cobra.co.il' ? '2222' : null;
+            
+            await supabaseAdmin.from("profiles").upsert({ 
+              id: u.id, name: profileName, role: profileRole, pin 
+            });
+            results.push(`  Profile ${profileName}: OK`);
+          }
+        }
       }
     }
 
-    // Merge task assignee names
-    const { error: e3 } = await supabaseAdmin
-      .from("tasks").update({ assignee_name: "זיו בוזגלו" }).eq("assignee_name", "זיו");
-    results.push(e3 ? `Merge Ziv tasks: ${e3.message}` : "Merge Ziv tasks: OK");
-
-    const { error: e4 } = await supabaseAdmin
-      .from("tasks").update({ assignee_name: "גיאורגי גריגוריאנץ" }).eq("assignee_name", "ג'ורג'");
-    results.push(e4 ? `Merge George tasks: ${e4.message}` : "Merge George tasks: OK");
-
-    // Change admin email
-    const adminProfile = allProfiles?.find((p: any) => p.role === "MANAGER");
-    if (adminProfile) {
-      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(adminProfile.id);
-      if (authUser?.user?.email !== "noam@cobra.co.il") {
-        const { error: emailError } = await supabaseAdmin.auth.admin.updateUserById(
-          adminProfile.id, { email: "noam@cobra.co.il" }
-        );
-        results.push(emailError ? `Email error: ${emailError.message}` : "Email → noam@cobra.co.il: OK");
-      } else {
-        results.push("Email already noam@cobra.co.il");
-      }
-    }
+    // Extra merge for any remaining task name references
 
     // Ensure procurement workflow template exists
     const { data: existingTpl } = await supabaseAdmin
