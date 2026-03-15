@@ -542,153 +542,251 @@ ALTER TABLE public.login_attempts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.learning_journal ENABLE ROW LEVEL SECURITY;
 
 -- ---- PROFILES ----
+DROP POLICY IF EXISTS "Users can read own profile" ON public.profiles;
 CREATE POLICY "Users can read own profile" ON public.profiles FOR SELECT TO public USING (id = auth.uid() OR is_manager());
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE TO public USING (id = auth.uid()) WITH CHECK (id = auth.uid() AND role = (SELECT p.role FROM profiles p WHERE p.id = auth.uid()));
+DROP POLICY IF EXISTS "Managers can insert profiles" ON public.profiles;
 CREATE POLICY "Managers can insert profiles" ON public.profiles FOR INSERT TO public WITH CHECK (is_manager());
 
 -- ---- USER_ROLES ----
+DROP POLICY IF EXISTS "Managers can read roles" ON public.user_roles;
 CREATE POLICY "Managers can read roles" ON public.user_roles FOR SELECT TO public USING (is_manager() OR user_id = auth.uid());
+DROP POLICY IF EXISTS "Managers can insert roles" ON public.user_roles;
 CREATE POLICY "Managers can insert roles" ON public.user_roles FOR INSERT TO public WITH CHECK (is_manager());
 
 -- ---- ROLE_DEFINITIONS ----
+DROP POLICY IF EXISTS "Authenticated users can read role definitions" ON public.role_definitions;
 CREATE POLICY "Authenticated users can read role definitions" ON public.role_definitions FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert role definitions" ON public.role_definitions;
 CREATE POLICY "Managers can insert role definitions" ON public.role_definitions FOR INSERT TO authenticated WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can update role definitions" ON public.role_definitions;
 CREATE POLICY "Managers can update role definitions" ON public.role_definitions FOR UPDATE TO authenticated USING (is_manager());
+DROP POLICY IF EXISTS "Managers can delete role definitions" ON public.role_definitions;
 CREATE POLICY "Managers can delete role definitions" ON public.role_definitions FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- PRODUCTS ----
+DROP POLICY IF EXISTS "Authenticated users can read products" ON public.products;
 CREATE POLICY "Authenticated users can read products" ON public.products FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert products" ON public.products;
 CREATE POLICY "Managers can insert products" ON public.products FOR INSERT TO public WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can update products" ON public.products;
 CREATE POLICY "Managers can update products" ON public.products FOR UPDATE TO public USING (is_manager());
+DROP POLICY IF EXISTS "Managers can delete products" ON public.products;
 CREATE POLICY "Managers can delete products" ON public.products FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- PRODUCT_COMPONENTS ----
+DROP POLICY IF EXISTS "Authenticated users can read components" ON public.product_components;
 CREATE POLICY "Authenticated users can read components" ON public.product_components FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert components" ON public.product_components;
 CREATE POLICY "Managers can insert components" ON public.product_components FOR INSERT TO public WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can update components" ON public.product_components;
 CREATE POLICY "Managers can update components" ON public.product_components FOR UPDATE TO public USING (is_manager());
+DROP POLICY IF EXISTS "Managers can delete components" ON public.product_components;
 CREATE POLICY "Managers can delete components" ON public.product_components FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- PRODUCT_ISSUES ----
+DROP POLICY IF EXISTS "Authenticated users can read issues" ON public.product_issues;
 CREATE POLICY "Authenticated users can read issues" ON public.product_issues FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Authenticated users can insert issues" ON public.product_issues;
 CREATE POLICY "Authenticated users can insert issues" ON public.product_issues FOR INSERT TO authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "Managers can update issues" ON public.product_issues;
 CREATE POLICY "Managers can update issues" ON public.product_issues FOR UPDATE TO authenticated USING (is_manager());
+DROP POLICY IF EXISTS "Managers can delete issues" ON public.product_issues;
 CREATE POLICY "Managers can delete issues" ON public.product_issues FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- SUPPLIERS ----
+DROP POLICY IF EXISTS "Authenticated users can read suppliers" ON public.suppliers;
 CREATE POLICY "Authenticated users can read suppliers" ON public.suppliers FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert suppliers" ON public.suppliers;
 CREATE POLICY "Managers can insert suppliers" ON public.suppliers FOR INSERT TO public WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can update suppliers" ON public.suppliers;
 CREATE POLICY "Managers can update suppliers" ON public.suppliers FOR UPDATE TO public USING (is_manager());
+DROP POLICY IF EXISTS "Managers can delete suppliers" ON public.suppliers;
 CREATE POLICY "Managers can delete suppliers" ON public.suppliers FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- SUPPLIER_CONTACTS ----
+DROP POLICY IF EXISTS "Authenticated users can read supplier contacts" ON public.supplier_contacts;
 CREATE POLICY "Authenticated users can read supplier contacts" ON public.supplier_contacts FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert supplier contacts" ON public.supplier_contacts;
 CREATE POLICY "Managers can insert supplier contacts" ON public.supplier_contacts FOR INSERT TO authenticated WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can update supplier contacts" ON public.supplier_contacts;
 CREATE POLICY "Managers can update supplier contacts" ON public.supplier_contacts FOR UPDATE TO authenticated USING (is_manager());
+DROP POLICY IF EXISTS "Managers can delete supplier contacts" ON public.supplier_contacts;
 CREATE POLICY "Managers can delete supplier contacts" ON public.supplier_contacts FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- SUPPLIER_PAYMENTS ----
+DROP POLICY IF EXISTS "Authenticated users can read payments" ON public.supplier_payments;
 CREATE POLICY "Authenticated users can read payments" ON public.supplier_payments FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert payments" ON public.supplier_payments;
 CREATE POLICY "Managers can insert payments" ON public.supplier_payments FOR INSERT TO authenticated WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can update payments" ON public.supplier_payments;
 CREATE POLICY "Managers can update payments" ON public.supplier_payments FOR UPDATE TO authenticated USING (is_manager());
+DROP POLICY IF EXISTS "Managers can delete payments" ON public.supplier_payments;
 CREATE POLICY "Managers can delete payments" ON public.supplier_payments FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- SUPPLIER_PRICE_QUOTES ----
+DROP POLICY IF EXISTS "Authenticated users can read quotes" ON public.supplier_price_quotes;
 CREATE POLICY "Authenticated users can read quotes" ON public.supplier_price_quotes FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert quotes" ON public.supplier_price_quotes;
 CREATE POLICY "Managers can insert quotes" ON public.supplier_price_quotes FOR INSERT TO authenticated WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can update quotes" ON public.supplier_price_quotes;
 CREATE POLICY "Managers can update quotes" ON public.supplier_price_quotes FOR UPDATE TO authenticated USING (is_manager());
+DROP POLICY IF EXISTS "Managers can delete quotes" ON public.supplier_price_quotes;
 CREATE POLICY "Managers can delete quotes" ON public.supplier_price_quotes FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- ORDERS ----
+DROP POLICY IF EXISTS "Authenticated users can read orders" ON public.orders;
 CREATE POLICY "Authenticated users can read orders" ON public.orders FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert orders" ON public.orders;
 CREATE POLICY "Managers can insert orders" ON public.orders FOR INSERT TO public WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can update orders" ON public.orders;
 CREATE POLICY "Managers can update orders" ON public.orders FOR UPDATE TO public USING (is_manager());
+DROP POLICY IF EXISTS "Managers can delete orders" ON public.orders;
 CREATE POLICY "Managers can delete orders" ON public.orders FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- ORDER_ITEMS ----
+DROP POLICY IF EXISTS "Authenticated users can read order items" ON public.order_items;
 CREATE POLICY "Authenticated users can read order items" ON public.order_items FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert order items" ON public.order_items;
 CREATE POLICY "Managers can insert order items" ON public.order_items FOR INSERT TO public WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can update order items" ON public.order_items;
 CREATE POLICY "Managers can update order items" ON public.order_items FOR UPDATE TO authenticated USING (is_manager());
+DROP POLICY IF EXISTS "Managers can delete order items" ON public.order_items;
 CREATE POLICY "Managers can delete order items" ON public.order_items FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- TASKS ----
+DROP POLICY IF EXISTS "Authenticated users can read tasks" ON public.tasks;
 CREATE POLICY "Authenticated users can read tasks" ON public.tasks FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert tasks" ON public.tasks;
 CREATE POLICY "Managers can insert tasks" ON public.tasks FOR INSERT TO public WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Assignees and managers can update tasks" ON public.tasks;
 CREATE POLICY "Assignees and managers can update tasks" ON public.tasks FOR UPDATE TO public USING (assignee_id = auth.uid() OR is_manager());
+DROP POLICY IF EXISTS "Managers can delete tasks" ON public.tasks;
 CREATE POLICY "Managers can delete tasks" ON public.tasks FOR DELETE TO public USING (is_manager());
 
 -- ---- RECURRING_TASKS ----
+DROP POLICY IF EXISTS "Authenticated users can read recurring tasks" ON public.recurring_tasks;
 CREATE POLICY "Authenticated users can read recurring tasks" ON public.recurring_tasks FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert recurring tasks" ON public.recurring_tasks;
 CREATE POLICY "Managers can insert recurring tasks" ON public.recurring_tasks FOR INSERT TO authenticated WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can update recurring tasks" ON public.recurring_tasks;
 CREATE POLICY "Managers can update recurring tasks" ON public.recurring_tasks FOR UPDATE TO authenticated USING (is_manager());
+DROP POLICY IF EXISTS "Managers can delete recurring tasks" ON public.recurring_tasks;
 CREATE POLICY "Managers can delete recurring tasks" ON public.recurring_tasks FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- DISTRIBUTION_CENTERS ----
+DROP POLICY IF EXISTS "Authenticated users can read centers" ON public.distribution_centers;
 CREATE POLICY "Authenticated users can read centers" ON public.distribution_centers FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert centers" ON public.distribution_centers;
 CREATE POLICY "Managers can insert centers" ON public.distribution_centers FOR INSERT TO authenticated WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can update centers" ON public.distribution_centers;
 CREATE POLICY "Managers can update centers" ON public.distribution_centers FOR UPDATE TO authenticated USING (is_manager());
+DROP POLICY IF EXISTS "Managers can delete centers" ON public.distribution_centers;
 CREATE POLICY "Managers can delete centers" ON public.distribution_centers FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- CENTER_CONTACTS ----
+DROP POLICY IF EXISTS "Authenticated users can read center contacts" ON public.center_contacts;
 CREATE POLICY "Authenticated users can read center contacts" ON public.center_contacts FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert center contacts" ON public.center_contacts;
 CREATE POLICY "Managers can insert center contacts" ON public.center_contacts FOR INSERT TO authenticated WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can update center contacts" ON public.center_contacts;
 CREATE POLICY "Managers can update center contacts" ON public.center_contacts FOR UPDATE TO authenticated USING (is_manager());
+DROP POLICY IF EXISTS "Managers can delete center contacts" ON public.center_contacts;
 CREATE POLICY "Managers can delete center contacts" ON public.center_contacts FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- CENTER_INVENTORY ----
+DROP POLICY IF EXISTS "Authenticated users can read center inventory" ON public.center_inventory;
 CREATE POLICY "Authenticated users can read center inventory" ON public.center_inventory FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert center inventory" ON public.center_inventory;
 CREATE POLICY "Managers can insert center inventory" ON public.center_inventory FOR INSERT TO authenticated WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can update center inventory" ON public.center_inventory;
 CREATE POLICY "Managers can update center inventory" ON public.center_inventory FOR UPDATE TO authenticated USING (is_manager());
+DROP POLICY IF EXISTS "Managers can delete center inventory" ON public.center_inventory;
 CREATE POLICY "Managers can delete center inventory" ON public.center_inventory FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- INVENTORY_TRANSFERS ----
+DROP POLICY IF EXISTS "Authenticated users can read transfers" ON public.inventory_transfers;
 CREATE POLICY "Authenticated users can read transfers" ON public.inventory_transfers FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert transfers" ON public.inventory_transfers;
 CREATE POLICY "Managers can insert transfers" ON public.inventory_transfers FOR INSERT TO authenticated WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can delete transfers" ON public.inventory_transfers;
 CREATE POLICY "Managers can delete transfers" ON public.inventory_transfers FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- PURCHASE_DOCUMENTS ----
+DROP POLICY IF EXISTS "Authenticated users can read documents" ON public.purchase_documents;
 CREATE POLICY "Authenticated users can read documents" ON public.purchase_documents FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert documents" ON public.purchase_documents;
 CREATE POLICY "Managers can insert documents" ON public.purchase_documents FOR INSERT TO authenticated WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can update documents" ON public.purchase_documents;
 CREATE POLICY "Managers can update documents" ON public.purchase_documents FOR UPDATE TO authenticated USING (is_manager());
+DROP POLICY IF EXISTS "Managers can delete documents" ON public.purchase_documents;
 CREATE POLICY "Managers can delete documents" ON public.purchase_documents FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- COMPLIANCE_ITEMS ----
+DROP POLICY IF EXISTS "Authenticated users can read compliance items" ON public.compliance_items;
 CREATE POLICY "Authenticated users can read compliance items" ON public.compliance_items FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert compliance items" ON public.compliance_items;
 CREATE POLICY "Managers can insert compliance items" ON public.compliance_items FOR INSERT TO authenticated WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can update compliance items" ON public.compliance_items;
 CREATE POLICY "Managers can update compliance items" ON public.compliance_items FOR UPDATE TO authenticated USING (is_manager());
+DROP POLICY IF EXISTS "Managers can delete compliance items" ON public.compliance_items;
 CREATE POLICY "Managers can delete compliance items" ON public.compliance_items FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- COMPLIANCE_PRODUCT_LINKS ----
+DROP POLICY IF EXISTS "Authenticated users can read compliance links" ON public.compliance_product_links;
 CREATE POLICY "Authenticated users can read compliance links" ON public.compliance_product_links FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert compliance links" ON public.compliance_product_links;
 CREATE POLICY "Managers can insert compliance links" ON public.compliance_product_links FOR INSERT TO authenticated WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can delete compliance links" ON public.compliance_product_links;
 CREATE POLICY "Managers can delete compliance links" ON public.compliance_product_links FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- WORKFLOW_TEMPLATES ----
+DROP POLICY IF EXISTS "Authenticated users can read templates" ON public.workflow_templates;
 CREATE POLICY "Authenticated users can read templates" ON public.workflow_templates FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert templates" ON public.workflow_templates;
 CREATE POLICY "Managers can insert templates" ON public.workflow_templates FOR INSERT TO authenticated WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can update templates" ON public.workflow_templates;
 CREATE POLICY "Managers can update templates" ON public.workflow_templates FOR UPDATE TO authenticated USING (is_manager());
+DROP POLICY IF EXISTS "Managers can delete templates" ON public.workflow_templates;
 CREATE POLICY "Managers can delete templates" ON public.workflow_templates FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- WORKFLOW_INSTANCES ----
+DROP POLICY IF EXISTS "Authenticated users can read instances" ON public.workflow_instances;
 CREATE POLICY "Authenticated users can read instances" ON public.workflow_instances FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert instances" ON public.workflow_instances;
 CREATE POLICY "Managers can insert instances" ON public.workflow_instances FOR INSERT TO authenticated WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can update instances" ON public.workflow_instances;
 CREATE POLICY "Managers can update instances" ON public.workflow_instances FOR UPDATE TO authenticated USING (is_manager());
+DROP POLICY IF EXISTS "Managers can delete instances" ON public.workflow_instances;
 CREATE POLICY "Managers can delete instances" ON public.workflow_instances FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- WORKFLOW_STEP_LOGS ----
+DROP POLICY IF EXISTS "Authenticated users can read step logs" ON public.workflow_step_logs;
 CREATE POLICY "Authenticated users can read step logs" ON public.workflow_step_logs FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Managers can insert step logs" ON public.workflow_step_logs;
 CREATE POLICY "Managers can insert step logs" ON public.workflow_step_logs FOR INSERT TO authenticated WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can update step logs" ON public.workflow_step_logs;
 CREATE POLICY "Managers can update step logs" ON public.workflow_step_logs FOR UPDATE TO authenticated USING (is_manager());
+DROP POLICY IF EXISTS "Managers can delete step logs" ON public.workflow_step_logs;
 CREATE POLICY "Managers can delete step logs" ON public.workflow_step_logs FOR DELETE TO authenticated USING (is_manager());
 
 -- ---- SAP_SYNC_LOG ----
+DROP POLICY IF EXISTS "Authenticated users can read sync log" ON public.sap_sync_log;
 CREATE POLICY "Authenticated users can read sync log" ON public.sap_sync_log FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "Managers can insert sync log" ON public.sap_sync_log;
 CREATE POLICY "Managers can insert sync log" ON public.sap_sync_log FOR INSERT TO public WITH CHECK (is_manager());
+DROP POLICY IF EXISTS "Managers can delete sync log" ON public.sap_sync_log;
 CREATE POLICY "Managers can delete sync log" ON public.sap_sync_log FOR DELETE TO public USING (is_manager());
 
 -- ---- LEARNING_JOURNAL ----
+DROP POLICY IF EXISTS "Authenticated users can read journal" ON public.learning_journal;
 CREATE POLICY "Authenticated users can read journal" ON public.learning_journal FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Users can insert own journal entries" ON public.learning_journal;
 CREATE POLICY "Users can insert own journal entries" ON public.learning_journal FOR INSERT TO authenticated WITH CHECK (created_by = auth.uid());
+DROP POLICY IF EXISTS "Users can update own or managers all journal" ON public.learning_journal;
 CREATE POLICY "Users can update own or managers all journal" ON public.learning_journal FOR UPDATE TO authenticated USING (created_by = auth.uid() OR is_manager());
+DROP POLICY IF EXISTS "Managers can delete journal entries" ON public.learning_journal;
 CREATE POLICY "Managers can delete journal entries" ON public.learning_journal FOR DELETE TO authenticated USING (is_manager() OR created_by = auth.uid());
 
 -- ============================================================
@@ -698,9 +796,13 @@ INSERT INTO storage.buckets (id, name, public) VALUES ('documents', 'documents',
 INSERT INTO storage.buckets (id, name, public) VALUES ('issue-images', 'issue-images', true) ON CONFLICT DO NOTHING;
 
 -- Storage policies
+DROP POLICY IF EXISTS "Authenticated users can upload documents" ON storage.objects;
 CREATE POLICY "Authenticated users can upload documents" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'documents');
+DROP POLICY IF EXISTS "Authenticated users can read documents" ON storage.objects;
 CREATE POLICY "Authenticated users can read documents" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'documents');
+DROP POLICY IF EXISTS "Public can read issue images" ON storage.objects;
 CREATE POLICY "Public can read issue images" ON storage.objects FOR SELECT TO public USING (bucket_id = 'issue-images');
+DROP POLICY IF EXISTS "Authenticated users can upload issue images" ON storage.objects;
 CREATE POLICY "Authenticated users can upload issue images" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'issue-images');
 
 -- ============================================================
