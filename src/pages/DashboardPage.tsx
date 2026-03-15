@@ -96,13 +96,6 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">שלום, {currentUser?.name || "מנהל"} 👋</h1>
-          <p className="text-sm text-muted-foreground">סיכום מצב תפעולי</p>
-        </div>
-      </div>
-
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
         {[

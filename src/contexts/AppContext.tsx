@@ -546,6 +546,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const { components, ...dbUpdates } = updates as any;
       const { error } = await supabase.from("products").update(dbUpdates).eq("id", id);
       if (error) throw error;
+      // Sync stock with main center inventory
+      if (dbUpdates.stock_qty !== undefined) {
+        const { data: mainCenter } = await supabase.from("distribution_centers").select("id").eq("is_main", true).maybeSingle();
+        if (mainCenter) {
+          await supabase.from("center_inventory").upsert(
+            { center_id: mainCenter.id, product_id: id, quantity: dbUpdates.stock_qty } as any,
+            { onConflict: "center_id,product_id" }
+          );
+        }
+      }
       await refreshProducts();
       toast.success("מוצר עודכן בהצלחה");
     } catch (err) {

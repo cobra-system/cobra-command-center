@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useData, useAuth, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Trash2, CreditCard, Zap, Check, Ship, Hash } from "lucide-react";
+import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Trash2, CreditCard, Zap, Check, Ship, Hash, Plus, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
 import DocumentsSection from "@/components/DocumentsSection";
 import { supabase } from "@/lib/supabase";
 import { Progress } from "@/components/ui/progress";
@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { InlineEditField } from "@/components/InlineEditField";
 import { DateInput } from "@/components/ui/date-input";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -44,9 +46,15 @@ export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { orders, updateOrderStatus, updateOrder, deleteOrder, suppliers, products } = useData();
+  const { orders, updateOrderStatus, updateOrder, deleteOrder, suppliers, products, refreshOrders } = useData();
 
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [editItemDialog, setEditItemDialog] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [itemName, setItemName] = useState("");
+  const [itemQty, setItemQty] = useState("");
+  const [itemPrice, setItemPrice] = useState("");
+  const [itemProductId, setItemProductId] = useState("");
 
   const order = orders.find(o => o.id === id);
   const supplier = order?.supplier_id ? suppliers.find(s => s.id === order.supplier_id) : null;
@@ -87,7 +95,70 @@ export default function OrderDetailPage() {
     toast.success("עודכן");
   };
 
-  // Build details grid like ProductDetailPage
+  // Payment status toggle via double-click
+  const togglePaymentStatus = async () => {
+    if (!isManager) return;
+    if (order.payment_date) {
+      await updateOrder(order.id, { payment_date: null } as any);
+    } else {
+      await updateOrder(order.id, { payment_date: new Date().toISOString() } as any);
+    }
+  };
+
+  // Item CRUD
+  const openAddItem = () => {
+    setEditingItem(null);
+    setItemName("");
+    setItemQty("1");
+    setItemPrice("");
+    setItemProductId("");
+    setEditItemDialog(true);
+  };
+
+  const openEditItem = (item: any) => {
+    setEditingItem(item);
+    setItemName(item.name);
+    setItemQty(item.qty?.toString() || "1");
+    setItemPrice(item.price?.toString() || "");
+    setItemProductId(item.product_id || "");
+    setEditItemDialog(true);
+  };
+
+  const handleSaveItem = async () => {
+    const name = itemProductId ? products.find(p => p.id === itemProductId)?.name || itemName : itemName;
+    if (!name.trim()) return;
+
+    if (editingItem) {
+      const { error } = await supabase.from("order_items").update({
+        name: name.trim(),
+        qty: Number(itemQty) || 1,
+        price: itemPrice ? Number(itemPrice) : null,
+        product_id: itemProductId || null,
+      }).eq("id", editingItem.id);
+      if (error) { toast.error("שגיאה בעדכון פריט"); return; }
+      toast.success("פריט עודכן");
+    } else {
+      const { error } = await supabase.from("order_items").insert({
+        order_id: order.id,
+        name: name.trim(),
+        qty: Number(itemQty) || 1,
+        price: itemPrice ? Number(itemPrice) : null,
+        product_id: itemProductId || null,
+      });
+      if (error) { toast.error("שגיאה בהוספת פריט"); return; }
+      toast.success("פריט נוסף");
+    }
+    setEditItemDialog(false);
+    await refreshOrders();
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    const { error } = await supabase.from("order_items").delete().eq("id", itemId);
+    if (error) { toast.error("שגיאה במחיקת פריט"); return; }
+    toast.success("פריט נמחק");
+    await refreshOrders();
+  };
+
   const details: { label: string; field: string; value: string | number | null | undefined; options?: { value: string; label: string }[]; isDate?: boolean; isSupplierLink?: boolean; icon?: any }[] = [
     { label: "סטטוס", field: "status", value: order.status, options: statusOptions, icon: Check },
     { label: "עדיפות", field: "priority", value: order.priority, options: priorityOptions, icon: Hash },
@@ -135,7 +206,7 @@ export default function OrderDetailPage() {
         <PriorityBadge priority={order.priority as Priority} />
       </div>
 
-      {/* Details Grid - inline editable like product detail */}
+      {/* Details Grid */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
         <div className="flex items-center gap-2 mb-4">
           <Package className="h-5 w-5 text-primary" />
@@ -144,58 +215,33 @@ export default function OrderDetailPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {details.map(d => {
             const supplierMatch = d.isSupplierLink && d.value ? suppliers.find(s => s.id === d.value) : null;
-
-            // Custom display for status
             if (d.field === "status") {
               return (
-                <InlineEditField
-                  key={d.label}
-                  label={d.label}
-                  value={d.value as string}
+                <InlineEditField key={d.label} label={d.label} value={d.value as string}
                   displayValue={<OrderStatusBadge status={order.status as OrderStatus} />}
-                  onSave={(v) => handleInlineSave(d.field, v)}
-                  disabled={!isManager}
-                  options={d.options}
-                />
+                  onSave={(v) => handleInlineSave(d.field, v)} disabled={!isManager} options={d.options} />
               );
             }
-
-            // Custom display for priority
             if (d.field === "priority") {
               return (
-                <InlineEditField
-                  key={d.label}
-                  label={d.label}
-                  value={d.value as string}
+                <InlineEditField key={d.label} label={d.label} value={d.value as string}
                   displayValue={<PriorityBadge priority={order.priority as Priority} />}
-                  onSave={(v) => handleInlineSave(d.field, v)}
-                  disabled={!isManager}
-                  options={d.options}
-                />
+                  onSave={(v) => handleInlineSave(d.field, v)} disabled={!isManager} options={d.options} />
               );
             }
-
             return (
-              <InlineEditField
-                key={d.label}
-                label={d.label}
-                value={d.value}
-                displayValue={
-                  supplierMatch ? (
-                    <button onClick={() => navigate(`/suppliers/${supplierMatch.id}`)} className="text-sm font-medium text-primary hover:underline">{supplierMatch.company}</button>
-                  ) : d.field === "total_price" && d.value ? `$${d.value}` : undefined
-                }
+              <InlineEditField key={d.label} label={d.label} value={d.value}
+                displayValue={supplierMatch ? (
+                  <button onClick={() => navigate(`/suppliers/${supplierMatch.id}`)} className="text-sm font-medium text-primary hover:underline">{supplierMatch.company}</button>
+                ) : d.field === "total_price" && d.value ? `$${d.value}` : undefined}
                 type={d.field === "total_price" ? "number" : "text"}
-                onSave={(v) => handleInlineSave(d.field, v)}
-                disabled={!isManager}
-                options={d.options}
-              />
+                onSave={(v) => handleInlineSave(d.field, v)} disabled={!isManager} options={d.options} />
             );
           })}
         </div>
       </div>
 
-      {/* Dates Grid - inline date pickers */}
+      {/* Dates Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {dateFields.map(d => {
           const date = d.value ? new Date(d.value) : undefined;
@@ -214,11 +260,18 @@ export default function OrderDetailPage() {
         })}
       </div>
 
-      {/* Items */}
+      {/* Items with CRUD */}
       <div className="bg-card rounded-xl border shadow-sm">
-        <div className="p-4 border-b flex items-center gap-2">
-          <Package className="h-4 w-4 text-accent" />
-          <h2 className="font-semibold text-foreground">פריטים ({order.items.length})</h2>
+        <div className="p-4 border-b flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Package className="h-4 w-4 text-accent" />
+            <h2 className="font-semibold text-foreground">פריטים ({order.items.length})</h2>
+          </div>
+          {isManager && (
+            <Button variant="outline" size="sm" onClick={openAddItem}>
+              <Plus className="h-3.5 w-3.5 ml-1" />הוסף פריט
+            </Button>
+          )}
         </div>
         <table className="w-full text-sm">
           <thead>
@@ -227,6 +280,7 @@ export default function OrderDetailPage() {
               <th className="text-right p-3 font-semibold text-foreground">כמות</th>
               <th className="text-right p-3 font-semibold text-foreground">מחיר יחידה</th>
               <th className="text-right p-3 font-semibold text-foreground">סה״כ</th>
+              {isManager && <th className="text-right p-3 font-semibold text-foreground w-20">פעולות</th>}
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -240,6 +294,18 @@ export default function OrderDetailPage() {
                   <td className="p-3 text-muted-foreground">{item.qty}</td>
                   <td className="p-3 text-muted-foreground">{item.price ? `$${item.price}` : "—"}</td>
                   <td className="p-3 text-muted-foreground">{item.price ? `$${(item.price * item.qty).toLocaleString()}` : "—"}</td>
+                  {isManager && (
+                    <td className="p-3" onClick={e => e.stopPropagation()}>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => openEditItem(item)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteItem(item.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -247,13 +313,13 @@ export default function OrderDetailPage() {
         </table>
       </div>
 
-      {/* Payment Tracking */}
+      {/* Payment Tracking - double-click to toggle */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
         <div className="flex items-center gap-2 mb-4">
           <CreditCard className="h-5 w-5 text-primary" />
           <h2 className="font-semibold text-foreground">מעקב תשלומים</h2>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">סה״כ לתשלום</p>
             <p className="text-lg font-bold text-foreground">{order.total_price ? `$${order.total_price.toLocaleString()}` : "—"}</p>
@@ -263,28 +329,25 @@ export default function OrderDetailPage() {
             <p className="text-sm font-medium text-foreground">{order.payment_date ? new Date(order.payment_date).toLocaleDateString("he-IL") : "טרם שולם"}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">סטטוס תשלום</p>
-            <span className={cn(
-              "inline-block px-2 py-0.5 rounded-full text-xs font-medium",
-              order.payment_date ? "bg-success/15 text-success" : "bg-warning/15 text-warning"
-            )}>
+            <p className="text-xs text-muted-foreground">סטטוס תשלום {isManager && <span className="text-xs text-muted-foreground/60">(לחיצה כפולה לשינוי)</span>}</p>
+            <span
+              onDoubleClick={togglePaymentStatus}
+              className={cn(
+                "inline-block px-2 py-0.5 rounded-full text-xs font-medium select-none",
+                isManager && "cursor-pointer hover:ring-2 hover:ring-primary/30",
+                order.payment_date ? "bg-success/15 text-success" : "bg-warning/15 text-warning"
+              )}
+            >
               {order.payment_date ? "שולם" : "ממתין לתשלום"}
             </span>
           </div>
-          {isManager && !order.payment_date && (
-            <div className="flex items-end">
-              <Button size="sm" variant="outline" onClick={() => updateOrder(order.id, { payment_date: new Date().toISOString() } as any)}>
-                סמן כשולם
-              </Button>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Workflow Timeline */}
-      <OrderWorkflowTimeline orderId={order.id} />
+      {/* Workflow Timeline with advance */}
+      <OrderWorkflowTimeline orderId={order.id} isManager={isManager} />
 
-      {/* Documents linked to this order */}
+      {/* Documents */}
       <DocumentsSection orderId={order.id} />
 
       {/* Delete Confirmation */}
@@ -298,39 +361,104 @@ export default function OrderDetailPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Item Edit Dialog */}
+      <Dialog open={editItemDialog} onOpenChange={setEditItemDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>{editingItem ? "עריכת פריט" : "הוספת פריט"}</DialogTitle></DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div className="space-y-1">
+              <Label>מוצר</Label>
+              <Select value={itemProductId} onValueChange={v => { setItemProductId(v); const p = products.find(p => p.id === v); if (p) setItemName(p.name); }}>
+                <SelectTrigger><SelectValue placeholder="בחר מוצר (אופציונלי)" /></SelectTrigger>
+                <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>שם פריט</Label>
+              <Input value={itemName} onChange={e => setItemName(e.target.value)} placeholder="שם הפריט" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>כמות</Label>
+                <Input type="number" value={itemQty} onChange={e => setItemQty(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label>מחיר יחידה ($)</Label>
+                <Input type="number" value={itemPrice} onChange={e => setItemPrice(e.target.value)} />
+              </div>
+            </div>
+            <Button onClick={handleSaveItem} disabled={!itemName.trim()} className="w-full">
+              {editingItem ? "שמור שינויים" : "הוסף פריט"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function OrderWorkflowTimeline({ orderId }: { orderId: string }) {
+function OrderWorkflowTimeline({ orderId, isManager }: { orderId: string; isManager: boolean }) {
   const [workflow, setWorkflow] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetch = async () => {
-      const { data: inst } = await supabase
-        .from("workflow_instances")
-        .select("*")
-        .eq("order_id", orderId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+  const fetchWorkflow = async () => {
+    const { data: inst } = await supabase
+      .from("workflow_instances")
+      .select("*")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-      if (!inst) { setLoading(false); return; }
+    if (!inst) { setLoading(false); return; }
 
-      const { data: tpl } = await supabase.from("workflow_templates").select("*").eq("id", inst.template_id).single();
-      const { data: logs } = await supabase.from("workflow_step_logs").select("*").eq("instance_id", inst.id).order("step_index", { ascending: true });
+    const { data: tpl } = await supabase.from("workflow_templates").select("*").eq("id", inst.template_id).single();
+    const { data: logs } = await supabase.from("workflow_step_logs").select("*").eq("instance_id", inst.id).order("step_index", { ascending: true });
 
-      setWorkflow({ ...inst, steps: (tpl?.steps as any[]) || [], logs: logs || [], templateName: tpl?.name });
-      setLoading(false);
-    };
-    fetch();
-  }, [orderId]);
+    setWorkflow({ ...inst, steps: (tpl?.steps as any[]) || [], logs: logs || [], templateName: tpl?.name });
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchWorkflow(); }, [orderId]);
 
   if (loading || !workflow) return null;
 
   const totalSteps = workflow.steps.length;
   const progress = workflow.status === "completed" ? 100 : Math.round((workflow.current_step / totalSteps) * 100);
+
+  const advanceStep = async () => {
+    if (workflow.current_step >= totalSteps - 1) {
+      // Complete workflow
+      await supabase.from("workflow_instances").update({ status: "completed", current_step: totalSteps }).eq("id", workflow.id);
+      await supabase.from("workflow_step_logs").insert({
+        instance_id: workflow.id,
+        step_index: workflow.current_step,
+        completed_by: "מנהל",
+      });
+    } else {
+      await supabase.from("workflow_step_logs").insert({
+        instance_id: workflow.id,
+        step_index: workflow.current_step,
+        completed_by: "מנהל",
+      });
+      await supabase.from("workflow_instances").update({ current_step: workflow.current_step + 1 }).eq("id", workflow.id);
+    }
+    toast.success("שלב קודם");
+    await fetchWorkflow();
+  };
+
+  const goToStep = async (stepIdx: number) => {
+    if (stepIdx === workflow.current_step) return;
+    const newStatus = stepIdx >= totalSteps ? "completed" : "active";
+    await supabase.from("workflow_instances").update({ current_step: stepIdx, status: newStatus }).eq("id", workflow.id);
+    // Remove logs for steps after the new current step
+    if (stepIdx < workflow.current_step) {
+      await supabase.from("workflow_step_logs").delete().eq("instance_id", workflow.id).gte("step_index", stepIdx);
+    }
+    toast.success(`שלב ${stepIdx + 1}`);
+    await fetchWorkflow();
+  };
 
   return (
     <div className="bg-card rounded-xl border shadow-sm p-5">
@@ -339,14 +467,22 @@ function OrderWorkflowTimeline({ orderId }: { orderId: string }) {
           <Zap className="h-5 w-5 text-primary" />
           <h2 className="font-semibold text-foreground">{workflow.templateName || "תהליך רכש"}</h2>
         </div>
-        <span className={cn(
-          "px-2 py-0.5 rounded-full text-xs font-medium",
-          workflow.status === "completed" ? "bg-success/15 text-success" :
-          workflow.status === "cancelled" ? "bg-destructive/15 text-destructive" :
-          "bg-primary/15 text-primary"
-        )}>
-          {workflow.status === "completed" ? "הושלם" : workflow.status === "cancelled" ? "בוטל" : "פעיל"}
-        </span>
+        <div className="flex items-center gap-2">
+          {isManager && workflow.status === "active" && (
+            <Button size="sm" variant="default" onClick={advanceStep}>
+              {workflow.current_step >= totalSteps - 1 ? "סיים תהליך" : "קדם שלב"}
+              <ChevronLeft className="h-3.5 w-3.5 mr-1" />
+            </Button>
+          )}
+          <span className={cn(
+            "px-2 py-0.5 rounded-full text-xs font-medium",
+            workflow.status === "completed" ? "bg-success/15 text-success" :
+            workflow.status === "cancelled" ? "bg-destructive/15 text-destructive" :
+            "bg-primary/15 text-primary"
+          )}>
+            {workflow.status === "completed" ? "הושלם" : workflow.status === "cancelled" ? "בוטל" : "פעיל"}
+          </span>
+        </div>
       </div>
       <Progress value={progress} className="h-2 mb-4" />
       <div className="space-y-1">
@@ -355,7 +491,14 @@ function OrderWorkflowTimeline({ orderId }: { orderId: string }) {
           const isCurrent = idx === workflow.current_step && workflow.status === "active";
           const log = workflow.logs.find((l: any) => l.step_index === idx);
           return (
-            <div key={idx} className="flex items-start gap-3 py-2">
+            <div
+              key={idx}
+              className={cn(
+                "flex items-start gap-3 py-2 px-2 rounded-lg transition-colors",
+                isManager && "cursor-pointer hover:bg-muted/50"
+              )}
+              onClick={() => isManager && goToStep(idx)}
+            >
               <div className={cn(
                 "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 text-xs",
                 isCompleted && "bg-success text-success-foreground",

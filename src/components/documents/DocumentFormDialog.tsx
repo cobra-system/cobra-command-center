@@ -78,10 +78,11 @@ export default function DocumentFormDialog({ open, onOpenChange, onSaved, editDo
   const handleSubmit = async () => {
     const qty = Number(formQty) || 0;
     const unitPrice = Number(formUnitPrice) || 0;
-    const payload = {
+    const payload: any = {
       type: formType,
       supplier_id: formSupplier || null,
       product_id: formProduct || null,
+      order_id: formOrder || null,
       quantity: qty,
       unit_price: unitPrice,
       total_price: qty * unitPrice,

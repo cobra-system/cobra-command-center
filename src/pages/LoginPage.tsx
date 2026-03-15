@@ -90,7 +90,7 @@ export default function LoginPage() {
           <div className="bg-card rounded-xl p-6 shadow-xl space-y-4">
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">אימייל</label>
-              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@cobra.io" dir="ltr" className="text-left" />
+              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="noam@cobra.co.il" dir="ltr" className="text-left" />
             </div>
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">סיסמה</label>
