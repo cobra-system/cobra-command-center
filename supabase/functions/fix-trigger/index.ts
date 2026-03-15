@@ -25,65 +25,68 @@ Deno.serve(async (req) => {
 
     const results: string[] = [];
 
-    // Step 1: Drop ALL triggers on auth.users
+    // Check event triggers
     try {
-      const triggers = await client.queryObject<{ tgname: string }>(
-        `SELECT tgname FROM pg_trigger WHERE tgrelid = 'auth.users'::regclass`
+      const eventTriggers = await client.queryObject<{ evtname: string; evtfoid: string; evtevent: string }>(
+        `SELECT evtname, evtfoid::regproc as evtfoid, evtevent FROM pg_event_trigger`
       );
-      results.push("Triggers on auth.users: " + JSON.stringify(triggers.rows));
-      for (const t of triggers.rows) {
-        await client.queryObject(`DROP TRIGGER IF EXISTS "${t.tgname}" ON auth.users`);
-        results.push("Dropped trigger: " + t.tgname);
+      results.push("Event triggers: " + JSON.stringify(eventTriggers.rows));
+      
+      // Drop all event triggers
+      for (const et of eventTriggers.rows) {
+        try {
+          await client.queryObject(`DROP EVENT TRIGGER IF EXISTS "${et.evtname}"`);
+          results.push("Dropped event trigger: " + et.evtname);
+        } catch (e) {
+          results.push("Error dropping event trigger " + et.evtname + ": " + String(e));
+        }
       }
     } catch (e) {
-      results.push("Error listing/dropping triggers: " + String(e));
+      results.push("Error with event triggers: " + String(e));
     }
 
-    // Step 2: Make handle_new_user completely harmless
+    // Check extensions
     try {
-      await client.queryObject(`
-        CREATE OR REPLACE FUNCTION public.handle_new_user()
-        RETURNS trigger
-        LANGUAGE plpgsql
-        SECURITY DEFINER
-        AS $$
-        BEGIN
-          RETURN NEW;
-        END;
-        $$;
-      `);
-      results.push("Made handle_new_user a no-op");
+      const exts = await client.queryObject<{ extname: string }>(
+        `SELECT extname FROM pg_extension ORDER BY extname`
+      );
+      results.push("Extensions: " + JSON.stringify(exts.rows.map(e => e.extname)));
+    } catch (e) {
+      results.push("Error listing extensions: " + String(e));
+    }
+
+    // Check if there are any broken objects in public schema
+    try {
+      const types = await client.queryObject<{ typname: string }>(
+        `SELECT typname FROM pg_type WHERE typnamespace = 'public'::regnamespace AND typtype = 'e'`
+      );
+      results.push("Custom enums: " + JSON.stringify(types.rows));
+    } catch (e) {
+      results.push("Error listing types: " + String(e));
+    }
+
+    // Check triggers on auth.users remaining
+    try {
+      const triggers = await client.queryObject<{ tgname: string; tgtype: number; tgenabled: string }>(
+        `SELECT tgname, tgtype, tgenabled FROM pg_trigger 
+         WHERE tgrelid = 'auth.users'::regclass AND tgname NOT LIKE 'RI_%'`
+      );
+      results.push("Custom triggers on auth.users: " + JSON.stringify(triggers.rows));
     } catch (e) {
       results.push("Error: " + String(e));
     }
 
-    // Step 3: Check for broken functions in public schema
+    // Check search_path
     try {
-      const funcs = await client.queryObject<{ proname: string; prosrc: string }>(
-        `SELECT proname, substring(prosrc, 1, 100) as prosrc FROM pg_proc 
-         WHERE pronamespace = 'public'::regnamespace 
-         ORDER BY proname`
-      );
-      for (const f of funcs.rows) {
-        results.push(`Function: ${f.proname} => ${f.prosrc.substring(0, 80)}`);
-      }
+      const sp = await client.queryObject<{ search_path: string }>(`SHOW search_path`);
+      results.push("search_path: " + JSON.stringify(sp.rows));
     } catch (e) {
-      results.push("Error listing functions: " + String(e));
-    }
-
-    // Step 4: Check for broken views
-    try {
-      const views = await client.queryObject<{ viewname: string }>(
-        `SELECT viewname FROM pg_views WHERE schemaname = 'public'`
-      );
-      results.push("Views: " + JSON.stringify(views.rows));
-    } catch (e) {
-      results.push("Error listing views: " + String(e));
+      results.push("Error: " + String(e));
     }
 
     await client.end();
 
-    // Step 5: Test GoTrue
+    // Test GoTrue
     const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL")!;
     const externalKey = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")!;
     
@@ -93,8 +96,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ email: "noam@cobra.co.il", password: "cobra2026" }),
     });
     const gotrueBody = await gotrueResp.text();
-    results.push(`GoTrue status: ${gotrueResp.status}`);
-    results.push(`GoTrue: ${gotrueBody.substring(0, 300)}`);
+    results.push(`GoTrue: status=${gotrueResp.status} body=${gotrueBody.substring(0, 300)}`);
 
     return new Response(JSON.stringify({ results }, null, 2), {
       status: 200,
