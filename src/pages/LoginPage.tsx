@@ -62,10 +62,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-primary p-4">
       <div className="mb-8 text-center">
-        <div className="flex items-center justify-center gap-3 mb-2">
-          <Shield className="h-10 w-10 text-primary-foreground" />
-          <h1 className="text-4xl font-black text-primary-foreground tracking-tight">COBRA.IO</h1>
-        </div>
+        <img src={cobraLogo} alt="COBRA" className="h-20 w-auto brightness-0 invert mx-auto mb-3" />
         <p className="text-primary-foreground/70 text-sm">מערכת ניהול פנימית</p>
       </div>
 
