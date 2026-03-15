@@ -81,22 +81,35 @@ Deno.serve(async (req) => {
           }
         } else {
           // Orphan profile - delete it and create new admin
-          await supabaseAdmin.from("profiles").delete().eq("id", noam.id);
-          const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-            email: "noam@cobra.co.il",
-            password: "cobra2026",
-            email_confirm: true,
-            user_metadata: { name: "נועם", role: "MANAGER" }
-          });
-          if (createErr) {
-            results.push(`Create admin error: ${createErr.message}`);
-          } else if (newUser?.user) {
-            // Profile should be auto-created by trigger, but ensure it exists
-            const { data: existingProfile } = await supabaseAdmin.from("profiles").select("id").eq("id", newUser.user.id).maybeSingle();
+          const { error: delProfErr } = await supabaseAdmin.from("profiles").delete().eq("id", noam.id);
+          results.push(`Delete orphan profile: ${delProfErr ? delProfErr.message : 'OK'}`);
+          
+          // Check if an auth user with this email already exists
+          const { data: { users: existingUsers } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 100 });
+          const existingAdmin = existingUsers?.find((u: any) => u.email === "noam@cobra.co.il");
+          
+          if (existingAdmin) {
+            // Auth user already exists, just ensure profile exists
+            const { data: existingProfile } = await supabaseAdmin.from("profiles").select("id").eq("id", existingAdmin.id).maybeSingle();
             if (!existingProfile) {
-              await supabaseAdmin.from("profiles").insert({ id: newUser.user.id, name: "נועם", role: "MANAGER" });
+              await supabaseAdmin.from("profiles").insert({ id: existingAdmin.id, name: "נועם", role: "MANAGER" });
             }
-            results.push(`New admin created: ${newUser.user.id}`);
+            results.push(`Admin exists: ${existingAdmin.id} (${existingAdmin.email})`);
+          } else {
+            const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+              email: "noam@cobra.co.il",
+              password: "cobra2026",
+              email_confirm: true,
+              user_metadata: { name: "נועם", role: "MANAGER" }
+            });
+            if (createErr) {
+              results.push(`Create admin error: ${createErr.message}`);
+              // Try to list all auth users for debugging
+              results.push(`Total auth users: ${existingUsers?.length || 0}`);
+              existingUsers?.forEach((u: any) => results.push(`  Auth: ${u.email} (${u.id})`));
+            } else if (newUser?.user) {
+              results.push(`New admin created: ${newUser.user.id}`);
+            }
           }
         }
       } else {
