@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowRight, Pencil, Trash2, ExternalLink, Mail, Phone, Globe, TruckIcon, UserPlus, Users, X, Link2, Search } from "lucide-react";
+import { ArrowRight, Pencil, Trash2, ExternalLink, Mail, Phone, Globe, TruckIcon, UserPlus, Users, X, Link2, Search, Plus } from "lucide-react";
 import DocumentsSection from "@/components/DocumentsSection";
 import { InlineEditField } from "@/components/InlineEditField";
 import SapSyncBadge from "@/components/SapSyncBadge";
@@ -357,7 +357,14 @@ export default function SupplierDetailPage() {
 
       {/* Related Orders */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
-        <div className="flex items-center gap-2 mb-4"><TruckIcon className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">היסטוריית הזמנות ({relatedOrders.length})</h2></div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2"><TruckIcon className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">היסטוריית הזמנות ({relatedOrders.length})</h2></div>
+          {isManager && (
+            <Button size="sm" variant="outline" onClick={() => navigate(`/orders?newOrder=true&supplierId=${supplier.id}`)}>
+              <Plus className="h-3.5 w-3.5 ml-1" />הוסף הזמנה
+            </Button>
+          )}
+        </div>
         {relatedOrders.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

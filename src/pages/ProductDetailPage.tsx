@@ -366,7 +366,14 @@ export default function ProductDetailPage() {
 
       {/* Orders History */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
-        <div className="flex items-center gap-2 mb-4"><TruckIcon className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">היסטוריית הזמנות</h2></div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2"><TruckIcon className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">היסטוריית הזמנות</h2></div>
+          {isManager && (
+            <Button variant="outline" size="sm" onClick={() => navigate(`/orders?newOrder=true&productId=${product.id}`)}>
+              <Plus className="h-3.5 w-3.5 ml-1" />הוסף הזמנה
+            </Button>
+          )}
+        </div>
         {relatedOrders.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
