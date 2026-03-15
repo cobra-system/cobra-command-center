@@ -471,7 +471,7 @@ export default function ProductIssuesTab({ productId, productName }: { productId
   );
 }
 
-import React from "react";
+
 
 const ResolutionInput = React.forwardRef<HTMLDivElement, { issueId: string; onSave: (resolution: string) => void }>(
   ({ issueId, onSave }, ref) => {
