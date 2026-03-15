@@ -552,15 +552,9 @@ export default function SettingsPage() {
                       <Select value={empRole} onValueChange={v => setEmpRole(v as Role)}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {employeeRoleOptions.length > 0 ? employeeRoleOptions.map(r => (
+                          {employeeRoleOptions.map(r => (
                             <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                          )) : (
-                            <>
-                              <SelectItem value="WAREHOUSE_MANAGER">מנהל מחסן</SelectItem>
-                              <SelectItem value="LOGISTICS">לוגיסטיקה</SelectItem>
-                              <SelectItem value="DRIVER">נהג</SelectItem>
-                            </>
-                          )}
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
