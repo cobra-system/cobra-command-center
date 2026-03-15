@@ -88,28 +88,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Merge task assignee names
-    const { error: e3 } = await supabaseAdmin
-      .from("tasks").update({ assignee_name: "זיו בוזגלו" }).eq("assignee_name", "זיו");
-    results.push(e3 ? `Merge Ziv tasks: ${e3.message}` : "Merge Ziv tasks: OK");
-
-    const { error: e4 } = await supabaseAdmin
-      .from("tasks").update({ assignee_name: "גיאורגי גריגוריאנץ" }).eq("assignee_name", "ג'ורג'");
-    results.push(e4 ? `Merge George tasks: ${e4.message}` : "Merge George tasks: OK");
-
-    // Change admin email
-    const adminProfile = allProfiles?.find((p: any) => p.role === "MANAGER");
-    if (adminProfile) {
-      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(adminProfile.id);
-      if (authUser?.user?.email !== "noam@cobra.co.il") {
-        const { error: emailError } = await supabaseAdmin.auth.admin.updateUserById(
-          adminProfile.id, { email: "noam@cobra.co.il" }
-        );
-        results.push(emailError ? `Email error: ${emailError.message}` : "Email → noam@cobra.co.il: OK");
-      } else {
-        results.push("Email already noam@cobra.co.il");
-      }
-    }
+    // Extra merge for any remaining task name references
 
     // Ensure procurement workflow template exists
     const { data: existingTpl } = await supabaseAdmin
