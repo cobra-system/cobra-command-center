@@ -182,9 +182,13 @@ CREATE TABLE IF NOT EXISTS public.orders (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
--- Add FK for supplier_payments -> orders
-ALTER TABLE public.supplier_payments ADD CONSTRAINT supplier_payments_order_id_fkey 
-  FOREIGN KEY (order_id) REFERENCES public.orders(id) ON DELETE SET NULL;
+-- Add FK for supplier_payments -> orders (idempotent)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'supplier_payments_order_id_fkey') THEN
+    ALTER TABLE public.supplier_payments ADD CONSTRAINT supplier_payments_order_id_fkey 
+      FOREIGN KEY (order_id) REFERENCES public.orders(id) ON DELETE SET NULL;
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS public.order_items (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
