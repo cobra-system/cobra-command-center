@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AppContext";
 import { useNavigate } from "react-router-dom";
-import { Shield } from "lucide-react";
+import cobraLogo from "@/assets/cobra-logo.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
