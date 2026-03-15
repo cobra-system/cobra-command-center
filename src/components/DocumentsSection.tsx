@@ -54,10 +54,17 @@ export default function DocumentsSection({ supplierId, productId, orderId }: Pro
             <FileText className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">מסמכים ({docs.length})</h2>
           </div>
-          <Button variant="outline" size="sm" onClick={() => navigate("/documents")}>
+          <Button variant="outline" size="sm" onClick={() => setShowDocForm(true)}>
             <Plus className="h-3.5 w-3.5 ml-1" />הוסף מסמך
           </Button>
         </div>
+        <DocumentFormDialog
+          open={showDocForm}
+          onOpenChange={setShowDocForm}
+          onSaved={fetchData}
+          defaultSupplierId={supplierId}
+          defaultProductId={productId}
+        />
         {docs.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">אין מסמכים משויכים</p>
         ) : (
