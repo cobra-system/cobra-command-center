@@ -87,8 +87,6 @@ export default function OrderDetailPage() {
     toast.success("עודכן");
   };
 
-  const supplierOptions = useMemo(() => suppliers.map(s => ({ value: s.id, label: s.company })), [suppliers]);
-
   // Build details grid like ProductDetailPage
   const details: { label: string; field: string; value: string | number | null | undefined; options?: { value: string; label: string }[]; isDate?: boolean; isSupplierLink?: boolean; icon?: any }[] = [
     { label: "סטטוס", field: "status", value: order.status, options: statusOptions, icon: Check },
