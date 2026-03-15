@@ -1,5 +1,4 @@
 import { Client } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.98.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,9 +12,6 @@ Deno.serve(async (req) => {
 
   try {
     const dbUrl = Deno.env.get("EXTERNAL_DB_URL")!;
-    const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL")!;
-    const externalServiceKey = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")!;
-    
     const parsedUrl = new URL(dbUrl);
     const client = new Client({
       hostname: parsedUrl.hostname,
@@ -28,60 +24,68 @@ Deno.serve(async (req) => {
     await client.connect();
 
     const results: string[] = [];
-    const supabaseAdmin = createClient(externalUrl, externalServiceKey);
 
-    // Get existing auth users from DB directly
-    const authUsers = await client.queryObject<{ id: string; email: string }>(
-      `SELECT id, email FROM auth.users WHERE deleted_at IS NULL`
+    // Check user details
+    const users = await client.queryObject<{ 
+      id: string; email: string; encrypted_password: string; 
+      email_confirmed_at: string | null; is_sso_user: boolean;
+      instance_id: string; aud: string;
+    }>(
+      `SELECT id, email, substring(encrypted_password, 1, 20) as encrypted_password, 
+              email_confirmed_at, is_sso_user, instance_id, aud 
+       FROM auth.users WHERE deleted_at IS NULL`
     );
-    results.push(`Auth users found: ${authUsers.rows.length}`);
+    
+    for (const u of users.rows) {
+      results.push(`User: ${u.email} id=${u.id}`);
+      results.push(`  confirmed=${u.email_confirmed_at} sso=${u.is_sso_user} instance=${u.instance_id} aud=${u.aud}`);
+      results.push(`  pwd_prefix=${u.encrypted_password}`);
+    }
 
+    // Check if instance_id is the issue - GoTrue expects specific instance_id
+    // Fix: ensure instance_id is the default '00000000-0000-0000-0000-000000000000'
     const USERS = [
-      { email: "noam@cobra.co.il", password: "cobra2026", name: "נועם", role: "MANAGER", pin: "1234" },
-      { email: "georgi@cobra.co.il", password: "cobra1111", name: "גיאורגי גריגוריאנץ", role: "WAREHOUSE_MANAGER", pin: "1111" },
-      { email: "ziv@cobra.co.il", password: "cobra2222", name: "זיו בוזגלו", role: "LOGISTICS", pin: "2222" },
+      { email: "noam@cobra.co.il", password: "cobra2026" },
+      { email: "georgi@cobra.co.il", password: "cobra1111" },
+      { email: "ziv@cobra.co.il", password: "cobra2222" },
     ];
 
     for (const u of USERS) {
-      const authUser = authUsers.rows.find(a => a.email === u.email);
-      if (!authUser) {
-        results.push(`${u.name}: No auth user found for ${u.email}`);
-        continue;
-      }
-
-      const userId = authUser.id;
-      results.push(`${u.name}: Found auth user ${userId}`);
-
-      // Update password and confirm email via admin API
-      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-        password: u.password,
-        email_confirm: true,
-        user_metadata: { name: u.name, role: u.role },
-      });
-      results.push(`  Password update: ${updateError?.message || "OK"}`);
-
-      // Upsert profile with plaintext PIN
-      const { error: profError } = await supabaseAdmin.from("profiles").upsert(
-        { id: userId, name: u.name, role: u.role, pin: u.pin },
-        { onConflict: "id" }
+      // Update password using bcrypt, confirm email, fix instance_id
+      await client.queryObject(
+        `UPDATE auth.users SET 
+          encrypted_password = crypt($1, gen_salt('bf')),
+          email_confirmed_at = COALESCE(email_confirmed_at, now()),
+          instance_id = '00000000-0000-0000-0000-000000000000',
+          aud = 'authenticated',
+          role = 'authenticated',
+          updated_at = now()
+        WHERE email = $2`,
+        [u.password, u.email]
       );
-      results.push(`  Profile: ${profError?.message || "OK"}`);
-
-      // Upsert user role
-      const { error: roleError } = await supabaseAdmin.from("user_roles").upsert(
-        { user_id: userId, role: u.role },
-        { onConflict: "user_id,role" }
-      );
-      results.push(`  Role: ${roleError?.message || "OK"}`);
+      results.push(`Updated password for ${u.email}`);
     }
 
-    // Verify profiles
-    const profiles = await client.queryObject<{ id: string; name: string; role: string; pin: string }>(
-      `SELECT id, name, role, pin FROM public.profiles`
+    // Verify identities exist
+    const identities = await client.queryObject<{ user_id: string; provider: string }>(
+      `SELECT user_id, provider FROM auth.identities`
     );
-    results.push(`\nFinal profiles:`);
-    for (const p of profiles.rows) {
-      results.push(`  ${p.name} (${p.role}) pin=${p.pin || "NULL"}`);
+    results.push(`\nIdentities: ${identities.rows.length}`);
+    for (const i of identities.rows) {
+      results.push(`  ${i.user_id} - ${i.provider}`);
+    }
+
+    // If any user is missing email identity, create it
+    for (const authUser of users.rows) {
+      const hasIdentity = identities.rows.some(i => i.user_id === authUser.id);
+      if (!hasIdentity) {
+        await client.queryObject(
+          `INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
+           VALUES (gen_random_uuid(), $1, $1, 'email', jsonb_build_object('sub', $1::text, 'email', $2), now(), now(), now())`,
+          [authUser.id, authUser.email]
+        );
+        results.push(`Created email identity for ${authUser.email}`);
+      }
     }
 
     await client.end();
