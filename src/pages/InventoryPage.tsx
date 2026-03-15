@@ -124,8 +124,6 @@ export default function InventoryPage() {
 
   const mainCenter = centers.find(c => c.is_main);
   const bondedCenters = centers.filter(c => !c.is_main);
-  const mgmtCenter = bondedCenters.find(c => c.name.includes("יבואנים"));
-  const regularBondedCenters = bondedCenters.filter(c => !c.name.includes("יבואנים"));
   const getContactsForCenter = (centerId: string) => contacts.filter(c => c.center_id === centerId);
   const getTotalQty = (centerId: string) => inventory.filter(i => i.center_id === centerId).reduce((sum, i) => sum + i.quantity, 0);
 

@@ -85,11 +85,13 @@ export default function DashboardPage() {
     [tasks]
   );
 
-  // Category stock chart
-  const catData = useMemo(() => {
-    const map: Record<string, number> = {};
-    products.forEach(p => { map[p.category] = (map[p.category] || 0) + p.stock_qty; });
-    return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6);
+  // Product stock chart — top 10 products by stock
+  const productStockData = useMemo(() => {
+    return products
+      .filter(p => p.stock_qty > 0)
+      .sort((a, b) => b.stock_qty - a.stock_qty)
+      .slice(0, 10)
+      .map(p => ({ name: p.name, value: p.stock_qty }));
   }, [products]);
 
   return (
