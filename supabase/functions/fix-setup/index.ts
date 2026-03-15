@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
 
     const results: string[] = [];
 
-    // Fix PINs - set plaintext PINs for employee login
+    // Fix PINs and clean up duplicate profiles
     const { data: allProfiles } = await supabaseAdmin.from("profiles").select("id, name, role, pin");
     results.push(`Found ${allProfiles?.length || 0} profiles`);
 
@@ -27,22 +27,64 @@ Deno.serve(async (req) => {
         results.push(`Profile: ${p.name} (${p.role}) pin=${p.pin ? 'SET' : 'NULL'}`);
       }
 
-      // Find Georgi
-      const georgi = allProfiles.find((p: any) => p.name.includes("גיאורגי") || p.name.includes("ג'ורג'"));
-      if (georgi) {
-        const { error } = await supabaseAdmin.from("profiles").update({ pin: "1111" }).eq("id", georgi.id);
-        results.push(error ? `PIN Georgi error: ${error.message}` : `PIN Georgi (${georgi.name}) → 1111: OK`);
-      } else {
-        results.push("Georgi profile not found");
+      // Find and remove duplicates - keep the ones with full names
+      // Delete "ג'ורג'" (keep "גיאורגי גריגוריאנץ")
+      const georgiNew = allProfiles.find((p: any) => p.name === "גיאורגי גריגוריאנץ");
+      const georgiOld = allProfiles.find((p: any) => p.name === "ג'ורג'");
+      if (georgiNew && georgiOld) {
+        // Move tasks from old to new
+        await supabaseAdmin.from("tasks").update({ assignee_id: georgiNew.id, assignee_name: "גיאורגי גריגוריאנץ" }).eq("assignee_id", georgiOld.id);
+        // Delete old auth user (cascades to profile)
+        const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(georgiOld.id);
+        results.push(delErr ? `Delete old Georgi: ${delErr.message}` : "Delete old Georgi (ג'ורג'): OK");
       }
 
-      // Find Ziv
-      const ziv = allProfiles.find((p: any) => p.name.includes("זיו"));
-      if (ziv) {
-        const { error } = await supabaseAdmin.from("profiles").update({ pin: "2222" }).eq("id", ziv.id);
-        results.push(error ? `PIN Ziv error: ${error.message}` : `PIN Ziv (${ziv.name}) → 2222: OK`);
-      } else {
-        results.push("Ziv profile not found");
+      // Delete "זיו" (keep "זיו בוזגלו")
+      const zivNew = allProfiles.find((p: any) => p.name === "זיו בוזגלו");
+      const zivOld = allProfiles.find((p: any) => p.name === "זיו" && p.name !== "זיו בוזגלו");
+      if (zivNew && zivOld) {
+        await supabaseAdmin.from("tasks").update({ assignee_id: zivNew.id, assignee_name: "זיו בוזגלו" }).eq("assignee_id", zivOld.id);
+        const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(zivOld.id);
+        results.push(delErr ? `Delete old Ziv: ${delErr.message}` : "Delete old Ziv (זיו): OK");
+      }
+
+      // Delete "מנהל" duplicate if exists (keep "נועם")
+      const noam = allProfiles.find((p: any) => p.name === "נועם" && p.role === "MANAGER");
+      const mngr = allProfiles.find((p: any) => p.name === "מנהל" && p.role === "MANAGER");
+      if (noam && mngr) {
+        await supabaseAdmin.from("tasks").update({ assignee_id: noam.id }).eq("assignee_id", mngr.id);
+        const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(mngr.id);
+        results.push(delErr ? `Delete old Manager: ${delErr.message}` : "Delete old Manager (מנהל): OK");
+      }
+
+      // Set PINs on remaining profiles
+      if (georgiNew) {
+        const { error } = await supabaseAdmin.from("profiles").update({ pin: "1111" }).eq("id", georgiNew.id);
+        results.push(error ? `PIN Georgi error: ${error.message}` : `PIN Georgi → 1111: OK`);
+      }
+      if (zivNew) {
+        const { error } = await supabaseAdmin.from("profiles").update({ pin: "2222" }).eq("id", zivNew.id);
+        results.push(error ? `PIN Ziv error: ${error.message}` : `PIN Ziv → 2222: OK`);
+      }
+
+      // Fix admin email
+      if (noam) {
+        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(noam.id);
+        if (authUser?.user?.email !== "noam@cobra.co.il") {
+          const { error: emailError } = await supabaseAdmin.auth.admin.updateUserById(
+            noam.id, { email: "noam@cobra.co.il" }
+          );
+          results.push(emailError ? `Email error: ${emailError.message}` : "Email → noam@cobra.co.il: OK");
+        } else {
+          results.push("Email already noam@cobra.co.il");
+        }
+      } else if (mngr && !noam) {
+        // If only "מנהל" exists, rename and update email
+        await supabaseAdmin.from("profiles").update({ name: "נועם" }).eq("id", mngr.id);
+        const { error: emailError } = await supabaseAdmin.auth.admin.updateUserById(
+          mngr.id, { email: "noam@cobra.co.il" }
+        );
+        results.push(emailError ? `Email error: ${emailError.message}` : "Renamed to נועם + email: OK");
       }
     }
 
