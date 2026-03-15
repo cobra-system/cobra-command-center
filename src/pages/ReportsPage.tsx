@@ -215,7 +215,11 @@ export default function ReportsPage() {
                     dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}
                     label={({ name, value }) => `${name} (${value})`}
                   >
-                    {Object.keys({}).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  {(() => {
+                      const statusMap: Record<string, number> = {};
+                      orders.forEach(o => { statusMap[o.status] = (statusMap[o.status] || 0) + 1; });
+                      return Object.entries(statusMap).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />);
+                    })()}
                   </Pie>
                   <Tooltip />
                 </PieChart>

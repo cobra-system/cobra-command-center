@@ -178,6 +178,7 @@ export default function OrdersPage() {
           open={showNewOrderDialog}
           onOpenChange={setShowNewOrderDialog}
           defaultProductId={defaultProductId}
+          defaultSupplierId={defaultSupplierId}
         />
       </div>
 
