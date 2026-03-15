@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
     // Step 3: Sign in with password
     if (userPassword) {
       const signInClient = createClient(externalUrl, externalServiceKey);
-      const { data: signInData, error: signInError } = await supabaseAnon.auth.signInWithPassword({
+      const { data: signInData, error: signInError } = await signInClient.auth.signInWithPassword({
         email: userEmail,
         password: userPassword,
       });
