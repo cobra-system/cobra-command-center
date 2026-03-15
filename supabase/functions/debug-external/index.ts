@@ -17,62 +17,68 @@ Deno.serve(async (req) => {
 
     const results: Record<string, any> = {};
 
-    // Check triggers on auth.users
-    const { data: triggers, error: trigErr } = await supabaseAdmin.rpc("get_triggers_info").maybeSingle();
-    results.triggersRpc = triggers || trigErr?.message || "no rpc";
+    // Step 1: Create a temporary RPC function to inspect the trigger
+    const createInspectorFn = await fetch(`${externalUrl}/rest/v1/rpc/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": externalServiceKey,
+        "Authorization": `Bearer ${externalServiceKey}`,
+      },
+    });
 
-    // Try raw query for trigger info via PostgREST - won't work, need different approach
-    // Let's check the profiles table schema
-    const { data: profilesCols, error: colErr } = await supabaseAdmin
-      .from("profiles")
-      .select("*")
-      .limit(0);
-    results.profilesQuery = colErr?.message || "OK";
+    // Use the SQL endpoint to run queries
+    // Supabase exposes pg_net or we can use the /sql endpoint if available
+    // Let's try the Supabase Management API approach via direct pg connection
 
-    // Try to insert a profile directly to test
-    const testId = "00000000-0000-0000-0000-000000000099";
-    const { error: insertErr } = await supabaseAdmin
-      .from("profiles")
-      .insert({ id: testId, name: "TEST", role: "DRIVER" });
-    results.directInsert = insertErr?.message || "OK";
+    // Alternative: Create a helper function via supabaseAdmin
+    // First, let's try to create a simple RPC that returns the trigger source
+    const sqlUrl = `${externalUrl}/rest/v1/`;
+    
+    // Actually, let's try to fix the trigger by creating a new version of handle_new_user
+    // that only uses columns we KNOW exist (id, name, role)
+    // We can do this by creating an RPC function that creates the fix
 
-    // Clean up test
-    if (!insertErr) {
-      await supabaseAdmin.from("profiles").delete().eq("id", testId);
-      results.cleanup = "deleted test profile";
-    }
-
-    // Check what columns the profiles table has by inserting with extra fields
-    const { error: emailInsertErr } = await supabaseAdmin
-      .from("profiles")
-      .insert({ id: testId, name: "TEST2", role: "DRIVER", email: "test@test.com" });
-    results.emailInsert = emailInsertErr?.message || "OK - email column exists";
-    if (!emailInsertErr) {
-      await supabaseAdmin.from("profiles").delete().eq("id", testId);
-    }
-
-    // Try to get the handle_new_user function definition
-    const { data: fnDef, error: fnErr } = await supabaseAdmin
-      .rpc("pg_get_functiondef", { function_name: "handle_new_user" });
-    results.functionDef = fnDef || fnErr?.message || "no rpc available";
-
-    // Try querying information_schema for triggers
-    // This won't work via PostgREST but let's try pg_catalog approach
-    // Actually, let's use the REST API to query pg_catalog
-    const triggerResp = await fetch(
-      `${externalUrl}/rest/v1/rpc/get_function_source`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": externalServiceKey,
-          "Authorization": `Bearer ${externalServiceKey}`,
-        },
-        body: JSON.stringify({ fn_name: "handle_new_user" }),
-      }
+    // Create a temporary function to get trigger info and fix it
+    const { data: createFnResult, error: createFnError } = await supabaseAdmin.rpc(
+      "create_fix_trigger_fn", {}
     );
-    results.fnSourceStatus = triggerResp.status;
-    results.fnSourceBody = await triggerResp.text();
+    results.createFn = createFnResult || createFnError?.message || "no such rpc";
+
+    // Since we can't run arbitrary SQL via PostgREST, let's use a different approach:
+    // Use the Supabase Database REST endpoint with service role
+    // The /pg endpoint or similar
+    
+    // Let's try the supabase-js SQL method if available
+    // Actually in supabase-js v2 there's no direct SQL execution
+    
+    // Let's try creating a function via PostgREST by calling an existing function
+    // that can create other functions (this won't work either)
+
+    // The real solution: We need to execute SQL on the external database.
+    // Options:
+    // 1. Use the Supabase Management API (requires management API key, not service role key)
+    // 2. Connect directly to the database via pg connection string
+    // 3. Ask user to run SQL in their Supabase dashboard
+
+    // Let's try option 2 using Deno's postgres driver
+    // But we need the DB connection string for the external project
+    
+    // Actually, let's try the external project's SQL execution endpoint
+    const sqlResp = await fetch(`${externalUrl}/rest/v1/rpc/exec_sql`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": externalServiceKey,
+        "Authorization": `Bearer ${externalServiceKey}`,
+        "Prefer": "return=representation",
+      },
+      body: JSON.stringify({
+        query: "SELECT prosrc FROM pg_proc WHERE proname = 'handle_new_user'"
+      }),
+    });
+    results.execSqlStatus = sqlResp.status;
+    results.execSqlBody = await sqlResp.text();
 
     return new Response(JSON.stringify(results, null, 2), {
       status: 200,
