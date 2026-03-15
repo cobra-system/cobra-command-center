@@ -113,27 +113,68 @@ Deno.serve(async (req) => {
           }
         }
       } else {
-        // No "נועם" profile - list auth users and create admin
+        // No "נועם" profile - need to create admin user
+        // First, re-create auth users for existing profiles too (Georgi, Ziv)
+        const profilesToFix = allProfiles || [];
         const { data: { users: allAuthUsers } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 100 });
-        results.push(`Auth users: ${allAuthUsers?.length || 0}`);
+        results.push(`Auth users found: ${allAuthUsers?.length || 0}`);
         allAuthUsers?.forEach((u: any) => results.push(`  Auth: ${u.email} (${u.id})`));
-        
-        const existingByEmail = allAuthUsers?.find((u: any) => u.email === "noam@cobra.co.il");
-        if (existingByEmail) {
-          await supabaseAdmin.from("profiles").upsert({ id: existingByEmail.id, name: "נועם", role: "MANAGER" });
-          results.push(`Admin profile restored from existing auth: ${existingByEmail.id}`);
-        } else {
-          // Try creating via signUp
-          const { data: signUpData, error: signUpErr } = await supabaseAdmin.auth.admin.createUser({
-            email: "noam@cobra.co.il",
-            password: "cobra2026",
-            email_confirm: true,
+
+        // Try creating admin - first via signUp through the regular auth endpoint
+        try {
+          const response = await fetch(`${externalUrl}/auth/v1/signup`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': externalServiceKey,
+              'Authorization': `Bearer ${externalServiceKey}`,
+            },
+            body: JSON.stringify({
+              email: 'noam@cobra.co.il',
+              password: 'cobra2026',
+            }),
           });
-          if (signUpErr) {
-            results.push(`Create admin error: ${signUpErr.message}`);
-          } else if (signUpData?.user) {
-            await supabaseAdmin.from("profiles").upsert({ id: signUpData.user.id, name: "נועם", role: "MANAGER" });
-            results.push(`New admin created: ${signUpData.user.id}`);
+          const signUpResult = await response.json();
+          if (signUpResult.id) {
+            // Confirm the user's email
+            await supabaseAdmin.auth.admin.updateUserById(signUpResult.id, { email_confirm: true });
+            // Create/update profile
+            await supabaseAdmin.from("profiles").upsert({ id: signUpResult.id, name: "נועם", role: "MANAGER" });
+            results.push(`Admin created via signup: ${signUpResult.id}`);
+          } else {
+            results.push(`Signup result: ${JSON.stringify(signUpResult)}`);
+          }
+        } catch (signUpErr) {
+          results.push(`Signup error: ${String(signUpErr)}`);
+        }
+
+        // Recreate auth users for Georgi and Ziv if they don't have auth users
+        for (const prof of profilesToFix) {
+          const hasAuth = allAuthUsers?.find((u: any) => u.id === prof.id);
+          if (!hasAuth) {
+            try {
+              const suffix = prof.name.includes("גיאורגי") ? "georgi" : "ziv";
+              const resp = await fetch(`${externalUrl}/auth/v1/signup`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'apikey': externalServiceKey,
+                  'Authorization': `Bearer ${externalServiceKey}`,
+                },
+                body: JSON.stringify({ email: `${suffix}@cobra.co.il`, password: `cobra${prof.pin || '0000'}` }),
+              });
+              const result = await resp.json();
+              if (result.id) {
+                await supabaseAdmin.auth.admin.updateUserById(result.id, { email_confirm: true });
+                // Update profile to use new auth user id
+                await supabaseAdmin.from("profiles").update({ id: result.id } as any).eq("id", prof.id);
+                results.push(`Auth for ${prof.name}: ${result.id}`);
+              } else {
+                results.push(`Auth for ${prof.name}: ${JSON.stringify(result)}`);
+              }
+            } catch (err) {
+              results.push(`Auth for ${prof.name} error: ${String(err)}`);
+            }
           }
         }
       }
