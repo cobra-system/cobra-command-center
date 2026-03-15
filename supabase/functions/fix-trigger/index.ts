@@ -1,4 +1,4 @@
-import { Client } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.98.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,62 +11,70 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const dbUrl = Deno.env.get("EXTERNAL_DB_URL")!;
-    const parsedUrl = new URL(dbUrl);
-    const client = new Client({
-      hostname: parsedUrl.hostname,
-      port: parseInt(parsedUrl.port) || 5432,
-      database: parsedUrl.pathname.slice(1),
-      user: parsedUrl.username,
-      password: decodeURIComponent(parsedUrl.password),
-      tls: { enabled: true, enforce: false },
-    });
-    await client.connect();
+    const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL")!;
+    const externalKey = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")!;
+    const admin = createClient(externalUrl, externalKey);
 
     const results: string[] = [];
 
-    // Dump full auth.users data for noam
-    const noam = await client.queryObject(
-      `SELECT * FROM auth.users WHERE email = 'noam@cobra.co.il' AND deleted_at IS NULL`
-    );
-    if (noam.rows[0]) {
-      const u = noam.rows[0] as any;
-      for (const [k, v] of Object.entries(u)) {
-        if (k === 'encrypted_password') {
-          results.push(`  ${k}: ${String(v).substring(0, 10)}...`);
+    // Users to fix
+    const USERS = [
+      { email: "noam@cobra.co.il", password: "cobra2026", name: "נועם", role: "MANAGER" },
+      { email: "georgi@cobra.co.il", password: "cobra1111", name: "גיאורגי גריגוריאנץ", role: "WAREHOUSE_MANAGER" },
+      { email: "ziv@cobra.co.il", password: "cobra2222", name: "זיו בוזגלו", role: "LOGISTICS" },
+    ];
+
+    for (const u of USERS) {
+      // Try to delete existing user first
+      const { data: listData } = await admin.auth.admin.listUsers();
+      const existing = listData?.users?.find(x => x.email === u.email);
+      
+      if (existing) {
+        const { error: delErr } = await admin.auth.admin.deleteUser(existing.id);
+        if (delErr) {
+          results.push(`Error deleting ${u.email}: ${delErr.message}`);
         } else {
-          results.push(`  ${k}: ${JSON.stringify(v)}`);
+          results.push(`Deleted old ${u.email} (${existing.id})`);
+        }
+      }
+
+      // Create fresh user via Admin API
+      const { data: newUser, error: createErr } = await admin.auth.admin.createUser({
+        email: u.email,
+        password: u.password,
+        email_confirm: true,
+        user_metadata: { name: u.name, role: u.role },
+      });
+
+      if (createErr) {
+        results.push(`Error creating ${u.email}: ${createErr.message}`);
+      } else {
+        results.push(`Created ${u.email} with id=${newUser.user.id}`);
+        
+        // Update profile to correct role
+        const { error: profileErr } = await admin.from("profiles").upsert({
+          id: newUser.user.id,
+          name: u.name,
+          role: u.role,
+        });
+        if (profileErr) {
+          results.push(`Profile error for ${u.email}: ${profileErr.message}`);
+        } else {
+          results.push(`Profile set for ${u.email}: ${u.role}`);
         }
       }
     }
 
-    // Compare with admin@cobra.io (which works)
-    const admin = await client.queryObject(
-      `SELECT * FROM auth.users WHERE email = 'admin@cobra.io' AND deleted_at IS NULL`
-    );
-    if (admin.rows[0]) {
-      results.push("\n--- admin@cobra.io ---");
-      const u = admin.rows[0] as any;
-      for (const [k, v] of Object.entries(u)) {
-        if (k === 'encrypted_password') {
-          results.push(`  ${k}: ${String(v).substring(0, 10)}...`);
-        } else {
-          results.push(`  ${k}: ${JSON.stringify(v)}`);
-        }
-      }
+    // Test login
+    for (const u of USERS) {
+      const resp = await fetch(`${externalUrl}/auth/v1/token?grant_type=password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "apikey": externalKey },
+        body: JSON.stringify({ email: u.email, password: u.password }),
+      });
+      const body = await resp.text();
+      results.push(`Login ${u.email}: status=${resp.status} ${body.substring(0, 100)}`);
     }
-
-    // Check auth.identities for both
-    const identities = await client.queryObject(
-      `SELECT user_id, provider, provider_id, substring(identity_data::text, 1, 100) as identity_data 
-       FROM auth.identities`
-    );
-    results.push("\n--- identities ---");
-    for (const i of identities.rows) {
-      results.push(JSON.stringify(i));
-    }
-
-    await client.end();
 
     return new Response(JSON.stringify({ results }, null, 2), {
       status: 200,
