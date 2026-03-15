@@ -7,6 +7,7 @@ import { format, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { PurchaseDocument, Payment } from "@/components/documents/types";
 import { docStatusColors, payStatusColors, currencySymbol, paymentTypeLabels } from "@/components/documents/constants";
+import DocumentFormDialog from "@/components/documents/DocumentFormDialog";
 
 interface Props {
   supplierId?: string;
@@ -19,6 +20,7 @@ export default function DocumentsSection({ supplierId, productId, orderId }: Pro
   const [docs, setDocs] = useState<PurchaseDocument[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showDocForm, setShowDocForm] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -31,7 +33,6 @@ export default function DocumentsSection({ supplierId, productId, orderId }: Pro
     const { data: docData } = await docQuery;
     if (docData) setDocs(docData as PurchaseDocument[]);
 
-    // Fetch payments only for supplier context
     if (supplierId) {
       const { data: payData } = await supabase.from("supplier_payments").select("*").eq("supplier_id", supplierId).order("created_at", { ascending: false });
       if (payData) setPayments(payData as Payment[]);
