@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useData } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
@@ -471,14 +471,19 @@ export default function ProductIssuesTab({ productId, productName }: { productId
   );
 }
 
-function ResolutionInput({ issueId, onSave }: { issueId: string; onSave: (resolution: string) => void }) {
-  const [value, setValue] = useState("");
-  return (
-    <div className="space-y-2">
-      <Textarea value={value} onChange={e => setValue(e.target.value)} placeholder="תאר את הפתרון..." rows={2} className="text-sm" />
-      <Button size="sm" className="w-full" disabled={!value.trim()} onClick={() => onSave(value.trim())}>
-        סגור עם פתרון
-      </Button>
-    </div>
-  );
-}
+
+
+const ResolutionInput = React.forwardRef<HTMLDivElement, { issueId: string; onSave: (resolution: string) => void }>(
+  ({ issueId, onSave }, ref) => {
+    const [value, setValue] = useState("");
+    return (
+      <div ref={ref} className="space-y-2">
+        <Textarea value={value} onChange={e => setValue(e.target.value)} placeholder="תאר את הפתרון..." rows={2} className="text-sm" />
+        <Button size="sm" className="w-full" disabled={!value.trim()} onClick={() => onSave(value.trim())}>
+          סגור עם פתרון
+        </Button>
+      </div>
+    );
+  }
+);
+ResolutionInput.displayName = "ResolutionInput";
