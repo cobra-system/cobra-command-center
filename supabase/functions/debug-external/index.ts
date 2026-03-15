@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.98.0";
+import { Client } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,76 +11,59 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL")!;
-    const externalServiceKey = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabaseAdmin = createClient(externalUrl, externalServiceKey);
-
-    const results: Record<string, any> = {};
-
-    // Step 1: Create a temporary RPC function to inspect the trigger
-    const createInspectorFn = await fetch(`${externalUrl}/rest/v1/rpc/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": externalServiceKey,
-        "Authorization": `Bearer ${externalServiceKey}`,
-      },
+    const dbUrl = Deno.env.get("EXTERNAL_DB_URL")!;
+    const parsedUrl = new URL(dbUrl);
+    const client = new Client({
+      hostname: parsedUrl.hostname,
+      port: parseInt(parsedUrl.port) || 5432,
+      database: parsedUrl.pathname.slice(1),
+      user: parsedUrl.username,
+      password: decodeURIComponent(parsedUrl.password),
+      tls: { enabled: true, enforce: false },
     });
+    await client.connect();
 
-    // Use the SQL endpoint to run queries
-    // Supabase exposes pg_net or we can use the /sql endpoint if available
-    // Let's try the Supabase Management API approach via direct pg connection
+    const results: string[] = [];
 
-    // Alternative: Create a helper function via supabaseAdmin
-    // First, let's try to create a simple RPC that returns the trigger source
-    const sqlUrl = `${externalUrl}/rest/v1/`;
-    
-    // Actually, let's try to fix the trigger by creating a new version of handle_new_user
-    // that only uses columns we KNOW exist (id, name, role)
-    // We can do this by creating an RPC function that creates the fix
-
-    // Create a temporary function to get trigger info and fix it
-    const { data: createFnResult, error: createFnError } = await supabaseAdmin.rpc(
-      "create_fix_trigger_fn", {}
+    // Check auth.identities columns
+    const idCols = await client.queryObject<{ column_name: string; data_type: string; is_nullable: string }>(
+      `SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema = 'auth' AND table_name = 'identities' ORDER BY ordinal_position`
     );
-    results.createFn = createFnResult || createFnError?.message || "no such rpc";
+    results.push("auth.identities columns:");
+    for (const c of idCols.rows) {
+      results.push(`  ${c.column_name} (${c.data_type}) nullable=${c.is_nullable}`);
+    }
 
-    // Since we can't run arbitrary SQL via PostgREST, let's use a different approach:
-    // Use the Supabase Database REST endpoint with service role
-    // The /pg endpoint or similar
-    
-    // Let's try the supabase-js SQL method if available
-    // Actually in supabase-js v2 there's no direct SQL execution
-    
-    // Let's try creating a function via PostgREST by calling an existing function
-    // that can create other functions (this won't work either)
+    // Check actual identity data
+    const identityData = await client.queryObject(
+      `SELECT * FROM auth.identities LIMIT 3`
+    );
+    results.push(`\nIdentity rows: ${identityData.rows.length}`);
+    for (const row of identityData.rows) {
+      results.push(`  ${JSON.stringify(row)}`);
+    }
 
-    // The real solution: We need to execute SQL on the external database.
-    // Options:
-    // 1. Use the Supabase Management API (requires management API key, not service role key)
-    // 2. Connect directly to the database via pg connection string
-    // 3. Ask user to run SQL in their Supabase dashboard
+    // Check auth.users full structure
+    const userCols = await client.queryObject<{ column_name: string; data_type: string }>(
+      `SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'auth' AND table_name = 'users' ORDER BY ordinal_position`
+    );
+    results.push("\nauth.users columns:");
+    for (const c of userCols.rows) {
+      results.push(`  ${c.column_name} (${c.data_type})`);
+    }
 
-    // Let's try option 2 using Deno's postgres driver
-    // But we need the DB connection string for the external project
-    
-    // Actually, let's try the external project's SQL execution endpoint
-    const sqlResp = await fetch(`${externalUrl}/rest/v1/rpc/exec_sql`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": externalServiceKey,
-        "Authorization": `Bearer ${externalServiceKey}`,
-        "Prefer": "return=representation",
-      },
-      body: JSON.stringify({
-        query: "SELECT prosrc FROM pg_proc WHERE proname = 'handle_new_user'"
-      }),
-    });
-    results.execSqlStatus = sqlResp.status;
-    results.execSqlBody = await sqlResp.text();
+    // Check auth schema version
+    const migrations = await client.queryObject<{ version: string }>(
+      `SELECT version FROM auth.schema_migrations ORDER BY version DESC LIMIT 5`
+    );
+    results.push("\nAuth schema versions (latest 5):");
+    for (const m of migrations.rows) {
+      results.push(`  ${m.version}`);
+    }
 
-    return new Response(JSON.stringify(results, null, 2), {
+    await client.end();
+
+    return new Response(JSON.stringify({ results }, null, 2), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
