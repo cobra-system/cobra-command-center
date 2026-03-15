@@ -129,8 +129,6 @@ interface AuthState {
   session: Session | null;
   loading: boolean;
   loginWithEmail: (email: string, password: string) => Promise<string | null>;
-  loginWithPin: (pin: string) => Promise<string | null>;
-  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
 }
 

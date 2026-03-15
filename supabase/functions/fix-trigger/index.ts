@@ -1,4 +1,4 @@
-import { Client } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.98.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,85 +11,84 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const dbUrl = Deno.env.get("EXTERNAL_DB_URL")!;
-    const parsedUrl = new URL(dbUrl);
-    const client = new Client({
-      hostname: parsedUrl.hostname,
-      port: parseInt(parsedUrl.port) || 5432,
-      database: parsedUrl.pathname.slice(1),
-      user: parsedUrl.username,
-      password: decodeURIComponent(parsedUrl.password),
-      tls: { enabled: true, enforce: false },
-    });
-    await client.connect();
+    const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL")!;
+    const externalServiceKey = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAdmin = createClient(externalUrl, externalServiceKey);
 
     const results: string[] = [];
 
-    // Check user details
-    const users = await client.queryObject<{ 
-      id: string; email: string; encrypted_password: string; 
-      email_confirmed_at: string | null; is_sso_user: boolean;
-      instance_id: string; aud: string;
-    }>(
-      `SELECT id, email, substring(encrypted_password, 1, 20) as encrypted_password, 
-              email_confirmed_at, is_sso_user, instance_id, aud 
-       FROM auth.users WHERE deleted_at IS NULL`
-    );
-    
-    for (const u of users.rows) {
-      results.push(`User: ${u.email} id=${u.id}`);
-      results.push(`  confirmed=${u.email_confirmed_at} sso=${u.is_sso_user} instance=${u.instance_id} aud=${u.aud}`);
-      results.push(`  pwd_prefix=${u.encrypted_password}`);
-    }
+    // Step 1: Fix the handle_new_user trigger via RPC or direct SQL
+    // We'll use the admin client to call a raw SQL function
+    // Since we can't run raw SQL via client, we fix it by ensuring profiles exist
 
-    // Check if instance_id is the issue - GoTrue expects specific instance_id
-    // Fix: ensure instance_id is the default '00000000-0000-0000-0000-000000000000'
+    // Step 2: Create/update users
     const USERS = [
-      { email: "noam@cobra.co.il", password: "cobra2026" },
-      { email: "georgi@cobra.co.il", password: "cobra1111" },
-      { email: "ziv@cobra.co.il", password: "cobra2222" },
+      { email: "noam@cobra.co.il", password: "cobra2026", name: "נועם", role: "MANAGER" },
+      { email: "georgi@cobra.co.il", password: "cobra1111", name: "גיאורגי גריגוריאנץ", role: "WAREHOUSE_MANAGER" },
+      { email: "ziv@cobra.co.il", password: "cobra2222", name: "זיו בוזגלו", role: "LOGISTICS" },
     ];
 
     for (const u of USERS) {
-      // Update password using bcrypt, confirm email, fix instance_id
-      await client.queryObject(
-        `UPDATE auth.users SET 
-          encrypted_password = crypt($1, gen_salt('bf')),
-          email_confirmed_at = COALESCE(email_confirmed_at, now()),
-          instance_id = '00000000-0000-0000-0000-000000000000',
-          aud = 'authenticated',
-          role = 'authenticated',
-          updated_at = now()
-        WHERE email = $2`,
-        [u.password, u.email]
-      );
-      results.push(`Updated password for ${u.email}`);
-    }
+      // Try to get existing user by email
+      const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+      const existing = existingUsers?.users?.find((eu: any) => eu.email === u.email);
 
-    // Verify identities exist
-    const identities = await client.queryObject<{ user_id: string; provider: string }>(
-      `SELECT user_id, provider FROM auth.identities`
-    );
-    results.push(`\nIdentities: ${identities.rows.length}`);
-    for (const i of identities.rows) {
-      results.push(`  ${i.user_id} - ${i.provider}`);
-    }
+      if (existing) {
+        // Update password
+        const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(existing.id, {
+          password: u.password,
+          email_confirm: true,
+        });
+        if (updateErr) {
+          results.push(`Error updating ${u.email}: ${updateErr.message}`);
+        } else {
+          results.push(`Updated ${u.email} (id: ${existing.id})`);
+        }
 
-    // If any user is missing email identity, create it
-    for (const authUser of users.rows) {
-      const hasIdentity = identities.rows.some(i => i.user_id === authUser.id);
-      if (!hasIdentity) {
-        const uid = authUser.id;
-        const uemail = authUser.email;
-        await client.queryObject(
-          `INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
-           VALUES (gen_random_uuid(), '${uid}'::uuid, '${uid}', 'email', '{"sub":"${uid}","email":"${uemail}"}'::jsonb, now(), now(), now())`
-        );
-        results.push(`Created email identity for ${authUser.email}`);
+        // Ensure profile exists
+        const { error: profileErr } = await supabaseAdmin
+          .from("profiles")
+          .upsert({ id: existing.id, name: u.name, role: u.role }, { onConflict: "id" });
+        if (profileErr) {
+          results.push(`Profile error for ${u.email}: ${profileErr.message}`);
+        }
+      } else {
+        // Create new user
+        const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+          email: u.email,
+          password: u.password,
+          email_confirm: true,
+          user_metadata: { name: u.name, role: u.role },
+        });
+        if (createErr) {
+          results.push(`Error creating ${u.email}: ${createErr.message}`);
+        } else if (newUser?.user) {
+          results.push(`Created ${u.email} (id: ${newUser.user.id})`);
+          // Insert profile
+          const { error: profileErr } = await supabaseAdmin
+            .from("profiles")
+            .upsert({ id: newUser.user.id, name: u.name, role: u.role }, { onConflict: "id" });
+          if (profileErr) {
+            results.push(`Profile error for ${u.email}: ${profileErr.message}`);
+          }
+        }
       }
     }
 
-    await client.end();
+    // Step 3: Verify - try signing in with each user
+    for (const u of USERS) {
+      const resp = await fetch(`${externalUrl}/auth/v1/token?grant_type=password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "apikey": externalServiceKey },
+        body: JSON.stringify({ email: u.email, password: u.password }),
+      });
+      const body = await resp.json();
+      if (resp.ok && body.access_token) {
+        results.push(`✅ Login test OK for ${u.email}`);
+      } else {
+        results.push(`❌ Login test FAILED for ${u.email}: ${body.error_description || body.msg || JSON.stringify(body)}`);
+      }
+    }
 
     return new Response(JSON.stringify({ success: true, results }, null, 2), {
       status: 200,
