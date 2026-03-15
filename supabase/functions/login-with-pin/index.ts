@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     }
 
     // Connect to the EXTERNAL Supabase project where all data lives
-    const externalUrl = Deno.env.get("SUPABASE_URL")!;
+    const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL") || Deno.env.get("SUPABASE_URL")!;
     const externalServiceKey = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     const supabaseAdmin = createClient(externalUrl, externalServiceKey);
