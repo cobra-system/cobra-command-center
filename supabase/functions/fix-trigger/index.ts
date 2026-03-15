@@ -1,4 +1,5 @@
 import { Client } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.98.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,21 +13,10 @@ Deno.serve(async (req) => {
 
   try {
     const dbUrl = Deno.env.get("EXTERNAL_DB_URL")!;
-    const results: string[] = [];
+    const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL")!;
+    const externalServiceKey = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")!;
     
-    // Log masked URL for debugging
-    const masked = dbUrl.replace(/:([^@]+)@/, ":***@");
-    results.push(`DB URL (masked): ${masked}`);
-    results.push(`URL length: ${dbUrl.length}`);
-    
-    // Try parsing and connecting with explicit params
     const url = new URL(dbUrl);
-    results.push(`Host: ${url.hostname}`);
-    results.push(`Port: ${url.port}`);
-    results.push(`Database: ${url.pathname.slice(1)}`);
-    results.push(`User: ${url.username}`);
-    results.push(`Password length: ${url.password.length}`);
-    
     const client = new Client({
       hostname: url.hostname,
       port: parseInt(url.port) || 5432,
@@ -35,54 +25,104 @@ Deno.serve(async (req) => {
       password: decodeURIComponent(url.password),
       tls: { enabled: true, enforce: false },
     });
-    
     await client.connect();
-    results.push("Connected successfully!");
 
-    // Fix the trigger function
-    const triggerCheck = await client.queryObject<{ prosrc: string }>(
-      `SELECT prosrc FROM pg_proc WHERE proname = 'handle_new_user'`
+    const results: string[] = [];
+
+    // Check for soft-deleted auth users
+    const softDeleted = await client.queryObject<{ id: string; email: string; deleted_at: string }>(
+      `SELECT id, email, deleted_at FROM auth.users WHERE deleted_at IS NOT NULL`
     );
-    results.push(`Current trigger found: ${triggerCheck.rows.length > 0}`);
-    if (triggerCheck.rows[0]) {
-      results.push(`Trigger source: ${triggerCheck.rows[0].prosrc.substring(0, 200)}`);
+    results.push(`Soft-deleted auth users: ${softDeleted.rows.length}`);
+    for (const u of softDeleted.rows) {
+      results.push(`  Deleted: ${u.email} id=${u.id} deleted_at=${u.deleted_at}`);
     }
 
-    // Check profiles columns
-    const cols = await client.queryObject<{ column_name: string }>(
-      `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' ORDER BY ordinal_position`
+    // Check all auth users (including soft-deleted)
+    const allAuth = await client.queryObject<{ id: string; email: string; deleted_at: string | null }>(
+      `SELECT id, email, deleted_at FROM auth.users`
     );
-    results.push(`Profiles columns: ${cols.rows.map(r => r.column_name).join(", ")}`);
+    results.push(`Total auth users (including deleted): ${allAuth.rows.length}`);
+    for (const u of allAuth.rows) {
+      results.push(`  Auth: ${u.email} deleted=${u.deleted_at || 'no'}`);
+    }
 
-    // Fix trigger to use ON CONFLICT DO NOTHING
-    await client.queryObject(`
-      CREATE OR REPLACE FUNCTION public.handle_new_user()
-      RETURNS trigger
-      LANGUAGE plpgsql
-      SECURITY DEFINER
-      SET search_path TO 'public'
-      AS $$
-      BEGIN
-        INSERT INTO public.profiles (id, name, role)
-        VALUES (
-          NEW.id,
-          COALESCE(NEW.raw_user_meta_data->>'name', NEW.email),
-          COALESCE((NEW.raw_user_meta_data->>'role')::app_role, 'DRIVER')
-        )
-        ON CONFLICT (id) DO NOTHING;
-        RETURN NEW;
-      END;
-      $$;
-    `);
-    results.push("Trigger function fixed!");
+    // Hard-delete soft-deleted users
+    if (softDeleted.rows.length > 0) {
+      // First remove their identities
+      await client.queryObject(
+        `DELETE FROM auth.identities WHERE user_id IN (SELECT id FROM auth.users WHERE deleted_at IS NOT NULL)`
+      );
+      // Then hard-delete
+      const deleteResult = await client.queryObject(
+        `DELETE FROM auth.users WHERE deleted_at IS NOT NULL`
+      );
+      results.push(`Hard-deleted ${softDeleted.rows.length} soft-deleted users`);
+    }
 
-    // Ensure trigger exists
-    const triggerExists = await client.queryObject<{ tgname: string }>(
-      `SELECT tgname FROM pg_trigger WHERE tgname = 'on_auth_user_created'`
+    // Delete orphan profiles (profiles without auth users)
+    const orphans = await client.queryObject<{ id: string; name: string }>(
+      `SELECT p.id, p.name FROM public.profiles p LEFT JOIN auth.users u ON p.id = u.id WHERE u.id IS NULL`
     );
-    results.push(`Trigger on auth.users exists: ${triggerExists.rows.length > 0}`);
+    results.push(`Orphan profiles: ${orphans.rows.length}`);
+    for (const o of orphans.rows) {
+      results.push(`  Orphan: ${o.name} (${o.id})`);
+      // Delete user_roles for orphans
+      await client.queryObject(`DELETE FROM public.user_roles WHERE user_id = $1`, [o.id]);
+      // Delete tasks assigned to orphans  
+      await client.queryObject(`UPDATE public.tasks SET assignee_id = NULL WHERE assignee_id = $1`, [o.id]);
+      // Delete profile
+      await client.queryObject(`DELETE FROM public.profiles WHERE id = $1`, [o.id]);
+      results.push(`    Deleted orphan profile and roles`);
+    }
+
+    // Check for any email conflicts
+    const emailConflicts = await client.queryObject<{ email: string }>(
+      `SELECT email FROM auth.users WHERE email IN ('noam@cobra.co.il', 'georgi@cobra.co.il', 'ziv@cobra.co.il')`
+    );
+    results.push(`Email conflicts remaining: ${emailConflicts.rows.length}`);
 
     await client.end();
+
+    // Now try creating users via Supabase Admin API
+    const supabaseAdmin = createClient(externalUrl, externalServiceKey);
+
+    const USERS = [
+      { email: "noam@cobra.co.il", password: "cobra2026", name: "נועם", role: "MANAGER", pin: "1234" },
+      { email: "georgi@cobra.co.il", password: "cobra1111", name: "גיאורגי גריגוריאנץ", role: "WAREHOUSE_MANAGER", pin: "1111" },
+      { email: "ziv@cobra.co.il", password: "cobra2222", name: "זיו בוזגלו", role: "LOGISTICS", pin: "2222" },
+    ];
+
+    for (const u of USERS) {
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email: u.email,
+        password: u.password,
+        email_confirm: true,
+        user_metadata: { name: u.name, role: u.role },
+      });
+
+      if (createError || !newUser?.user) {
+        results.push(`${u.name}: CREATE FAILED - ${createError?.message || "unknown"}`);
+        continue;
+      }
+
+      const userId = newUser.user.id;
+      results.push(`${u.name}: Created (${userId})`);
+
+      // Update profile with PIN
+      const { error: profError } = await supabaseAdmin.from("profiles").upsert(
+        { id: userId, name: u.name, role: u.role, pin: u.pin },
+        { onConflict: "id" }
+      );
+      results.push(`  Profile: ${profError?.message || "OK"}`);
+
+      // Add user role
+      const { error: roleError } = await supabaseAdmin.from("user_roles").upsert(
+        { user_id: userId, role: u.role },
+        { onConflict: "user_id,role" }
+      );
+      results.push(`  Role: ${roleError?.message || "OK"}`);
+    }
 
     return new Response(JSON.stringify({ success: true, results }, null, 2), {
       status: 200,
