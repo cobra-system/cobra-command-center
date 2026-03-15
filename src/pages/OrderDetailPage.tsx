@@ -364,7 +364,7 @@ export default function OrderDetailPage() {
 
       {/* Item Edit Dialog */}
       <Dialog open={editItemDialog} onOpenChange={setEditItemDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
           <DialogHeader><DialogTitle>{editingItem ? "עריכת פריט" : "הוספת פריט"}</DialogTitle></DialogHeader>
           <div className="space-y-3 pt-2">
             <div className="space-y-1">

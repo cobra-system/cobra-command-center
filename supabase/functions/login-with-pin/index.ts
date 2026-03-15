@@ -20,19 +20,31 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    // Connect to the EXTERNAL Supabase project where all data lives
+    const externalUrl = Deno.env.get("SUPABASE_URL")!;
+    const externalServiceKey = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Look up user by PIN in profiles
-    const { data: profile, error: profileError } = await supabaseAdmin
+    const supabaseAdmin = createClient(externalUrl, externalServiceKey);
+
+    // First try plaintext PIN match
+    let profile: any = null;
+    const { data: plainMatch } = await supabaseAdmin
       .from("profiles")
-      .select("id, name, role")
+      .select("id, name, role, pin")
       .eq("pin", pin)
       .maybeSingle();
 
-    if (profileError || !profile) {
+    if (plainMatch) {
+      profile = plainMatch;
+    } else {
+      // Try using the login_by_pin RPC (handles bcrypt hashed PINs)
+      const { data: rpcResult } = await supabaseAdmin.rpc("login_by_pin", { input_pin: pin });
+      if (rpcResult && rpcResult.length > 0) {
+        profile = rpcResult[0];
+      }
+    }
+
+    if (!profile) {
       return new Response(
         JSON.stringify({ error: "קוד PIN שגוי" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -44,12 +56,12 @@ Deno.serve(async (req) => {
 
     if (authError || !authUser?.user?.email) {
       return new Response(
-        JSON.stringify({ error: "שגיאה באימות המשתמש" }),
+        JSON.stringify({ error: "שגיאה באימות המשתמש - לא נמצא משתמש auth" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Generate a magic link token for the user (sign them in without password)
+    // Generate a magic link token for the user
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: "magiclink",
       email: authUser.user.email,
@@ -57,7 +69,7 @@ Deno.serve(async (req) => {
 
     if (linkError || !linkData) {
       return new Response(
-        JSON.stringify({ error: "שגיאה ביצירת קישור כניסה" }),
+        JSON.stringify({ error: "שגיאה ביצירת קישור כניסה: " + (linkError?.message || "unknown") }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -75,9 +87,14 @@ Deno.serve(async (req) => {
 
     if (verifyError || !sessionData?.session) {
       return new Response(
-        JSON.stringify({ error: "שגיאה ביצירת סשן" }),
+        JSON.stringify({ error: "שגיאה ביצירת סשן: " + (verifyError?.message || "no session") }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Also update plaintext PIN if it was matched via RPC (bcrypt) but not stored as plaintext
+    if (!plainMatch && profile) {
+      await supabaseAdmin.from("profiles").update({ pin }).eq("id", profile.id);
     }
 
     return new Response(
@@ -93,7 +110,7 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     return new Response(
-      JSON.stringify({ error: "שגיאה פנימית" }),
+      JSON.stringify({ error: "שגיאה פנימית: " + String(err) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
