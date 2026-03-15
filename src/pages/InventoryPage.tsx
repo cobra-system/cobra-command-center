@@ -90,7 +90,30 @@ export default function InventoryPage() {
       supabase.from("center_inventory").select("*"),
       supabase.from("inventory_transfers").select("*").order("created_at", { ascending: false }).limit(100),
     ]);
-    if (c) setCenters(c as DistributionCenter[]);
+    // Deduplicate centers by name — keep the first occurrence (main first, then alphabetical)
+    if (c) {
+      const seen = new Map<string, typeof c[0]>();
+      const dupeIds: string[] = [];
+      c.forEach(center => {
+        if (seen.has(center.name)) {
+          dupeIds.push(center.id);
+        } else {
+          seen.set(center.name, center);
+        }
+      });
+      // Remove "יחידת היבואנים" or similar non-standard centers
+      const filtered = Array.from(seen.values()).filter(center => !center.name.includes("יבואנים"));
+      setCenters(filtered as DistributionCenter[]);
+      // Clean up duplicates in background
+      if (dupeIds.length > 0) {
+        dupeIds.forEach(id => supabase.from("distribution_centers").delete().eq("id", id));
+      }
+      // Clean up "יבואנים" center
+      const yevoanim = Array.from(seen.values()).find(center => center.name.includes("יבואנים"));
+      if (yevoanim) {
+        supabase.from("distribution_centers").delete().eq("id", yevoanim.id);
+      }
+    }
     if (ct) setContacts(ct as CenterContact[]);
     if (inv) setInventory(inv as CenterInventoryItem[]);
     if (tr) setTransfers(tr as InventoryTransfer[]);
