@@ -113,21 +113,28 @@ Deno.serve(async (req) => {
           }
         }
       } else {
-        // No "נועם" profile at all, create new admin
-        const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-          email: "noam@cobra.co.il",
-          password: "cobra2026",
-          email_confirm: true,
-          user_metadata: { name: "נועם", role: "MANAGER" }
-        });
-        if (createErr) {
-          results.push(`Create admin error: ${createErr.message}`);
-        } else if (newUser?.user) {
-          const { data: existingProfile } = await supabaseAdmin.from("profiles").select("id").eq("id", newUser.user.id).maybeSingle();
-          if (!existingProfile) {
-            await supabaseAdmin.from("profiles").insert({ id: newUser.user.id, name: "נועם", role: "MANAGER" });
+        // No "נועם" profile - list auth users and create admin
+        const { data: { users: allAuthUsers } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 100 });
+        results.push(`Auth users: ${allAuthUsers?.length || 0}`);
+        allAuthUsers?.forEach((u: any) => results.push(`  Auth: ${u.email} (${u.id})`));
+        
+        const existingByEmail = allAuthUsers?.find((u: any) => u.email === "noam@cobra.co.il");
+        if (existingByEmail) {
+          await supabaseAdmin.from("profiles").upsert({ id: existingByEmail.id, name: "נועם", role: "MANAGER" });
+          results.push(`Admin profile restored from existing auth: ${existingByEmail.id}`);
+        } else {
+          // Try creating via signUp
+          const { data: signUpData, error: signUpErr } = await supabaseAdmin.auth.admin.createUser({
+            email: "noam@cobra.co.il",
+            password: "cobra2026",
+            email_confirm: true,
+          });
+          if (signUpErr) {
+            results.push(`Create admin error: ${signUpErr.message}`);
+          } else if (signUpData?.user) {
+            await supabaseAdmin.from("profiles").upsert({ id: signUpData.user.id, name: "נועם", role: "MANAGER" });
+            results.push(`New admin created: ${signUpData.user.id}`);
           }
-          results.push(`New admin created: ${newUser.user.id}`);
         }
       }
     }
