@@ -67,24 +67,55 @@ Deno.serve(async (req) => {
         results.push(error ? `PIN Ziv error: ${error.message}` : `PIN Ziv → 2222: OK`);
       }
 
-      // Fix admin email
+      // Fix admin - check if "נועם" has valid auth user, if not recreate
       if (noam) {
         const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(noam.id);
-        if (authUser?.user?.email !== "noam@cobra.co.il") {
-          const { error: emailError } = await supabaseAdmin.auth.admin.updateUserById(
-            noam.id, { email: "noam@cobra.co.il" }
-          );
-          results.push(emailError ? `Email error: ${emailError.message}` : "Email → noam@cobra.co.il: OK");
+        if (authUser?.user) {
+          if (authUser.user.email !== "noam@cobra.co.il") {
+            const { error: emailError } = await supabaseAdmin.auth.admin.updateUserById(
+              noam.id, { email: "noam@cobra.co.il" }
+            );
+            results.push(emailError ? `Email error: ${emailError.message}` : "Email → noam@cobra.co.il: OK");
+          } else {
+            results.push("Email already noam@cobra.co.il");
+          }
         } else {
-          results.push("Email already noam@cobra.co.il");
+          // Orphan profile - delete it and create new admin
+          await supabaseAdmin.from("profiles").delete().eq("id", noam.id);
+          const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+            email: "noam@cobra.co.il",
+            password: "cobra2026",
+            email_confirm: true,
+            user_metadata: { name: "נועם", role: "MANAGER" }
+          });
+          if (createErr) {
+            results.push(`Create admin error: ${createErr.message}`);
+          } else if (newUser?.user) {
+            // Profile should be auto-created by trigger, but ensure it exists
+            const { data: existingProfile } = await supabaseAdmin.from("profiles").select("id").eq("id", newUser.user.id).maybeSingle();
+            if (!existingProfile) {
+              await supabaseAdmin.from("profiles").insert({ id: newUser.user.id, name: "נועם", role: "MANAGER" });
+            }
+            results.push(`New admin created: ${newUser.user.id}`);
+          }
         }
-      } else if (mngr && !noam) {
-        // If only "מנהל" exists, rename and update email
-        await supabaseAdmin.from("profiles").update({ name: "נועם" }).eq("id", mngr.id);
-        const { error: emailError } = await supabaseAdmin.auth.admin.updateUserById(
-          mngr.id, { email: "noam@cobra.co.il" }
-        );
-        results.push(emailError ? `Email error: ${emailError.message}` : "Renamed to נועם + email: OK");
+      } else {
+        // No "נועם" profile at all, create new admin
+        const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+          email: "noam@cobra.co.il",
+          password: "cobra2026",
+          email_confirm: true,
+          user_metadata: { name: "נועם", role: "MANAGER" }
+        });
+        if (createErr) {
+          results.push(`Create admin error: ${createErr.message}`);
+        } else if (newUser?.user) {
+          const { data: existingProfile } = await supabaseAdmin.from("profiles").select("id").eq("id", newUser.user.id).maybeSingle();
+          if (!existingProfile) {
+            await supabaseAdmin.from("profiles").insert({ id: newUser.user.id, name: "נועם", role: "MANAGER" });
+          }
+          results.push(`New admin created: ${newUser.user.id}`);
+        }
       }
     }
 
