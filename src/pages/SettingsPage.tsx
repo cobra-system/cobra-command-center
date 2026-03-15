@@ -77,7 +77,8 @@ export default function SettingsPage() {
   });
   const getRoleLabel = (role: string) => dynamicRoleLabel[role] || roleLabel[role] || role;
 
-  const employeeRoleOptions: Array<{ value: Role; label: string }> = ["WAREHOUSE_MANAGER", "LOGISTICS", "DRIVER"].map((systemRole) => ({
+  const employeeSystemRoles: Role[] = ["WAREHOUSE_MANAGER", "LOGISTICS", "DRIVER"];
+  const employeeRoleOptions: Array<{ value: Role; label: string }> = employeeSystemRoles.map((systemRole) => ({
     value: systemRole,
     label: getRoleLabel(systemRole),
   }));
