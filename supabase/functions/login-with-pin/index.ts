@@ -30,7 +30,6 @@ Deno.serve(async (req) => {
 
     const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL") || Deno.env.get("SUPABASE_URL")!;
     const externalServiceKey = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const externalAnonKey = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseAdmin = createClient(externalUrl, externalServiceKey);
 
     // Step 1: Find profile by PIN
