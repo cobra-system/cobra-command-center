@@ -19,14 +19,12 @@ export default function TeamPage() {
   roleDefinitions.forEach(rd => { if (rd.system_key) dynamicRoleLabel[rd.system_key] = rd.name; });
   const getRoleLabel = (role: string) => dynamicRoleLabel[role] || roleLabel[role] || role;
 
-  // Use role definitions for dropdown
-  const roleOptions = roleDefinitions.length > 0
-    ? roleDefinitions.map(rd => ({ value: (rd.system_key || rd.id) as Role, label: rd.name }))
-    : [
-        { value: "WAREHOUSE_MANAGER" as Role, label: "מנהל מחסן" },
-        { value: "LOGISTICS" as Role, label: "לוגיסטיקה" },
-        { value: "DRIVER" as Role, label: "נהג" },
-      ];
+  // Employee roles חייבים להיות system roles בלבד כדי למנוע שגיאות ביצירת משתמש auth
+  const employeeSystemRoles: Role[] = ["WAREHOUSE_MANAGER", "LOGISTICS", "DRIVER"];
+  const roleOptions: Array<{ value: Role; label: string }> = employeeSystemRoles.map((systemRole) => ({
+    value: systemRole,
+    label: getRoleLabel(systemRole),
+  }));
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");

@@ -77,10 +77,10 @@ export default function SettingsPage() {
   });
   const getRoleLabel = (role: string) => dynamicRoleLabel[role] || roleLabel[role] || role;
 
-  const employeeRoleOptions = roleDefinitions.map(rd => ({
-    value: rd.system_key || rd.id,
-    label: rd.name,
-    systemKey: rd.system_key,
+  const employeeSystemRoles: Role[] = ["WAREHOUSE_MANAGER", "LOGISTICS", "DRIVER"];
+  const employeeRoleOptions: Array<{ value: Role; label: string }> = employeeSystemRoles.map((systemRole) => ({
+    value: systemRole,
+    label: getRoleLabel(systemRole),
   }));
 
   // SAP helpers
@@ -553,15 +553,9 @@ export default function SettingsPage() {
                       <Select value={empRole} onValueChange={v => setEmpRole(v as Role)}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {employeeRoleOptions.length > 0 ? employeeRoleOptions.map(r => (
+                          {employeeRoleOptions.map(r => (
                             <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                          )) : (
-                            <>
-                              <SelectItem value="WAREHOUSE_MANAGER">מנהל מחסן</SelectItem>
-                              <SelectItem value="LOGISTICS">לוגיסטיקה</SelectItem>
-                              <SelectItem value="DRIVER">נהג</SelectItem>
-                            </>
-                          )}
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
