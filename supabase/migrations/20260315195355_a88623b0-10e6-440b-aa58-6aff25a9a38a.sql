@@ -1,1 +1,0 @@
-DELETE FROM profiles WHERE id IN ('50138e6e-506b-4b3e-9f15-5acac6804159', '6a9af853-0090-4289-af71-ffc869c7e156');
