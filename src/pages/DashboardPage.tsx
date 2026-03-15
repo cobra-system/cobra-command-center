@@ -262,16 +262,16 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           </div>
         )}
-        {catData.length > 0 && (
+        {productStockData.length > 0 && (
           <div className="bg-card rounded-xl border shadow-sm p-5">
             <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-              <Package className="h-4 w-4 text-primary" />מלאי לפי קטגוריה
+              <Package className="h-4 w-4 text-primary" />מלאי לפי מוצרים
             </h3>
             <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={catData} layout="vertical" margin={{ left: 10 }}>
+              <BarChart data={productStockData} layout="vertical" margin={{ left: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                 <XAxis type="number" fontSize={11} />
-                <YAxis type="category" dataKey="name" fontSize={11} width={80} />
+                <YAxis type="category" dataKey="name" fontSize={11} width={100} />
                 <Tooltip />
                 <Bar dataKey="value" name="מלאי" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
               </BarChart>
