@@ -12,6 +12,9 @@ Deno.serve(async (req) => {
 
   try {
     const dbUrl = Deno.env.get("EXTERNAL_DB_URL")!;
+    const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL")!;
+    const externalServiceKey = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")!;
+
     const parsedUrl = new URL(dbUrl);
     const client = new Client({
       hostname: parsedUrl.hostname,
@@ -25,43 +28,44 @@ Deno.serve(async (req) => {
 
     const results: string[] = [];
 
-    // Check auth.identities columns
-    const idCols = await client.queryObject<{ column_name: string; data_type: string; is_nullable: string }>(
-      `SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema = 'auth' AND table_name = 'identities' ORDER BY ordinal_position`
+    // Check raw_app_meta_data for each user
+    const users = await client.queryObject<{ 
+      id: string; email: string; raw_app_meta_data: any; raw_user_meta_data: any; confirmed_at: string | null
+    }>(
+      `SELECT id, email, raw_app_meta_data, raw_user_meta_data, confirmed_at FROM auth.users WHERE deleted_at IS NULL`
     );
-    results.push("auth.identities columns:");
-    for (const c of idCols.rows) {
-      results.push(`  ${c.column_name} (${c.data_type}) nullable=${c.is_nullable}`);
+    
+    for (const u of users.rows) {
+      results.push(`${u.email}: app_meta=${JSON.stringify(u.raw_app_meta_data)} user_meta=${JSON.stringify(u.raw_user_meta_data)} confirmed=${u.confirmed_at}`);
     }
 
-    // Check actual identity data
-    const identityData = await client.queryObject(
-      `SELECT * FROM auth.identities LIMIT 3`
-    );
-    results.push(`\nIdentity rows: ${identityData.rows.length}`);
-    for (const row of identityData.rows) {
-      results.push(`  ${JSON.stringify(row)}`);
-    }
-
-    // Check auth.users full structure
-    const userCols = await client.queryObject<{ column_name: string; data_type: string }>(
-      `SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'auth' AND table_name = 'users' ORDER BY ordinal_position`
-    );
-    results.push("\nauth.users columns:");
-    for (const c of userCols.rows) {
-      results.push(`  ${c.column_name} (${c.data_type})`);
-    }
-
-    // Check auth schema version
-    const migrations = await client.queryObject<{ version: string }>(
-      `SELECT version FROM auth.schema_migrations ORDER BY version DESC LIMIT 5`
-    );
-    results.push("\nAuth schema versions (latest 5):");
-    for (const m of migrations.rows) {
-      results.push(`  ${m.version}`);
+    // Fix raw_app_meta_data - GoTrue needs this
+    for (const u of users.rows) {
+      await client.queryObject(
+        `UPDATE auth.users SET 
+          raw_app_meta_data = '{"provider":"email","providers":["email"]}'::jsonb,
+          confirmed_at = COALESCE(confirmed_at, email_confirmed_at, now()),
+          updated_at = now()
+        WHERE id = '${u.id}'::uuid`
+      );
+      results.push(`Fixed app_meta for ${u.email}`);
     }
 
     await client.end();
+
+    // Now test GoTrue sign-in directly
+    const gotrueResp = await fetch(`${externalUrl}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": externalServiceKey,
+      },
+      body: JSON.stringify({ email: "georgi@cobra.co.il", password: "cobra1111" }),
+    });
+    
+    const body = await gotrueResp.text();
+    results.push(`\nGoTrue sign-in status: ${gotrueResp.status}`);
+    results.push(`GoTrue response: ${body.substring(0, 500)}`);
 
     return new Response(JSON.stringify({ results }, null, 2), {
       status: 200,
