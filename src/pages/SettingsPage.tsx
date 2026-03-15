@@ -77,10 +77,9 @@ export default function SettingsPage() {
   });
   const getRoleLabel = (role: string) => dynamicRoleLabel[role] || roleLabel[role] || role;
 
-  const employeeRoleOptions = roleDefinitions.map(rd => ({
-    value: rd.system_key || rd.id,
-    label: rd.name,
-    systemKey: rd.system_key,
+  const employeeRoleOptions: Array<{ value: Role; label: string }> = ["WAREHOUSE_MANAGER", "LOGISTICS", "DRIVER"].map((systemRole) => ({
+    value: systemRole,
+    label: getRoleLabel(systemRole),
   }));
 
   // SAP helpers
