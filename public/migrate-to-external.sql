@@ -796,9 +796,13 @@ INSERT INTO storage.buckets (id, name, public) VALUES ('documents', 'documents',
 INSERT INTO storage.buckets (id, name, public) VALUES ('issue-images', 'issue-images', true) ON CONFLICT DO NOTHING;
 
 -- Storage policies
+DROP POLICY IF EXISTS "Authenticated users can upload documents" ON storage.objects;
 CREATE POLICY "Authenticated users can upload documents" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'documents');
+DROP POLICY IF EXISTS "Authenticated users can read documents" ON storage.objects;
 CREATE POLICY "Authenticated users can read documents" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'documents');
+DROP POLICY IF EXISTS "Public can read issue images" ON storage.objects;
 CREATE POLICY "Public can read issue images" ON storage.objects FOR SELECT TO public USING (bucket_id = 'issue-images');
+DROP POLICY IF EXISTS "Authenticated users can upload issue images" ON storage.objects;
 CREATE POLICY "Authenticated users can upload issue images" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'issue-images');
 
 -- ============================================================
