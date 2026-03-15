@@ -357,7 +357,14 @@ export default function SupplierDetailPage() {
 
       {/* Related Orders */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
-        <div className="flex items-center gap-2 mb-4"><TruckIcon className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">היסטוריית הזמנות ({relatedOrders.length})</h2></div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2"><TruckIcon className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">היסטוריית הזמנות ({relatedOrders.length})</h2></div>
+          {isManager && (
+            <Button size="sm" variant="outline" onClick={() => navigate(`/orders?newOrder=true&supplierId=${supplier.id}`)}>
+              <Plus className="h-3.5 w-3.5 ml-1" />הוסף הזמנה
+            </Button>
+          )}
+        </div>
         {relatedOrders.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
