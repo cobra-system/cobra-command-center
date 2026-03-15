@@ -711,7 +711,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [refreshRoleDefinitions]);
 
   return (
-    <AuthContext.Provider value={{ currentUser, session, loading: authLoading, loginWithEmail, loginWithPin, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ currentUser, session, loading: authLoading, loginWithEmail, logout }}>
       <DataContext.Provider value={{
         products,
         orders,
