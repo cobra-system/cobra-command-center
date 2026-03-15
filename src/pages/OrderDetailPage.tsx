@@ -1,16 +1,13 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useData, useAuth, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Pencil, Trash2, CreditCard, Zap, Check } from "lucide-react";
+import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Trash2, CreditCard, Zap, Check, Ship, Hash } from "lucide-react";
 import DocumentsSection from "@/components/DocumentsSection";
 import { supabase } from "@/lib/supabase";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { InlineEditField } from "@/components/InlineEditField";
@@ -33,13 +30,22 @@ const priorities: { value: Priority; label: string }[] = [
   { value: "נמוך", label: "נמוך" },
 ];
 
+const shippingOptions = [
+  { value: "ים", label: "ים" },
+  { value: "אוויר", label: "אוויר" },
+  { value: "יבשה", label: "יבשה" },
+  { value: "אקספרס", label: "אקספרס" },
+];
+
+const statusOptions = allStatuses.map(s => ({ value: s.value, label: s.label }));
+const priorityOptions = priorities.map(p => ({ value: p.value, label: p.label }));
+
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { orders, updateOrderStatus, updateOrder, deleteOrder, suppliers, products } = useData();
 
-  const [editOpen, setEditOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const order = orders.find(o => o.id === id);
@@ -58,6 +64,15 @@ export default function OrderDetailPage() {
     const updates: Record<string, any> = {};
     if (field === "total_price") {
       updates[field] = value ? Number(value) : null;
+    } else if (field === "status") {
+      await updateOrderStatus(order.id, value as OrderStatus);
+      return;
+    } else if (field === "priority") {
+      updates[field] = value;
+    } else if (field === "supplier_id") {
+      updates.supplier_id = value || null;
+      const s = suppliers.find(s => s.id === value);
+      updates.supplier_name = s?.company || null;
     } else {
       updates[field] = value || null;
     }
@@ -70,53 +85,28 @@ export default function OrderDetailPage() {
     toast.success("עודכן");
   };
 
-  // Inline date picker card
-  const DateCard = ({ icon: Icon, label, field, value }: { icon: any; label: string; field: string; value: string | null | undefined }) => {
-    const date = value ? new Date(value) : undefined;
-    return (
-      <div className="bg-card rounded-xl border p-4 space-y-1">
-        <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
-          <Icon className="h-3.5 w-3.5" />{label}
-        </div>
-        {isManager ? (
-          <DateInput value={date} onChange={d => handleDateSave(field, d)} clearable />
-        ) : (
-          <div className="text-sm font-semibold text-foreground">{date ? date.toLocaleDateString("he-IL") : "—"}</div>
-        )}
-      </div>
-    );
-  };
+  const supplierOptions = useMemo(() => suppliers.map(s => ({ value: s.id, label: s.company })), [suppliers]);
 
-  // Inline text/number card
-  const EditCard = ({ icon: Icon, label, field, value, type = "text" }: { icon: any; label: string; field: string; value: string | null | undefined; type?: "text" | "number" }) => (
-    <div className="bg-card rounded-xl border p-4 space-y-1">
-      <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
-        <Icon className="h-3.5 w-3.5" />{label}
-      </div>
-      {isManager ? (
-        <InlineEditField
-          value={value ?? ""}
-          onSave={(v) => handleInlineSave(field, v)}
-          type={type}
-        />
-      ) : (
-        <div className="text-sm font-semibold text-foreground">{value || "—"}</div>
-      )}
-    </div>
-  );
+  // Build details grid like ProductDetailPage
+  const details: { label: string; field: string; value: string | number | null | undefined; options?: { value: string; label: string }[]; isDate?: boolean; isSupplierLink?: boolean; icon?: any }[] = [
+    { label: "סטטוס", field: "status", value: order.status, options: statusOptions, icon: Check },
+    { label: "עדיפות", field: "priority", value: order.priority, options: priorityOptions, icon: Hash },
+    { label: "ספק", field: "supplier_id", value: order.supplier_id, options: supplierOptions, isSupplierLink: true, icon: Truck },
+    { label: "סה״כ ($)", field: "total_price", value: order.total_price?.toString() ?? "", icon: DollarSign },
+    { label: "שיטת משלוח", field: "shipping", value: order.shipping, options: shippingOptions, icon: Ship },
+    { label: "הערות", field: "notes", value: order.notes, icon: FileText },
+  ];
 
-  // Read-only info card
-  const InfoCard = ({ icon: Icon, label, value }: { icon: any; label: string; value: any }) => (
-    <div className="bg-card rounded-xl border p-4 space-y-1">
-      <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
-        <Icon className="h-3.5 w-3.5" />{label}
-      </div>
-      <div className="text-sm font-semibold text-foreground">{value || "—"}</div>
-    </div>
-  );
+  const dateFields = [
+    { label: "תאריך הזמנה", field: "order_date", value: order.order_date, icon: Calendar },
+    { label: "ETD (יציאה)", field: "etd", value: order.etd, icon: Calendar },
+    { label: "ETA (הגעה)", field: "eta", value: order.eta, icon: Calendar },
+    { label: "תאריך תשלום", field: "payment_date", value: order.payment_date, icon: CreditCard },
+  ];
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate("/orders")}>
           <ArrowRight className="h-5 w-5" />
@@ -129,15 +119,7 @@ export default function OrderDetailPage() {
               return (
                 <span key={idx}>
                   {linkedProduct ? (
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        navigate(`/products/${linkedProduct.id}`);
-                      }}
-                      className="text-primary hover:underline cursor-pointer"
-                    >
-                      {i.name}
-                    </button>
+                    <button onClick={(e) => { e.preventDefault(); navigate(`/products/${linkedProduct.id}`); }} className="text-primary hover:underline cursor-pointer">{i.name}</button>
                   ) : i.name}
                   {idx < order.items.length - 1 && <span>, </span>}
                 </span>
@@ -146,54 +128,90 @@ export default function OrderDetailPage() {
           </p>
         </div>
         {isManager && (
-          <>
-            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-              <Pencil className="h-4 w-4 ml-1" />עריכה
-            </Button>
-            <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteConfirm(true)}>
-              <Trash2 className="h-4 w-4 ml-1" />מחיקה
-            </Button>
-          </>
+          <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteConfirm(true)}>
+            <Trash2 className="h-4 w-4 ml-1" />מחיקה
+          </Button>
         )}
         <PriorityBadge priority={order.priority as Priority} />
       </div>
 
-      {/* Status + quick info */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-card rounded-xl border p-4 space-y-2">
-          <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">סטטוס</div>
-          <Select value={order.status} onValueChange={v => updateOrderStatus(order.id, v as OrderStatus)}>
-            <SelectTrigger className="h-8">
-              <SelectValue>
-                <OrderStatusBadge status={order.status as OrderStatus} />
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {allStatuses.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
+      {/* Details Grid - inline editable like product detail */}
+      <div className="bg-card rounded-xl border shadow-sm p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Package className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-semibold text-foreground">פרטי הזמנה</h2>
         </div>
-        <InfoCard
-          icon={Truck}
-          label="ספק"
-          value={
-            supplier ? (
-              <button onClick={() => navigate(`/suppliers/${supplier.id}`)} className="text-primary hover:underline">
-                {supplier.company}
-              </button>
-            ) : order.supplier_name || "—"
-          }
-        />
-        <InfoCard icon={Calendar} label="תאריך הזמנה" value={order.order_date ? new Date(order.order_date).toLocaleDateString("he-IL") : "—"} />
-        <EditCard icon={DollarSign} label="סה״כ" field="total_price" value={order.total_price?.toString() ?? ""} type="number" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {details.map(d => {
+            const supplierMatch = d.isSupplierLink && d.value ? suppliers.find(s => s.id === d.value) : null;
+
+            // Custom display for status
+            if (d.field === "status") {
+              return (
+                <InlineEditField
+                  key={d.label}
+                  label={d.label}
+                  value={d.value as string}
+                  displayValue={<OrderStatusBadge status={order.status as OrderStatus} />}
+                  onSave={(v) => handleInlineSave(d.field, v)}
+                  disabled={!isManager}
+                  options={d.options}
+                />
+              );
+            }
+
+            // Custom display for priority
+            if (d.field === "priority") {
+              return (
+                <InlineEditField
+                  key={d.label}
+                  label={d.label}
+                  value={d.value as string}
+                  displayValue={<PriorityBadge priority={order.priority as Priority} />}
+                  onSave={(v) => handleInlineSave(d.field, v)}
+                  disabled={!isManager}
+                  options={d.options}
+                />
+              );
+            }
+
+            return (
+              <InlineEditField
+                key={d.label}
+                label={d.label}
+                value={d.value}
+                displayValue={
+                  supplierMatch ? (
+                    <button onClick={() => navigate(`/suppliers/${supplierMatch.id}`)} className="text-sm font-medium text-primary hover:underline">{supplierMatch.company}</button>
+                  ) : d.field === "total_price" && d.value ? `$${d.value}` : undefined
+                }
+                type={d.field === "total_price" ? "number" : "text"}
+                onSave={(v) => handleInlineSave(d.field, v)}
+                disabled={!isManager}
+                options={d.options}
+              />
+            );
+          })}
+        </div>
       </div>
 
-      {/* Dates & shipping */}
+      {/* Dates Grid - inline date pickers */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <DateCard icon={Calendar} label="ETD (יציאה)" field="etd" value={order.etd} />
-        <DateCard icon={Calendar} label="ETA (הגעה)" field="eta" value={order.eta} />
-        <EditCard icon={Truck} label="שיטת משלוח" field="shipping" value={order.shipping ?? ""} />
-        <DateCard icon={CreditCard} label="תאריך תשלום" field="payment_date" value={order.payment_date} />
+        {dateFields.map(d => {
+          const date = d.value ? new Date(d.value) : undefined;
+          return (
+            <div key={d.field} className="bg-card rounded-xl border p-4 space-y-1">
+              <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
+                <d.icon className="h-3.5 w-3.5" />{d.label}
+              </div>
+              {isManager ? (
+                <DateInput value={date} onChange={dt => handleDateSave(d.field, dt)} clearable />
+              ) : (
+                <div className="text-sm font-semibold text-foreground">{date ? date.toLocaleDateString("he-IL") : "—"}</div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Items */}
@@ -217,9 +235,7 @@ export default function OrderDetailPage() {
               return (
                 <tr key={item.id} className={linkedProduct ? "cursor-pointer hover:bg-muted/30" : ""} onClick={() => linkedProduct && navigate(`/products/${linkedProduct.id}`)}>
                   <td className="p-3 font-medium text-foreground">
-                    {linkedProduct ? (
-                      <span className="text-primary hover:underline">{item.name}</span>
-                    ) : item.name}
+                    {linkedProduct ? <span className="text-primary hover:underline">{item.name}</span> : item.name}
                   </td>
                   <td className="p-3 text-muted-foreground">{item.qty}</td>
                   <td className="p-3 text-muted-foreground">{item.price ? `$${item.price}` : "—"}</td>
@@ -268,28 +284,8 @@ export default function OrderDetailPage() {
       {/* Workflow Timeline */}
       <OrderWorkflowTimeline orderId={order.id} />
 
-      {/* Notes */}
-      <div className="bg-card rounded-xl border p-4 space-y-2">
-        <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
-          <FileText className="h-3.5 w-3.5" />
-          הערות
-        </div>
-        {isManager ? (
-          <InlineEditField
-            value={order.notes}
-            onSave={(v) => handleInlineSave("notes", v)}
-            displayValue={order.notes ? <p className="text-sm text-foreground whitespace-pre-wrap">{order.notes}</p> : <p className="text-sm text-muted-foreground">לחץ פעמיים להוספת הערה</p>}
-          />
-        ) : (
-          <p className="text-sm text-foreground whitespace-pre-wrap">{order.notes || "—"}</p>
-        )}
-      </div>
-
       {/* Documents linked to this order */}
       <DocumentsSection orderId={order.id} />
-
-      {/* Edit Dialog */}
-      <OrderEditDialog open={editOpen} onOpenChange={setEditOpen} order={order} suppliers={suppliers} onSave={updateOrder} />
 
       {/* Delete Confirmation */}
       <Dialog open={deleteConfirm} onOpenChange={setDeleteConfirm}>
@@ -322,31 +318,16 @@ function OrderWorkflowTimeline({ orderId }: { orderId: string }) {
 
       if (!inst) { setLoading(false); return; }
 
-      const { data: tpl } = await supabase
-        .from("workflow_templates")
-        .select("*")
-        .eq("id", inst.template_id)
-        .single();
+      const { data: tpl } = await supabase.from("workflow_templates").select("*").eq("id", inst.template_id).single();
+      const { data: logs } = await supabase.from("workflow_step_logs").select("*").eq("instance_id", inst.id).order("step_index", { ascending: true });
 
-      const { data: logs } = await supabase
-        .from("workflow_step_logs")
-        .select("*")
-        .eq("instance_id", inst.id)
-        .order("step_index", { ascending: true });
-
-      setWorkflow({
-        ...inst,
-        steps: (tpl?.steps as any[]) || [],
-        logs: logs || [],
-        templateName: tpl?.name,
-      });
+      setWorkflow({ ...inst, steps: (tpl?.steps as any[]) || [], logs: logs || [], templateName: tpl?.name });
       setLoading(false);
     };
     fetch();
   }, [orderId]);
 
-  if (loading) return null;
-  if (!workflow) return null;
+  if (loading || !workflow) return null;
 
   const totalSteps = workflow.steps.length;
   const progress = workflow.status === "completed" ? 100 : Math.round((workflow.current_step / totalSteps) * 100);
@@ -367,15 +348,12 @@ function OrderWorkflowTimeline({ orderId }: { orderId: string }) {
           {workflow.status === "completed" ? "הושלם" : workflow.status === "cancelled" ? "בוטל" : "פעיל"}
         </span>
       </div>
-
       <Progress value={progress} className="h-2 mb-4" />
-
       <div className="space-y-1">
         {workflow.steps.map((step: any, idx: number) => {
           const isCompleted = idx < workflow.current_step || workflow.status === "completed";
           const isCurrent = idx === workflow.current_step && workflow.status === "active";
           const log = workflow.logs.find((l: any) => l.step_index === idx);
-
           return (
             <div key={idx} className="flex items-start gap-3 py-2">
               <div className={cn(
@@ -387,9 +365,7 @@ function OrderWorkflowTimeline({ orderId }: { orderId: string }) {
                 {isCompleted ? <Check className="h-3.5 w-3.5" /> : idx + 1}
               </div>
               <div className="min-w-0">
-                <p className={cn("text-sm font-medium", isCurrent ? "text-primary" : isCompleted ? "text-foreground" : "text-muted-foreground")}>
-                  {step.name}
-                </p>
+                <p className={cn("text-sm font-medium", isCurrent ? "text-primary" : isCompleted ? "text-foreground" : "text-muted-foreground")}>{step.name}</p>
                 {log && (
                   <p className="text-xs text-muted-foreground">
                     {log.completed_by} • {new Date(log.completed_at).toLocaleDateString("he-IL")}
@@ -402,83 +378,5 @@ function OrderWorkflowTimeline({ orderId }: { orderId: string }) {
         })}
       </div>
     </div>
-  );
-}
-
-function OrderEditDialog({ open, onOpenChange, order, suppliers, onSave }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  order: any;
-  suppliers: any[];
-  onSave: (id: string, updates: any) => Promise<void>;
-}) {
-  const [priority, setPriority] = useState(order.priority);
-  const [supplierId, setSupplierId] = useState(order.supplier_id || "");
-  const [shipping, setShipping] = useState(order.shipping || "");
-  const [notes, setNotes] = useState(order.notes || "");
-  const [etd, setEtd] = useState<Date | undefined>(order.etd ? new Date(order.etd) : undefined);
-  const [eta, setEta] = useState<Date | undefined>(order.eta ? new Date(order.eta) : undefined);
-  const [paymentDate, setPaymentDate] = useState<Date | undefined>(order.payment_date ? new Date(order.payment_date) : undefined);
-  const [saving, setSaving] = useState(false);
-
-  const handleSave = async () => {
-    setSaving(true);
-    const supplier = suppliers.find((s: any) => s.id === supplierId);
-    await onSave(order.id, {
-      priority,
-      supplier_id: supplierId || null,
-      supplier_name: supplier?.company || null,
-      shipping: shipping || null,
-      notes: notes || null,
-      etd: etd?.toISOString() || null,
-      eta: eta?.toISOString() || null,
-      payment_date: paymentDate?.toISOString() || null,
-    });
-    toast.success("ההזמנה עודכנה");
-    setSaving(false);
-    onOpenChange(false);
-  };
-
-  const DateField = ({ label, value, onChange }: { label: string; value?: Date; onChange: (d?: Date) => void }) => (
-    <div className="space-y-1">
-      <Label className="text-xs">{label}</Label>
-      <DateInput value={value} onChange={onChange} clearable />
-    </div>
-  );
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>עריכת הזמנה</DialogTitle></DialogHeader>
-        <div className="space-y-4 pt-2">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label className="text-xs">עדיפות</Label>
-              <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {priorities.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">ספק</Label>
-              <Select value={supplierId} onValueChange={setSupplierId}>
-                <SelectTrigger><SelectValue placeholder="בחר ספק" /></SelectTrigger>
-                <SelectContent>{suppliers.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.company}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="space-y-1"><Label className="text-xs">שיטת משלוח</Label><Input value={shipping} onChange={e => setShipping(e.target.value)} /></div>
-          <div className="grid grid-cols-3 gap-3">
-            <DateField label="ETD (יציאה)" value={etd} onChange={setEtd} />
-            <DateField label="ETA (הגעה)" value={eta} onChange={setEta} />
-            <DateField label="תאריך תשלום" value={paymentDate} onChange={setPaymentDate} />
-          </div>
-          <div className="space-y-1"><Label className="text-xs">הערות</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} /></div>
-          <Button onClick={handleSave} disabled={saving} className="w-full">{saving ? "שומר..." : "שמור שינויים"}</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }

@@ -15,9 +15,11 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
   editDocument?: PurchaseDocument | null;
+  defaultSupplierId?: string;
+  defaultProductId?: string;
 }
 
-export default function DocumentFormDialog({ open, onOpenChange, onSaved, editDocument }: Props) {
+export default function DocumentFormDialog({ open, onOpenChange, onSaved, editDocument, defaultSupplierId, defaultProductId }: Props) {
   const { suppliers, products, orders } = useData();
 
   const [formType, setFormType] = useState("PI");
@@ -29,21 +31,33 @@ export default function DocumentFormDialog({ open, onOpenChange, onSaved, editDo
   const [formCurrency, setFormCurrency] = useState("USD");
   const [formNotes, setFormNotes] = useState("");
 
-  // Populate form when editing
   useEffect(() => {
     if (editDocument) {
       setFormType(editDocument.type || "PI");
       setFormSupplier(editDocument.supplier_id || "");
       setFormProduct(editDocument.product_id || "");
-      setFormOrder(editDocument.order_id || "");
+      setFormOrder((editDocument as any).order_id || "");
       setFormQty(editDocument.quantity?.toString() || "");
       setFormUnitPrice(editDocument.unit_price?.toString() || "");
       setFormCurrency(editDocument.currency || "USD");
       setFormNotes(editDocument.notes || "");
     } else {
       resetForm();
+      // Apply defaults after reset
+      if (open) {
+        if (defaultSupplierId) setFormSupplier(defaultSupplierId);
+        if (defaultProductId) {
+          setFormProduct(defaultProductId);
+          // Auto-set supplier from product
+          const prod = products.find(p => p.id === defaultProductId);
+          if (prod?.supplier && !defaultSupplierId) {
+            const s = suppliers.find(s => s.company === prod.supplier);
+            if (s) setFormSupplier(s.id);
+          }
+        }
+      }
     }
-  }, [editDocument, open]);
+  }, [editDocument, open, defaultSupplierId, defaultProductId]);
 
   const filteredOrders = formSupplier
     ? orders.filter(o => o.supplier_id === formSupplier || o.supplier_name === suppliers.find(s => s.id === formSupplier)?.company)
@@ -61,7 +75,6 @@ export default function DocumentFormDialog({ open, onOpenChange, onSaved, editDo
       type: formType,
       supplier_id: formSupplier || null,
       product_id: formProduct || null,
-      order_id: formOrder || null,
       quantity: qty,
       unit_price: unitPrice,
       total_price: qty * unitPrice,
@@ -71,17 +84,11 @@ export default function DocumentFormDialog({ open, onOpenChange, onSaved, editDo
 
     if (editDocument) {
       const { error } = await supabase.from("purchase_documents").update(payload).eq("id", editDocument.id);
-      if (error) {
-        toast.error("שגיאה בעדכון מסמך: " + error.message);
-        return;
-      }
+      if (error) { toast.error("שגיאה בעדכון מסמך: " + error.message); return; }
       toast.success("מסמך עודכן");
     } else {
       const { error } = await supabase.from("purchase_documents").insert(payload);
-      if (error) {
-        toast.error("שגיאה בהוספת מסמך: " + error.message);
-        return;
-      }
+      if (error) { toast.error("שגיאה בהוספת מסמך: " + error.message); return; }
       toast.success("מסמך נוסף");
     }
 

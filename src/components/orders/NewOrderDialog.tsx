@@ -19,7 +19,6 @@ const priorities: { value: Priority; label: string }[] = [
 type ItemType = "product" | "component";
 interface ItemRow { type: ItemType; name: string; qty: string; price: string; productId: string; componentId: string; }
 
-// Flat list of all components from all products
 interface FlatComponent extends ProductComponent { productName: string; }
 
 interface Props {
@@ -29,9 +28,11 @@ interface Props {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   defaultProductId?: string;
+  defaultSupplierId?: string;
+  hideTrigger?: boolean;
 }
 
-export function NewOrderDialog({ suppliers, products, addOrder, open: controlledOpen, onOpenChange, defaultProductId }: Props) {
+export function NewOrderDialog({ suppliers, products, addOrder, open: controlledOpen, onOpenChange, defaultProductId, defaultSupplierId, hideTrigger }: Props) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setOpen = (v: boolean) => {
@@ -50,7 +51,6 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
   const [eta, setEta] = useState<Date>();
   const [items, setItems] = useState<ItemRow[]>([{ type: "product", name: "", qty: "", price: "", productId: "", componentId: "" }]);
 
-  // Flat list of all components from all products
   const allComponents: FlatComponent[] = products.flatMap(p =>
     (p.components || []).map(c => ({ ...c, productName: p.name }))
   );
@@ -61,9 +61,15 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
     setItems([{ type: "product", name: "", qty: "", price: "", productId: "", componentId: "" }]);
   };
 
-  // Handle defaultProductId when dialog opens
+  // Handle defaults when dialog opens
   useEffect(() => {
-    if (open && defaultProductId) {
+    if (!open) return;
+    
+    if (defaultSupplierId) {
+      setSupplierId(defaultSupplierId);
+    }
+    
+    if (defaultProductId) {
       const prod = products.find(p => p.id === defaultProductId);
       if (prod) {
         setItems([{
@@ -74,9 +80,14 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
           productId: prod.id,
           componentId: ""
         }]);
+        // Auto-set supplier if product has one
+        if (prod.supplier && !defaultSupplierId) {
+          const s = suppliers.find(s => s.company === prod.supplier);
+          if (s) setSupplierId(s.id);
+        }
       }
     }
-  }, [open, defaultProductId, products]);
+  }, [open, defaultProductId, defaultSupplierId, products, suppliers]);
 
   const updateItem = (idx: number, field: keyof ItemRow, value: string) =>
     setItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
@@ -137,9 +148,13 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
     setOpen(false);
   };
 
+  const trigger = hideTrigger ? null : (
+    <DialogTrigger asChild><Button><Plus className="h-4 w-4 ml-2" />הזמנה חדשה</Button></DialogTrigger>
+  );
+
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-      <DialogTrigger asChild><Button><Plus className="h-4 w-4 ml-2" />הזמנה חדשה</Button></DialogTrigger>
+      {trigger}
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader><DialogTitle>יצירת הזמנה חדשה</DialogTitle></DialogHeader>
         <div className="space-y-4 pt-2">
@@ -173,7 +188,6 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
             </div>
           </div>
 
-          {/* Items: products or components */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>פריטים להזמנה</Label>
@@ -184,33 +198,15 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
 
             {items.map((item, idx) => (
               <div key={idx} className="space-y-1 p-2 rounded-lg border bg-muted/10">
-                {/* Type toggle: product / component */}
                 <div className="flex gap-1 mb-1">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={item.type === "product" ? "default" : "outline"}
-                    className="h-6 text-xs px-2"
-                    onClick={() => setItemType(idx, "product")}
-                  >
-                    מוצר
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={item.type === "component" ? "default" : "outline"}
-                    className="h-6 text-xs px-2"
-                    onClick={() => setItemType(idx, "component")}
-                  >
-                    רכיב
-                  </Button>
+                  <Button type="button" size="sm" variant={item.type === "product" ? "default" : "outline"} className="h-6 text-xs px-2" onClick={() => setItemType(idx, "product")}>מוצר</Button>
+                  <Button type="button" size="sm" variant={item.type === "component" ? "default" : "outline"} className="h-6 text-xs px-2" onClick={() => setItemType(idx, "component")}>רכיב</Button>
                   {items.length > 1 && (
                     <Button type="button" variant="ghost" size="icon" className="h-6 w-6 mr-auto" onClick={() => removeItemRow(idx)}>
                       <Trash2 className="h-3 w-3 text-destructive" />
                     </Button>
                   )}
                 </div>
-
                 <div className="flex gap-2 items-center">
                   <div className="flex-1">
                     {item.type === "product" ? (
@@ -224,22 +220,14 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
                         <SelectContent>
                           {allComponents.length === 0
                             ? <SelectItem value="_none" disabled>אין רכיבים</SelectItem>
-                            : allComponents.map(c => (
-                                <SelectItem key={c.id} value={c.id}>
-                                  {c.name} — {c.productName}
-                                </SelectItem>
-                              ))
+                            : allComponents.map(c => <SelectItem key={c.id} value={c.id}>{c.name} — {c.productName}</SelectItem>)
                           }
                         </SelectContent>
                       </Select>
                     )}
                   </div>
-                  <div className="w-20">
-                    <Input type="number" value={item.qty} onChange={e => updateItem(idx, "qty", e.target.value)} placeholder="כמות" className="h-8 text-sm" />
-                  </div>
-                  <div className="w-24">
-                    <Input type="number" value={item.price} onChange={e => updateItem(idx, "price", e.target.value)} placeholder="מחיר $" className="h-8 text-sm" />
-                  </div>
+                  <div className="w-20"><Input type="number" value={item.qty} onChange={e => updateItem(idx, "qty", e.target.value)} placeholder="כמות" className="h-8 text-sm" /></div>
+                  <div className="w-24"><Input type="number" value={item.price} onChange={e => updateItem(idx, "price", e.target.value)} placeholder="מחיר $" className="h-8 text-sm" /></div>
                 </div>
               </div>
             ))}
