@@ -252,46 +252,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return error ? error.message : null;
   }, []);
 
-  // Login with PIN (via Lovable Cloud edge function that connects to external DB)
-  const loginWithPin = useCallback(async (pin: string): Promise<string | null> => {
-    try {
-      // Use Lovable Cloud edge function URL (where the function is deployed)
-      const cloudUrl = import.meta.env.VITE_SUPABASE_URL || "https://pjruyvhtivbeikxrnipg.supabase.co";
-      const cloudKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqcnV5dmh0aXZiZWlreHJuaXBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5ODcxODcsImV4cCI6MjA4ODU2MzE4N30.ZrNrNHLWpfK9xCX3o_bx_GVVAlaFLBVsG782-0syOUw";
-      const url = `${cloudUrl}/functions/v1/login-with-pin`;
-      
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "apikey": cloudKey,
-          "Authorization": `Bearer ${cloudKey}`,
-        },
-        body: JSON.stringify({ pin }),
-      });
-
-      const result = await response.json();
-      if (!response.ok) return result.error || "שגיאה בכניסה";
-
-      const { error } = await supabase.auth.setSession({
-        access_token: result.session.access_token,
-        refresh_token: result.session.refresh_token,
-      });
-
-      if (error) return error.message;
-      return null;
-    } catch {
-      return "שגיאה בחיבור לשרת";
-    }
-  }, []);
-
-  // Login with Google
-  const loginWithGoogle = useCallback(async () => {
-    const { lovable } = await import("@/integrations/lovable/index");
-    await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-  }, []);
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
