@@ -12,24 +12,49 @@ Deno.serve(async (req) => {
 
   try {
     const dbUrl = Deno.env.get("EXTERNAL_DB_URL")!;
-    const client = new Client(dbUrl);
-    await client.connect();
-
     const results: string[] = [];
+    
+    // Log masked URL for debugging
+    const masked = dbUrl.replace(/:([^@]+)@/, ":***@");
+    results.push(`DB URL (masked): ${masked}`);
+    results.push(`URL length: ${dbUrl.length}`);
+    
+    // Try parsing and connecting with explicit params
+    const url = new URL(dbUrl);
+    results.push(`Host: ${url.hostname}`);
+    results.push(`Port: ${url.port}`);
+    results.push(`Database: ${url.pathname.slice(1)}`);
+    results.push(`User: ${url.username}`);
+    results.push(`Password length: ${url.password.length}`);
+    
+    const client = new Client({
+      hostname: url.hostname,
+      port: parseInt(url.port) || 5432,
+      database: url.pathname.slice(1),
+      user: url.username,
+      password: decodeURIComponent(url.password),
+      tls: { enabled: true, enforce: false },
+    });
+    
+    await client.connect();
+    results.push("Connected successfully!");
 
-    // Step 1: Check current trigger function
+    // Fix the trigger function
     const triggerCheck = await client.queryObject<{ prosrc: string }>(
       `SELECT prosrc FROM pg_proc WHERE proname = 'handle_new_user'`
     );
-    results.push(`Current trigger source: ${triggerCheck.rows[0]?.prosrc || "NOT FOUND"}`);
+    results.push(`Current trigger found: ${triggerCheck.rows.length > 0}`);
+    if (triggerCheck.rows[0]) {
+      results.push(`Trigger source: ${triggerCheck.rows[0].prosrc.substring(0, 200)}`);
+    }
 
-    // Step 2: Check profiles table columns
+    // Check profiles columns
     const cols = await client.queryObject<{ column_name: string }>(
       `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' ORDER BY ordinal_position`
     );
     results.push(`Profiles columns: ${cols.rows.map(r => r.column_name).join(", ")}`);
 
-    // Step 3: Fix the trigger function to match our schema (id, name, role, pin)
+    // Fix trigger to use ON CONFLICT DO NOTHING
     await client.queryObject(`
       CREATE OR REPLACE FUNCTION public.handle_new_user()
       RETURNS trigger
@@ -49,26 +74,13 @@ Deno.serve(async (req) => {
       END;
       $$;
     `);
-    results.push("Trigger function fixed with ON CONFLICT DO NOTHING");
+    results.push("Trigger function fixed!");
 
-    // Step 4: Ensure the trigger exists on auth.users
+    // Ensure trigger exists
     const triggerExists = await client.queryObject<{ tgname: string }>(
       `SELECT tgname FROM pg_trigger WHERE tgname = 'on_auth_user_created'`
     );
-    if (triggerExists.rows.length === 0) {
-      await client.queryObject(`
-        CREATE TRIGGER on_auth_user_created
-        AFTER INSERT ON auth.users
-        FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-      `);
-      results.push("Trigger created on auth.users");
-    } else {
-      results.push("Trigger already exists on auth.users");
-    }
-
-    // Step 5: Ensure extensions exist
-    await client.queryObject(`CREATE EXTENSION IF NOT EXISTS pgcrypto SCHEMA extensions`);
-    results.push("pgcrypto extension ensured");
+    results.push(`Trigger on auth.users exists: ${triggerExists.rows.length > 0}`);
 
     await client.end();
 
