@@ -25,78 +25,122 @@ Deno.serve(async (req) => {
 
     const results: string[] = [];
 
-    // Check user details
-    const users = await client.queryObject<{ 
-      id: string; email: string; encrypted_password: string; 
-      email_confirmed_at: string | null; is_sso_user: boolean;
-      instance_id: string; aud: string;
-    }>(
-      `SELECT id, email, substring(encrypted_password, 1, 20) as encrypted_password, 
-              email_confirmed_at, is_sso_user, instance_id, aud 
-       FROM auth.users WHERE deleted_at IS NULL`
+    // Check for locks
+    const locks = await client.queryObject<{ pid: number; state: string; query: string; wait_event: string | null }>(
+      `SELECT pid, state, substring(query, 1, 200) as query, wait_event_type || ':' || wait_event as wait_event
+       FROM pg_stat_activity WHERE datname = current_database() AND state != 'idle' AND pid != pg_backend_pid()
+       LIMIT 20`
     );
-    
-    for (const u of users.rows) {
-      results.push(`User: ${u.email} id=${u.id}`);
-      results.push(`  confirmed=${u.email_confirmed_at} sso=${u.is_sso_user} instance=${u.instance_id} aud=${u.aud}`);
-      results.push(`  pwd_prefix=${u.encrypted_password}`);
-    }
+    results.push("Active queries: " + JSON.stringify(locks.rows));
 
-    // Check if instance_id is the issue - GoTrue expects specific instance_id
-    // Fix: ensure instance_id is the default '00000000-0000-0000-0000-000000000000'
-    const USERS = [
-      { email: "noam@cobra.co.il", password: "cobra2026" },
-      { email: "georgi@cobra.co.il", password: "cobra1111" },
-      { email: "ziv@cobra.co.il", password: "cobra2222" },
-    ];
+    // Check if there are locked tables
+    const tableLocks = await client.queryObject(
+      `SELECT l.relation::regclass as table, l.mode, l.granted, a.state, substring(a.query,1,100) as query
+       FROM pg_locks l JOIN pg_stat_activity a ON l.pid = a.pid
+       WHERE l.relation IS NOT NULL AND NOT l.granted
+       LIMIT 10`
+    );
+    results.push("Ungranted locks: " + JSON.stringify(tableLocks.rows));
 
-    for (const u of USERS) {
-      // Update password using bcrypt, confirm email, fix instance_id
-      await client.queryObject(
-        `UPDATE auth.users SET 
-          encrypted_password = crypt($1, gen_salt('bf')),
-          email_confirmed_at = COALESCE(email_confirmed_at, now()),
-          instance_id = '00000000-0000-0000-0000-000000000000',
-          aud = 'authenticated',
-          role = 'authenticated',
-          updated_at = now()
-        WHERE email = $2`,
-        [u.password, u.email]
+    // Try direct query as GoTrue would
+    try {
+      const test = await client.queryObject(
+        `SELECT id, email FROM auth.users WHERE email = 'noam@cobra.co.il' LIMIT 1`
       );
-      results.push(`Updated password for ${u.email}`);
+      results.push("Direct query works: " + JSON.stringify(test.rows));
+    } catch (e) {
+      results.push("Direct query FAILED: " + String(e));
     }
 
-    // Verify identities exist
-    const identities = await client.queryObject<{ user_id: string; provider: string }>(
-      `SELECT user_id, provider FROM auth.identities`
-    );
-    results.push(`\nIdentities: ${identities.rows.length}`);
-    for (const i of identities.rows) {
-      results.push(`  ${i.user_id} - ${i.provider}`);
+    // Check if there's an issue with the supabase_auth_admin role
+    try {
+      const authRole = await client.queryObject(
+        `SELECT rolname, rolsuper, rolcreaterole FROM pg_roles WHERE rolname = 'supabase_auth_admin'`
+      );
+      results.push("Auth admin role: " + JSON.stringify(authRole.rows));
+    } catch (e) {
+      results.push("Error checking auth role: " + String(e));
     }
 
-    // If any user is missing email identity, create it
-    for (const authUser of users.rows) {
-      const hasIdentity = identities.rows.some(i => i.user_id === authUser.id);
-      if (!hasIdentity) {
-        const uid = authUser.id;
-        const uemail = authUser.email;
-        await client.queryObject(
-          `INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
-           VALUES (gen_random_uuid(), '${uid}'::uuid, '${uid}', 'email', '{"sub":"${uid}","email":"${uemail}"}'::jsonb, now(), now(), now())`
-        );
-        results.push(`Created email identity for ${authUser.email}`);
-      }
+    // Check if search_path for supabase_auth_admin is correct
+    try {
+      const sp = await client.queryObject(
+        `SELECT usename, useconfig FROM pg_user WHERE usename = 'supabase_auth_admin'`
+      );
+      results.push("Auth admin config: " + JSON.stringify(sp.rows));
+    } catch (e) {
+      results.push("Error: " + String(e));
     }
+
+    // Try to recreate the trigger - maybe GoTrue NEEDS it
+    try {
+      await client.queryObject(`
+        CREATE OR REPLACE FUNCTION public.handle_new_user()
+        RETURNS trigger
+        LANGUAGE plpgsql
+        SECURITY DEFINER
+        SET search_path = 'public'
+        AS $$
+        BEGIN
+          INSERT INTO public.profiles (id, name, role)
+          VALUES (
+            NEW.id,
+            COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
+            COALESCE((NEW.raw_user_meta_data->>'role')::app_role, 'MANAGER'::app_role)
+          )
+          ON CONFLICT (id) DO NOTHING;
+          RETURN NEW;
+        EXCEPTION WHEN OTHERS THEN
+          RETURN NEW;
+        END;
+        $$;
+      `);
+      await client.queryObject(`
+        DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+        CREATE TRIGGER on_auth_user_created
+        AFTER INSERT ON auth.users
+        FOR EACH ROW
+        EXECUTE FUNCTION public.handle_new_user();
+      `);
+      results.push("Recreated trigger with exception handler");
+    } catch (e) {
+      results.push("Error recreating trigger: " + String(e));
+    }
+
+    // Recreate the ensure_rls event trigger that was dropped
+    try {
+      await client.queryObject(`
+        CREATE EVENT TRIGGER ensure_rls ON ddl_command_end
+        EXECUTE FUNCTION rls_auto_enable();
+      `);
+      results.push("Recreated ensure_rls event trigger");
+    } catch (e) {
+      results.push("Error recreating ensure_rls: " + String(e));
+    }
+
+    // Check GoTrue health endpoint
+    const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL")!;
+    const healthResp = await fetch(`${externalUrl}/auth/v1/health`);
+    const healthBody = await healthResp.text();
+    results.push(`GoTrue health: status=${healthResp.status} body=${healthBody}`);
 
     await client.end();
 
-    return new Response(JSON.stringify({ success: true, results }, null, 2), {
+    // Test login again
+    const externalKey = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")!;
+    const loginResp = await fetch(`${externalUrl}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": externalKey },
+      body: JSON.stringify({ email: "noam@cobra.co.il", password: "cobra2026" }),
+    });
+    results.push(`Login test: status=${loginResp.status} body=${(await loginResp.text()).substring(0, 200)}`);
+
+    return new Response(JSON.stringify({ results }, null, 2), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err), stack: (err as Error).stack }), {
+    return new Response(JSON.stringify({ error: String(err) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
