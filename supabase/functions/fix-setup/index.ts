@@ -113,68 +113,67 @@ Deno.serve(async (req) => {
           }
         }
       } else {
-        // No "נועם" profile - need to create admin user
-        // First, re-create auth users for existing profiles too (Georgi, Ziv)
-        const profilesToFix = allProfiles || [];
-        const { data: { users: allAuthUsers } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 100 });
-        results.push(`Auth users found: ${allAuthUsers?.length || 0}`);
-        allAuthUsers?.forEach((u: any) => results.push(`  Auth: ${u.email} (${u.id})`));
+        // Auth users exist but are soft-deleted. Query GoTrue directly.
+        const gotrue = `${externalUrl}/auth/v1`;
+        
+        // List ALL users including deleted via GoTrue admin API
+        const usersResp = await fetch(`${gotrue}/admin/users?per_page=100`, {
+          headers: { 
+            'apikey': externalServiceKey, 
+            'Authorization': `Bearer ${externalServiceKey}` 
+          },
+        });
+        const usersData = await usersResp.json();
+        const allUsers = usersData.users || [];
+        results.push(`GoTrue total users: ${allUsers.length}`);
+        
+        for (const u of allUsers) {
+          results.push(`  User: ${u.email} id=${u.id} deleted=${u.deleted_at || 'null'}`);
+          
+          // If user is soft-deleted, re-activate by updating deleted_at to null
+          if (u.deleted_at) {
+            const updateResp = await fetch(`${gotrue}/admin/users/${u.id}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': externalServiceKey,
+                'Authorization': `Bearer ${externalServiceKey}`,
+              },
+              body: JSON.stringify({ 
+                email_confirm: true,
+              }),
+            });
+            const updateResult = await updateResp.json();
+            results.push(`  Reactivate ${u.email}: ${updateResp.status}`);
 
-        // Try creating admin - first via signUp through the regular auth endpoint
-        try {
-          const response = await fetch(`${externalUrl}/auth/v1/signup`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': externalServiceKey,
-              'Authorization': `Bearer ${externalServiceKey}`,
-            },
-            body: JSON.stringify({
-              email: 'noam@cobra.co.il',
-              password: 'cobra2026',
-            }),
-          });
-          const signUpResult = await response.json();
-          if (signUpResult.id) {
-            // Confirm the user's email
-            await supabaseAdmin.auth.admin.updateUserById(signUpResult.id, { email_confirm: true });
-            // Create/update profile
-            await supabaseAdmin.from("profiles").upsert({ id: signUpResult.id, name: "נועם", role: "MANAGER" });
-            results.push(`Admin created via signup: ${signUpResult.id}`);
-          } else {
-            results.push(`Signup result: ${JSON.stringify(signUpResult)}`);
-          }
-        } catch (signUpErr) {
-          results.push(`Signup error: ${String(signUpErr)}`);
-        }
+            // Set password for the user
+            let pwd = 'cobra0000';
+            if (u.email === 'noam@cobra.co.il') pwd = 'cobra2026';
+            else if (u.email === 'georgi@cobra.co.il') pwd = 'cobra1111';
+            else if (u.email === 'ziv@cobra.co.il') pwd = 'cobra2222';
+            
+            const pwdResp = await fetch(`${gotrue}/admin/users/${u.id}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': externalServiceKey,
+                'Authorization': `Bearer ${externalServiceKey}`,
+              },
+              body: JSON.stringify({ password: pwd }),
+            });
+            results.push(`  Set password ${u.email}: ${pwdResp.status}`);
 
-        // Recreate auth users for Georgi and Ziv if they don't have auth users
-        for (const prof of profilesToFix) {
-          const hasAuth = allAuthUsers?.find((u: any) => u.id === prof.id);
-          if (!hasAuth) {
-            try {
-              const suffix = prof.name.includes("גיאורגי") ? "georgi" : "ziv";
-              const resp = await fetch(`${externalUrl}/auth/v1/signup`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'apikey': externalServiceKey,
-                  'Authorization': `Bearer ${externalServiceKey}`,
-                },
-                body: JSON.stringify({ email: `${suffix}@cobra.co.il`, password: `cobra${prof.pin || '0000'}` }),
-              });
-              const result = await resp.json();
-              if (result.id) {
-                await supabaseAdmin.auth.admin.updateUserById(result.id, { email_confirm: true });
-                // Update profile to use new auth user id
-                await supabaseAdmin.from("profiles").update({ id: result.id } as any).eq("id", prof.id);
-                results.push(`Auth for ${prof.name}: ${result.id}`);
-              } else {
-                results.push(`Auth for ${prof.name}: ${JSON.stringify(result)}`);
-              }
-            } catch (err) {
-              results.push(`Auth for ${prof.name} error: ${String(err)}`);
-            }
+            // Ensure profile exists
+            const profileName = u.email === 'noam@cobra.co.il' ? 'נועם' : 
+                               u.email === 'georgi@cobra.co.il' ? 'גיאורגי גריגוריאנץ' : 'זיו בוזגלו';
+            const profileRole = u.email === 'noam@cobra.co.il' ? 'MANAGER' : 
+                               u.email === 'georgi@cobra.co.il' ? 'WAREHOUSE_MANAGER' : 'LOGISTICS';
+            const pin = u.email === 'georgi@cobra.co.il' ? '1111' : u.email === 'ziv@cobra.co.il' ? '2222' : null;
+            
+            await supabaseAdmin.from("profiles").upsert({ 
+              id: u.id, name: profileName, role: profileRole, pin 
+            });
+            results.push(`  Profile ${profileName}: OK`);
           }
         }
       }
