@@ -1,3 +1,4 @@
+import React from "react";
 import { cn } from "@/lib/utils";
 import type { OrderStatus, TaskStatus } from "@/data/mockData";
 import { statusLabel, taskStatusLabel } from "@/data/mockData";
@@ -17,18 +18,20 @@ const taskColors: Record<TaskStatus, string> = {
   BLOCKED: "bg-destructive/15 text-destructive",
 };
 
-export function OrderStatusBadge({ status }: { status: OrderStatus }) {
-  return (
-    <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold", orderColors[status])}>
+export const OrderStatusBadge = React.forwardRef<HTMLSpanElement, { status: OrderStatus; className?: string }>(
+  ({ status, className, ...props }, ref) => (
+    <span ref={ref} className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold", orderColors[status], className)} {...props}>
       {statusLabel[status]}
     </span>
-  );
-}
+  )
+);
+OrderStatusBadge.displayName = "OrderStatusBadge";
 
-export function TaskStatusBadge({ status }: { status: TaskStatus }) {
-  return (
-    <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold", taskColors[status])}>
+export const TaskStatusBadge = React.forwardRef<HTMLSpanElement, { status: TaskStatus; className?: string }>(
+  ({ status, className, ...props }, ref) => (
+    <span ref={ref} className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold", taskColors[status], className)} {...props}>
       {taskStatusLabel[status]}
     </span>
-  );
-}
+  )
+);
+TaskStatusBadge.displayName = "TaskStatusBadge";
