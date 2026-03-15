@@ -96,12 +96,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step 3: Sign in with password using anon client
-    const anonKey = externalAnonKey || externalServiceKey;
-    const supabaseAnon = createClient(externalUrl, anonKey);
-
-    // For known users, sign in with password
+    // Step 3: Sign in with password
     if (userPassword) {
+      const signInClient = createClient(externalUrl, externalServiceKey);
       const { data: signInData, error: signInError } = await supabaseAnon.auth.signInWithPassword({
         email: userEmail,
         password: userPassword,
