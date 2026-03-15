@@ -1,0 +1,1 @@
+ALTER TABLE purchase_documents ADD COLUMN IF NOT EXISTS order_id uuid REFERENCES orders(id) ON DELETE SET NULL;

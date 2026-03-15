@@ -661,6 +661,7 @@ export type Database = {
           file_url: string | null
           id: string
           notes: string | null
+          order_id: string | null
           product_id: string | null
           quantity: number
           status: string
@@ -678,6 +679,7 @@ export type Database = {
           file_url?: string | null
           id?: string
           notes?: string | null
+          order_id?: string | null
           product_id?: string | null
           quantity?: number
           status?: string
@@ -695,6 +697,7 @@ export type Database = {
           file_url?: string | null
           id?: string
           notes?: string | null
+          order_id?: string | null
           product_id?: string | null
           quantity?: number
           status?: string
@@ -705,6 +708,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "purchase_documents_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "purchase_documents_product_id_fkey"
             columns: ["product_id"]
