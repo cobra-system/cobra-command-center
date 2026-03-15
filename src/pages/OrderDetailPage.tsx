@@ -49,10 +49,12 @@ export default function OrderDetailPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const order = orders.find(o => o.id === id);
-  if (!order) return <div className="p-8 text-center text-muted-foreground">הזמנה לא נמצאה</div>;
-
-  const supplier = order.supplier_id ? suppliers.find(s => s.id === order.supplier_id) : null;
+  const supplier = order?.supplier_id ? suppliers.find(s => s.id === order.supplier_id) : null;
   const isManager = currentUser?.role === "MANAGER";
+
+  const supplierOptions = useMemo(() => suppliers.map(s => ({ value: s.id, label: s.company })), [suppliers]);
+
+  if (!order) return <div className="p-8 text-center text-muted-foreground">הזמנה לא נמצאה</div>;
 
   const handleDelete = async () => {
     await deleteOrder(order.id);
