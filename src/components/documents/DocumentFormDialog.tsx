@@ -17,9 +17,10 @@ interface Props {
   editDocument?: PurchaseDocument | null;
   defaultSupplierId?: string;
   defaultProductId?: string;
+  defaultOrderId?: string;
 }
 
-export default function DocumentFormDialog({ open, onOpenChange, onSaved, editDocument, defaultSupplierId, defaultProductId }: Props) {
+export default function DocumentFormDialog({ open, onOpenChange, onSaved, editDocument, defaultSupplierId, defaultProductId, defaultOrderId }: Props) {
   const { suppliers, products, orders } = useData();
 
   const [formType, setFormType] = useState("PI");
