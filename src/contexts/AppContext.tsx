@@ -611,7 +611,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [refreshProducts]);
 
   const addProfile = useCallback(async (profile: { email: string; name: string; role: Role; pin?: string }) => {
-    await refreshProfiles();
+    try {
+      const res = await supabase.functions.invoke("create-employee", {
+        body: { email: profile.email, name: profile.name, role: profile.role, pin: profile.pin },
+      });
+      if (res.error) throw new Error(res.error.message);
+      await refreshProfiles();
+      toast.success("עובד נוסף בהצלחה");
+    } catch (err) {
+      toast.error("שגיאה בהוספת עובד: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
   }, [refreshProfiles]);
 
   const updateProfile = useCallback(async (id: string, updates: Partial<Profile>) => {
