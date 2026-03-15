@@ -467,6 +467,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           toast.error("שגיאה בהוספת פריטים: " + (itemsError.message || "נסה שוב"));
           return;
         }
+        // Auto-start procurement workflow
+        const { data: tpl } = await supabase.from("workflow_templates").select("id").eq("category", "procurement").limit(1).maybeSingle();
+        if (tpl) {
+          await supabase.from("workflow_instances").insert({ template_id: tpl.id, order_id: newOrder.id });
+        }
         await refreshOrders();
         toast.success("הזמנה נוצרה בהצלחה");
       }
