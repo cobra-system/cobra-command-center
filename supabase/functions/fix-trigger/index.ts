@@ -81,8 +81,8 @@ Deno.serve(async (req) => {
       if (!hasIdentity) {
         await client.queryObject(
           `INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
-           VALUES (gen_random_uuid(), $1, $1, 'email', jsonb_build_object('sub', $1::text, 'email', $2), now(), now(), now())`,
-          [authUser.id, authUser.email]
+           VALUES (gen_random_uuid(), $1::uuid, $2, 'email', jsonb_build_object('sub', $2, 'email', $3), now(), now(), now())`,
+          [authUser.id, authUser.id.toString(), authUser.email]
         );
         results.push(`Created email identity for ${authUser.email}`);
       }
