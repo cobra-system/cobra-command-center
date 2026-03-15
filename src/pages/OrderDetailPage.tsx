@@ -364,7 +364,7 @@ export default function OrderDetailPage() {
 
       {/* Item Edit Dialog */}
       <Dialog open={editItemDialog} onOpenChange={setEditItemDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
           <DialogHeader><DialogTitle>{editingItem ? "עריכת פריט" : "הוספת פריט"}</DialogTitle></DialogHeader>
           <div className="space-y-3 pt-2">
             <div className="space-y-1">
@@ -444,7 +444,7 @@ function OrderWorkflowTimeline({ orderId, isManager }: { orderId: string; isMana
       });
       await supabase.from("workflow_instances").update({ current_step: workflow.current_step + 1 }).eq("id", workflow.id);
     }
-    toast.success("שלב קודם");
+    toast.success(workflow.current_step >= totalSteps - 1 ? "תהליך הושלם" : "שלב קודם הושלם");
     await fetchWorkflow();
   };
 

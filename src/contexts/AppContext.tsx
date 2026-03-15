@@ -254,16 +254,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return error ? error.message : null;
   }, []);
 
-  // Login with PIN (via edge function)
+  // Login with PIN (via Lovable Cloud edge function that connects to external DB)
   const loginWithPin = useCallback(async (pin: string): Promise<string | null> => {
     try {
-      const url = `${SUPABASE_URL}/functions/v1/login-with-pin`;
+      // Use Lovable Cloud edge function URL (where the function is deployed)
+      const cloudUrl = import.meta.env.VITE_SUPABASE_URL || "https://pjruyvhtivbeikxrnipg.supabase.co";
+      const cloudKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqcnV5dmh0aXZiZWlreHJuaXBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5ODcxODcsImV4cCI6MjA4ODU2MzE4N30.ZrNrNHLWpfK9xCX3o_bx_GVVAlaFLBVsG782-0syOUw";
+      const url = `${cloudUrl}/functions/v1/login-with-pin`;
       
       const response = await fetch(url, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "apikey": SUPABASE_ANON_KEY,
+          "apikey": cloudKey,
+          "Authorization": `Bearer ${cloudKey}`,
         },
         body: JSON.stringify({ pin }),
       });
