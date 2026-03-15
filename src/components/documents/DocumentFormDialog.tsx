@@ -56,9 +56,15 @@ export default function DocumentFormDialog({ open, onOpenChange, onSaved, editDo
             if (s) setFormSupplier(s.id);
           }
         }
+        if (defaultOrderId) {
+          setFormOrder(defaultOrderId);
+          // Auto-set supplier from order
+          const ord = orders.find(o => o.id === defaultOrderId);
+          if (ord?.supplier_id && !defaultSupplierId) setFormSupplier(ord.supplier_id);
+        }
       }
     }
-  }, [editDocument, open, defaultSupplierId, defaultProductId]);
+  }, [editDocument, open, defaultSupplierId, defaultProductId, defaultOrderId]);
 
   const filteredOrders = formSupplier
     ? orders.filter(o => o.supplier_id === formSupplier || o.supplier_name === suppliers.find(s => s.id === formSupplier)?.company)
