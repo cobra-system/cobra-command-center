@@ -25,71 +25,92 @@ Deno.serve(async (req) => {
 
     const results: string[] = [];
 
-    // Check user details
-    const users = await client.queryObject<{ 
-      id: string; email: string; encrypted_password: string; 
-      email_confirmed_at: string | null; is_sso_user: boolean;
-      instance_id: string; aud: string;
-    }>(
-      `SELECT id, email, substring(encrypted_password, 1, 20) as encrypted_password, 
-              email_confirmed_at, is_sso_user, instance_id, aud 
-       FROM auth.users WHERE deleted_at IS NULL`
-    );
-    
-    for (const u of users.rows) {
-      results.push(`User: ${u.email} id=${u.id}`);
-      results.push(`  confirmed=${u.email_confirmed_at} sso=${u.is_sso_user} instance=${u.instance_id} aud=${u.aud}`);
-      results.push(`  pwd_prefix=${u.encrypted_password}`);
+    // Step 1: Drop problematic trigger
+    try {
+      await client.queryObject(`DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users`);
+      results.push("Dropped trigger on_auth_user_created");
+    } catch (e) {
+      results.push("Error dropping trigger: " + String(e));
     }
 
-    // Check if instance_id is the issue - GoTrue expects specific instance_id
-    // Fix: ensure instance_id is the default '00000000-0000-0000-0000-000000000000'
-    const USERS = [
-      { email: "noam@cobra.co.il", password: "cobra2026" },
-      { email: "georgi@cobra.co.il", password: "cobra1111" },
-      { email: "ziv@cobra.co.il", password: "cobra2222" },
-    ];
+    // Step 2: Recreate simpler function
+    try {
+      await client.queryObject(`
+        CREATE OR REPLACE FUNCTION public.handle_new_user()
+        RETURNS trigger
+        LANGUAGE plpgsql
+        SECURITY DEFINER
+        SET search_path = 'public'
+        AS $$
+        BEGIN
+          INSERT INTO public.profiles (id, name, role)
+          VALUES (
+            NEW.id,
+            COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
+            COALESCE((NEW.raw_user_meta_data->>'role')::app_role, 'MANAGER'::app_role)
+          )
+          ON CONFLICT (id) DO NOTHING;
+          RETURN NEW;
+        EXCEPTION WHEN OTHERS THEN
+          RETURN NEW;
+        END;
+        $$;
+      `);
+      results.push("Recreated handle_new_user with exception handler");
+    } catch (e) {
+      results.push("Error creating function: " + String(e));
+    }
 
-    for (const u of USERS) {
-      // Update password using bcrypt, confirm email, fix instance_id
-      await client.queryObject(
-        `UPDATE auth.users SET 
-          encrypted_password = crypt($1, gen_salt('bf')),
-          email_confirmed_at = COALESCE(email_confirmed_at, now()),
-          instance_id = '00000000-0000-0000-0000-000000000000',
-          aud = 'authenticated',
-          role = 'authenticated',
-          updated_at = now()
-        WHERE email = $2`,
-        [u.password, u.email]
+    // Step 3: Recreate trigger
+    try {
+      await client.queryObject(`
+        CREATE TRIGGER on_auth_user_created
+        AFTER INSERT ON auth.users
+        FOR EACH ROW
+        EXECUTE FUNCTION public.handle_new_user();
+      `);
+      results.push("Recreated trigger");
+    } catch (e) {
+      results.push("Error creating trigger: " + String(e));
+    }
+
+    // Step 4: Ensure noam profile is MANAGER
+    try {
+      const noamUpdate = await client.queryObject(
+        `UPDATE public.profiles SET role = 'MANAGER' WHERE id IN (
+          SELECT id FROM auth.users WHERE email = 'noam@cobra.co.il' AND deleted_at IS NULL
+        )`
       );
-      results.push(`Updated password for ${u.email}`);
+      results.push("Updated noam to MANAGER");
+    } catch (e) {
+      results.push("Error updating noam: " + String(e));
     }
 
-    // Verify identities exist
-    const identities = await client.queryObject<{ user_id: string; provider: string }>(
-      `SELECT user_id, provider FROM auth.identities`
+    // Step 5: List current state
+    const profiles = await client.queryObject<{ id: string; name: string; role: string }>(
+      `SELECT id, name, role FROM public.profiles ORDER BY name`
     );
-    results.push(`\nIdentities: ${identities.rows.length}`);
-    for (const i of identities.rows) {
-      results.push(`  ${i.user_id} - ${i.provider}`);
-    }
+    results.push("Profiles: " + JSON.stringify(profiles.rows));
 
-    // If any user is missing email identity, create it
-    for (const authUser of users.rows) {
-      const hasIdentity = identities.rows.some(i => i.user_id === authUser.id);
-      if (!hasIdentity) {
-        const uid = authUser.id;
-        const uemail = authUser.email;
-        await client.queryObject(
-          `INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
-           VALUES (gen_random_uuid(), '${uid}'::uuid, '${uid}', 'email', '{"sub":"${uid}","email":"${uemail}"}'::jsonb, now(), now(), now())`
-        );
-        results.push(`Created email identity for ${authUser.email}`);
-      }
-    }
+    const users = await client.queryObject<{ id: string; email: string }>(
+      `SELECT id, email FROM auth.users WHERE deleted_at IS NULL`
+    );
+    results.push("Auth users: " + JSON.stringify(users.rows));
 
     await client.end();
+
+    // Step 6: Test GoTrue login
+    const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL")!;
+    const externalKey = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")!;
+    
+    const gotrueResp = await fetch(`${externalUrl}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": externalKey },
+      body: JSON.stringify({ email: "noam@cobra.co.il", password: "cobra2026" }),
+    });
+    const gotrueBody = await gotrueResp.text();
+    results.push(`GoTrue login test: status=${gotrueResp.status}`);
+    results.push(`GoTrue response: ${gotrueBody.substring(0, 300)}`);
 
     return new Response(JSON.stringify({ success: true, results }, null, 2), {
       status: 200,
