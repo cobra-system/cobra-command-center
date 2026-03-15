@@ -444,7 +444,7 @@ function OrderWorkflowTimeline({ orderId, isManager }: { orderId: string; isMana
       });
       await supabase.from("workflow_instances").update({ current_step: workflow.current_step + 1 }).eq("id", workflow.id);
     }
-    toast.success("שלב קודם");
+    toast.success(workflow.current_step >= totalSteps - 1 ? "תהליך הושלם" : "שלב קודם הושלם");
     await fetchWorkflow();
   };
 
