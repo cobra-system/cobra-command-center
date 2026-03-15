@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.98.0";
+import { Client } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,75 +11,141 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL")!;
-    const externalKey = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")!;
-    const admin = createClient(externalUrl, externalKey);
+    const dbUrl = Deno.env.get("EXTERNAL_DB_URL")!;
+    const parsedUrl = new URL(dbUrl);
+    const client = new Client({
+      hostname: parsedUrl.hostname,
+      port: parseInt(parsedUrl.port) || 5432,
+      database: parsedUrl.pathname.slice(1),
+      user: parsedUrl.username,
+      password: decodeURIComponent(parsedUrl.password),
+      tls: { enabled: true, enforce: false },
+    });
+    await client.connect();
 
     const results: string[] = [];
 
-    // Users to fix
-    const USERS = [
-      { email: "noam@cobra.co.il", password: "cobra2026", name: "נועם", role: "MANAGER" },
-      { email: "georgi@cobra.co.il", password: "cobra1111", name: "גיאורגי גריגוריאנץ", role: "WAREHOUSE_MANAGER" },
-      { email: "ziv@cobra.co.il", password: "cobra2222", name: "זיו בוזגלו", role: "LOGISTICS" },
-    ];
+    // Check for locks
+    const locks = await client.queryObject<{ pid: number; state: string; query: string; wait_event: string | null }>(
+      `SELECT pid, state, substring(query, 1, 200) as query, wait_event_type || ':' || wait_event as wait_event
+       FROM pg_stat_activity WHERE datname = current_database() AND state != 'idle' AND pid != pg_backend_pid()
+       LIMIT 20`
+    );
+    results.push("Active queries: " + JSON.stringify(locks.rows));
 
-    for (const u of USERS) {
-      // Try to delete existing user first
-      const { data: listData } = await admin.auth.admin.listUsers();
-      const existing = listData?.users?.find(x => x.email === u.email);
-      
-      if (existing) {
-        const { error: delErr } = await admin.auth.admin.deleteUser(existing.id);
-        if (delErr) {
-          results.push(`Error deleting ${u.email}: ${delErr.message}`);
-        } else {
-          results.push(`Deleted old ${u.email} (${existing.id})`);
-        }
-      }
+    // Check if there are locked tables
+    const tableLocks = await client.queryObject(
+      `SELECT l.relation::regclass as table, l.mode, l.granted, a.state, substring(a.query,1,100) as query
+       FROM pg_locks l JOIN pg_stat_activity a ON l.pid = a.pid
+       WHERE l.relation IS NOT NULL AND NOT l.granted
+       LIMIT 10`
+    );
+    results.push("Ungranted locks: " + JSON.stringify(tableLocks.rows));
 
-      // Create fresh user via Admin API
-      const { data: newUser, error: createErr } = await admin.auth.admin.createUser({
-        email: u.email,
-        password: u.password,
-        email_confirm: true,
-        user_metadata: { name: u.name, role: u.role },
-      });
-
-      if (createErr) {
-        results.push(`Error creating ${u.email}: ${createErr.message}`);
-      } else {
-        results.push(`Created ${u.email} with id=${newUser.user.id}`);
-        
-        // Update profile to correct role
-        const { error: profileErr } = await admin.from("profiles").upsert({
-          id: newUser.user.id,
-          name: u.name,
-          role: u.role,
-        });
-        if (profileErr) {
-          results.push(`Profile error for ${u.email}: ${profileErr.message}`);
-        } else {
-          results.push(`Profile set for ${u.email}: ${u.role}`);
-        }
-      }
+    // Try direct query as GoTrue would
+    try {
+      const test = await client.queryObject(
+        `SELECT id, email FROM auth.users WHERE email = 'noam@cobra.co.il' LIMIT 1`
+      );
+      results.push("Direct query works: " + JSON.stringify(test.rows));
+    } catch (e) {
+      results.push("Direct query FAILED: " + String(e));
     }
 
-    // Test login
-    for (const u of USERS) {
-      const resp = await fetch(`${externalUrl}/auth/v1/token?grant_type=password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "apikey": externalKey },
-        body: JSON.stringify({ email: u.email, password: u.password }),
-      });
-      const body = await resp.text();
-      results.push(`Login ${u.email}: status=${resp.status} ${body.substring(0, 100)}`);
+    // Check if there's an issue with the supabase_auth_admin role
+    try {
+      const authRole = await client.queryObject(
+        `SELECT rolname, rolsuper, rolcreaterole FROM pg_roles WHERE rolname = 'supabase_auth_admin'`
+      );
+      results.push("Auth admin role: " + JSON.stringify(authRole.rows));
+    } catch (e) {
+      results.push("Error checking auth role: " + String(e));
     }
+
+    // Check if search_path for supabase_auth_admin is correct
+    try {
+      const sp = await client.queryObject(
+        `SELECT usename, useconfig FROM pg_user WHERE usename = 'supabase_auth_admin'`
+      );
+      results.push("Auth admin config: " + JSON.stringify(sp.rows));
+    } catch (e) {
+      results.push("Error: " + String(e));
+    }
+
+    // Try to recreate the trigger - maybe GoTrue NEEDS it
+    try {
+      await client.queryObject(`
+        CREATE OR REPLACE FUNCTION public.handle_new_user()
+        RETURNS trigger
+        LANGUAGE plpgsql
+        SECURITY DEFINER
+        SET search_path = 'public'
+        AS $$
+        BEGIN
+          INSERT INTO public.profiles (id, name, role)
+          VALUES (
+            NEW.id,
+            COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
+            COALESCE((NEW.raw_user_meta_data->>'role')::app_role, 'MANAGER'::app_role)
+          )
+          ON CONFLICT (id) DO NOTHING;
+          RETURN NEW;
+        EXCEPTION WHEN OTHERS THEN
+          RETURN NEW;
+        END;
+        $$;
+      `);
+      await client.queryObject(`
+        DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+        CREATE TRIGGER on_auth_user_created
+        AFTER INSERT ON auth.users
+        FOR EACH ROW
+        EXECUTE FUNCTION public.handle_new_user();
+      `);
+      results.push("Recreated trigger with exception handler");
+    } catch (e) {
+      results.push("Error recreating trigger: " + String(e));
+    }
+
+    // Recreate the ensure_rls event trigger that was dropped
+    try {
+      await client.queryObject(`
+        CREATE EVENT TRIGGER ensure_rls ON ddl_command_end
+        EXECUTE FUNCTION rls_auto_enable();
+      `);
+      results.push("Recreated ensure_rls event trigger");
+    } catch (e) {
+      results.push("Error recreating ensure_rls: " + String(e));
+    }
+
+    // Check GoTrue health endpoint
+    const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL")!;
+    const healthResp = await fetch(`${externalUrl}/auth/v1/health`);
+    const healthBody = await healthResp.text();
+    results.push(`GoTrue health: status=${healthResp.status} body=${healthBody}`);
+
+    await client.end();
+
+    // Test login again
+    const externalKey = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")!;
+    const loginResp = await fetch(`${externalUrl}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": externalKey },
+      body: JSON.stringify({ email: "noam@cobra.co.il", password: "cobra2026" }),
+    });
+    results.push(`Login test: status=${loginResp.status} body=${(await loginResp.text()).substring(0, 200)}`);
 
     return new Response(JSON.stringify({ results }, null, 2), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: String(err) }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), {
       status: 500,
