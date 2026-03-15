@@ -44,7 +44,6 @@ Deno.serve(async (req) => {
       await client.queryObject(
         `UPDATE auth.users SET 
           raw_app_meta_data = '{"provider":"email","providers":["email"]}'::jsonb,
-          confirmed_at = COALESCE(confirmed_at, email_confirmed_at, now()),
           updated_at = now()
         WHERE id = '${u.id}'::uuid`
       );
