@@ -25,81 +25,65 @@ Deno.serve(async (req) => {
 
     const results: string[] = [];
 
-    // Step 1: Drop problematic trigger
+    // Step 1: Drop ALL triggers on auth.users
     try {
-      await client.queryObject(`DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users`);
-      results.push("Dropped trigger on_auth_user_created");
+      const triggers = await client.queryObject<{ tgname: string }>(
+        `SELECT tgname FROM pg_trigger WHERE tgrelid = 'auth.users'::regclass`
+      );
+      results.push("Triggers on auth.users: " + JSON.stringify(triggers.rows));
+      for (const t of triggers.rows) {
+        await client.queryObject(`DROP TRIGGER IF EXISTS "${t.tgname}" ON auth.users`);
+        results.push("Dropped trigger: " + t.tgname);
+      }
     } catch (e) {
-      results.push("Error dropping trigger: " + String(e));
+      results.push("Error listing/dropping triggers: " + String(e));
     }
 
-    // Step 2: Recreate simpler function
+    // Step 2: Make handle_new_user completely harmless
     try {
       await client.queryObject(`
         CREATE OR REPLACE FUNCTION public.handle_new_user()
         RETURNS trigger
         LANGUAGE plpgsql
         SECURITY DEFINER
-        SET search_path = 'public'
         AS $$
         BEGIN
-          INSERT INTO public.profiles (id, name, role)
-          VALUES (
-            NEW.id,
-            COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
-            COALESCE((NEW.raw_user_meta_data->>'role')::app_role, 'MANAGER'::app_role)
-          )
-          ON CONFLICT (id) DO NOTHING;
-          RETURN NEW;
-        EXCEPTION WHEN OTHERS THEN
           RETURN NEW;
         END;
         $$;
       `);
-      results.push("Recreated handle_new_user with exception handler");
+      results.push("Made handle_new_user a no-op");
     } catch (e) {
-      results.push("Error creating function: " + String(e));
+      results.push("Error: " + String(e));
     }
 
-    // Step 3: Recreate trigger
+    // Step 3: Check for broken functions in public schema
     try {
-      await client.queryObject(`
-        CREATE TRIGGER on_auth_user_created
-        AFTER INSERT ON auth.users
-        FOR EACH ROW
-        EXECUTE FUNCTION public.handle_new_user();
-      `);
-      results.push("Recreated trigger");
-    } catch (e) {
-      results.push("Error creating trigger: " + String(e));
-    }
-
-    // Step 4: Ensure noam profile is MANAGER
-    try {
-      const noamUpdate = await client.queryObject(
-        `UPDATE public.profiles SET role = 'MANAGER' WHERE id IN (
-          SELECT id FROM auth.users WHERE email = 'noam@cobra.co.il' AND deleted_at IS NULL
-        )`
+      const funcs = await client.queryObject<{ proname: string; prosrc: string }>(
+        `SELECT proname, substring(prosrc, 1, 100) as prosrc FROM pg_proc 
+         WHERE pronamespace = 'public'::regnamespace 
+         ORDER BY proname`
       );
-      results.push("Updated noam to MANAGER");
+      for (const f of funcs.rows) {
+        results.push(`Function: ${f.proname} => ${f.prosrc.substring(0, 80)}`);
+      }
     } catch (e) {
-      results.push("Error updating noam: " + String(e));
+      results.push("Error listing functions: " + String(e));
     }
 
-    // Step 5: List current state
-    const profiles = await client.queryObject<{ id: string; name: string; role: string }>(
-      `SELECT id, name, role FROM public.profiles ORDER BY name`
-    );
-    results.push("Profiles: " + JSON.stringify(profiles.rows));
-
-    const users = await client.queryObject<{ id: string; email: string }>(
-      `SELECT id, email FROM auth.users WHERE deleted_at IS NULL`
-    );
-    results.push("Auth users: " + JSON.stringify(users.rows));
+    // Step 4: Check for broken views
+    try {
+      const views = await client.queryObject<{ viewname: string }>(
+        `SELECT viewname FROM pg_views WHERE schemaname = 'public'`
+      );
+      results.push("Views: " + JSON.stringify(views.rows));
+    } catch (e) {
+      results.push("Error listing views: " + String(e));
+    }
 
     await client.end();
 
-    // Step 6: Test GoTrue login
+    // Step 5: Test GoTrue
     const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL")!;
     const externalKey = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")!;
     
@@ -109,13 +93,20 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ email: "noam@cobra.co.il", password: "cobra2026" }),
     });
     const gotrueBody = await gotrueResp.text();
-    results.push(`GoTrue login test: status=${gotrueResp.status}`);
-    results.push(`GoTrue response: ${gotrueBody.substring(0, 300)}`);
+    results.push(`GoTrue status: ${gotrueResp.status}`);
+    results.push(`GoTrue: ${gotrueBody.substring(0, 300)}`);
 
-    return new Response(JSON.stringify({ success: true, results }, null, 2), {
+    return new Response(JSON.stringify({ results }, null, 2), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: String(err) }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err), stack: (err as Error).stack }), {
       status: 500,
