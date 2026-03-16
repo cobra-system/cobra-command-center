@@ -187,16 +187,24 @@ export default function InventoryPage() {
 
   const handleUpdateInventory = async (centerId: string, productId: string, qty: number) => {
     const existing = inventory.find(i => i.center_id === centerId && i.product_id === productId);
+    const oldQty = existing?.quantity ?? 0;
+    
     if (existing) {
       await supabase.from("center_inventory").update({ quantity: qty } as any).eq("id", existing.id);
     } else {
       await supabase.from("center_inventory").insert({ center_id: centerId, product_id: productId, quantity: qty } as any);
     }
-    // Sync: if main center, update product stock_qty too
-    if (mainCenter && centerId === mainCenter.id) {
-      await supabase.from("products").update({ stock_qty: qty } as any).eq("id", productId);
-      refreshProducts();
-    }
+    // Log the change
+    await supabase.from("inventory_change_log").insert({
+      product_id: productId,
+      center_id: centerId,
+      old_quantity: oldQty,
+      new_quantity: qty,
+      change_type: "manual",
+      changed_by: currentUser?.name || null,
+    } as any);
+    // Trigger handles syncing to products.stock_qty automatically
+    refreshProducts();
     fetchData();
   };
 
