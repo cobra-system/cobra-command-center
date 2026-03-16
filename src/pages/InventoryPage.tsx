@@ -51,7 +51,7 @@ interface InventoryTransfer {
 }
 
 export default function InventoryPage() {
-  const { products } = useData();
+  const { products, refreshProducts } = useData();
   const { currentUser } = useAuth();
   const [centers, setCenters] = useState<DistributionCenter[]>([]);
   const [contacts, setContacts] = useState<CenterContact[]>([]);
