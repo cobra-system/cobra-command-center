@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth } from "@/contexts/AppContext";
-import { ArrowUpDown, ArrowUp, ArrowDown, Pencil } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
