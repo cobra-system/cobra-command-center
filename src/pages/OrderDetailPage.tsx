@@ -55,6 +55,7 @@ export default function OrderDetailPage() {
   const [itemQty, setItemQty] = useState("");
   const [itemPrice, setItemPrice] = useState("");
   const [itemProductId, setItemProductId] = useState("");
+  const [itemComponentId, setItemComponentId] = useState("");
 
   const order = orders.find(o => o.id === id);
   const supplier = order?.supplier_id ? suppliers.find(s => s.id === order.supplier_id) : null;
@@ -112,6 +113,7 @@ export default function OrderDetailPage() {
     setItemQty("1");
     setItemPrice("");
     setItemProductId("");
+    setItemComponentId("");
     setEditItemDialog(true);
   };
 
@@ -125,7 +127,14 @@ export default function OrderDetailPage() {
   };
 
   const handleSaveItem = async () => {
-    const name = itemProductId ? products.find(p => p.id === itemProductId)?.name || itemName : itemName;
+    let name = itemName;
+    if (itemComponentId) {
+      const prod = products.find(p => p.id === itemProductId);
+      const comp = prod?.components?.find(c => c.id === itemComponentId);
+      if (comp) name = `${comp.name} (${prod?.name})`;
+    } else if (itemProductId) {
+      name = products.find(p => p.id === itemProductId)?.name || itemName;
+    }
     if (!name.trim()) return;
 
     if (editingItem) {
@@ -369,11 +378,42 @@ export default function OrderDetailPage() {
           <div className="space-y-3 pt-2">
             <div className="space-y-1">
               <Label>מוצר</Label>
-              <Select value={itemProductId} onValueChange={v => { setItemProductId(v); const p = products.find(p => p.id === v); if (p) setItemName(p.name); }}>
+              <Select value={itemProductId} onValueChange={v => {
+                setItemProductId(v);
+                setItemComponentId("");
+                const p = products.find(p => p.id === v);
+                if (p) { setItemName(p.name); setItemPrice(p.purchase_price?.toString() || ""); }
+              }}>
                 <SelectTrigger><SelectValue placeholder="בחר מוצר (אופציונלי)" /></SelectTrigger>
                 <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+            {/* Component selector for composite products */}
+            {itemProductId && (() => {
+              const selectedProduct = products.find(p => p.id === itemProductId);
+              const comps = selectedProduct?.components || [];
+              if (comps.length === 0) return null;
+              return (
+                <div className="space-y-1">
+                  <Label>רכיב (מתוך {selectedProduct?.name})</Label>
+                  <Select value={itemComponentId} onValueChange={v => {
+                    setItemComponentId(v);
+                    const comp = comps.find(c => c.id === v);
+                    if (comp) {
+                      setItemName(`${comp.name} (${selectedProduct?.name})`);
+                      setItemPrice(comp.price?.toString() || "");
+                    }
+                  }}>
+                    <SelectTrigger><SelectValue placeholder="בחר רכיב (אופציונלי)" /></SelectTrigger>
+                    <SelectContent>
+                      {comps.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}{c.sku ? ` — ${c.sku}` : ""}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              );
+            })()}
             <div className="space-y-1">
               <Label>שם פריט</Label>
               <Input value={itemName} onChange={e => setItemName(e.target.value)} placeholder="שם הפריט" />
