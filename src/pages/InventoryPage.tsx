@@ -70,6 +70,7 @@ export default function InventoryPage() {
   const [contacts, setContacts] = useState<CenterContact[]>([]);
   const [inventory, setInventory] = useState<CenterInventoryItem[]>([]);
   const [transfers, setTransfers] = useState<InventoryTransfer[]>([]);
+  const [changeLogs, setChangeLogs] = useState<InventoryChangeLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("flow");
   const [detailSearch, setDetailSearch] = useState("");
