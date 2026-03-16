@@ -128,8 +128,7 @@ export default function OrdersPage() {
     let result = orders.filter(o => {
       if (statusFilter !== "all" && o.status !== statusFilter) return false;
       if (priorityFilter !== "all" && o.priority !== priorityFilter) return false;
-      if (paymentFilter === "paid" && !o.payment_date) return false;
-      if (paymentFilter === "unpaid" && o.payment_date) return false;
+      if (paymentFilter !== "all" && (o as any).payment_status !== paymentFilter) return false;
       if (search) {
         const q = search.toLowerCase();
         const itemNames = o.items.map(i => i.name).join(" ").toLowerCase();
@@ -254,8 +253,9 @@ export default function OrdersPage() {
           <SelectTrigger className="w-[120px]"><SelectValue placeholder="תשלום" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">כל התשלומים</SelectItem>
-            <SelectItem value="paid">שולם</SelectItem>
-            <SelectItem value="unpaid">לא שולם</SelectItem>
+            <SelectItem value="שולם">שולם</SelectItem>
+            <SelectItem value="שולם פיקדון">שולם פיקדון</SelectItem>
+            <SelectItem value="ממתין">ממתין</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -339,27 +339,31 @@ export default function OrdersPage() {
                   <Popover>
                     <PopoverTrigger asChild>
                       <button className="cursor-pointer">
-                        {order.payment_date ? (
-                          <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-success/15 text-success">שולם</span>
-                        ) : (
-                          <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-warning/15 text-warning">ממתין</span>
-                        )}
+                        {(() => {
+                          const ps = (order as any).payment_status || "ממתין";
+                          const colors: Record<string, string> = {
+                            "שולם": "bg-success/15 text-success",
+                            "שולם פיקדון": "bg-accent/15 text-accent",
+                            "ממתין": "bg-warning/15 text-warning",
+                          };
+                          return <span className={cn("inline-block px-2 py-0.5 rounded-full text-xs font-medium", colors[ps] || "bg-muted text-muted-foreground")}>{ps}</span>;
+                        })()}
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-1" align="start">
                       <div className="flex flex-col gap-0.5">
-                        <button
-                          onClick={() => updateOrder(order.id, { payment_date: new Date().toISOString() })}
-                          className={cn("px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted", order.payment_date && "bg-muted")}
-                        >
-                          שולם ✓
-                        </button>
-                        <button
-                          onClick={() => updateOrder(order.id, { payment_date: null })}
-                          className={cn("px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted", !order.payment_date && "bg-muted")}
-                        >
-                          ממתין
-                        </button>
+                        {["ממתין", "שולם פיקדון", "שולם"].map(ps => (
+                          <button
+                            key={ps}
+                            onClick={() => updateOrder(order.id, {
+                              payment_status: ps,
+                              payment_date: ps === "שולם" ? new Date().toISOString() : ps === "שולם פיקדון" ? new Date().toISOString() : null,
+                            } as any)}
+                            className={cn("px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted", (order as any).payment_status === ps && "bg-muted")}
+                          >
+                            {ps === "שולם" ? "שולם ✓" : ps}
+                          </button>
+                        ))}
                       </div>
                     </PopoverContent>
                   </Popover>

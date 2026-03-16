@@ -96,14 +96,17 @@ export default function OrderDetailPage() {
     toast.success("עודכן");
   };
 
-  // Payment status toggle via double-click
-  const togglePaymentStatus = async () => {
+  // Payment status cycle via double-click: ממתין → שולם פיקדון → שולם → ממתין
+  const paymentStatuses = ["ממתין", "שולם פיקדון", "שולם"] as const;
+  const cyclePaymentStatus = async () => {
     if (!isManager) return;
-    if (order.payment_date) {
-      await updateOrder(order.id, { payment_date: null } as any);
-    } else {
-      await updateOrder(order.id, { payment_date: new Date().toISOString() } as any);
-    }
+    const current = (order as any).payment_status || "ממתין";
+    const idx = paymentStatuses.indexOf(current);
+    const next = paymentStatuses[(idx + 1) % paymentStatuses.length];
+    await updateOrder(order.id, {
+      payment_status: next,
+      payment_date: next === "שולם" || next === "שולם פיקדון" ? new Date().toISOString() : null,
+    } as any);
   };
 
   // Item CRUD
@@ -339,16 +342,26 @@ export default function OrderDetailPage() {
           </div>
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">סטטוס תשלום {isManager && <span className="text-xs text-muted-foreground/60">(לחיצה כפולה לשינוי)</span>}</p>
-            <span
-              onDoubleClick={togglePaymentStatus}
-              className={cn(
-                "inline-block px-2 py-0.5 rounded-full text-xs font-medium select-none",
-                isManager && "cursor-pointer hover:ring-2 hover:ring-primary/30",
-                order.payment_date ? "bg-success/15 text-success" : "bg-warning/15 text-warning"
-              )}
-            >
-              {order.payment_date ? "שולם" : "ממתין לתשלום"}
-            </span>
+            {(() => {
+              const ps = (order as any).payment_status || "ממתין";
+              const colors: Record<string, string> = {
+                "שולם": "bg-success/15 text-success",
+                "שולם פיקדון": "bg-accent/15 text-accent",
+                "ממתין": "bg-warning/15 text-warning",
+              };
+              return (
+                <span
+                  onDoubleClick={cyclePaymentStatus}
+                  className={cn(
+                    "inline-block px-2 py-0.5 rounded-full text-xs font-medium select-none",
+                    isManager && "cursor-pointer hover:ring-2 hover:ring-primary/30",
+                    colors[ps] || "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {ps}
+                </span>
+              );
+            })()}
           </div>
         </div>
       </div>
