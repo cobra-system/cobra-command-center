@@ -25,23 +25,61 @@ Deno.serve(async (req) => {
 
     const results: string[] = [];
 
-    // Add document_name column if not exists
+    // 1. Add document_name column if not exists
     await client.queryObject(`
       ALTER TABLE public.purchase_documents ADD COLUMN IF NOT EXISTS document_name text;
     `);
-    results.push("Added document_name column");
+    results.push("✓ document_name column");
 
-    // Remove type check constraint if exists
+    // 2. Add order_id column if not exists
+    await client.queryObject(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' AND table_name = 'purchase_documents' AND column_name = 'order_id'
+        ) THEN
+          ALTER TABLE public.purchase_documents ADD COLUMN order_id uuid REFERENCES public.orders(id) ON DELETE SET NULL;
+        END IF;
+      END $$;
+    `);
+    results.push("✓ order_id column");
+
+    // 3. Add document_id to supplier_payments if not exists
+    await client.queryObject(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' AND table_name = 'supplier_payments' AND column_name = 'document_id'
+        ) THEN
+          ALTER TABLE public.supplier_payments ADD COLUMN document_id uuid REFERENCES public.purchase_documents(id) ON DELETE SET NULL;
+        END IF;
+      END $$;
+    `);
+    results.push("✓ supplier_payments.document_id column");
+
+    // 4. Remove type check constraint if exists
     await client.queryObject(`
       ALTER TABLE public.purchase_documents DROP CONSTRAINT IF EXISTS purchase_documents_type_check;
     `);
-    results.push("Removed type check constraint");
+    results.push("✓ Removed type check constraint");
 
-    // Set default for quantity
+    // 5. Set default for quantity
     await client.queryObject(`
       ALTER TABLE public.purchase_documents ALTER COLUMN quantity SET DEFAULT 0;
     `);
-    results.push("Set quantity default to 0");
+    results.push("✓ Set quantity default to 0");
+
+    // 6. Make documents storage bucket public
+    await client.queryObject(`
+      UPDATE storage.buckets SET public = true WHERE id = 'documents';
+    `);
+    results.push("✓ Documents bucket set to public");
+
+    // 7. Reload PostgREST schema cache
+    await client.queryObject(`NOTIFY pgrst, 'reload schema';`);
+    results.push("✓ Schema cache reloaded");
 
     await client.end();
 

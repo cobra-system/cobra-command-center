@@ -73,6 +73,8 @@ export default function SimpleFileUploadDialog({
     setSaving(true);
     let fileUrl: string | null = null;
 
+    let uploadedPath: string | null = null;
+
     if (file) {
       const path = `uploads/${Date.now()}_${file.name}`;
       const { error } = await supabase.storage.from("documents").upload(path, file);
@@ -81,6 +83,7 @@ export default function SimpleFileUploadDialog({
         setSaving(false);
         return;
       }
+      uploadedPath = path;
       const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
       fileUrl = urlData.publicUrl;
     }
@@ -96,6 +99,10 @@ export default function SimpleFileUploadDialog({
     } as any);
 
     if (error) {
+      // Rollback: delete uploaded file if DB insert failed
+      if (uploadedPath) {
+        await supabase.storage.from("documents").remove([uploadedPath]);
+      }
       toast.error("שגיאה בשמירה: " + error.message);
     } else {
       toast.success("מסמך נשמר בהצלחה");
