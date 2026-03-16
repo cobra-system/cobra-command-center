@@ -419,19 +419,28 @@ export default function InventoryPage() {
                             return (
                               <TableCell key={c.id} className="text-center">
                                 <div className="flex items-center justify-center gap-1">
-                                  <Input
-                                    type="number" min={0}
+                                  <InlineEditField
                                     value={inv?.quantity ?? 0}
-                                    onChange={e => handleUpdateInventory(c.id, p.id, parseInt(e.target.value) || 0)}
-                                    className={`w-16 h-7 text-center text-sm ${isLow ? "border-destructive bg-destructive/5" : ""}`}
+                                    type="number"
+                                    onSave={(v) => handleUpdateInventory(c.id, p.id, parseInt(v) || 0)}
+                                    className="min-w-[50px]"
+                                    inputClassName={`w-16 h-7 text-center text-sm ${isLow ? "border-destructive bg-destructive/5" : ""}`}
+                                    displayValue={
+                                      <span className={`text-sm font-medium ${isLow ? "text-destructive" : ""}`}>
+                                        {inv?.quantity ?? 0}
+                                      </span>
+                                    }
                                   />
                                   <span className="text-muted-foreground text-xs">/</span>
-                                  <Input
-                                    type="number" min={0}
+                                  <InlineEditField
                                     value={inv?.min_stock ?? 0}
-                                    onChange={e => handleUpdateMinStock(c.id, p.id, parseInt(e.target.value) || 0)}
-                                    className="w-14 h-7 text-center text-xs text-muted-foreground"
-                                    title="סף מינימום"
+                                    type="number"
+                                    onSave={(v) => handleUpdateMinStock(c.id, p.id, parseInt(v) || 0)}
+                                    className="min-w-[40px]"
+                                    inputClassName="w-14 h-7 text-center text-xs"
+                                    displayValue={
+                                      <span className="text-xs text-muted-foreground">{inv?.min_stock ?? 0}</span>
+                                    }
                                   />
                                   {isLow && <AlertTriangle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />}
                                 </div>
