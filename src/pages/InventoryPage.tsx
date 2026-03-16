@@ -156,6 +156,10 @@ export default function InventoryPage() {
     } else {
       await supabase.from("center_inventory").insert({ center_id: centerId, product_id: productId, quantity: qty } as any);
     }
+    // Sync: if main center, update product stock_qty too
+    if (mainCenter && centerId === mainCenter.id) {
+      await supabase.from("products").update({ stock_qty: qty } as any).eq("id", productId);
+    }
     fetchData();
   };
 
