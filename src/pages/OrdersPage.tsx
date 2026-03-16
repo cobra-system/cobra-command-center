@@ -128,8 +128,7 @@ export default function OrdersPage() {
     let result = orders.filter(o => {
       if (statusFilter !== "all" && o.status !== statusFilter) return false;
       if (priorityFilter !== "all" && o.priority !== priorityFilter) return false;
-      if (paymentFilter === "paid" && !o.payment_date) return false;
-      if (paymentFilter === "unpaid" && o.payment_date) return false;
+      if (paymentFilter !== "all" && (o as any).payment_status !== paymentFilter) return false;
       if (search) {
         const q = search.toLowerCase();
         const itemNames = o.items.map(i => i.name).join(" ").toLowerCase();
