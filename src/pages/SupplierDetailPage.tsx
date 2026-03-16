@@ -46,8 +46,12 @@ export default function SupplierDetailPage() {
 
   const isManager = currentUser?.role === "MANAGER";
   const relatedOrders = orders.filter(o => o.supplier_id === supplier.id || o.supplier_name === supplier.company);
-  const relatedProducts = products.filter(p => p.supplier === supplier.company);
-  
+
+  // Filter products by supplier_id (preferred) or supplier name (fallback)
+  const relatedProducts = products.filter(p =>
+    p.supplier_id === supplier.id || p.supplier === supplier.company
+  );
+
   const componentProducts = products
     .filter(p => p.product_type === "מורכב" && p.components?.some(c => c.supplier === supplier.company))
     .filter(p => !relatedProducts.some(rp => rp.id === p.id))
@@ -132,7 +136,10 @@ export default function SupplierDetailPage() {
     if (!linkProductId) return;
     setLinkingSaving(true);
     try {
-      await updateProduct(linkProductId, { supplier: supplier.company });
+      await updateProduct(linkProductId, {
+        supplier: supplier.company,
+        supplier_id: supplier.id
+      });
       setLinkProductOpen(false);
       setLinkProductId("");
       setLinkProductSearch("");
@@ -412,7 +419,10 @@ export default function SupplierDetailPage() {
             </div>
             <div className="max-h-60 overflow-y-auto divide-y rounded-lg border">
               {products
-                .filter(p => p.supplier !== supplier.company && p.name.toLowerCase().includes(linkProductSearch.toLowerCase()))
+                .filter(p =>
+                  (p.supplier !== supplier.company && p.supplier_id !== supplier.id) &&
+                  p.name.toLowerCase().includes(linkProductSearch.toLowerCase())
+                )
                 .slice(0, 30)
                 .map(p => (
                   <button
@@ -424,7 +434,10 @@ export default function SupplierDetailPage() {
                     <span className="text-xs text-muted-foreground mr-2 font-mono">{p.sku}</span>
                   </button>
                 ))}
-              {products.filter(p => p.supplier !== supplier.company && p.name.toLowerCase().includes(linkProductSearch.toLowerCase())).length === 0 && (
+              {products.filter(p =>
+                (p.supplier !== supplier.company && p.supplier_id !== supplier.id) &&
+                p.name.toLowerCase().includes(linkProductSearch.toLowerCase())
+              ).length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">אין מוצרים להצגה</p>
               )}
             </div>

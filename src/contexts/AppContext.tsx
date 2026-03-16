@@ -25,6 +25,7 @@ export interface Product {
   sku: string;
   product_type: string;
   supplier?: string | null;
+  supplier_id?: string | null;
   supplier_origin?: string | null;
   shipping?: string | null;
   purchase_price?: number | null;
