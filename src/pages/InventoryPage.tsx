@@ -11,8 +11,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Plus, Warehouse, ArrowDown, Phone, User, Trash2, Building2, ArrowLeftRight, AlertTriangle, History, Users, Crown, Search, ArrowUpDown, ArrowUp, ArrowDown as ArrowDownIcon } from "lucide-react";
+import { InlineEditField } from "@/components/InlineEditField";
+import { Plus, Warehouse, ArrowDown, Phone, User, Trash2, Building2, ArrowLeftRight, AlertTriangle, History, Users, Crown, Search, ArrowUpDown, ArrowUp, ArrowDown as ArrowDownIcon, FileText } from "lucide-react";
 import { toast } from "sonner";
+
+interface InventoryChangeLog {
+  id: string;
+  product_id: string | null;
+  center_id: string | null;
+  old_quantity: number | null;
+  new_quantity: number | null;
+  change_type: string;
+  changed_by: string | null;
+  reason: string | null;
+  created_at: string;
+}
 
 interface DistributionCenter {
   id: string;
