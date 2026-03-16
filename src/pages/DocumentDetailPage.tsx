@@ -360,19 +360,6 @@ export default function DocumentDetailPage() {
                 />
               </InfoCell>
 
-              {/* Linked task */}
-              <InfoCell label="משימה מקושרת">
-                <InlineEditField
-                  value={(doc as any).task_id || ""}
-                  displayValue={linkedTask?.title || "—"}
-                  onSave={v => handleFieldSave("task_id", v)}
-                  options={[
-                    { value: "", label: "ללא" },
-                    ...tasks.map(t => ({ value: t.id, label: t.title })),
-                  ]}
-                />
-              </InfoCell>
-
               {/* Notes */}
               <InfoCell label="הערות">
                 <InlineEditField
