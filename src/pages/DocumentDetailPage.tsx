@@ -120,7 +120,7 @@ function FilePreview({ url, filename }: { url: string; filename?: string }) {
 export default function DocumentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { suppliers, products, orders, tasks } = useData();
+  const { suppliers, products, orders } = useData();
   const { currentUser } = useAuth();
 
   const [doc, setDoc] = useState<PurchaseDocument | null>(null);
