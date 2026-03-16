@@ -212,13 +212,6 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
                   {doc.approved_by ? format(new Date(doc.approval_date!), "dd/MM/yy") : "—"}
                 </td>
                 <td className="p-3 text-muted-foreground text-xs">{format(new Date(doc.created_at), "dd/MM/yy")}</td>
-                {onEdit && (
-                  <td className="p-3" onClick={e => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(doc)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                  </td>
-                )}
               </tr>
             ))}
           </tbody>
