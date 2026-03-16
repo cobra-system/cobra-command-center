@@ -210,7 +210,6 @@ export default function DocumentDetailPage() {
   const productName = products.find(p => p.id === doc.product_id)?.name;
   const linkedOrder = orders.find(o => o.id === (doc as any).order_id);
   const currentStepIdx = docStatusFlow.indexOf(doc.status);
-  const currentStepIdx = docStatusFlow.indexOf(doc.status);
 
   return (
     <div className="space-y-6">
