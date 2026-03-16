@@ -101,8 +101,12 @@ export default function TaskBoard() {
   };
 
   const handleDelete = async (taskId: string) => {
-    await deleteTask(taskId);
-    toast.success("המשימה נמחקה");
+    try {
+      await deleteTask(taskId);
+      toast.success("המשימה נמחקה");
+    } catch {
+      // Error toast already shown by deleteTask
+    }
   };
 
   const getColumnTasks = (status: TaskStatus): Task[] => {

@@ -112,8 +112,13 @@ export default function RecurringTasksPanel() {
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from("recurring_tasks").delete().eq("id", id);
-    toast.success("נמחקה"); fetchTasks();
+    const { error } = await supabase.from("recurring_tasks").delete().eq("id", id);
+    if (error) {
+      toast.error("שגיאה במחיקה: " + (error.message || "נסה שוב"));
+      return;
+    }
+    toast.success("נמחקה");
+    fetchTasks();
   };
 
   const toggleActive = async (task: RecurringTask) => {
