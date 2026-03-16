@@ -16,6 +16,7 @@ import { docStatusFlow, docStatusColors, currencySymbol, payStatusColors, paymen
 interface PurchaseDocument {
   id: string;
   type: string;
+  document_name: string | null;
   supplier_id: string | null;
   product_id: string | null;
   quantity: number;
