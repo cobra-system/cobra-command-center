@@ -209,7 +209,7 @@ export default function DocumentDetailPage() {
   const supplierName = suppliers.find(s => s.id === doc.supplier_id)?.company;
   const productName = products.find(p => p.id === doc.product_id)?.name;
   const linkedOrder = orders.find(o => o.id === (doc as any).order_id);
-  const linkedTask = tasks.find(t => t.id === (doc as any).task_id);
+  const currentStepIdx = docStatusFlow.indexOf(doc.status);
   const currentStepIdx = docStatusFlow.indexOf(doc.status);
 
   return (
