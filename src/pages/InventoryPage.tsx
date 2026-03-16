@@ -202,6 +202,19 @@ export default function InventoryPage() {
       transferred_by: currentUser?.name || null,
     } as any);
 
+    // Sync: if main center is involved, update products.stock_qty
+    if (mainCenter) {
+      if (transferFrom === mainCenter.id) {
+        // Moved out of main center — decrease product stock
+        const newMainQty = (sourceInv?.quantity || 0) - qty;
+        await supabase.from("products").update({ stock_qty: newMainQty } as any).eq("id", transferProduct);
+      } else if (transferTo === mainCenter.id) {
+        // Moved into main center — increase product stock
+        const destQty = destInv ? destInv.quantity + qty : qty;
+        await supabase.from("products").update({ stock_qty: destQty } as any).eq("id", transferProduct);
+      }
+    }
+
     setTransferFrom(""); setTransferTo(""); setTransferProduct(""); setTransferQty(""); setTransferNotes("");
     setShowTransfer(false);
     toast.success(`הועברו ${qty} יחידות`);
