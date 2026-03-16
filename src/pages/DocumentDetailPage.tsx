@@ -220,13 +220,13 @@ export default function DocumentDetailPage() {
           <ArrowRight className="h-5 w-5" />
         </Button>
         <div className="flex-1">
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className={`px-3 py-1 rounded text-sm font-bold ${doc.type === "PI" ? "bg-primary/15 text-primary" : "bg-accent/15 text-accent"}`}>
-              {doc.type}
-            </span>
-            <h1 className="text-xl font-bold text-foreground">
-              {supplierName || "ספק לא ידוע"} — {productName || "מוצר לא ידוע"}
-            </h1>
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className={`px-3 py-1 rounded text-sm font-bold ${doc.type === "PI" ? "bg-primary/15 text-primary" : doc.type === "PO" ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"}`}>
+                {doc.type}
+              </span>
+              <h1 className="text-xl font-bold text-foreground">
+                {doc.document_name || supplierName || "מסמך"} {productName ? `— ${productName}` : ""}
+              </h1>
             <Popover>
               <PopoverTrigger asChild>
                 <button className={cn("px-3 py-1 rounded-full text-xs font-medium cursor-pointer", docStatusColors[doc.status] || "bg-muted text-muted-foreground")}>
