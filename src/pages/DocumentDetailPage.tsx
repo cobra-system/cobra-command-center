@@ -261,6 +261,14 @@ export default function DocumentDetailPage() {
               <span className="text-xs font-normal text-muted-foreground mr-2">לחץ פעמיים על שדה לעריכה</span>
             </h2>
             <div className="space-y-3">
+              {/* Document name */}
+              <InfoCell label="שם מסמך">
+                <InlineEditField
+                  value={doc.document_name || ""}
+                  onSave={v => handleFieldSave("document_name", v)}
+                  displayValue={doc.document_name || <span className="text-muted-foreground">לחץ פעמיים להוספת שם</span>}
+                />
+              </InfoCell>
               <div className="grid grid-cols-2 gap-3">
                 {/* Type */}
                 <InfoCell label="סוג">
