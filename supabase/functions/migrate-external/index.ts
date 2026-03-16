@@ -71,6 +71,16 @@ Deno.serve(async (req) => {
     `);
     results.push("✓ Set quantity default to 0");
 
+    // 5b. Add payment_status to orders if not exists
+    await client.queryObject(`
+      ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS payment_status text NOT NULL DEFAULT 'ממתין';
+    `);
+    // Backfill existing paid orders
+    await client.queryObject(`
+      UPDATE public.orders SET payment_status = 'שולם' WHERE payment_date IS NOT NULL AND payment_status = 'ממתין';
+    `);
+    results.push("✓ orders.payment_status column");
+
     // 6. Make documents storage bucket public
     await client.queryObject(`
       UPDATE storage.buckets SET public = true WHERE id = 'documents';
