@@ -310,6 +310,10 @@ export default function InventoryPage() {
             <History className="h-3.5 w-3.5" />
             היסטוריית העברות
           </TabsTrigger>
+          <TabsTrigger value="changelog" className="flex items-center gap-1">
+            <FileText className="h-3.5 w-3.5" />
+            לוג שינויים
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="flow">
