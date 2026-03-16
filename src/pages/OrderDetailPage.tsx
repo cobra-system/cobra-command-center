@@ -96,14 +96,17 @@ export default function OrderDetailPage() {
     toast.success("עודכן");
   };
 
-  // Payment status toggle via double-click
-  const togglePaymentStatus = async () => {
+  // Payment status cycle via double-click: ממתין → שולם פיקדון → שולם → ממתין
+  const paymentStatuses = ["ממתין", "שולם פיקדון", "שולם"] as const;
+  const cyclePaymentStatus = async () => {
     if (!isManager) return;
-    if (order.payment_date) {
-      await updateOrder(order.id, { payment_date: null } as any);
-    } else {
-      await updateOrder(order.id, { payment_date: new Date().toISOString() } as any);
-    }
+    const current = (order as any).payment_status || "ממתין";
+    const idx = paymentStatuses.indexOf(current);
+    const next = paymentStatuses[(idx + 1) % paymentStatuses.length];
+    await updateOrder(order.id, {
+      payment_status: next,
+      payment_date: next === "שולם" || next === "שולם פיקדון" ? new Date().toISOString() : null,
+    } as any);
   };
 
   // Item CRUD
