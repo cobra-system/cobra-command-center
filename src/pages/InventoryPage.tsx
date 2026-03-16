@@ -140,7 +140,7 @@ export default function InventoryPage() {
     }
     if (inv) setInventory(inv as CenterInventoryItem[]);
     setLoading(false);
-  }, []);
+  }, [products]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
