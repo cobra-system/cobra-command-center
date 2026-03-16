@@ -55,6 +55,7 @@ export default function OrderDetailPage() {
   const [itemQty, setItemQty] = useState("");
   const [itemPrice, setItemPrice] = useState("");
   const [itemProductId, setItemProductId] = useState("");
+  const [itemComponentId, setItemComponentId] = useState("");
 
   const order = orders.find(o => o.id === id);
   const supplier = order?.supplier_id ? suppliers.find(s => s.id === order.supplier_id) : null;
