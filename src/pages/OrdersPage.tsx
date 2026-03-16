@@ -254,8 +254,9 @@ export default function OrdersPage() {
           <SelectTrigger className="w-[120px]"><SelectValue placeholder="תשלום" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">כל התשלומים</SelectItem>
-            <SelectItem value="paid">שולם</SelectItem>
-            <SelectItem value="unpaid">לא שולם</SelectItem>
+            <SelectItem value="שולם">שולם</SelectItem>
+            <SelectItem value="שולם פיקדון">שולם פיקדון</SelectItem>
+            <SelectItem value="ממתין">ממתין</SelectItem>
           </SelectContent>
         </Select>
       </div>
