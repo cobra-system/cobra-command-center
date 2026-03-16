@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth, type Supplier } from "@/contexts/AppContext";
-import { Search, Plus, Mail, ArrowUpDown, ArrowUp, ArrowDown, Globe, GitMerge, AlertTriangle } from "lucide-react";
+import { Search, Plus, Mail, ArrowUpDown, ArrowUp, ArrowDown, Globe, GitMerge, AlertTriangle, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -234,7 +234,7 @@ export default function SuppliersPage() {
       />
 
       {/* Add Supplier Dialog */}
-      <AddSupplierDialog open={addOpen} onOpenChange={setAddOpen} onAdd={addSupplier} />
+      <AddSupplierDialog open={addOpen} onOpenChange={setAddOpen} onAdd={addSupplier} existingSuppliers={suppliers} />
     </div>
   );
 }
@@ -380,17 +380,27 @@ function MergeDuplicatesDialog({
   );
 }
 
-function AddSupplierDialog({ open, onOpenChange, onAdd }: {
+function AddSupplierDialog({ open, onOpenChange, onAdd, existingSuppliers }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAdd: (supplier: Omit<Supplier, "id">) => Promise<void>;
+  existingSuppliers: Supplier[];
 }) {
+  const navigate = useNavigate();
   const [fields, setFields] = useState({
     company: "", contact_name: "", email: "", phone: "", country: "ישראל", website: "", notes: "",
   });
   const [saving, setSaving] = useState(false);
 
   const set = (key: string, value: string) => setFields(prev => ({ ...prev, [key]: value }));
+
+  const similarSuppliers = useMemo(() => {
+    if (!fields.company.trim()) return [];
+    const q = fields.company.trim().toLowerCase();
+    return existingSuppliers.filter(s =>
+      s.company.toLowerCase().includes(q) || q.includes(s.company.toLowerCase().slice(0, Math.max(q.length - 1, 3)))
+    ).slice(0, 3);
+  }, [fields.company, existingSuppliers]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -421,6 +431,23 @@ function AddSupplierDialog({ open, onOpenChange, onAdd }: {
             <div className="space-y-1">
               <Label className="text-xs">שם חברה *</Label>
               <Input value={fields.company} onChange={e => set("company", e.target.value)} />
+              {similarSuppliers.length > 0 && (
+                <div className="bg-warning/10 border border-warning/30 rounded-lg p-2 space-y-1">
+                  <p className="text-xs font-medium text-warning flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />ספקים דומים כבר קיימים:
+                  </p>
+                  {similarSuppliers.map(s => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => { onOpenChange(false); navigate(`/suppliers/${s.id}`); }}
+                      className="block w-full text-right text-xs text-primary hover:underline"
+                    >
+                      {s.company}{s.contact_name ? ` — ${s.contact_name}` : ""}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="space-y-1">
               <Label className="text-xs">איש קשר *</Label>

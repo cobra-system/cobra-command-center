@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useData, categories, divisions, type Product, type ProductComponent } from "@/contexts/AppContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -28,7 +29,8 @@ interface CompDraft {
 const emptyComp = (): CompDraft => ({ name: "", sku: "", supplier: "", origin: "", stock_qty: "", price: "", notes: "" });
 
 export default function ProductFormDialog({ open, onOpenChange, editProduct }: Props) {
-  const { addProduct, updateProduct, suppliers } = useData();
+  const { addProduct, updateProduct, suppliers, products } = useData();
+  const navigate = useNavigate();
 
   const [form, setForm] = useState(() => initForm(editProduct));
   const [comps, setComps] = useState<CompDraft[]>(() =>
@@ -75,6 +77,15 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct }: P
   };
 
   const setField = (key: string, val: string) => setForm(prev => ({ ...prev, [key]: val }));
+
+  // Detect similar existing products while typing (only when creating, not editing)
+  const similarProducts = useMemo(() => {
+    if (!form.name.trim() || editProduct) return [];
+    const q = form.name.trim().toLowerCase();
+    return products.filter(p =>
+      p.name.toLowerCase().includes(q) || q.includes(p.name.toLowerCase().slice(0, Math.max(q.length - 1, 3)))
+    ).slice(0, 3);
+  }, [form.name, products, editProduct]);
 
   const numOrNull = (v: string) => v === "" ? null : Number(v);
 
@@ -139,6 +150,23 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct }: P
             <div className="space-y-1">
               <Label>שם מוצר *</Label>
               <Input value={form.name} onChange={e => setField("name", e.target.value)} />
+              {similarProducts.length > 0 && (
+                <div className="bg-warning/10 border border-warning/30 rounded-lg p-2 space-y-1">
+                  <p className="text-xs font-medium text-warning flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />מוצרים דומים כבר קיימים:
+                  </p>
+                  {similarProducts.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => { onOpenChange(false); navigate(`/products/${p.id}`); }}
+                      className="block w-full text-right text-xs text-primary hover:underline"
+                    >
+                      {p.name} — {p.sku}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="space-y-1">
               <Label>מק״ט *</Label>
