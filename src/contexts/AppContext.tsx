@@ -281,7 +281,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refreshOrders = useCallback(async () => {
     const { data: ords } = await supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false });
     if (ords) {
-      setOrders(ords.map(o => ({ ...o, items: o.order_items || [] })) as unknown as Order[]);
+      setOrders(ords.map(o => {
+        const items = o.order_items || [];
+        const calculatedTotal = items.reduce((sum, item) => {
+          const itemTotal = (item.price || 0) * (item.qty || 0);
+          return sum + itemTotal;
+        }, 0);
+        return { ...o, items, total_price: calculatedTotal };
+      }) as unknown as Order[]);
     }
   }, []);
 

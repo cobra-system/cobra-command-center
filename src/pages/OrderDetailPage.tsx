@@ -205,11 +205,11 @@ export default function OrderDetailPage() {
     await refreshOrders();
   };
 
-  const details: { label: string; field: string; value: string | number | null | undefined; options?: { value: string; label: string }[]; isDate?: boolean; isSupplierLink?: boolean; icon?: any }[] = [
+  const details: { label: string; field: string; value: string | number | null | undefined; options?: { value: string; label: string }[]; isDate?: boolean; isSupplierLink?: boolean; icon?: any; isReadOnly?: boolean }[] = [
     { label: "סטטוס", field: "status", value: order.status, options: statusOptions, icon: Check },
     { label: "עדיפות", field: "priority", value: order.priority, options: priorityOptions, icon: Hash },
     { label: "ספק", field: "supplier_id", value: order.supplier_id, options: supplierOptions, isSupplierLink: true, icon: Truck },
-    { label: "סה״כ ($)", field: "total_price", value: order.total_price?.toString() ?? "", icon: DollarSign },
+    { label: "סה״כ ($)", field: "total_price", value: order.total_price?.toString() ?? "", icon: DollarSign, isReadOnly: true },
     { label: "שיטת משלוח", field: "shipping", value: order.shipping, options: shippingOptions, icon: Ship },
     { label: "הערות", field: "notes", value: order.notes, icon: FileText },
   ];
@@ -281,7 +281,7 @@ export default function OrderDetailPage() {
                   <button onClick={() => navigate(`/suppliers/${supplierMatch.id}`)} className="text-sm font-medium text-primary hover:underline">{supplierMatch.company}</button>
                 ) : d.field === "total_price" && d.value ? `$${d.value}` : undefined}
                 type={d.field === "total_price" ? "number" : "text"}
-                onSave={(v) => handleInlineSave(d.field, v)} disabled={!isManager} options={d.options} />
+                onSave={(v) => handleInlineSave(d.field, v)} disabled={d.isReadOnly || !isManager} options={d.options} />
             );
           })}
         </div>
