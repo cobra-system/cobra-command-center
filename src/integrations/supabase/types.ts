@@ -431,6 +431,7 @@ export type Database = {
           notes: string | null
           order_date: string | null
           payment_date: string | null
+          payment_status: string
           priority: string
           sap_doc_entry: string | null
           shipping: string | null
@@ -449,6 +450,7 @@ export type Database = {
           notes?: string | null
           order_date?: string | null
           payment_date?: string | null
+          payment_status?: string
           priority?: string
           sap_doc_entry?: string | null
           shipping?: string | null
@@ -467,6 +469,7 @@ export type Database = {
           notes?: string | null
           order_date?: string | null
           payment_date?: string | null
+          payment_status?: string
           priority?: string
           sap_doc_entry?: string | null
           shipping?: string | null
