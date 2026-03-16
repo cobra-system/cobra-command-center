@@ -125,6 +125,9 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("name")}>
+                <span className="flex items-center gap-1">שם <SortIcon field="name" /></span>
+              </th>
               <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("type")}>
                 <span className="flex items-center gap-1">סוג <SortIcon field="type" /></span>
               </th>
