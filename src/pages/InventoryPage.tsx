@@ -131,19 +131,18 @@ export default function InventoryPage() {
     }
     if (ct) setContacts(ct as CenterContact[]);
     if (tr) setTransfers(tr as InventoryTransfer[]);
+    if (logs) setChangeLogs(logs as InventoryChangeLog[]);
 
     // Auto-sync: if main center has no inventory records, populate from products.stock_qty
     const mainC = c?.find(center => center.is_main);
     if (mainC && inv && products.length > 0) {
       const mainInv = inv.filter(i => i.center_id === mainC.id);
       if (mainInv.length === 0) {
-        // Seed center_inventory from products
         const rows = products
           .filter(p => p.stock_qty > 0)
           .map(p => ({ center_id: mainC.id, product_id: p.id, quantity: p.stock_qty, min_stock: 0 }));
         if (rows.length > 0) {
           await supabase.from("center_inventory").upsert(rows as any[], { onConflict: "center_id,product_id" });
-          // Re-fetch inventory after seeding
           const { data: freshInv } = await supabase.from("center_inventory").select("*");
           if (freshInv) {
             setInventory(freshInv as CenterInventoryItem[]);
