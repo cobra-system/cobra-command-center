@@ -1,14 +1,16 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth, type Supplier } from "@/contexts/AppContext";
-import { Search, Plus, Mail, ArrowUpDown, ArrowUp, ArrowDown, Globe } from "lucide-react";
+import { Search, Plus, Mail, ArrowUpDown, ArrowUp, ArrowDown, Globe, GitMerge, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import SupplierEmailTab from "@/components/SupplierEmailTab";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 type SortKey = "company" | "contact_name" | "email" | "phone" | "country";
@@ -22,13 +24,65 @@ const sortableColumns: { key: SortKey; label: string }[] = [
   { key: "phone", label: "טלפון" },
 ];
 
+interface DuplicateGroup {
+  reason: string;
+  suppliers: Supplier[];
+}
+
+function normalizeName(name: string) {
+  return name.toLowerCase().trim().replace(/[.\-_\s]+/g, "");
+}
+
+function detectDuplicates(suppliers: Supplier[]): DuplicateGroup[] {
+  const groups: DuplicateGroup[] = [];
+  const usedIds = new Set<string>();
+
+  // Group by normalized company name
+  const byName = new Map<string, Supplier[]>();
+  for (const s of suppliers) {
+    const key = normalizeName(s.company);
+    if (!byName.has(key)) byName.set(key, []);
+    byName.get(key)!.push(s);
+  }
+  for (const [, group] of byName) {
+    if (group.length > 1) {
+      const ids = group.map(s => s.id);
+      if (!ids.some(id => usedIds.has(id))) {
+        ids.forEach(id => usedIds.add(id));
+        groups.push({ reason: "שם חברה זהה", suppliers: group });
+      }
+    }
+  }
+
+  // Group by email
+  const byEmail = new Map<string, Supplier[]>();
+  for (const s of suppliers) {
+    if (!s.email) continue;
+    const key = s.email.toLowerCase().trim();
+    if (!byEmail.has(key)) byEmail.set(key, []);
+    byEmail.get(key)!.push(s);
+  }
+  for (const [, group] of byEmail) {
+    if (group.length > 1) {
+      const ids = group.map(s => s.id);
+      if (!ids.some(id => usedIds.has(id))) {
+        ids.forEach(id => usedIds.add(id));
+        groups.push({ reason: "כתובת אימייל זהה", suppliers: group });
+      }
+    }
+  }
+
+  return groups;
+}
+
 export default function SuppliersPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { suppliers, addSupplier } = useData();
+  const { suppliers, addSupplier, updateSupplier, deleteSupplier, refreshSuppliers } = useData();
   const [search, setSearch] = useState("");
   const [emailSupplier, setEmailSupplier] = useState<{ id: string; company: string; email: string | null } | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
   const [countryFilter, setCountryFilter] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -58,6 +112,8 @@ export default function SuppliersPage() {
     return result;
   }, [suppliers, search, countryFilter, sortKey, sortDir]);
 
+  const duplicateGroups = useMemo(() => detectDuplicates(suppliers), [suppliers]);
+
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
       if (sortDir === "asc") setSortDir("desc");
@@ -76,7 +132,15 @@ export default function SuppliersPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold text-foreground">ספקים ({filtered.length})</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-foreground">ספקים ({filtered.length})</h1>
+          {duplicateGroups.length > 0 && (
+            <Badge variant="destructive" className="cursor-pointer" onClick={() => setMergeOpen(true)}>
+              <AlertTriangle className="h-3 w-3 ml-1" />
+              {duplicateGroups.length} כפילויות
+            </Badge>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           <Select value={countryFilter} onValueChange={setCountryFilter}>
             <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
@@ -92,7 +156,14 @@ export default function SuppliersPage() {
             <Input placeholder="חיפוש ספק..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
           </div>
           {currentUser?.role === "MANAGER" && (
-            <Button size="sm" onClick={() => setAddOpen(true)}><Plus className="h-4 w-4 ml-1" />ספק חדש</Button>
+            <>
+              {duplicateGroups.length > 0 && (
+                <Button size="sm" variant="outline" onClick={() => setMergeOpen(true)}>
+                  <GitMerge className="h-4 w-4 ml-1" />מיזוג כפילויות
+                </Button>
+              )}
+              <Button size="sm" onClick={() => setAddOpen(true)}><Plus className="h-4 w-4 ml-1" />ספק חדש</Button>
+            </>
           )}
         </div>
       </div>
@@ -152,9 +223,160 @@ export default function SuppliersPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Merge Duplicates Dialog */}
+      <MergeDuplicatesDialog
+        open={mergeOpen}
+        onOpenChange={setMergeOpen}
+        duplicateGroups={duplicateGroups}
+        updateSupplier={updateSupplier}
+        deleteSupplier={deleteSupplier}
+        refreshSuppliers={refreshSuppliers}
+      />
+
       {/* Add Supplier Dialog */}
       <AddSupplierDialog open={addOpen} onOpenChange={setAddOpen} onAdd={addSupplier} />
     </div>
+  );
+}
+
+function MergeDuplicatesDialog({
+  open, onOpenChange, duplicateGroups, updateSupplier, deleteSupplier, refreshSuppliers
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  duplicateGroups: DuplicateGroup[];
+  updateSupplier: (id: string, updates: Partial<Supplier>) => Promise<void>;
+  deleteSupplier: (id: string) => Promise<void>;
+  refreshSuppliers: () => Promise<void>;
+}) {
+  const [merging, setMerging] = useState(false);
+  // For each group, track which supplier to keep (default: first)
+  const [keepMap, setKeepMap] = useState<Record<number, string>>({});
+
+  const getKeep = (idx: number, group: DuplicateGroup) => keepMap[idx] ?? group.suppliers[0].id;
+
+  const handleMergeGroup = async (groupIdx: number, group: DuplicateGroup) => {
+    const keepId = getKeep(groupIdx, group);
+    const keeper = group.suppliers.find(s => s.id === keepId)!;
+    const toDelete = group.suppliers.filter(s => s.id !== keepId);
+
+    setMerging(true);
+    try {
+      // Merge products field from all duplicates into keeper
+      const allProducts = [
+        ...(keeper.products || "").split(",").map(p => p.trim()).filter(Boolean),
+        ...toDelete.flatMap(s => (s.products || "").split(",").map(p => p.trim()).filter(Boolean)),
+      ];
+      const mergedProducts = [...new Set(allProducts)].join(", ");
+
+      // Merge notes
+      const allNotes = [keeper.notes, ...toDelete.map(s => s.notes)].filter(Boolean).join("\n");
+
+      // Pick best fields: prefer keeper's values, fall back to duplicate's if keeper is empty
+      const mergedData: Partial<Supplier> = {
+        products: mergedProducts || keeper.products,
+        notes: allNotes || keeper.notes,
+        phone: keeper.phone || toDelete.find(s => s.phone)?.phone,
+        email: keeper.email || toDelete.find(s => s.email)?.email,
+        website: (keeper as any).website || toDelete.find(s => (s as any).website)?.website,
+        country: keeper.country || toDelete.find(s => s.country)?.country,
+      };
+
+      // Update keeper with merged data
+      await updateSupplier(keepId, mergedData);
+
+      // Re-assign orders from duplicates to keeper
+      for (const dup of toDelete) {
+        await supabase.from("orders").update({ supplier_id: keepId, supplier_name: keeper.company }).eq("supplier_id", dup.id);
+        // Move contacts to keeper
+        await supabase.from("supplier_contacts").update({ supplier_id: keepId }).eq("supplier_id", dup.id);
+        // Delete the duplicate
+        await supabase.from("suppliers").delete().eq("id", dup.id);
+      }
+
+      await refreshSuppliers();
+      toast.success(`מוזגו ${toDelete.length} כפילויות של "${keeper.company}"`);
+    } catch (err) {
+      toast.error("שגיאה במיזוג ספקים: " + (err instanceof Error ? err.message : "נסה שוב"));
+    } finally {
+      setMerging(false);
+    }
+  };
+
+  const handleMergeAll = async () => {
+    for (let i = 0; i < duplicateGroups.length; i++) {
+      await handleMergeGroup(i, duplicateGroups[i]);
+    }
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <GitMerge className="h-5 w-5" />
+            מיזוג כפילויות — נמצאו {duplicateGroups.length} קבוצות
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <p className="text-sm text-muted-foreground">
+            בחר לכל קבוצה איזה ספק לשמור. המידע (מוצרים, הערות, אנשי קשר, הזמנות) יועבר לספק הנבחר.
+          </p>
+          {duplicateGroups.map((group, idx) => (
+            <div key={idx} className="border rounded-lg p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <AlertTriangle className="h-4 w-4 text-warning" />
+                {group.reason} — {group.suppliers.length} רשומות
+              </div>
+              <div className="space-y-2">
+                {group.suppliers.map(s => (
+                  <label key={s.id} className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    getKeep(idx, group) === s.id ? "border-primary bg-primary/5" : "border-border hover:bg-muted/30"
+                  }`}>
+                    <input
+                      type="radio"
+                      name={`group-${idx}`}
+                      value={s.id}
+                      checked={getKeep(idx, group) === s.id}
+                      onChange={() => setKeepMap(prev => ({ ...prev, [idx]: s.id }))}
+                      className="mt-1"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm">{s.company}</div>
+                      <div className="text-xs text-muted-foreground space-y-0.5">
+                        {s.contact_name && <div>איש קשר: {s.contact_name}</div>}
+                        {s.email && <div dir="ltr">{s.email}</div>}
+                        {s.phone && <div dir="ltr">{s.phone}</div>}
+                        {s.products && <div className="truncate">מוצרים: {s.products}</div>}
+                      </div>
+                    </div>
+                    {getKeep(idx, group) === s.id && (
+                      <span className="text-xs text-primary font-medium whitespace-nowrap">שמור</span>
+                    )}
+                  </label>
+                ))}
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={merging}
+                onClick={() => handleMergeGroup(idx, group)}
+                className="w-full"
+              >
+                <GitMerge className="h-3.5 w-3.5 ml-1" />
+                מזג קבוצה זו
+              </Button>
+            </div>
+          ))}
+          {duplicateGroups.length > 1 && (
+            <Button onClick={handleMergeAll} disabled={merging} className="w-full">
+              {merging ? "מוזג..." : `מזג את כל הכפילויות (${duplicateGroups.length} קבוצות)`}
+            </Button>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

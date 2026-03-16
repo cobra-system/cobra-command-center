@@ -459,6 +459,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteOrder = useCallback(async (id: string) => {
     try {
+      // Delete workflow step logs first (referenced by workflow_instances)
+      const { data: instances } = await supabase.from("workflow_instances").select("id").eq("order_id", id);
+      if (instances && instances.length > 0) {
+        const instanceIds = instances.map((i: any) => i.id);
+        await supabase.from("workflow_step_logs").delete().in("instance_id", instanceIds);
+        await supabase.from("workflow_instances").delete().eq("order_id", id);
+      }
       const { error: itemsError } = await supabase.from("order_items").delete().eq("order_id", id);
       if (itemsError) throw itemsError;
       const { error: orderError } = await supabase.from("orders").delete().eq("id", id);
