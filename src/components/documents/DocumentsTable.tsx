@@ -74,6 +74,7 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
       result = [...result].sort((a, b) => {
         let cmp = 0;
         switch (sortField) {
+          case "name": cmp = (a.document_name || "").localeCompare(b.document_name || ""); break;
           case "type": cmp = a.type.localeCompare(b.type); break;
           case "supplier": cmp = supplierName(a.supplier_id).localeCompare(supplierName(b.supplier_id)); break;
           case "product": cmp = productName(a.product_id).localeCompare(productName(b.product_id)); break;
