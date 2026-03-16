@@ -514,6 +514,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (error) {
       setTasks(prevTasks);
       toast.error("שגיאה במחיקת משימה: " + (error.message || "נסה שוב"));
+      throw error;
     }
   }, [tasks]);
 
