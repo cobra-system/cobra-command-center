@@ -127,7 +127,14 @@ export default function OrderDetailPage() {
   };
 
   const handleSaveItem = async () => {
-    const name = itemProductId ? products.find(p => p.id === itemProductId)?.name || itemName : itemName;
+    let name = itemName;
+    if (itemComponentId) {
+      const prod = products.find(p => p.id === itemProductId);
+      const comp = prod?.components?.find(c => c.id === itemComponentId);
+      if (comp) name = `${comp.name} (${prod?.name})`;
+    } else if (itemProductId) {
+      name = products.find(p => p.id === itemProductId)?.name || itemName;
+    }
     if (!name.trim()) return;
 
     if (editingItem) {
