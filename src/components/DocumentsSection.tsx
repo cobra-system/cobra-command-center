@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { FileText, ExternalLink, Plus, CreditCard, AlertTriangle } from "lucide-react";
+import { FileText, ExternalLink, Upload, CreditCard, AlertTriangle, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { PurchaseDocument, Payment } from "@/components/documents/types";
 import { docStatusColors, payStatusColors, currencySymbol, paymentTypeLabels } from "@/components/documents/constants";
-import DocumentFormDialog from "@/components/documents/DocumentFormDialog";
+import SimpleFileUploadDialog from "@/components/documents/SimpleFileUploadDialog";
 
 interface Props {
   supplierId?: string;
@@ -20,7 +20,7 @@ export default function DocumentsSection({ supplierId, productId, orderId }: Pro
   const [docs, setDocs] = useState<PurchaseDocument[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showDocForm, setShowDocForm] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -54,13 +54,13 @@ export default function DocumentsSection({ supplierId, productId, orderId }: Pro
             <FileText className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">מסמכים ({docs.length})</h2>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setShowDocForm(true)}>
-            <Plus className="h-3.5 w-3.5 ml-1" />הוסף מסמך
+          <Button variant="outline" size="sm" onClick={() => setShowUpload(true)}>
+            <Upload className="h-3.5 w-3.5 ml-1" />העלה מסמך
           </Button>
         </div>
-        <DocumentFormDialog
-          open={showDocForm}
-          onOpenChange={setShowDocForm}
+        <SimpleFileUploadDialog
+          open={showUpload}
+          onOpenChange={setShowUpload}
           onSaved={fetchData}
           defaultSupplierId={supplierId}
           defaultProductId={productId}
@@ -72,6 +72,7 @@ export default function DocumentsSection({ supplierId, productId, orderId }: Pro
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="border-b bg-muted/50">
+                <th className="text-right p-3 font-semibold text-foreground">שם</th>
                 <th className="text-right p-3 font-semibold text-foreground">סוג</th>
                 <th className="text-right p-3 font-semibold text-foreground">סה"כ</th>
                 <th className="text-right p-3 font-semibold text-foreground">סטטוס</th>
@@ -84,8 +85,14 @@ export default function DocumentsSection({ supplierId, productId, orderId }: Pro
                     className="hover:bg-muted/30 cursor-pointer transition-colors"
                     onClick={() => navigate(`/documents/${doc.id}`)}
                   >
+                    <td className="p-3 text-foreground">
+                      <div className="flex items-center gap-1.5">
+                        {doc.file_url && <Paperclip className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />}
+                        <span>{doc.document_name || doc.notes || "ללא שם"}</span>
+                      </div>
+                    </td>
                     <td className="p-3">
-                      <span className={cn("px-2 py-0.5 rounded text-xs font-bold", doc.type === "PI" ? "bg-primary/15 text-primary" : "bg-accent/15 text-accent")}>
+                      <span className={cn("px-2 py-0.5 rounded text-xs font-bold", doc.type === "PI" ? "bg-primary/15 text-primary" : doc.type === "PO" ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground")}>
                         {doc.type}
                       </span>
                     </td>

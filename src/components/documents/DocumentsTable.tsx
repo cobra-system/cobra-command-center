@@ -151,7 +151,7 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
               <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("created_at")}>
                 <span className="flex items-center gap-1">תאריך <SortIcon field="created_at" /></span>
               </th>
-              {onEdit && <th className="p-3" />}
+              
             </tr>
           </thead>
           <tbody className="divide-y">
