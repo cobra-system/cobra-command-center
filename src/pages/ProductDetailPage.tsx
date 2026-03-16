@@ -62,7 +62,8 @@ export default function ProductDetailPage() {
   const handleInlineSave = async (field: string, value: string) => {
     const numericFields = ["purchase_price", "sale_price", "monthly_sales", "monthly_order", "stock_qty", "incoming_qty"];
     const updates: Record<string, any> = {};
-    updates[field] = numericFields.includes(field) ? (value ? Number(value) : null) : (value || null);
+    const finalValue = field === "sku" ? value.toUpperCase() : value;
+    updates[field] = numericFields.includes(field) ? (finalValue ? Number(finalValue) : null) : (finalValue || null);
     await updateProduct(product.id, updates);
     toast.success("עודכן");
   };
@@ -250,7 +251,7 @@ export default function ProductDetailPage() {
                     editingCompId === comp.id ? (
                       <tr key={comp.id} className="bg-accent/5">
                         <td className="p-2"><Input value={editCompFields.name} onChange={e => setEditCompFields(p => ({ ...p, name: e.target.value }))} className="h-8 text-sm" /></td>
-                        <td className="p-2"><Input value={editCompFields.sku} onChange={e => setEditCompFields(p => ({ ...p, sku: e.target.value }))} className="h-8 text-sm" dir="ltr" /></td>
+                        <td className="p-2"><Input value={editCompFields.sku} onChange={e => setEditCompFields(p => ({ ...p, sku: e.target.value.toUpperCase() }))} className="h-8 text-sm" dir="ltr" /></td>
                         <td className="p-2">
                           <Select value={editCompFields.supplier || "__none__"} onValueChange={v => setEditCompFields(p => ({ ...p, supplier: v === "__none__" ? "" : v }))}>
                             <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="בחר ספק" /></SelectTrigger>
@@ -332,7 +333,7 @@ export default function ProductDetailPage() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">מק״ט</Label>
-                <Input value={newComp.sku} onChange={e => setNewComp(p => ({ ...p, sku: e.target.value }))} dir="ltr" />
+                <Input value={newComp.sku} onChange={e => setNewComp(p => ({ ...p, sku: e.target.value.toUpperCase() }))} dir="ltr" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">ספק</Label>
