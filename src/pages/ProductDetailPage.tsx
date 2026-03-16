@@ -84,7 +84,6 @@ export default function ProductDetailPage() {
     { label: "סוג מוצר", field: "product_type", value: product.product_type, options: productTypeOptions },
     { label: "תיאור", field: "description", value: product.description },
     { label: "ספק", field: "supplier", value: product.supplier, isSupplierLink: true, options: supplierOptions },
-    { label: "מקור ספק", field: "supplier_origin", value: product.supplier_origin },
     { label: "שיטת משלוח", field: "shipping", value: product.shipping, options: shippingOptions },
     { label: "מחיר רכישה", field: "purchase_price", value: product.purchase_price },
     { label: "מחיר מכירה", field: "sale_price", value: product.sale_price },
