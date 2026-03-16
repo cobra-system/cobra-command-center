@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth } from "@/contexts/AppContext";
-import { ArrowUpDown, ArrowUp, ArrowDown, Pencil } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -12,7 +12,7 @@ import type { PurchaseDocument } from "./types";
 import { docStatusFlow, docStatusColors, currencySymbol } from "./constants";
 import { DocTypeBadge } from "./DocStatusBadge";
 
-type SortField = "type" | "supplier" | "product" | "quantity" | "total_price" | "status" | "created_at" | "order";
+type SortField = "name" | "type" | "supplier" | "product" | "quantity" | "total_price" | "status" | "created_at" | "order";
 type SortDir = "asc" | "desc" | null;
 
 interface Props {
@@ -61,11 +61,12 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
 
     if (typeFilter !== "all") result = result.filter(d => d.type === typeFilter);
     if (statusFilter !== "all") result = result.filter(d => d.status === statusFilter);
-    if (search) {
+      if (search) {
       const q = search.toLowerCase();
       result = result.filter(d =>
         supplierName(d.supplier_id).toLowerCase().includes(q) ||
-        productName(d.product_id).toLowerCase().includes(q)
+        productName(d.product_id).toLowerCase().includes(q) ||
+        (d.document_name || "").toLowerCase().includes(q)
       );
     }
 
@@ -73,6 +74,7 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
       result = [...result].sort((a, b) => {
         let cmp = 0;
         switch (sortField) {
+          case "name": cmp = (a.document_name || "").localeCompare(b.document_name || ""); break;
           case "type": cmp = a.type.localeCompare(b.type); break;
           case "supplier": cmp = supplierName(a.supplier_id).localeCompare(supplierName(b.supplier_id)); break;
           case "product": cmp = productName(a.product_id).localeCompare(productName(b.product_id)); break;
@@ -107,6 +109,7 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
             <SelectItem value="all">כל הסוגים</SelectItem>
             <SelectItem value="PI">PI</SelectItem>
             <SelectItem value="PO">PO</SelectItem>
+            <SelectItem value="כללי">כללי</SelectItem>
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -122,6 +125,9 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("name")}>
+                <span className="flex items-center gap-1">שם <SortIcon field="name" /></span>
+              </th>
               <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("type")}>
                 <span className="flex items-center gap-1">סוג <SortIcon field="type" /></span>
               </th>
@@ -145,18 +151,24 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
               <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("created_at")}>
                 <span className="flex items-center gap-1">תאריך <SortIcon field="created_at" /></span>
               </th>
-              {onEdit && <th className="p-3" />}
+              
             </tr>
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">אין מסמכים</td></tr>
+              <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">אין מסמכים</td></tr>
             ) : filtered.map(doc => (
               <tr
                 key={doc.id}
                 className="hover:bg-muted/30 cursor-pointer transition-colors"
                 onClick={() => navigate(`/documents/${doc.id}`)}
               >
+                <td className="p-3 text-foreground">
+                  <div className="flex items-center gap-1.5">
+                    {doc.file_url && <Paperclip className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />}
+                    <span className="truncate max-w-[200px]">{doc.document_name || doc.notes || "ללא שם"}</span>
+                  </div>
+                </td>
                 <td className="p-3"><DocTypeBadge type={doc.type} /></td>
                 <td className="p-3 text-foreground">{supplierName(doc.supplier_id)}</td>
                 <td className="p-3 text-foreground">{productName(doc.product_id)}</td>
@@ -200,13 +212,6 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
                   {doc.approved_by ? format(new Date(doc.approval_date!), "dd/MM/yy") : "—"}
                 </td>
                 <td className="p-3 text-muted-foreground text-xs">{format(new Date(doc.created_at), "dd/MM/yy")}</td>
-                {onEdit && (
-                  <td className="p-3" onClick={e => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(doc)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                  </td>
-                )}
               </tr>
             ))}
           </tbody>

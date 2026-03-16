@@ -709,6 +709,7 @@ export type Database = {
           approved_by: string | null
           created_at: string
           currency: string
+          document_name: string | null
           file_url: string | null
           id: string
           notes: string | null
@@ -727,6 +728,7 @@ export type Database = {
           approved_by?: string | null
           created_at?: string
           currency?: string
+          document_name?: string | null
           file_url?: string | null
           id?: string
           notes?: string | null
@@ -745,6 +747,7 @@ export type Database = {
           approved_by?: string | null
           created_at?: string
           currency?: string
+          document_name?: string | null
           file_url?: string | null
           id?: string
           notes?: string | null
