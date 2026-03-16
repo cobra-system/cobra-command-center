@@ -98,11 +98,12 @@ export default function InventoryPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [{ data: c }, { data: ct }, { data: inv }, { data: tr }] = await Promise.all([
+    const [{ data: c }, { data: ct }, { data: inv }, { data: tr }, { data: logs }] = await Promise.all([
       supabase.from("distribution_centers").select("*").order("is_main", { ascending: false }).order("name"),
       supabase.from("center_contacts").select("*"),
       supabase.from("center_inventory").select("*"),
       supabase.from("inventory_transfers").select("*").order("created_at", { ascending: false }).limit(100),
+      supabase.from("inventory_change_log").select("*").order("created_at", { ascending: false }).limit(200),
     ]);
     // Deduplicate centers by name — keep the first occurrence (main first, then alphabetical)
     if (c) {
