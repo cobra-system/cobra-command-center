@@ -110,6 +110,9 @@ export default function TaskWeeklyView() {
   const [createPickerOpen, setCreatePickerOpen] = useState(false);
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [highlightTaskId, setHighlightTaskId] = useState<string | null>(null);
+  const [showTasks, setShowTasks] = useState(true);
+  const [showRecurring, setShowRecurring] = useState(true);
+  const [showWorkflows, setShowWorkflows] = useState(true);
 
   // Recurring tasks
   const [recurringTasks, setRecurringTasks] = useState<RecurringTask[]>([]);
