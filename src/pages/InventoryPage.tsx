@@ -508,6 +508,69 @@ export default function InventoryPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="changelog" className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                לוג שינויי מלאי ({changeLogs.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {changeLogs.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">אין שינויים עדיין</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-right">תאריך</TableHead>
+                        <TableHead className="text-right">מוצר</TableHead>
+                        <TableHead className="text-right">מרכז</TableHead>
+                        <TableHead className="text-center">לפני</TableHead>
+                        <TableHead className="text-center">אחרי</TableHead>
+                        <TableHead className="text-center">שינוי</TableHead>
+                        <TableHead className="text-right">סוג</TableHead>
+                        <TableHead className="text-right">בוצע ע״י</TableHead>
+                        <TableHead className="text-right">סיבה</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {changeLogs.map(log => {
+                        const diff = (log.new_quantity ?? 0) - (log.old_quantity ?? 0);
+                        const typeLabels: Record<string, string> = {
+                          manual: "ידני",
+                          transfer_in: "העברה נכנסת",
+                          transfer_out: "העברה יוצאת",
+                        };
+                        return (
+                          <TableRow key={log.id}>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                              {new Date(log.created_at).toLocaleDateString("he-IL")} {new Date(log.created_at).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                            </TableCell>
+                            <TableCell className="font-medium">{getProductName(log.product_id)}</TableCell>
+                            <TableCell>{getCenterName(log.center_id)}</TableCell>
+                            <TableCell className="text-center text-muted-foreground">{log.old_quantity ?? "—"}</TableCell>
+                            <TableCell className="text-center font-bold">{log.new_quantity ?? "—"}</TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant={diff > 0 ? "default" : diff < 0 ? "destructive" : "secondary"} className="text-xs">
+                                {diff > 0 ? `+${diff}` : diff}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs">{typeLabels[log.change_type] || log.change_type}</TableCell>
+                            <TableCell className="text-muted-foreground text-xs">{log.changed_by || "—"}</TableCell>
+                            <TableCell className="text-muted-foreground text-xs">{log.reason || "—"}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* Add Center Dialog */}
