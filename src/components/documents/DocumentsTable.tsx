@@ -12,7 +12,7 @@ import type { PurchaseDocument } from "./types";
 import { docStatusFlow, docStatusColors, currencySymbol } from "./constants";
 import { DocTypeBadge } from "./DocStatusBadge";
 
-type SortField = "type" | "supplier" | "product" | "quantity" | "total_price" | "status" | "created_at" | "order";
+type SortField = "name" | "type" | "supplier" | "product" | "quantity" | "total_price" | "status" | "created_at" | "order";
 type SortDir = "asc" | "desc" | null;
 
 interface Props {
