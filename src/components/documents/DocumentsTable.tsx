@@ -109,6 +109,7 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
             <SelectItem value="all">כל הסוגים</SelectItem>
             <SelectItem value="PI">PI</SelectItem>
             <SelectItem value="PO">PO</SelectItem>
+            <SelectItem value="כללי">כללי</SelectItem>
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
