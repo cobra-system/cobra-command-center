@@ -48,7 +48,6 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct }: P
       division: p?.division || "",
       product_type: p?.product_type || "מוגמר",
       supplier: p?.supplier || "",
-      supplier_origin: p?.supplier_origin || "",
       shipping: p?.shipping || "",
       purchase_price: String(p?.purchase_price ?? ""),
       sale_price: String(p?.sale_price ?? ""),
@@ -102,7 +101,6 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct }: P
       division: form.division || null,
       product_type: form.product_type,
       supplier: form.supplier || null,
-      supplier_origin: form.supplier_origin || null,
       shipping: form.shipping || null,
       purchase_price: numOrNull(form.purchase_price),
       sale_price: numOrNull(form.sale_price),
@@ -226,10 +224,6 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct }: P
                   {suppliers.map(s => <SelectItem key={s.id} value={s.company}>{s.company}</SelectItem>)}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>מקור ספק</Label>
-              <Input value={form.supplier_origin} onChange={e => setField("supplier_origin", e.target.value)} />
             </div>
           </div>
 
