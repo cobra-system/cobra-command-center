@@ -44,7 +44,7 @@ interface Props {
 }
 
 export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props) {
-  const { addTask, profiles } = useData();
+  const { addTask, refreshTasks, profiles } = useData();
   const { currentUser } = useAuth();
   const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
 
@@ -177,8 +177,7 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
           }
           setUploading(false);
         }
-        // Refresh tasks via addTask workaround — call refreshTasks directly
-        await addTask(taskData);
+        await refreshTasks();
         toast({ title: "✅ משימה נוספה" });
         onSaved?.();
         onOpenChange(false);

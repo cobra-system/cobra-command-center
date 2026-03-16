@@ -170,7 +170,7 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct }: P
             </div>
             <div className="space-y-1">
               <Label>מק״ט *</Label>
-              <Input value={form.sku} onChange={e => setField("sku", e.target.value)} dir="ltr" />
+              <Input value={form.sku} onChange={e => setField("sku", e.target.value.toUpperCase())} dir="ltr" />
             </div>
           </div>
 
@@ -298,7 +298,7 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct }: P
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">מק״ט</Label>
-                    <Input value={comp.sku} onChange={e => { const nc = [...comps]; nc[i].sku = e.target.value; setComps(nc); }} className="h-8 text-xs" dir="ltr" />
+                    <Input value={comp.sku} onChange={e => { const nc = [...comps]; nc[i].sku = e.target.value.toUpperCase(); setComps(nc); }} className="h-8 text-xs" dir="ltr" />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">ספק</Label>
