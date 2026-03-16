@@ -160,8 +160,8 @@ export default function ProductsPage() {
                 <Fragment key={p.id}>
                   <tr
                     className="cursor-pointer hover:bg-muted/30 transition-colors"
-                    onClick={() => isComposite ? toggleExpand(p.id) : navigate(`/products/${p.id}`)}
-                    onDoubleClick={() => navigate(`/products/${p.id}`)}
+                    onClick={(e) => { if (e.detail !== 1) return; isComposite ? toggleExpand(p.id) : navigate(`/products/${p.id}`); }}
+                    onDoubleClick={() => isComposite && navigate(`/products/${p.id}`)}
                   >
                     <td className="p-3 text-center">
                       {isComposite && (

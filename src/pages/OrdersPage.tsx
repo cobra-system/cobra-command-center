@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useData, useAuth, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
@@ -51,11 +51,12 @@ export default function OrdersPage() {
   const { orders, updateOrderStatus, updateOrder, addOrder, deleteOrder, suppliers, products } = useData();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [orderWorkflows, setOrderWorkflows] = useState<Record<string, WorkflowInfo>>({});
   const isManager = currentUser?.role === "MANAGER";
   const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
   const [defaultProductId, setDefaultProductId] = useState<string | undefined>();
+  const [defaultSupplierId, setDefaultSupplierId] = useState<string | undefined>();
 
   useEffect(() => {
     const fetchWorkflows = async () => {
@@ -87,8 +88,7 @@ export default function OrdersPage() {
     fetchWorkflows();
   }, [orders]);
 
-  const [defaultSupplierId, setDefaultSupplierId] = useState<string | undefined>();
-
+  // Handle create-from-URL params (one-time, not persisted as filter state)
   useEffect(() => {
     const shouldCreate = searchParams.get("create") === "true" || searchParams.get("newOrder") === "true";
     if (shouldCreate) {
@@ -97,27 +97,50 @@ export default function OrdersPage() {
       if (productId) setDefaultProductId(productId);
       if (supplierId) setDefaultSupplierId(supplierId);
       setShowNewOrderDialog(true);
+      // Remove create params but keep filter params
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.delete("create");
+        next.delete("newOrder");
+        next.delete("product");
+        next.delete("productId");
+        next.delete("supplierId");
+        return next;
+      }, { replace: true });
     }
-  }, [searchParams]);
+  }, []); // only on mount
 
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [priorityFilter, setPriorityFilter] = useState("all");
-  const [paymentFilter, setPaymentFilter] = useState("all");
+  // Read filter/sort state from URL params
+  const search = searchParams.get("q") || "";
+  const statusFilter = searchParams.get("status") || "all";
+  const priorityFilter = searchParams.get("priority") || "all";
+  const paymentFilter = searchParams.get("payment") || "all";
+  const workflowFilter = searchParams.get("wf") || "all";
+  const sortField = (searchParams.get("sort") as SortField | null) || null;
+  const sortDir = (searchParams.get("dir") as SortDir) || null;
 
-  const [sortField, setSortField] = useState<SortField | null>(null);
-  const [sortDir, setSortDir] = useState<SortDir>(null);
+  // Setters that update URL params
+  const setSearch = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); v ? n.set("q", v) : n.delete("q"); return n; }, { replace: true }), [setSearchParams]);
+  const setStatusFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); v === "all" ? n.delete("status") : n.set("status", v); return n; }, { replace: true }), [setSearchParams]);
+  const setPriorityFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); v === "all" ? n.delete("priority") : n.set("priority", v); return n; }, { replace: true }), [setSearchParams]);
+  const setPaymentFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); v === "all" ? n.delete("payment") : n.set("payment", v); return n; }, { replace: true }), [setSearchParams]);
+  const setWorkflowFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); v === "all" ? n.delete("wf") : n.set("wf", v); return n; }, { replace: true }), [setSearchParams]);
 
-  const toggleSort = (field: SortField) => {
-    if (sortField === field) {
-      if (sortDir === "asc") setSortDir("desc");
-      else if (sortDir === "desc") { setSortField(null); setSortDir(null); }
-      else setSortDir("asc");
-    } else {
-      setSortField(field);
-      setSortDir("asc");
-    }
-  };
+  const toggleSort = useCallback((field: SortField) => {
+    setSearchParams(prev => {
+      const n = new URLSearchParams(prev);
+      const currentField = prev.get("sort");
+      const currentDir = prev.get("dir");
+      if (currentField === field) {
+        if (currentDir === "asc") { n.set("dir", "desc"); }
+        else { n.delete("sort"); n.delete("dir"); }
+      } else {
+        n.set("sort", field);
+        n.set("dir", "asc");
+      }
+      return n;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
@@ -129,6 +152,12 @@ export default function OrdersPage() {
       if (statusFilter !== "all" && o.status !== statusFilter) return false;
       if (priorityFilter !== "all" && o.priority !== priorityFilter) return false;
       if (paymentFilter !== "all" && (o as any).payment_status !== paymentFilter) return false;
+      if (workflowFilter !== "all") {
+        const wf = orderWorkflows[o.id];
+        if (workflowFilter === "active" && (!wf || wf.status !== "active")) return false;
+        if (workflowFilter === "completed" && (!wf || wf.status !== "completed")) return false;
+        if (workflowFilter === "none" && wf) return false;
+      }
       if (search) {
         const q = search.toLowerCase();
         const itemNames = o.items.map(i => i.name).join(" ").toLowerCase();
@@ -159,7 +188,7 @@ export default function OrdersPage() {
     }
 
     return result;
-  }, [orders, statusFilter, priorityFilter, paymentFilter, search, sortField, sortDir]);
+  }, [orders, statusFilter, priorityFilter, paymentFilter, workflowFilter, search, sortField, sortDir, orderWorkflows]);
 
   const navigateToSupplier = (supplierName: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -185,7 +214,6 @@ export default function OrdersPage() {
       current_step: Math.min(newStep, totalSteps),
       status: newStatus
     }).eq("id", wf.id);
-    // Log the step completion if advancing
     if (newStep > wf.current_step) {
       for (let i = wf.current_step; i < newStep && i < totalSteps; i++) {
         await supabase.from("workflow_step_logs").insert({
@@ -195,7 +223,6 @@ export default function OrdersPage() {
         });
       }
     } else if (newStep < wf.current_step) {
-      // Going back - remove logs
       await supabase.from("workflow_step_logs").delete().eq("instance_id", wf.id).gte("step_index", newStep);
     }
     setOrderWorkflows(prev => ({
@@ -258,6 +285,15 @@ export default function OrdersPage() {
             <SelectItem value="ממתין">ממתין</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={workflowFilter} onValueChange={setWorkflowFilter}>
+          <SelectTrigger className="w-[130px]"><SelectValue placeholder="תהליך" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">כל התהליכים</SelectItem>
+            <SelectItem value="active">תהליך פעיל</SelectItem>
+            <SelectItem value="completed">תהליך הושלם</SelectItem>
+            <SelectItem value="none">ללא תהליך</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
@@ -283,10 +319,12 @@ export default function OrdersPage() {
             {filtered.length === 0 ? (
               <tr><td colSpan={isManager ? 13 : 12} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
             ) : filtered.map(order => (
-              <tr key={order.id} className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => navigate(`/orders/${order.id}`)}>
+              <tr key={order.id} className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={(e) => { if (e.detail !== 1) return; navigate(`/orders/${order.id}`); }}>
                 <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
                 <td className="p-3 font-medium text-foreground max-w-[200px] truncate" onClick={e => e.stopPropagation()}>
-                  {order.items.map((i, idx) => (
+                  {order.items.length === 0 ? (
+                    <span className="text-muted-foreground italic text-xs">ללא פריטים</span>
+                  ) : order.items.map((i, idx) => (
                     <span key={idx}>
                       {i.product_id ? (
                         <button onClick={(e) => navigateToProduct(i.product_id!, e)} className="text-primary hover:underline text-sm">
@@ -299,7 +337,7 @@ export default function OrdersPage() {
                     </span>
                   ))}
                 </td>
-                <td className="p-3 text-muted-foreground">{order.items.reduce((s, i) => s + i.qty, 0)}</td>
+                <td className="p-3 text-muted-foreground">{order.items.reduce((s, i) => s + i.qty, 0) || "—"}</td>
                 <td className="p-3">
                   {order.supplier_name ? (
                     <button onClick={(e) => navigateToSupplier(order.supplier_name!, e)} className="text-primary hover:underline text-sm">
@@ -430,7 +468,7 @@ export default function OrdersPage() {
                       </PopoverContent>
                     </Popover>
                   ) : (
-                    <span className="text-xs text-muted-foreground">אוטומטי</span>
+                    <span className="text-xs text-muted-foreground">—</span>
                   )}
                 </td>
                 {isManager && (

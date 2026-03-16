@@ -32,20 +32,23 @@ import IssuesPage from "@/pages/IssuesPage";
 const queryClient = new QueryClient();
 
 function RequireManager() {
-  const { currentUser } = useAuth();
+  const { currentUser, loading } = useAuth();
+  if (loading) return null;
   if (!currentUser) return <Navigate to="/login" replace />;
   if (currentUser.role !== "MANAGER") return <Navigate to="/my-tasks" replace />;
   return <ManagerLayout />;
 }
 
 function RequireAuth() {
-  const { currentUser } = useAuth();
+  const { currentUser, loading } = useAuth();
+  if (loading) return null;
   if (!currentUser) return <Navigate to="/login" replace />;
   return <EmployeeLayout />;
 }
 
 function RootRedirect() {
-  const { currentUser } = useAuth();
+  const { currentUser, loading } = useAuth();
+  if (loading) return null;
   if (!currentUser) return <Navigate to="/login" replace />;
   if (currentUser.role === "MANAGER") return <Navigate to="/dashboard" replace />;
   return <Navigate to="/my-tasks" replace />;

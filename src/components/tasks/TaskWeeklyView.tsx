@@ -422,7 +422,7 @@ export default function TaskWeeklyView() {
                   draggable
                   onDragStart={() => setDragTaskId(task.id)}
                   onDragEnd={() => { setDragTaskId(null); setDragOverDay(null); }}
-                  onClick={() => setSelectedTask(task)}
+                  onClick={(e) => { if (e.detail !== 1) return; setSelectedTask(task); }}
                 >
                   <p className="text-xs font-medium text-foreground leading-tight line-clamp-2">{task.title}</p>
                   <div className="flex items-center justify-between">
@@ -706,6 +706,7 @@ function WeeklyTaskCard({ task, showAssignee, isDragging, isHighlighted, onToggl
       onDragEnd={onDragEnd}
       onClick={(e) => {
         e.stopPropagation();
+        if (e.detail !== 1) return; // prevent second click of a double-click from reopening
         onClick();
       }}
       onDoubleClick={(e) => {

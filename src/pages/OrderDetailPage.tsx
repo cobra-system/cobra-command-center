@@ -46,7 +46,7 @@ export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { orders, updateOrderStatus, updateOrder, deleteOrder, suppliers, products, refreshOrders } = useData();
+  const { orders, updateOrderStatus, updateOrder, deleteOrder, suppliers, products, refreshOrders, updateProduct, updateComponent } = useData();
 
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [editItemDialog, setEditItemDialog] = useState(false);
@@ -131,20 +131,25 @@ export default function OrderDetailPage() {
 
   const handleSaveItem = async () => {
     let name = itemName;
-    if (itemComponentId) {
-      const prod = products.find(p => p.id === itemProductId);
-      const comp = prod?.components?.find(c => c.id === itemComponentId);
-      if (comp) name = `${comp.name} (${prod?.name})`;
-    } else if (itemProductId) {
-      name = products.find(p => p.id === itemProductId)?.name || itemName;
+    const linkedProduct = itemProductId ? products.find(p => p.id === itemProductId) : null;
+    const linkedComponent = itemComponentId && linkedProduct
+      ? linkedProduct.components?.find(c => c.id === itemComponentId)
+      : null;
+
+    if (linkedComponent) {
+      name = `${linkedComponent.name} (${linkedProduct?.name})`;
+    } else if (linkedProduct) {
+      name = linkedProduct.name;
     }
     if (!name.trim()) return;
+
+    const enteredPrice = itemPrice ? Number(itemPrice) : null;
 
     if (editingItem) {
       const { error } = await supabase.from("order_items").update({
         name: name.trim(),
         qty: Number(itemQty) || 1,
-        price: itemPrice ? Number(itemPrice) : null,
+        price: enteredPrice,
         product_id: itemProductId || null,
       }).eq("id", editingItem.id);
       if (error) { toast.error("שגיאה בעדכון פריט"); return; }
@@ -154,7 +159,7 @@ export default function OrderDetailPage() {
         order_id: order.id,
         name: name.trim(),
         qty: Number(itemQty) || 1,
-        price: itemPrice ? Number(itemPrice) : null,
+        price: enteredPrice,
         product_id: itemProductId || null,
       });
       if (error) { toast.error("שגיאה בהוספת פריט"); return; }
@@ -162,6 +167,35 @@ export default function OrderDetailPage() {
     }
     setEditItemDialog(false);
     await refreshOrders();
+
+    // Suggest updating the source price if it differs
+    if (enteredPrice !== null && enteredPrice > 0) {
+      if (linkedComponent && enteredPrice !== linkedComponent.price) {
+        const compName = linkedComponent.name;
+        toast.info(`מחיר הרכיב "${compName}" לא מוגדר או שונה. תרצה לעדכן ל-$${enteredPrice}?`, {
+          action: {
+            label: "עדכן",
+            onClick: async () => {
+              await updateComponent(linkedComponent.id, { price: enteredPrice });
+              toast.success(`מחיר הרכיב "${compName}" עודכן ל-$${enteredPrice}`);
+            },
+          },
+          duration: 10000,
+        });
+      } else if (linkedProduct && !linkedComponent && enteredPrice !== linkedProduct.purchase_price) {
+        const prodName = linkedProduct.name;
+        toast.info(`מחיר הרכישה של "${prodName}" לא מוגדר או שונה. תרצה לעדכן ל-$${enteredPrice}?`, {
+          action: {
+            label: "עדכן",
+            onClick: async () => {
+              await updateProduct(linkedProduct.id, { purchase_price: enteredPrice });
+              toast.success(`מחיר הרכישה של "${prodName}" עודכן ל-$${enteredPrice}`);
+            },
+          },
+          duration: 10000,
+        });
+      }
+    }
   };
 
   const handleDeleteItem = async (itemId: string) => {
