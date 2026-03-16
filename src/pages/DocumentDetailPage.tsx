@@ -278,6 +278,7 @@ export default function DocumentDetailPage() {
                     options={[
                       { value: "PI", label: "PI — הצעת מחיר" },
                       { value: "PO", label: "PO — הזמנת רכש" },
+                      { value: "כללי", label: "כללי" },
                     ]}
                   />
                 </InfoCell>
