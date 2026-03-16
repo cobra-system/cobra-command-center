@@ -236,6 +236,7 @@ export default function InventoryPage() {
         const destQty = destInv ? destInv.quantity + qty : qty;
         await supabase.from("products").update({ stock_qty: destQty } as any).eq("id", transferProduct);
       }
+      refreshProducts();
     }
 
     setTransferFrom(""); setTransferTo(""); setTransferProduct(""); setTransferQty(""); setTransferNotes("");
