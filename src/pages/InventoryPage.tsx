@@ -51,7 +51,7 @@ interface InventoryTransfer {
 }
 
 export default function InventoryPage() {
-  const { products } = useData();
+  const { products, refreshProducts } = useData();
   const { currentUser } = useAuth();
   const [centers, setCenters] = useState<DistributionCenter[]>([]);
   const [contacts, setContacts] = useState<CenterContact[]>([]);
@@ -115,10 +115,32 @@ export default function InventoryPage() {
       }
     }
     if (ct) setContacts(ct as CenterContact[]);
-    if (inv) setInventory(inv as CenterInventoryItem[]);
     if (tr) setTransfers(tr as InventoryTransfer[]);
+
+    // Auto-sync: if main center has no inventory records, populate from products.stock_qty
+    const mainC = c?.find(center => center.is_main);
+    if (mainC && inv && products.length > 0) {
+      const mainInv = inv.filter(i => i.center_id === mainC.id);
+      if (mainInv.length === 0) {
+        // Seed center_inventory from products
+        const rows = products
+          .filter(p => p.stock_qty > 0)
+          .map(p => ({ center_id: mainC.id, product_id: p.id, quantity: p.stock_qty, min_stock: 0 }));
+        if (rows.length > 0) {
+          await supabase.from("center_inventory").upsert(rows as any[], { onConflict: "center_id,product_id" });
+          // Re-fetch inventory after seeding
+          const { data: freshInv } = await supabase.from("center_inventory").select("*");
+          if (freshInv) {
+            setInventory(freshInv as CenterInventoryItem[]);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+    }
+    if (inv) setInventory(inv as CenterInventoryItem[]);
     setLoading(false);
-  }, []);
+  }, [products]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -159,6 +181,7 @@ export default function InventoryPage() {
     // Sync: if main center, update product stock_qty too
     if (mainCenter && centerId === mainCenter.id) {
       await supabase.from("products").update({ stock_qty: qty } as any).eq("id", productId);
+      refreshProducts();
     }
     fetchData();
   };
@@ -213,6 +236,7 @@ export default function InventoryPage() {
         const destQty = destInv ? destInv.quantity + qty : qty;
         await supabase.from("products").update({ stock_qty: destQty } as any).eq("id", transferProduct);
       }
+      refreshProducts();
     }
 
     setTransferFrom(""); setTransferTo(""); setTransferProduct(""); setTransferQty(""); setTransferNotes("");
