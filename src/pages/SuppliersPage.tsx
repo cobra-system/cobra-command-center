@@ -179,12 +179,11 @@ export default function SuppliersPage() {
                 </button>
               </th>
             ))}
-            <th className="text-right p-3 font-semibold text-foreground">מוצרים</th>
             <th className="text-right p-3 font-semibold text-foreground">תקשורת</th>
           </tr></thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">לא נמצאו ספקים</td></tr>
+              <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">לא נמצאו ספקים</td></tr>
             ) : filtered.map(s => (
               <tr key={s.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/suppliers/${s.id}`)}>
                 <td className="p-3 font-medium text-foreground">{s.company}</td>
@@ -199,7 +198,6 @@ export default function SuppliersPage() {
                 </td>
                 <td className="p-3">{s.email ? <span className="text-accent text-xs" dir="ltr">{s.email}</span> : "—"}</td>
                 <td className="p-3 text-muted-foreground" dir="ltr">{s.phone || "—"}</td>
-                <td className="p-3 text-muted-foreground text-xs max-w-[200px] truncate">{s.products || "—"}</td>
                 <td className="p-3">
                   <button
                     onClick={(e) => { e.stopPropagation(); setEmailSupplier({ id: s.id, company: s.company, email: s.email || null }); }}
