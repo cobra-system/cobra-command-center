@@ -181,6 +181,7 @@ export default function InventoryPage() {
     // Sync: if main center, update product stock_qty too
     if (mainCenter && centerId === mainCenter.id) {
       await supabase.from("products").update({ stock_qty: qty } as any).eq("id", productId);
+      refreshProducts();
     }
     fetchData();
   };
