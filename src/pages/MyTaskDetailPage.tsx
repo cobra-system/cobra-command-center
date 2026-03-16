@@ -19,7 +19,7 @@ interface TaskDoc {
 export default function MyTaskDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { tasks, updateTaskStatus, addTaskNote } = useData();
+  const { tasks, updateTaskStatus, addTaskNote, deleteTask } = useData();
   const task = tasks.find(t => t.id === id);
   const [note, setNote] = useState(task?.notes || "");
   const [saving, setSaving] = useState(false);
@@ -72,6 +72,18 @@ export default function MyTaskDetailPage() {
     setSaving(true);
     await addTaskNote(task.id, note.trim());
     setSaving(false);
+  };
+
+  const handleDeleteTask = async () => {
+    if (confirm("האם אתה בטוח שברצונך למחוק משימה זו? לא ניתן לשחזר פעולה זו.")) {
+      try {
+        await deleteTask(task.id);
+        toast({ title: "✅ משימה נמחקה בהצלחה" });
+        navigate("/my-tasks");
+      } catch (error) {
+        toast({ title: "שגיאה במחיקת משימה", description: "נסה שוב", variant: "destructive" });
+      }
+    }
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -277,6 +289,14 @@ export default function MyTaskDetailPage() {
             החזר לביצוע
           </Button>
         )}
+        <Button
+          variant="outline"
+          className="w-full h-11 rounded-2xl text-sm text-destructive border-destructive/20 hover:bg-destructive/5 active:scale-[0.98] transition-all"
+          onClick={handleDeleteTask}
+        >
+          <Trash2 className="h-4 w-4 ml-2" />
+          מחק משימה
+        </Button>
       </div>
     </div>
   );
