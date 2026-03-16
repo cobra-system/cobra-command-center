@@ -61,11 +61,12 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
 
     if (typeFilter !== "all") result = result.filter(d => d.type === typeFilter);
     if (statusFilter !== "all") result = result.filter(d => d.status === statusFilter);
-    if (search) {
+      if (search) {
       const q = search.toLowerCase();
       result = result.filter(d =>
         supplierName(d.supplier_id).toLowerCase().includes(q) ||
-        productName(d.product_id).toLowerCase().includes(q)
+        productName(d.product_id).toLowerCase().includes(q) ||
+        (d.document_name || "").toLowerCase().includes(q)
       );
     }
 
