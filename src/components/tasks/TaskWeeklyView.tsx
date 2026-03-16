@@ -389,7 +389,7 @@ export default function TaskWeeklyView() {
                 )}
 
                 {/* Regular tasks */}
-                {dayTasks.map(task => (
+                {showTasks && dayTasks.map(task => (
                   <WeeklyTaskCard
                     key={task.id}
                     task={task}
@@ -404,12 +404,12 @@ export default function TaskWeeklyView() {
                 ))}
 
                 {/* Recurring task cards */}
-                {dayRecurring.map(rt => (
+                {showRecurring && dayRecurring.map(rt => (
                   <RecurringTaskCard key={`r-${rt.id}`} rt={rt} showAssignee={assigneeFilter === "all"} />
                 ))}
 
                 {/* Workflow step cards */}
-                {dayWorkflows.map(wf => (
+                {showWorkflows && dayWorkflows.map(wf => (
                   <WorkflowCard key={`wf-${wf.id}`} instance={wf} onRefresh={loadWorkflows} />
                 ))}
               </div>
