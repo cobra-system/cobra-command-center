@@ -213,6 +213,57 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_change_log: {
+        Row: {
+          center_id: string | null
+          change_type: string
+          changed_by: string | null
+          created_at: string
+          id: string
+          new_quantity: number | null
+          old_quantity: number | null
+          product_id: string | null
+          reason: string | null
+        }
+        Insert: {
+          center_id?: string | null
+          change_type?: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_quantity?: number | null
+          old_quantity?: number | null
+          product_id?: string | null
+          reason?: string | null
+        }
+        Update: {
+          center_id?: string | null
+          change_type?: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_quantity?: number | null
+          old_quantity?: number | null
+          product_id?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_change_log_center_id_fkey"
+            columns: ["center_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_change_log_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_transfers: {
         Row: {
           created_at: string
