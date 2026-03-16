@@ -11,8 +11,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Plus, Warehouse, ArrowDown, Phone, User, Trash2, Building2, ArrowLeftRight, AlertTriangle, History, Users, Crown, Search, ArrowUpDown, ArrowUp, ArrowDown as ArrowDownIcon } from "lucide-react";
+import { InlineEditField } from "@/components/InlineEditField";
+import { Plus, Warehouse, ArrowDown, Phone, User, Trash2, Building2, ArrowLeftRight, AlertTriangle, History, Users, Crown, Search, ArrowUpDown, ArrowUp, ArrowDown as ArrowDownIcon, FileText } from "lucide-react";
 import { toast } from "sonner";
+
+interface InventoryChangeLog {
+  id: string;
+  product_id: string | null;
+  center_id: string | null;
+  old_quantity: number | null;
+  new_quantity: number | null;
+  change_type: string;
+  changed_by: string | null;
+  reason: string | null;
+  created_at: string;
+}
 
 interface DistributionCenter {
   id: string;
@@ -57,6 +70,7 @@ export default function InventoryPage() {
   const [contacts, setContacts] = useState<CenterContact[]>([]);
   const [inventory, setInventory] = useState<CenterInventoryItem[]>([]);
   const [transfers, setTransfers] = useState<InventoryTransfer[]>([]);
+  const [changeLogs, setChangeLogs] = useState<InventoryChangeLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("flow");
   const [detailSearch, setDetailSearch] = useState("");
@@ -84,11 +98,12 @@ export default function InventoryPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [{ data: c }, { data: ct }, { data: inv }, { data: tr }] = await Promise.all([
+    const [{ data: c }, { data: ct }, { data: inv }, { data: tr }, { data: logs }] = await Promise.all([
       supabase.from("distribution_centers").select("*").order("is_main", { ascending: false }).order("name"),
       supabase.from("center_contacts").select("*"),
       supabase.from("center_inventory").select("*"),
       supabase.from("inventory_transfers").select("*").order("created_at", { ascending: false }).limit(100),
+      supabase.from("inventory_change_log").select("*").order("created_at", { ascending: false }).limit(200),
     ]);
     // Deduplicate centers by name — keep the first occurrence (main first, then alphabetical)
     if (c) {
@@ -116,19 +131,18 @@ export default function InventoryPage() {
     }
     if (ct) setContacts(ct as CenterContact[]);
     if (tr) setTransfers(tr as InventoryTransfer[]);
+    if (logs) setChangeLogs(logs as InventoryChangeLog[]);
 
     // Auto-sync: if main center has no inventory records, populate from products.stock_qty
     const mainC = c?.find(center => center.is_main);
     if (mainC && inv && products.length > 0) {
       const mainInv = inv.filter(i => i.center_id === mainC.id);
       if (mainInv.length === 0) {
-        // Seed center_inventory from products
         const rows = products
           .filter(p => p.stock_qty > 0)
           .map(p => ({ center_id: mainC.id, product_id: p.id, quantity: p.stock_qty, min_stock: 0 }));
         if (rows.length > 0) {
           await supabase.from("center_inventory").upsert(rows as any[], { onConflict: "center_id,product_id" });
-          // Re-fetch inventory after seeding
           const { data: freshInv } = await supabase.from("center_inventory").select("*");
           if (freshInv) {
             setInventory(freshInv as CenterInventoryItem[]);
@@ -173,16 +187,24 @@ export default function InventoryPage() {
 
   const handleUpdateInventory = async (centerId: string, productId: string, qty: number) => {
     const existing = inventory.find(i => i.center_id === centerId && i.product_id === productId);
+    const oldQty = existing?.quantity ?? 0;
+    
     if (existing) {
       await supabase.from("center_inventory").update({ quantity: qty } as any).eq("id", existing.id);
     } else {
       await supabase.from("center_inventory").insert({ center_id: centerId, product_id: productId, quantity: qty } as any);
     }
-    // Sync: if main center, update product stock_qty too
-    if (mainCenter && centerId === mainCenter.id) {
-      await supabase.from("products").update({ stock_qty: qty } as any).eq("id", productId);
-      refreshProducts();
-    }
+    // Log the change
+    await supabase.from("inventory_change_log").insert({
+      product_id: productId,
+      center_id: centerId,
+      old_quantity: oldQty,
+      new_quantity: qty,
+      change_type: "manual",
+      changed_by: currentUser?.name || null,
+    } as any);
+    // Trigger handles syncing to products.stock_qty automatically
+    refreshProducts();
     fetchData();
   };
 
@@ -225,19 +247,13 @@ export default function InventoryPage() {
       transferred_by: currentUser?.name || null,
     } as any);
 
-    // Sync: if main center is involved, update products.stock_qty
-    if (mainCenter) {
-      if (transferFrom === mainCenter.id) {
-        // Moved out of main center — decrease product stock
-        const newMainQty = (sourceInv?.quantity || 0) - qty;
-        await supabase.from("products").update({ stock_qty: newMainQty } as any).eq("id", transferProduct);
-      } else if (transferTo === mainCenter.id) {
-        // Moved into main center — increase product stock
-        const destQty = destInv ? destInv.quantity + qty : qty;
-        await supabase.from("products").update({ stock_qty: destQty } as any).eq("id", transferProduct);
-      }
-      refreshProducts();
-    }
+    // Log transfer changes
+    await supabase.from("inventory_change_log").insert([
+      { product_id: transferProduct, center_id: transferFrom, old_quantity: sourceInv?.quantity || 0, new_quantity: (sourceInv?.quantity || 0) - qty, change_type: "transfer_out", changed_by: currentUser?.name || null, reason: transferNotes || null },
+      { product_id: transferProduct, center_id: transferTo, old_quantity: destInv?.quantity || 0, new_quantity: (destInv?.quantity || 0) + qty, change_type: "transfer_in", changed_by: currentUser?.name || null, reason: transferNotes || null },
+    ] as any);
+    // Trigger handles syncing to products.stock_qty automatically
+    refreshProducts();
 
     setTransferFrom(""); setTransferTo(""); setTransferProduct(""); setTransferQty(""); setTransferNotes("");
     setShowTransfer(false);
@@ -293,6 +309,10 @@ export default function InventoryPage() {
           <TabsTrigger value="transfers" className="flex items-center gap-1">
             <History className="h-3.5 w-3.5" />
             היסטוריית העברות
+          </TabsTrigger>
+          <TabsTrigger value="changelog" className="flex items-center gap-1">
+            <FileText className="h-3.5 w-3.5" />
+            לוג שינויים
           </TabsTrigger>
         </TabsList>
 
@@ -403,19 +423,28 @@ export default function InventoryPage() {
                             return (
                               <TableCell key={c.id} className="text-center">
                                 <div className="flex items-center justify-center gap-1">
-                                  <Input
-                                    type="number" min={0}
+                                  <InlineEditField
                                     value={inv?.quantity ?? 0}
-                                    onChange={e => handleUpdateInventory(c.id, p.id, parseInt(e.target.value) || 0)}
-                                    className={`w-16 h-7 text-center text-sm ${isLow ? "border-destructive bg-destructive/5" : ""}`}
+                                    type="number"
+                                    onSave={(v) => handleUpdateInventory(c.id, p.id, parseInt(v) || 0)}
+                                    className="min-w-[50px]"
+                                    inputClassName={`w-16 h-7 text-center text-sm ${isLow ? "border-destructive bg-destructive/5" : ""}`}
+                                    displayValue={
+                                      <span className={`text-sm font-medium ${isLow ? "text-destructive" : ""}`}>
+                                        {inv?.quantity ?? 0}
+                                      </span>
+                                    }
                                   />
                                   <span className="text-muted-foreground text-xs">/</span>
-                                  <Input
-                                    type="number" min={0}
+                                  <InlineEditField
                                     value={inv?.min_stock ?? 0}
-                                    onChange={e => handleUpdateMinStock(c.id, p.id, parseInt(e.target.value) || 0)}
-                                    className="w-14 h-7 text-center text-xs text-muted-foreground"
-                                    title="סף מינימום"
+                                    type="number"
+                                    onSave={(v) => handleUpdateMinStock(c.id, p.id, parseInt(v) || 0)}
+                                    className="min-w-[40px]"
+                                    inputClassName="w-14 h-7 text-center text-xs"
+                                    displayValue={
+                                      <span className="text-xs text-muted-foreground">{inv?.min_stock ?? 0}</span>
+                                    }
                                   />
                                   {isLow && <AlertTriangle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />}
                                 </div>
@@ -472,6 +501,69 @@ export default function InventoryPage() {
                           <TableCell className="text-muted-foreground text-xs">{t.notes || "—"}</TableCell>
                         </TableRow>
                       ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="changelog" className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                לוג שינויי מלאי ({changeLogs.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {changeLogs.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">אין שינויים עדיין</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-right">תאריך</TableHead>
+                        <TableHead className="text-right">מוצר</TableHead>
+                        <TableHead className="text-right">מרכז</TableHead>
+                        <TableHead className="text-center">לפני</TableHead>
+                        <TableHead className="text-center">אחרי</TableHead>
+                        <TableHead className="text-center">שינוי</TableHead>
+                        <TableHead className="text-right">סוג</TableHead>
+                        <TableHead className="text-right">בוצע ע״י</TableHead>
+                        <TableHead className="text-right">סיבה</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {changeLogs.map(log => {
+                        const diff = (log.new_quantity ?? 0) - (log.old_quantity ?? 0);
+                        const typeLabels: Record<string, string> = {
+                          manual: "ידני",
+                          transfer_in: "העברה נכנסת",
+                          transfer_out: "העברה יוצאת",
+                        };
+                        return (
+                          <TableRow key={log.id}>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                              {new Date(log.created_at).toLocaleDateString("he-IL")} {new Date(log.created_at).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                            </TableCell>
+                            <TableCell className="font-medium">{getProductName(log.product_id)}</TableCell>
+                            <TableCell>{getCenterName(log.center_id)}</TableCell>
+                            <TableCell className="text-center text-muted-foreground">{log.old_quantity ?? "—"}</TableCell>
+                            <TableCell className="text-center font-bold">{log.new_quantity ?? "—"}</TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant={diff > 0 ? "default" : diff < 0 ? "destructive" : "secondary"} className="text-xs">
+                                {diff > 0 ? `+${diff}` : diff}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs">{typeLabels[log.change_type] || log.change_type}</TableCell>
+                            <TableCell className="text-muted-foreground text-xs">{log.changed_by || "—"}</TableCell>
+                            <TableCell className="text-muted-foreground text-xs">{log.reason || "—"}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
