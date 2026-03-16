@@ -113,6 +113,7 @@ export default function OrderDetailPage() {
     setItemQty("1");
     setItemPrice("");
     setItemProductId("");
+    setItemComponentId("");
     setEditItemDialog(true);
   };
 
