@@ -156,13 +156,19 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">אין מסמכים</td></tr>
+              <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">אין מסמכים</td></tr>
             ) : filtered.map(doc => (
               <tr
                 key={doc.id}
                 className="hover:bg-muted/30 cursor-pointer transition-colors"
                 onClick={() => navigate(`/documents/${doc.id}`)}
               >
+                <td className="p-3 text-foreground">
+                  <div className="flex items-center gap-1.5">
+                    {doc.file_url && <Paperclip className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />}
+                    <span className="truncate max-w-[200px]">{doc.document_name || doc.notes || "ללא שם"}</span>
+                  </div>
+                </td>
                 <td className="p-3"><DocTypeBadge type={doc.type} /></td>
                 <td className="p-3 text-foreground">{supplierName(doc.supplier_id)}</td>
                 <td className="p-3 text-foreground">{productName(doc.product_id)}</td>
