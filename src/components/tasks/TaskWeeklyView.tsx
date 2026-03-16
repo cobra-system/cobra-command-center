@@ -293,19 +293,43 @@ export default function TaskWeeklyView() {
       )}
 
       {/* Legend */}
-      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-primary/60" />
+      <div className="flex items-center gap-2 text-xs">
+        <button
+          onClick={() => setShowTasks(v => !v)}
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all",
+            showTasks
+              ? "bg-primary/10 border-primary/30 text-primary font-medium"
+              : "bg-muted/30 border-border/50 text-muted-foreground/50 line-through"
+          )}
+        >
+          <span className={cn("h-2 w-2 rounded-full transition-colors", showTasks ? "bg-primary" : "bg-muted-foreground/30")} />
           משימות
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-violet-500/70" />
+        </button>
+        <button
+          onClick={() => setShowRecurring(v => !v)}
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all",
+            showRecurring
+              ? "bg-accent/50 border-accent/30 text-accent-foreground font-medium"
+              : "bg-muted/30 border-border/50 text-muted-foreground/50 line-through"
+          )}
+        >
+          <span className={cn("h-2 w-2 rounded-full transition-colors", showRecurring ? "bg-violet-500" : "bg-muted-foreground/30")} />
           חוזרות
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-amber-500/70" />
+        </button>
+        <button
+          onClick={() => setShowWorkflows(v => !v)}
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all",
+            showWorkflows
+              ? "bg-warning/10 border-warning/30 text-warning font-medium"
+              : "bg-muted/30 border-border/50 text-muted-foreground/50 line-through"
+          )}
+        >
+          <span className={cn("h-2 w-2 rounded-full transition-colors", showWorkflows ? "bg-warning" : "bg-muted-foreground/30")} />
           תהליכים
-        </span>
+        </button>
       </div>
 
       {/* Weekly grid */}
