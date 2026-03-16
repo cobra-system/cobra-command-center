@@ -110,7 +110,7 @@ export default function ManagerLayout() {
         fixed lg:static inset-y-0 right-0 z-50 flex flex-col
         bg-card/95 backdrop-blur-xl border-l border-border/50
         transition-all duration-300 ease-out
-        ${collapsed ? "w-[72px]" : "w-[260px]"}
+        ${collapsed ? "w-[72px]" : "w-[280px]"}
         ${sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
       `}>
         {/* Logo area */}
@@ -144,7 +144,7 @@ export default function ManagerLayout() {
         )}
 
         {/* Navigation */}
-        <nav className={`flex-1 overflow-y-auto py-3 ${collapsed ? "px-2" : "px-3"} space-y-0.5`}>
+        <nav className={`flex-1 overflow-y-auto py-3 ${collapsed ? "px-2" : "px-3"} space-y-0.5 scrollbar-thin scrollbar-thumb-border/50 scrollbar-track-transparent`}>
           {navItems.map((item, index) => {
             const Icon = iconMap[item.icon] || Package;
             return (
@@ -156,12 +156,12 @@ export default function ManagerLayout() {
                 onDrop={() => handleDrop(index)}
                 onDragEnd={handleDragEnd}
                 className={`flex items-center group transition-all ${
-                  dragOverIndex === index ? "border-t-2 border-primary" : ""
-                } ${dragIndex === index ? "opacity-40" : ""}`}
+                  dragOverIndex === index ? "border-t-2 border-primary/60" : ""
+                } ${dragIndex === index ? "opacity-50" : ""}`}
               >
                 {!collapsed && (
-                  <div className="opacity-0 group-hover:opacity-40 cursor-grab active:cursor-grabbing px-0.5 text-muted-foreground">
-                    <GripVertical className="h-3 w-3" />
+                  <div className="opacity-0 group-hover:opacity-60 cursor-grab active:cursor-grabbing px-2 text-muted-foreground transition-opacity duration-200">
+                    <GripVertical className="h-4 w-4" />
                   </div>
                 )}
                 <NavLink
@@ -169,19 +169,19 @@ export default function ManagerLayout() {
                   onClick={() => setSidebarOpen(false)}
                   title={collapsed ? item.label : undefined}
                   className={({ isActive }) =>
-                    `flex-1 flex items-center gap-3 rounded-lg text-[13px] font-medium transition-all duration-150 ${
-                      collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2"
+                    `flex-1 flex items-center gap-3 rounded-lg text-[13px] font-medium transition-colors duration-150 ${
+                      collapsed ? "justify-center px-2 py-2.5" : "px-4 py-2.5"
                     } ${
                       isActive
                         ? "bg-primary/10 text-primary shadow-sm"
-                        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                        : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
                     }`
                   }
                 >
                   <Icon className={`${collapsed ? "h-5 w-5" : "h-[18px] w-[18px]"} shrink-0`} />
                   {!collapsed && <span>{item.label}</span>}
                   {!collapsed && item.to === "/tasks" && pendingCount > 0 && (
-                    <span className="mr-auto text-[10px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full leading-none">
+                    <span className="ml-auto text-[10px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full leading-none">
                       {pendingCount}
                     </span>
                   )}
@@ -206,7 +206,7 @@ export default function ManagerLayout() {
 
         {/* User profile */}
         <div className={`border-t border-border/50 ${collapsed ? "p-2" : "p-3"}`}>
-          <div className={`flex items-center ${collapsed ? "justify-center" : "gap-3 px-2 py-1.5"}`}>
+          <div className={`flex items-center ${collapsed ? "justify-center" : "gap-3 px-2 py-2"}`}>
             <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/80 to-accent/80 flex items-center justify-center text-primary-foreground text-sm font-semibold shrink-0 shadow-sm">
               {currentUser?.name?.[0]}
             </div>
