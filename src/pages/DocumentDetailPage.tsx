@@ -181,7 +181,13 @@ export default function DocumentDetailPage() {
     const file = e.target.files?.[0];
     if (!file || !doc) return;
     setUploading(true);
-    const path = `uploads/${Date.now()}_${file.name}`;
+
+    // Sanitize filename: replace spaces and special chars with underscores
+    const sanitizedName = file.name
+      .replace(/[^a-zA-Z0-9._-]/g, "_")
+      .replace(/_{2,}/g, "_");
+
+    const path = `uploads/${Date.now()}_${sanitizedName}`;
     const { error } = await supabase.storage.from("documents").upload(path, file);
     if (error) { toast.error("שגיאה בהעלאה"); setUploading(false); return; }
     const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
