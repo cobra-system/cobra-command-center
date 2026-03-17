@@ -9,7 +9,7 @@ export default function TasksPage() {
   const [view, setView] = useState("weekly");
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col" dir="rtl">
       <Tabs value={view} onValueChange={setView} className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-4">
           <TabsTrigger value="weekly" className="gap-1.5">

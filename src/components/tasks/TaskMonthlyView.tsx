@@ -66,7 +66,7 @@ export default function TaskMonthlyView() {
   }, [updateTaskStatus]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" dir="rtl">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -88,7 +88,7 @@ export default function TaskMonthlyView() {
             <ChevronLeft className="h-4 w-4" />
           </Button>
 
-          <div className="flex items-center gap-1.5 ml-4">
+          <div className="flex items-center gap-1.5 me-4">
             <Users className="h-4 w-4 text-muted-foreground" />
             <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
               <SelectTrigger className="h-8 text-xs w-40">
@@ -108,8 +108,8 @@ export default function TaskMonthlyView() {
       {/* Calendar Grid */}
       <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
         {/* Day names header */}
-        <div className="grid grid-cols-7 bg-muted/30 border-b border-border/30">
-          {dayNames.map(day => (
+        <div className="grid grid-cols-7 bg-muted/30 border-b border-border/30" style={{ direction: 'rtl' }}>
+          {[...dayNames].reverse().map(day => (
             <div key={day} className="p-3 text-center text-xs font-semibold text-muted-foreground">
               {day}
             </div>
@@ -117,7 +117,7 @@ export default function TaskMonthlyView() {
         </div>
 
         {/* Calendar days */}
-        <div className="grid grid-cols-7">
+        <div className="grid grid-cols-7" style={{ direction: 'rtl' }}>
           {calendarDays.map((day, idx) => {
             const key = format(startOfDay(day), "yyyy-MM-dd");
             const dayTasks = tasksByDay.get(key) || [];
