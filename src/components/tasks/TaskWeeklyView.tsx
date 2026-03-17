@@ -438,7 +438,7 @@ export default function TaskWeeklyView() {
               <span className="h-4 w-1 rounded-full bg-muted-foreground/30" />
               ללא תאריך יעד ({unscheduled.length})
               {dragOverDay === "__unscheduled__" && (
-                <span className="text-xs text-primary font-normal">שחרר כאן להסרת תאריך →</span>
+                <span className="text-xs text-primary font-normal">← שחרר כאן להסרת תאריך</span>
               )}
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">

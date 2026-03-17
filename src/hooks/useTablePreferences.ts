@@ -56,7 +56,7 @@ export function useTablePreferences(
           setPreferences({
             sortField: data.sort_field,
             sortDir: (data.sort_dir as SortDir) || null,
-            filters: data.filters || {},
+            filters: (typeof data.filters === 'object' && data.filters !== null && !Array.isArray(data.filters) ? data.filters : {}) as Record<string, any>,
           })
           return
         }

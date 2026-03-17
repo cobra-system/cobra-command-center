@@ -17,7 +17,7 @@ export async function applyMigrations() {
     }
 
     // Create user_preferences table if it doesn't exist
-    const { error } = await supabase.rpc("create_user_preferences_table_if_not_exists")
+    const { error } = await supabase.rpc("create_user_preferences_table_if_not_exists" as any)
 
     if (error) {
       // If the RPC doesn't exist, try creating the table directly

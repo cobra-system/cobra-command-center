@@ -88,7 +88,7 @@ export default function TaskMonthlyView() {
             <ChevronLeft className="h-4 w-4" />
           </Button>
 
-          <div className="flex items-center gap-1.5 me-4">
+          <div className="flex items-center gap-1.5 ms-4">
             <Users className="h-4 w-4 text-muted-foreground" />
             <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
               <SelectTrigger className="h-8 text-xs w-40">
