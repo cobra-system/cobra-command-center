@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { supabase } from "@/integrations/supabase/client";
 import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
+import { initializeMigrations } from "@/lib/initMigrations";
 
 // Re-export types for compatibility
 export type Role = "MANAGER" | "WAREHOUSE_MANAGER" | "LOGISTICS" | "DRIVER";
@@ -353,6 +354,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refreshRoleDefinitions = useCallback(async () => {
     const { data } = await supabase.from("role_definitions").select("*").order("created_at");
     if (data) setRoleDefinitions(data as RoleDefinition[]);
+  }, []);
+
+  // Initialize database migrations on app startup
+  useEffect(() => {
+    initializeMigrations().catch(console.error);
   }, []);
 
   // Fetch data when authenticated
