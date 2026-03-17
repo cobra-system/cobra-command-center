@@ -363,8 +363,8 @@ export default function TaskWeeklyView() {
                 "px-2 py-2.5 border-b flex flex-col items-center gap-1",
                 today ? "border-primary/20" : "border-border/30"
               )}>
-                <p className={cn("text-xs font-semibold tracking-wide", today ? "text-primary" : "text-muted-foreground")}>
-                  {dayNames[i]}
+          <p className={cn("text-xs font-semibold tracking-wide", today ? "text-primary" : "text-muted-foreground")}>
+                  {dayNames[6 - i]}
                 </p>
                 <p className={cn("text-xl font-bold leading-none", today ? "text-primary" : "text-foreground")}>
                   {format(day, "d")}
