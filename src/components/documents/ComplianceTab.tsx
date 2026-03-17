@@ -121,7 +121,8 @@ export default function ComplianceTab({ productId }: { productId?: string } = {}
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      const filePath = `compliance/${itemId}/${file.name}`;
+      const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").replace(/_{2,}/g, "_");
+      const filePath = `compliance/${itemId}/${sanitizedName}`;
       const { error: uploadError } = await supabase.storage.from("documents").upload(filePath, file, { upsert: true });
       if (uploadError) { toast({ title: "שגיאה בהעלאה", description: uploadError.message, variant: "destructive" }); return; }
       const { data: urlData } = supabase.storage.from("documents").getPublicUrl(filePath);
