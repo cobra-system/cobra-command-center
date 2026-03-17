@@ -96,7 +96,7 @@ export function useTablePreferences(
       // Save to database if authenticated
       if (session?.user) {
         try {
-          const { error } = await supabase.from("user_preferences").upsert({
+          const { error } = await (supabase as any).from("user_preferences").upsert({
             user_id: session.user.id,
             page_name: pageName,
             sort_field: updated.sortField,
