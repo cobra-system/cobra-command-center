@@ -1,98 +1,160 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { FileText, ExternalLink, Plus } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { FileText, ExternalLink, Upload, CreditCard, AlertTriangle, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
-
-interface PurchaseDocument {
-  id: string;
-  type: string;
-  supplier_id: string | null;
-  product_id: string | null;
-  status: string;
-  total_price: number | null;
-  currency: string;
-  file_url: string | null;
-  notes: string | null;
-  created_at: string;
-}
-
-const docStatusColors: Record<string, string> = {
-  "ממתין לאישור": "bg-warning/15 text-warning",
-  "אושר": "bg-primary/15 text-primary",
-  "נשלח לספק": "bg-accent/15 text-accent",
-  "בוצע": "bg-success/15 text-success",
-};
-const currencySymbol: Record<string, string> = { USD: "$", EUR: "€", ILS: "₪" };
+import { format, isPast } from "date-fns";
+import { cn } from "@/lib/utils";
+import type { PurchaseDocument, Payment } from "@/components/documents/types";
+import { docStatusColors, payStatusColors, currencySymbol, paymentTypeLabels } from "@/components/documents/constants";
+import SimpleFileUploadDialog from "@/components/documents/SimpleFileUploadDialog";
 
 interface Props {
   supplierId?: string;
   productId?: string;
+  orderId?: string;
 }
 
-export default function DocumentsSection({ supplierId, productId }: Props) {
+export default function DocumentsSection({ supplierId, productId, orderId }: Props) {
   const navigate = useNavigate();
   const [docs, setDocs] = useState<PurchaseDocument[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showUpload, setShowUpload] = useState(false);
 
-  const fetchDocs = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
-    let query = supabase.from("purchase_documents").select("*").order("created_at", { ascending: false });
-    if (supplierId) query = query.eq("supplier_id", supplierId);
-    else if (productId) query = query.eq("product_id", productId);
-    const { data } = await query;
-    if (data) setDocs(data as PurchaseDocument[]);
-    setLoading(false);
-  }, [supplierId, productId]);
 
-  useEffect(() => { fetchDocs(); }, [fetchDocs]);
+    let docQuery = supabase.from("purchase_documents").select("*").order("created_at", { ascending: false }) as any;
+    if (supplierId) docQuery = docQuery.eq("supplier_id", supplierId);
+    else if (productId) docQuery = docQuery.eq("product_id", productId);
+    else if (orderId) docQuery = docQuery.eq("order_id", orderId);
+
+    const { data: docData } = await docQuery;
+    if (docData) setDocs(docData as PurchaseDocument[]);
+
+    if (supplierId) {
+      const { data: payData } = await supabase.from("supplier_payments").select("*").eq("supplier_id", supplierId).order("created_at", { ascending: false });
+      if (payData) setPayments(payData as Payment[]);
+    }
+
+    setLoading(false);
+  }, [supplierId, productId, orderId]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   if (loading) return null;
 
   return (
-    <div className="bg-card rounded-xl border shadow-sm p-5">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <FileText className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold text-foreground">מסמכים ({docs.length})</h2>
+    <>
+      {/* Documents Section */}
+      <div className="bg-card rounded-xl border shadow-sm p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">מסמכים ({docs.length})</h2>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setShowUpload(true)}>
+            <Upload className="h-3.5 w-3.5 ml-1" />העלה מסמך
+          </Button>
         </div>
-        <Button variant="outline" size="sm" onClick={() => navigate("/documents")}>
-          <Plus className="h-3.5 w-3.5 ml-1" />הוסף מסמך
-        </Button>
+        <SimpleFileUploadDialog
+          open={showUpload}
+          onOpenChange={setShowUpload}
+          onSaved={fetchData}
+          defaultSupplierId={supplierId}
+          defaultProductId={productId}
+          defaultOrderId={orderId}
+        />
+        {docs.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">אין מסמכים משויכים</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b bg-muted/50">
+                <th className="text-right p-3 font-semibold text-foreground">שם</th>
+                <th className="text-right p-3 font-semibold text-foreground">סוג</th>
+                <th className="text-right p-3 font-semibold text-foreground">סה"כ</th>
+                <th className="text-right p-3 font-semibold text-foreground">סטטוס</th>
+                <th className="text-right p-3 font-semibold text-foreground">תאריך</th>
+              </tr></thead>
+              <tbody className="divide-y">
+                {docs.map(doc => (
+                  <tr
+                    key={doc.id}
+                    className="hover:bg-muted/30 cursor-pointer transition-colors"
+                    onClick={() => navigate(`/documents/${doc.id}`)}
+                  >
+                    <td className="p-3 text-foreground">
+                      <div className="flex items-center gap-1.5">
+                        {doc.file_url && <Paperclip className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />}
+                        <span>{doc.document_name || doc.notes || "ללא שם"}</span>
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <span className={cn("px-2 py-0.5 rounded text-xs font-bold", doc.type === "PI" ? "bg-primary/15 text-primary" : doc.type === "PO" ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground")}>
+                        {doc.type}
+                      </span>
+                    </td>
+                    <td className="p-3 text-muted-foreground font-mono" dir="ltr">
+                      {doc.total_price ? `${currencySymbol[doc.currency] || ""}${doc.total_price.toLocaleString()}` : "—"}
+                    </td>
+                    <td className="p-3">
+                      <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", docStatusColors[doc.status] || "bg-muted text-muted-foreground")}>
+                        {doc.status}
+                      </span>
+                    </td>
+                    <td className="p-3 text-muted-foreground text-xs">{format(new Date(doc.created_at), "dd/MM/yy")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-      {docs.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-4">אין מסמכים משויכים</p>
-      ) : (
-        <div className="space-y-2">
-          {docs.map(doc => (
-            <div
-              key={doc.id}
-              className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border cursor-pointer hover:bg-muted/50 transition-colors"
-              onClick={() => navigate(`/documents/${doc.id}`)}
-            >
-              <span className={`px-2 py-0.5 rounded text-xs font-bold shrink-0 ${doc.type === "PI" ? "bg-primary/15 text-primary" : "bg-accent/15 text-accent"}`}>
-                {doc.type}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{doc.notes || `${doc.type} מ-${format(new Date(doc.created_at), "dd/MM/yy")}`}</p>
-                <p className="text-xs text-muted-foreground">{format(new Date(doc.created_at), "dd/MM/yyyy")}</p>
-              </div>
-              {doc.total_price && (
-                <span className="text-sm font-medium text-foreground shrink-0">
-                  {currencySymbol[doc.currency] || ""}{doc.total_price.toLocaleString()}
-                </span>
-              )}
-              <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${docStatusColors[doc.status] || "bg-muted text-muted-foreground"}`}>
-                {doc.status}
-              </span>
-              {doc.file_url && (
-                <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" />
-              )}
+
+      {/* Payments Section (only for supplier context) */}
+      {supplierId && (
+        <div className="bg-card rounded-xl border shadow-sm p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <CreditCard className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">תשלומים ({payments.length})</h2>
+          </div>
+          {payments.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">אין תשלומים לספק זה</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b bg-muted/50">
+                  <th className="text-right p-3 font-semibold text-foreground">סכום</th>
+                  <th className="text-right p-3 font-semibold text-foreground">סוג</th>
+                  <th className="text-right p-3 font-semibold text-foreground">מועד פירעון</th>
+                  <th className="text-right p-3 font-semibold text-foreground">סטטוס</th>
+                </tr></thead>
+                <tbody className="divide-y">
+                  {payments.map(p => {
+                    const isOverdue = p.status !== "שולם" && p.due_date && isPast(new Date(p.due_date));
+                    const displayStatus = isOverdue ? "מאוחר" : p.status;
+                    return (
+                      <tr key={p.id} className={isOverdue ? "bg-destructive/5" : ""}>
+                        <td className="p-3 font-mono" dir="ltr">{currencySymbol[p.currency] || ""}{p.amount.toLocaleString()}</td>
+                        <td className="p-3 text-muted-foreground">{paymentTypeLabels[p.payment_type] || p.payment_type}</td>
+                        <td className="p-3 text-muted-foreground text-xs">{p.due_date ? format(new Date(p.due_date), "dd/MM/yy") : "—"}</td>
+                        <td className="p-3">
+                          <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", payStatusColors[displayStatus] || "bg-muted text-muted-foreground")}>
+                            {displayStatus}
+                          </span>
+                          {isOverdue && <AlertTriangle className="h-3 w-3 text-destructive inline ml-1" />}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          ))}
+          )}
         </div>
       )}
-    </div>
+    </>
   );
 }

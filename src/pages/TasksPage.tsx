@@ -1,9 +1,43 @@
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar, Grid3x3, Clock } from "lucide-react";
 import TaskWeeklyView from "@/components/tasks/TaskWeeklyView";
+import TaskMonthlyView from "@/components/tasks/TaskMonthlyView";
+import TaskDayView from "@/components/tasks/TaskDayView";
 
 export default function TasksPage() {
+  const [view, setView] = useState("weekly");
+
   return (
-    <div className="h-full flex flex-col">
-      <TaskWeeklyView />
+    <div className="h-full flex flex-col" dir="rtl">
+      <Tabs value={view} onValueChange={setView} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-4">
+          <TabsTrigger value="weekly" className="gap-1.5">
+            <Grid3x3 className="h-4 w-4" />
+            שבוע
+          </TabsTrigger>
+          <TabsTrigger value="daily" className="gap-1.5">
+            <Calendar className="h-4 w-4" />
+            יום
+          </TabsTrigger>
+          <TabsTrigger value="monthly" className="gap-1.5">
+            <Clock className="h-4 w-4" />
+            חודש
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="weekly" className="flex-1">
+          <TaskWeeklyView />
+        </TabsContent>
+
+        <TabsContent value="daily" className="flex-1">
+          <TaskDayView />
+        </TabsContent>
+
+        <TabsContent value="monthly" className="flex-1">
+          <TaskMonthlyView />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

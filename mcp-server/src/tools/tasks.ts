@@ -95,4 +95,21 @@ export function registerTaskTools(server: McpServer) {
       return { content: [{ type: "text" as const, text: `Task updated:\n${JSON.stringify(data, null, 2)}` }] };
     }
   );
+
+  server.tool(
+    "delete_task",
+    "מחיקת משימה — Delete a recurring task",
+    {
+      id: z.string().uuid().describe("Task UUID"),
+    },
+    async ({ id }) => {
+      const { error } = await supabase
+        .from("recurring_tasks")
+        .delete()
+        .eq("id", id);
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Task deleted successfully` }] };
+    }
+  );
 }

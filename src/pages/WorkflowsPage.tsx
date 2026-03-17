@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useAuth, useData } from "@/contexts/AppContext";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -86,53 +86,68 @@ export default function WorkflowsPage() {
 
   const fetchData = async () => {
     setLoading(true);
-    
-    // Fetch templates
-    const { data: tData } = await supabase
-      .from("workflow_templates")
-      .select("*");
-    if (tData) setTemplates(tData.map(t => ({ ...t, steps: t.steps as unknown as WorkflowStep[] })));
-    
-    // Fetch instances with order info
-    const { data: iData } = await supabase
-      .from("workflow_instances")
-      .select("*")
-      .order("created_at", { ascending: false });
-    
-    if (iData) {
-      // Fetch orders and step logs for each instance
-      const enriched = await Promise.all(iData.map(async (inst) => {
-        const template = tData?.find(t => t.id === inst.template_id);
-        const parsedTemplate = template ? { ...template, steps: template.steps as unknown as WorkflowStep[] } : undefined;
-        
-        let order = null;
-        if (inst.order_id) {
-          const { data: oData } = await supabase
-            .from("orders")
-            .select("id, supplier_name")
-            .eq("id", inst.order_id)
-            .single();
-          
-          if (oData) {
-            const { data: items } = await supabase
-              .from("order_items")
-              .select("name")
-              .eq("order_id", inst.order_id);
-            order = { ...oData, items: items || [] };
-          }
-        }
 
-        const { data: logs } = await supabase
-          .from("workflow_step_logs")
-          .select("*")
-          .eq("instance_id", inst.id)
-          .order("step_index", { ascending: true });
+    // Fetch templates + instances in parallel
+    const [tRes, iRes] = await Promise.all([
+      supabase.from("workflow_templates").select("*"),
+      supabase.from("workflow_instances").select("*").order("created_at", { ascending: false }),
+    ]);
 
-        return { ...inst, template: parsedTemplate, order, step_logs: logs || [] } as WorkflowInstance;
-      }));
-      setInstances(enriched);
+    const tData = tRes.data || [];
+    const iData = iRes.data || [];
+
+    setTemplates(tData.map(t => ({ ...t, steps: t.steps as unknown as WorkflowStep[] })));
+
+    if (iData.length === 0) {
+      setInstances([]);
+      setLoading(false);
+      return;
     }
-    
+
+    // Batch fetch: orders, order_items, and step_logs — 3 queries total instead of 3N
+    const orderIds = [...new Set(iData.map(i => i.order_id).filter(Boolean))] as string[];
+    const instanceIds = iData.map(i => i.id);
+
+    const [ordersRes, itemsRes, logsRes] = await Promise.all([
+      orderIds.length > 0
+        ? supabase.from("orders").select("id, supplier_name").in("id", orderIds)
+        : Promise.resolve({ data: [] }),
+      orderIds.length > 0
+        ? supabase.from("order_items").select("order_id, name").in("order_id", orderIds)
+        : Promise.resolve({ data: [] }),
+      supabase.from("workflow_step_logs").select("*").in("instance_id", instanceIds).order("step_index", { ascending: true }),
+    ]);
+
+    // Build lookup maps
+    const ordersMap: Record<string, { id: string; supplier_name: string | null }> = {};
+    (ordersRes.data || []).forEach((o: any) => { ordersMap[o.id] = o; });
+
+    const itemsMap: Record<string, { name: string }[]> = {};
+    (itemsRes.data || []).forEach((item: any) => {
+      if (!itemsMap[item.order_id]) itemsMap[item.order_id] = [];
+      itemsMap[item.order_id].push({ name: item.name });
+    });
+
+    const logsMap: Record<string, StepLog[]> = {};
+    (logsRes.data || []).forEach((log: any) => {
+      if (!logsMap[log.instance_id]) logsMap[log.instance_id] = [];
+      logsMap[log.instance_id].push(log as StepLog);
+    });
+
+    // Assemble enriched instances
+    const enriched: WorkflowInstance[] = iData.map(inst => {
+      const template = tData.find(t => t.id === inst.template_id);
+      const parsedTemplate = template ? { ...template, steps: template.steps as unknown as WorkflowStep[] } : undefined;
+
+      const orderData = inst.order_id ? ordersMap[inst.order_id] : null;
+      const order = orderData
+        ? { id: orderData.id, supplier_name: orderData.supplier_name, items: itemsMap[inst.order_id!] || [] }
+        : null;
+
+      return { ...inst, template: parsedTemplate, order, step_logs: logsMap[inst.id] || [] } as WorkflowInstance;
+    });
+
+    setInstances(enriched);
     setLoading(false);
   };
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useAuth, useData } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,11 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { ScrollText, Plus, Upload, CalendarIcon, Loader2, Pencil, Trash2, Package } from "lucide-react";
+import { DateInput } from "@/components/ui/date-input";
+import { ScrollText, Plus, Upload, Loader2, Pencil, Trash2, Package } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
@@ -351,17 +348,7 @@ function ComplianceFormDialog({ open, onOpenChange, item, products, onSaved }: {
           </div>
           <div className="space-y-1">
             <Label className="text-xs">תאריך תפוגה</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full justify-start text-right font-normal text-sm", !expiryDate && "text-muted-foreground")}>
-                  <CalendarIcon className="h-4 w-4 ml-2" />
-                  {expiryDate ? format(expiryDate, "dd/MM/yyyy") : "בחר תאריך"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={expiryDate} onSelect={setExpiryDate} initialFocus className="p-3 pointer-events-auto" />
-              </PopoverContent>
-            </Popover>
+            <DateInput value={expiryDate} onChange={setExpiryDate} clearable />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">איש קשר לחידוש</Label>

@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import ProductFormDialog from "@/components/products/ProductFormDialog";
+import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { toast } from "sonner";
 
 type SortKey = "name" | "sku" | "product_type" | "supplier" | "stock_qty" | "incoming_qty" | "purchase_price" | "monthly_order";
-type SortDir = "asc" | "desc";
 
 const sortableColumns: { key: SortKey; label: string }[] = [
   { key: "name", label: "שם מוצר" },
@@ -28,16 +28,21 @@ export default function ProductsPage() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [category, setCategory] = useState("הכל");
-  const [typeFilter, setTypeFilter] = useState<"all" | "מוגמר" | "מורכב">("all");
   const [search, setSearch] = useState("");
-  const [supplierFilter, setSupplierFilter] = useState("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
-  const [sortKey, setSortKey] = useState<SortKey | null>(null);
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  const prefs = useTablePreferences("ProductsPage", {
+    sortField: "name",
+    filters: { category: "הכל", typeFilter: "all", supplierFilter: "all" },
+  });
 
   const isManager = currentUser?.role === "MANAGER";
+  const sortKey = prefs.sortField as SortKey | null;
+  const sortDir = prefs.sortDir;
+  const typeFilter = (prefs.filters.typeFilter || "all") as "all" | "מוגמר" | "מורכב";
+  const supplierFilter = prefs.filters.supplierFilter || "all";
 
   const filtered = useMemo(() => {
     let result = products.filter(p => {
@@ -66,16 +71,6 @@ export default function ProductsPage() {
     const set = new Set(products.map(p => p.supplier).filter(Boolean) as string[]);
     return Array.from(set).sort((a, b) => a.localeCompare(b, "he"));
   }, [products]);
-
-  const toggleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      if (sortDir === "asc") setSortDir("desc");
-      else { setSortKey(null); setSortDir("asc"); }
-    } else {
-      setSortKey(key);
-      setSortDir("asc");
-    }
-  };
 
   const SortIcon = ({ col }: { col: SortKey }) => {
     if (sortKey !== col) return <ArrowUpDown className="h-3 w-3 opacity-30" />;
@@ -114,12 +109,12 @@ export default function ProductsPage() {
       <div className="flex flex-wrap gap-3 items-center">
         <div className="flex bg-secondary rounded-lg p-1">
           {(["all", "מוגמר", "מורכב"] as const).map(t => (
-            <button key={t} onClick={() => setTypeFilter(t)} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            <button key={t} onClick={() => prefs.setFilter("typeFilter", t)} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
               typeFilter === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
             }`}>{t === "all" ? "הכל" : t}</button>
           ))}
         </div>
-        <Select value={supplierFilter} onValueChange={setSupplierFilter}>
+        <Select value={supplierFilter} onValueChange={(v) => prefs.setFilter("supplierFilter", v)}>
           <SelectTrigger className="w-[160px]"><SelectValue placeholder="ספק" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">כל הספקים</SelectItem>
@@ -139,7 +134,7 @@ export default function ProductsPage() {
               <th className="text-right p-3 font-semibold text-foreground w-8"></th>
               {sortableColumns.map(col => (
                 <th key={col.key} className="text-right p-3 font-semibold text-foreground">
-                  <button onClick={() => toggleSort(col.key)} className="flex items-center gap-1 hover:text-accent transition-colors">
+                  <button onClick={() => prefs.toggleSort(col.key)} className="flex items-center gap-1 hover:text-accent transition-colors">
                     {col.label}
                     <SortIcon col={col.key} />
                   </button>
@@ -160,8 +155,8 @@ export default function ProductsPage() {
                 <Fragment key={p.id}>
                   <tr
                     className="cursor-pointer hover:bg-muted/30 transition-colors"
-                    onClick={() => isComposite ? toggleExpand(p.id) : navigate(`/products/${p.id}`)}
-                    onDoubleClick={() => navigate(`/products/${p.id}`)}
+                    onClick={(e) => { if (e.detail !== 1) return; isComposite ? toggleExpand(p.id) : navigate(`/products/${p.id}`); }}
+                    onDoubleClick={() => isComposite && navigate(`/products/${p.id}`)}
                   >
                     <td className="p-3 text-center">
                       {isComposite && (

@@ -1,32 +1,40 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth, useData, roleLabel, type Role, type RoleDefinition } from "@/contexts/AppContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase";
+
+type SortKey = "name" | "role";
 
 
 export default function TeamPage() {
   const { currentUser } = useAuth();
   const { profiles, createEmployee, refreshProfiles, roleDefinitions } = useData();
 
+  const prefs = useTablePreferences("TeamPage", {
+    sortField: "name",
+  });
+
+  const sortKey = prefs.sortField as SortKey | null;
+  const sortDir = prefs.sortDir;
+
   // Build dynamic role label map
   const dynamicRoleLabel: Record<string, string> = { MANAGER: "מנהל" };
   roleDefinitions.forEach(rd => { if (rd.system_key) dynamicRoleLabel[rd.system_key] = rd.name; });
   const getRoleLabel = (role: string) => dynamicRoleLabel[role] || roleLabel[role] || role;
 
-  // Use role definitions for dropdown
-  const roleOptions = roleDefinitions.length > 0
-    ? roleDefinitions.map(rd => ({ value: (rd.system_key || rd.id) as Role, label: rd.name }))
-    : [
-        { value: "WAREHOUSE_MANAGER" as Role, label: "מנהל מחסן" },
-        { value: "LOGISTICS" as Role, label: "לוגיסטיקה" },
-        { value: "DRIVER" as Role, label: "נהג" },
-      ];
+  // Employee roles חייבים להיות system roles בלבד כדי למנוע שגיאות ביצירת משתמש auth
+  const employeeSystemRoles: Role[] = ["WAREHOUSE_MANAGER", "LOGISTICS", "DRIVER"];
+  const roleOptions: Array<{ value: Role; label: string }> = employeeSystemRoles.map((systemRole) => ({
+    value: systemRole,
+    label: getRoleLabel(systemRole),
+  }));
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -36,6 +44,33 @@ export default function TeamPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const isManager = currentUser?.role === "MANAGER";
+
+  const sortedProfiles = useMemo(() => {
+    let result = [...profiles];
+    if (sortKey && sortDir) {
+      result.sort((a, b) => {
+        let cmp = 0;
+        switch (sortKey) {
+          case "name":
+            cmp = a.name.localeCompare(b.name, "he");
+            break;
+          case "role":
+            cmp = getRoleLabel(a.role).localeCompare(getRoleLabel(b.role), "he");
+            break;
+        }
+        return sortDir === "desc" ? -cmp : cmp;
+      });
+    } else {
+      // Default sort by name
+      result.sort((a, b) => a.name.localeCompare(b.name, "he"));
+    }
+    return result;
+  }, [profiles, sortKey, sortDir]);
+
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortKey !== col) return <ArrowUpDown className="h-3 w-3 opacity-30" />;
+    return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
+  };
 
   const resetForm = () => { setName(""); setRole("DRIVER"); setPin(""); setEditingId(null); };
 
@@ -47,12 +82,11 @@ export default function TeamPage() {
       // Update via edge function
       try {
         const sess = await supabase.auth.getSession();
-        const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-        const res = await fetch(`https://${projectId}.supabase.co/functions/v1/manage-employee`, {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/manage-employee`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            "apikey": SUPABASE_ANON_KEY,
             "Authorization": `Bearer ${sess.data.session?.access_token}`,
           },
           body: JSON.stringify({
@@ -99,12 +133,11 @@ export default function TeamPage() {
     setSubmitting(true);
     try {
       const sess = await supabase.auth.getSession();
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/manage-employee`, {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/manage-employee`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          "apikey": SUPABASE_ANON_KEY,
           "Authorization": `Bearer ${sess.data.session?.access_token}`,
         },
         body: JSON.stringify({ action: "delete", employee_id: id }),
@@ -163,13 +196,17 @@ export default function TeamPage() {
       <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead><tr className="border-b bg-muted/50">
-            <th className="text-right p-3 font-semibold text-foreground">שם</th>
-            <th className="text-right p-3 font-semibold text-foreground">תפקיד</th>
+            <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("name")}>
+              <span className="flex items-center gap-1">שם <SortIcon col="name" /></span>
+            </th>
+            <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("role")}>
+              <span className="flex items-center gap-1">תפקיד <SortIcon col="role" /></span>
+            </th>
             <th className="text-right p-3 font-semibold text-foreground">PIN</th>
             {isManager && <th className="text-right p-3 font-semibold text-foreground">פעולות</th>}
           </tr></thead>
           <tbody className="divide-y">
-            {profiles.map(u => (
+            {sortedProfiles.map(u => (
               <tr key={u.id}>
                 <td className="p-3 font-medium text-foreground">{u.name}</td>
                 <td className="p-3 text-muted-foreground">{getRoleLabel(u.role)}</td>

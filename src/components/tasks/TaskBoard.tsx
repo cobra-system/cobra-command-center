@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { format } from "date-fns";
 import { useSearchParams } from "react-router-dom";
 import { useData, useAuth, type TaskStatus, type Priority, type Task } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
@@ -9,11 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Plus, RotateCcw, Pencil, Trash2, Search } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { DateInput } from "@/components/ui/date-input";
+import { Plus, RotateCcw, Pencil, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
 
 const columns: { status: TaskStatus; label: string; bgClass: string }[] = [
@@ -103,8 +101,12 @@ export default function TaskBoard() {
   };
 
   const handleDelete = async (taskId: string) => {
-    await deleteTask(taskId);
-    toast.success("המשימה נמחקה");
+    try {
+      await deleteTask(taskId);
+      toast.success("המשימה נמחקה");
+    } catch {
+      // Error toast already shown by deleteTask
+    }
   };
 
   const getColumnTasks = (status: TaskStatus): Task[] => {
@@ -152,14 +154,7 @@ export default function TaskBoard() {
               </div>
               <div className="space-y-2">
                 <Label>תאריך יעד</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full justify-start text-right font-normal", !dueDate && "text-muted-foreground")}>
-                      <CalendarIcon className="h-4 w-4 ml-2" />{dueDate ? format(dueDate, "dd/MM/yyyy") : "בחר תאריך"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={dueDate} onSelect={setDueDate} initialFocus className="p-3 pointer-events-auto" /></PopoverContent>
-                </Popover>
+                <DateInput value={dueDate} onChange={setDueDate} clearable />
               </div>
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="isDaily" checked={isDaily} onChange={e => setIsDaily(e.target.checked)} className="rounded" />

@@ -8,11 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowRight, Pencil, Trash2, ExternalLink, Mail, Phone, Globe, TruckIcon, UserPlus, Users, X, Link2, Search } from "lucide-react";
+import { ArrowRight, Pencil, Trash2, ExternalLink, Mail, Phone, Globe, TruckIcon, UserPlus, Users, X, Link2, Search, Plus } from "lucide-react";
 import DocumentsSection from "@/components/DocumentsSection";
 import { InlineEditField } from "@/components/InlineEditField";
 import SapSyncBadge from "@/components/SapSyncBadge";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 export default function SupplierDetailPage() {
@@ -46,8 +46,12 @@ export default function SupplierDetailPage() {
 
   const isManager = currentUser?.role === "MANAGER";
   const relatedOrders = orders.filter(o => o.supplier_id === supplier.id || o.supplier_name === supplier.company);
-  const relatedProducts = products.filter(p => p.supplier === supplier.company);
-  
+
+  // Filter products by supplier_id (preferred) or supplier name (fallback)
+  const relatedProducts = products.filter(p =>
+    p.supplier_id === supplier.id || p.supplier === supplier.company
+  );
+
   const componentProducts = products
     .filter(p => p.product_type === "מורכב" && p.components?.some(c => c.supplier === supplier.company))
     .filter(p => !relatedProducts.some(rp => rp.id === p.id))
@@ -132,7 +136,10 @@ export default function SupplierDetailPage() {
     if (!linkProductId) return;
     setLinkingSaving(true);
     try {
-      await updateProduct(linkProductId, { supplier: supplier.company });
+      await updateProduct(linkProductId, {
+        supplier: supplier.company,
+        supplier_id: supplier.id
+      });
       setLinkProductOpen(false);
       setLinkProductId("");
       setLinkProductSearch("");
@@ -206,6 +213,47 @@ export default function SupplierDetailPage() {
           <InlineEditField label="תנאי תשלום" value={supplier.payment_terms} onSave={(v) => handleInlineSave("payment_terms", v)} disabled={!isManager} />
           <InlineEditField label="מוצרים" value={supplier.products} onSave={(v) => handleInlineSave("products", v)} disabled={!isManager} />
           <InlineEditField label="הערות" value={supplier.notes} onSave={(v) => handleInlineSave("notes", v)} disabled={!isManager} />
+        </div>
+        <div className="mt-4 pt-4 border-t grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <InlineEditField
+            label="רמת סיכון"
+            value={supplier.risk_level}
+            onSave={(v) => handleInlineSave("risk_level", v)}
+            disabled={!isManager}
+            displayValue={supplier.risk_level ? (
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                supplier.risk_level === "low" ? "bg-success/15 text-success" :
+                supplier.risk_level === "medium" ? "bg-warning/15 text-warning" :
+                "bg-destructive/15 text-destructive"
+              }`}>
+                {supplier.risk_level === "low" ? "נמוך" : supplier.risk_level === "medium" ? "בינוני" : "גבוה"}
+              </span>
+            ) : "—"}
+          />
+          <InlineEditField
+            label="זמן הובלה (ימים)"
+            value={supplier.lead_time_days?.toString()}
+            onSave={(v) => handleInlineSave("lead_time_days", v)}
+            disabled={!isManager}
+            displayValue={supplier.lead_time_days ? `${supplier.lead_time_days} ימים` : "—"}
+          />
+          <InlineEditField
+            label="ספק גיבוי"
+            value={supplier.backup_supplier_id}
+            onSave={(v) => handleInlineSave("backup_supplier_id", v)}
+            disabled={!isManager}
+            displayValue={supplier.backup_supplier_id ? (
+              <button
+                onClick={() => {
+                  const backupSupplier = suppliers.find(s => s.id === supplier.backup_supplier_id);
+                  if (backupSupplier) navigate(`/suppliers/${backupSupplier.id}`);
+                }}
+                className="text-sm text-primary hover:underline"
+              >
+                {suppliers.find(s => s.id === supplier.backup_supplier_id)?.company || "—"}
+              </button>
+            ) : "—"}
+          />
         </div>
       </div>
 
@@ -316,7 +364,14 @@ export default function SupplierDetailPage() {
 
       {/* Related Orders */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
-        <div className="flex items-center gap-2 mb-4"><TruckIcon className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">היסטוריית הזמנות ({relatedOrders.length})</h2></div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2"><TruckIcon className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">היסטוריית הזמנות ({relatedOrders.length})</h2></div>
+          {isManager && (
+            <Button size="sm" variant="outline" onClick={() => navigate(`/orders?newOrder=true&supplierId=${supplier.id}`)}>
+              <Plus className="h-3.5 w-3.5 ml-1" />הוסף הזמנה
+            </Button>
+          )}
+        </div>
         {relatedOrders.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -364,7 +419,10 @@ export default function SupplierDetailPage() {
             </div>
             <div className="max-h-60 overflow-y-auto divide-y rounded-lg border">
               {products
-                .filter(p => p.supplier !== supplier.company && p.name.toLowerCase().includes(linkProductSearch.toLowerCase()))
+                .filter(p =>
+                  (p.supplier !== supplier.company && p.supplier_id !== supplier.id) &&
+                  p.name.toLowerCase().includes(linkProductSearch.toLowerCase())
+                )
                 .slice(0, 30)
                 .map(p => (
                   <button
@@ -376,7 +434,10 @@ export default function SupplierDetailPage() {
                     <span className="text-xs text-muted-foreground mr-2 font-mono">{p.sku}</span>
                   </button>
                 ))}
-              {products.filter(p => p.supplier !== supplier.company && p.name.toLowerCase().includes(linkProductSearch.toLowerCase())).length === 0 && (
+              {products.filter(p =>
+                (p.supplier !== supplier.company && p.supplier_id !== supplier.id) &&
+                p.name.toLowerCase().includes(linkProductSearch.toLowerCase())
+              ).length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">אין מוצרים להצגה</p>
               )}
             </div>

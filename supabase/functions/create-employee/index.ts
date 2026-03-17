@@ -20,19 +20,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    // Connect to external backend where auth + data are stored
+    const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL") || Deno.env.get("SUPABASE_URL")!;
+    const externalServiceKey = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAdmin = createClient(externalUrl, externalServiceKey);
 
-    // Verify caller is manager
-    const callerClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: { user: caller } } = await callerClient.auth.getUser();
-    if (!caller) {
+    // Verify caller token against the external auth project
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    const { data: { user: caller }, error: callerError } = await supabaseAdmin.auth.getUser(token);
+    if (callerError || !caller) {
       return new Response(
         JSON.stringify({ error: "לא מורשה" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -51,10 +47,18 @@ Deno.serve(async (req) => {
     }
 
     const { name, role, pin } = await req.json();
+    const validRoles = ["MANAGER", "WAREHOUSE_MANAGER", "LOGISTICS", "DRIVER"] as const;
 
-    if (!name || !role || !pin || pin.length !== 4) {
+    if (!name || !role || !pin || !/^\d{4}$/.test(pin)) {
       return new Response(
         JSON.stringify({ error: "שם, תפקיד וקוד PIN (4 ספרות) נדרשים" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!validRoles.includes(role)) {
+      return new Response(
+        JSON.stringify({ error: "תפקיד לא חוקי לעובד" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -72,8 +76,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create auth user with a generated email
-    const email = `${pin}@employee.cobra.io`;
+    // Use unique generated email to avoid collisions with previously deleted users
+    const email = `emp-${pin}-${crypto.randomUUID()}@employee.cobra.io`;
     const password = `pin-${pin}-${Date.now()}`;
 
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -90,16 +94,30 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Update the profile with PIN (handle_new_user trigger creates the profile)
-    await supabaseAdmin
+    // Ensure profile exists גם אם ה-trigger לא יצר אותו
+    const { error: profileError } = await supabaseAdmin
       .from("profiles")
-      .update({ pin, role })
-      .eq("id", newUser.user.id);
+      .upsert({ id: newUser.user.id, name, role, pin }, { onConflict: "id" });
 
-    // Add user_role
-    await supabaseAdmin
+    if (profileError) {
+      await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+      return new Response(
+        JSON.stringify({ error: `שגיאה ביצירת פרופיל עובד: ${profileError.message}` }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { error: roleError } = await supabaseAdmin
       .from("user_roles")
-      .insert({ user_id: newUser.user.id, role });
+      .upsert({ user_id: newUser.user.id, role }, { onConflict: "user_id,role" });
+
+    if (roleError) {
+      await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+      return new Response(
+        JSON.stringify({ error: `שגיאה בשיוך הרשאות לעובד: ${roleError.message}` }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     return new Response(
       JSON.stringify({ success: true, profile: { id: newUser.user.id, name, role, pin } }),

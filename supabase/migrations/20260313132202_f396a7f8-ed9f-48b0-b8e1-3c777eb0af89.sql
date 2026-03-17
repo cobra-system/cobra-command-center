@@ -1,0 +1,1 @@
+UPDATE profiles SET pin = '1234' WHERE id = '5eda5d68-188b-47ab-919e-29b7882a343b' AND role = 'MANAGER';

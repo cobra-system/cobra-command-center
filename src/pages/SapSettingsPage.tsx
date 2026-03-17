@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,12 +52,11 @@ export default function SapSettingsPage() {
 
   const callSapProxy = async (action: string, body?: any) => {
     const sess = await supabase.auth.getSession();
-    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-    const res = await fetch(`https://${projectId}.supabase.co/functions/v1/sap-proxy`, {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/sap-proxy`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${sess.data.session?.access_token}`,
       },
       body: JSON.stringify({ action, ...body }),

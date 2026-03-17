@@ -12,6 +12,7 @@ import { ArrowRight, Package, Boxes, TruckIcon, Pencil, ExternalLink, Plus, Tras
 import ProductIssuesTab from "@/components/ProductIssuesTab";
 import ProductLicensesTab from "@/components/ProductLicensesTab";
 import DocumentsSection from "@/components/DocumentsSection";
+import ComplianceTab from "@/components/documents/ComplianceTab";
 import ProductEditDialog from "@/components/products/ProductEditDialog";
 import SupplierComparisonPanel from "@/components/SupplierComparisonPanel";
 import { InlineEditField } from "@/components/InlineEditField";
@@ -61,7 +62,17 @@ export default function ProductDetailPage() {
   const handleInlineSave = async (field: string, value: string) => {
     const numericFields = ["purchase_price", "sale_price", "monthly_sales", "monthly_order", "stock_qty", "incoming_qty"];
     const updates: Record<string, any> = {};
-    updates[field] = numericFields.includes(field) ? (value ? Number(value) : null) : (value || null);
+    const finalValue = field === "sku" ? value.toUpperCase() : value;
+    updates[field] = numericFields.includes(field) ? (finalValue ? Number(finalValue) : null) : (finalValue || null);
+
+    // If supplier is being updated, also set supplier_id
+    if (field === "supplier" && value) {
+      const selectedSupplier = suppliers.find(s => s.company === value);
+      if (selectedSupplier) {
+        updates.supplier_id = selectedSupplier.id;
+      }
+    }
+
     await updateProduct(product.id, updates);
     toast.success("עודכן");
   };
@@ -73,7 +84,6 @@ export default function ProductDetailPage() {
     { label: "סוג מוצר", field: "product_type", value: product.product_type, options: productTypeOptions },
     { label: "תיאור", field: "description", value: product.description },
     { label: "ספק", field: "supplier", value: product.supplier, isSupplierLink: true, options: supplierOptions },
-    { label: "מקור ספק", field: "supplier_origin", value: product.supplier_origin },
     { label: "שיטת משלוח", field: "shipping", value: product.shipping, options: shippingOptions },
     { label: "מחיר רכישה", field: "purchase_price", value: product.purchase_price },
     { label: "מחיר מכירה", field: "sale_price", value: product.sale_price },
@@ -85,6 +95,13 @@ export default function ProductDetailPage() {
   ];
 
   const handleSaveEdit = async (id: string, updates: Record<string, any>) => {
+    // If supplier name is being updated, also set supplier_id
+    if (updates.supplier && typeof updates.supplier === "string") {
+      const selectedSupplier = suppliers.find(s => s.company === updates.supplier);
+      if (selectedSupplier) {
+        updates.supplier_id = selectedSupplier.id;
+      }
+    }
     await updateProduct(id, updates);
     toast.success("המוצר עודכן");
   };
@@ -249,7 +266,7 @@ export default function ProductDetailPage() {
                     editingCompId === comp.id ? (
                       <tr key={comp.id} className="bg-accent/5">
                         <td className="p-2"><Input value={editCompFields.name} onChange={e => setEditCompFields(p => ({ ...p, name: e.target.value }))} className="h-8 text-sm" /></td>
-                        <td className="p-2"><Input value={editCompFields.sku} onChange={e => setEditCompFields(p => ({ ...p, sku: e.target.value }))} className="h-8 text-sm" dir="ltr" /></td>
+                        <td className="p-2"><Input value={editCompFields.sku} onChange={e => setEditCompFields(p => ({ ...p, sku: e.target.value.toUpperCase() }))} className="h-8 text-sm" dir="ltr" /></td>
                         <td className="p-2">
                           <Select value={editCompFields.supplier || "__none__"} onValueChange={v => setEditCompFields(p => ({ ...p, supplier: v === "__none__" ? "" : v }))}>
                             <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="בחר ספק" /></SelectTrigger>
@@ -331,7 +348,7 @@ export default function ProductDetailPage() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">מק״ט</Label>
-                <Input value={newComp.sku} onChange={e => setNewComp(p => ({ ...p, sku: e.target.value }))} dir="ltr" />
+                <Input value={newComp.sku} onChange={e => setNewComp(p => ({ ...p, sku: e.target.value.toUpperCase() }))} dir="ltr" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">ספק</Label>
@@ -365,7 +382,14 @@ export default function ProductDetailPage() {
 
       {/* Orders History */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
-        <div className="flex items-center gap-2 mb-4"><TruckIcon className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">היסטוריית הזמנות</h2></div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2"><TruckIcon className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">היסטוריית הזמנות</h2></div>
+          {isManager && (
+            <Button variant="outline" size="sm" onClick={() => navigate(`/orders?newOrder=true&productId=${product.id}`)}>
+              <Plus className="h-3.5 w-3.5 ml-1" />הוסף הזמנה
+            </Button>
+          )}
+        </div>
         {relatedOrders.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -405,6 +429,11 @@ export default function ProductDetailPage() {
       {/* Product Licenses Tab */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
         <ProductLicensesTab productId={product.id} isManager={isManager} />
+      </div>
+
+      {/* Compliance */}
+      <div className="bg-card rounded-xl border shadow-sm p-5">
+        <ComplianceTab productId={product.id} />
       </div>
 
       {/* Product Issues Tab */}

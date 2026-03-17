@@ -213,6 +213,57 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_change_log: {
+        Row: {
+          center_id: string | null
+          change_type: string
+          changed_by: string | null
+          created_at: string
+          id: string
+          new_quantity: number | null
+          old_quantity: number | null
+          product_id: string | null
+          reason: string | null
+        }
+        Insert: {
+          center_id?: string | null
+          change_type?: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_quantity?: number | null
+          old_quantity?: number | null
+          product_id?: string | null
+          reason?: string | null
+        }
+        Update: {
+          center_id?: string | null
+          change_type?: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_quantity?: number | null
+          old_quantity?: number | null
+          product_id?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_change_log_center_id_fkey"
+            columns: ["center_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_change_log_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_transfers: {
         Row: {
           created_at: string
@@ -380,6 +431,7 @@ export type Database = {
           notes: string | null
           order_date: string | null
           payment_date: string | null
+          payment_status: string
           priority: string
           sap_doc_entry: string | null
           shipping: string | null
@@ -398,6 +450,7 @@ export type Database = {
           notes?: string | null
           order_date?: string | null
           payment_date?: string | null
+          payment_status?: string
           priority?: string
           sap_doc_entry?: string | null
           shipping?: string | null
@@ -416,6 +469,7 @@ export type Database = {
           notes?: string | null
           order_date?: string | null
           payment_date?: string | null
+          payment_status?: string
           priority?: string
           sap_doc_entry?: string | null
           shipping?: string | null
@@ -658,9 +712,11 @@ export type Database = {
           approved_by: string | null
           created_at: string
           currency: string
+          document_name: string | null
           file_url: string | null
           id: string
           notes: string | null
+          order_id: string | null
           product_id: string | null
           quantity: number
           status: string
@@ -675,9 +731,11 @@ export type Database = {
           approved_by?: string | null
           created_at?: string
           currency?: string
+          document_name?: string | null
           file_url?: string | null
           id?: string
           notes?: string | null
+          order_id?: string | null
           product_id?: string | null
           quantity?: number
           status?: string
@@ -692,9 +750,11 @@ export type Database = {
           approved_by?: string | null
           created_at?: string
           currency?: string
+          document_name?: string | null
           file_url?: string | null
           id?: string
           notes?: string | null
+          order_id?: string | null
           product_id?: string | null
           quantity?: number
           status?: string
@@ -705,6 +765,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "purchase_documents_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "purchase_documents_product_id_fkey"
             columns: ["product_id"]
@@ -1257,6 +1324,39 @@ export type Database = {
           id?: string
           name?: string
           steps?: Json
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          id: string
+          user_id: string
+          page_name: string
+          sort_field: string | null
+          sort_dir: string | null
+          filters: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          page_name: string
+          sort_field?: string | null
+          sort_dir?: string | null
+          filters?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          page_name?: string
+          sort_field?: string | null
+          sort_dir?: string | null
+          filters?: Json
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }

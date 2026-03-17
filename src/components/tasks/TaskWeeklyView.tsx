@@ -1,10 +1,11 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useData, useAuth, type Task, type Priority } from "@/contexts/AppContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { format, startOfWeek, addDays, isSameDay, isToday, isPast, addWeeks, subWeeks, getDay, getDate } from "date-fns";
 import { he } from "date-fns/locale";
-import { ChevronRight, ChevronLeft, CalendarDays, AlertTriangle, Users, Repeat, Zap, Settings, X } from "lucide-react";
+import { ChevronRight, ChevronLeft, CalendarDays, AlertTriangle, Users, Repeat, Zap, Settings, X, Plus, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import RecurringTasksPanel from "@/components/tasks/RecurringTasksPanel";
 import WorkflowsPanel from "@/components/tasks/WorkflowsPanel";
+import TaskCreateDialog from "@/components/tasks/TaskCreateDialog";
 
 const dayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 
@@ -97,12 +99,20 @@ function recurringMatchesDay(rt: RecurringTask, day: Date): boolean {
 export default function TaskWeeklyView() {
   const { tasks, updateTaskStatus, updateTask, profiles } = useData();
   const { currentUser } = useAuth();
+  const [searchParams] = useSearchParams();
   const [weekOffset, setWeekOffset] = useState(0);
   const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [dragOverDay, setDragOverDay] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState("recurring");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [createPickerOpen, setCreatePickerOpen] = useState(false);
+  const [taskCreateOpen, setTaskCreateOpen] = useState(false);
+  const [highlightTaskId, setHighlightTaskId] = useState<string | null>(null);
+  const [showTasks, setShowTasks] = useState(true);
+  const [showRecurring, setShowRecurring] = useState(true);
+  const [showWorkflows, setShowWorkflows] = useState(true);
 
   // Recurring tasks
   const [recurringTasks, setRecurringTasks] = useState<RecurringTask[]>([]);
@@ -136,6 +146,17 @@ export default function TaskWeeklyView() {
     loadWorkflows();
   }, [loadRecurring, loadWorkflows]);
 
+  // Handle highlight from search params
+  useEffect(() => {
+    const highlightId = searchParams.get("highlight");
+    if (highlightId) {
+      setHighlightTaskId(highlightId);
+      // Auto-clear highlight after 3 seconds
+      const timeout = setTimeout(() => setHighlightTaskId(null), 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [searchParams]);
+
   const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
 
   const weekStart = useMemo(() => {
@@ -144,7 +165,7 @@ export default function TaskWeeklyView() {
   }, [weekOffset]);
 
   const days = useMemo(() =>
-    Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
+    Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)).reverse(),
     [weekStart]
   );
 
@@ -229,7 +250,7 @@ export default function TaskWeeklyView() {
             <ChevronLeft className="h-4 w-4" />
           </Button>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 me-4">
             <Users className="h-4 w-4 text-muted-foreground" />
             <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
               <SelectTrigger className="h-8 text-xs w-40">
@@ -246,6 +267,11 @@ export default function TaskWeeklyView() {
 
           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSettingsOpen(true)}>
             <Settings className="h-4 w-4" />
+          </Button>
+
+          <Button size="sm" className="gap-1.5" onClick={() => setCreatePickerOpen(true)}>
+            <Plus className="h-4 w-4" />
+            צור
           </Button>
         </div>
       </div>
@@ -267,19 +293,43 @@ export default function TaskWeeklyView() {
       )}
 
       {/* Legend */}
-      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-primary/60" />
+      <div className="flex items-center gap-2 text-xs">
+        <button
+          onClick={() => setShowTasks(v => !v)}
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all",
+            showTasks
+              ? "bg-primary/10 border-primary/30 text-primary font-medium"
+              : "bg-muted/30 border-border/50 text-muted-foreground/50 line-through"
+          )}
+        >
+          <span className={cn("h-2 w-2 rounded-full transition-colors", showTasks ? "bg-primary" : "bg-muted-foreground/30")} />
           משימות
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-violet-500/70" />
+        </button>
+        <button
+          onClick={() => setShowRecurring(v => !v)}
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all",
+            showRecurring
+              ? "bg-accent/50 border-accent/30 text-accent-foreground font-medium"
+              : "bg-muted/30 border-border/50 text-muted-foreground/50 line-through"
+          )}
+        >
+          <span className={cn("h-2 w-2 rounded-full transition-colors", showRecurring ? "bg-violet-500" : "bg-muted-foreground/30")} />
           חוזרות
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-amber-500/70" />
+        </button>
+        <button
+          onClick={() => setShowWorkflows(v => !v)}
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all",
+            showWorkflows
+              ? "bg-warning/10 border-warning/30 text-warning font-medium"
+              : "bg-muted/30 border-border/50 text-muted-foreground/50 line-through"
+          )}
+        >
+          <span className={cn("h-2 w-2 rounded-full transition-colors", showWorkflows ? "bg-warning" : "bg-muted-foreground/30")} />
           תהליכים
-        </span>
+        </button>
       </div>
 
       {/* Weekly grid */}
@@ -339,12 +389,13 @@ export default function TaskWeeklyView() {
                 )}
 
                 {/* Regular tasks */}
-                {dayTasks.map(task => (
+                {showTasks && dayTasks.map(task => (
                   <WeeklyTaskCard
                     key={task.id}
                     task={task}
                     showAssignee={assigneeFilter === "all"}
                     isDragging={dragTaskId === task.id}
+                    isHighlighted={highlightTaskId === task.id}
                     onToggle={() => updateTaskStatus(task.id, task.status === "DONE" ? "TODO" : "DONE")}
                     onClick={() => setSelectedTask(task)}
                     onDragStart={() => setDragTaskId(task.id)}
@@ -353,12 +404,12 @@ export default function TaskWeeklyView() {
                 ))}
 
                 {/* Recurring task cards */}
-                {dayRecurring.map(rt => (
+                {showRecurring && dayRecurring.map(rt => (
                   <RecurringTaskCard key={`r-${rt.id}`} rt={rt} showAssignee={assigneeFilter === "all"} />
                 ))}
 
                 {/* Workflow step cards */}
-                {dayWorkflows.map(wf => (
+                {showWorkflows && dayWorkflows.map(wf => (
                   <WorkflowCard key={`wf-${wf.id}`} instance={wf} onRefresh={loadWorkflows} />
                 ))}
               </div>
@@ -387,7 +438,7 @@ export default function TaskWeeklyView() {
               <span className="h-4 w-1 rounded-full bg-muted-foreground/30" />
               ללא תאריך יעד ({unscheduled.length})
               {dragOverDay === "__unscheduled__" && (
-                <span className="text-xs text-primary font-normal">← שחרר כאן להסרת תאריך</span>
+                <span className="text-xs text-primary font-normal">שחרר כאן להסרת תאריך →</span>
               )}
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
@@ -398,7 +449,7 @@ export default function TaskWeeklyView() {
                   draggable
                   onDragStart={() => setDragTaskId(task.id)}
                   onDragEnd={() => { setDragTaskId(null); setDragOverDay(null); }}
-                  onClick={() => setSelectedTask(task)}
+                  onClick={(e) => { if (e.detail !== 1) return; setSelectedTask(task); }}
                 >
                   <p className="text-xs font-medium text-foreground leading-tight line-clamp-2">{task.title}</p>
                   <div className="flex items-center justify-between">
@@ -414,13 +465,51 @@ export default function TaskWeeklyView() {
         )}
       </div>
 
+      {/* Create type picker dialog */}
+      <Dialog open={createPickerOpen} onOpenChange={setCreatePickerOpen}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle>מה ברצונך ליצור?</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button
+              className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all text-center"
+              onClick={() => { setCreatePickerOpen(false); setTaskCreateOpen(true); }}
+            >
+              <ClipboardList className="h-8 w-8 text-primary" />
+              <div>
+                <p className="font-semibold text-foreground text-sm">משימה</p>
+                <p className="text-xs text-muted-foreground mt-0.5">חד פעמית או חוזרת</p>
+              </div>
+            </button>
+            <button
+              className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-border hover:border-amber-500 hover:bg-amber-500/5 transition-all text-center"
+              onClick={() => { setCreatePickerOpen(false); setSettingsTab("workflows"); setSettingsOpen(true); }}
+            >
+              <Zap className="h-8 w-8 text-amber-500" />
+              <div>
+                <p className="font-semibold text-foreground text-sm">תהליך</p>
+                <p className="text-xs text-muted-foreground mt-0.5">התחל workflow</p>
+              </div>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Task create dialog */}
+      <TaskCreateDialog
+        open={taskCreateOpen}
+        onOpenChange={setTaskCreateOpen}
+        onSaved={loadRecurring}
+      />
+
       {/* Settings drawer */}
       <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
         <SheetContent side="left" className="w-[600px] max-w-[95vw] overflow-y-auto">
           <SheetHeader className="mb-4">
             <SheetTitle>ניהול חוזרות ותהליכים</SheetTitle>
           </SheetHeader>
-          <Tabs defaultValue="recurring">
+          <Tabs value={settingsTab} onValueChange={setSettingsTab}>
             <TabsList className="w-full mb-4">
               <TabsTrigger value="recurring" className="flex-1 gap-1.5">
                 <Repeat className="h-3.5 w-3.5" />חוזרות
@@ -617,13 +706,14 @@ interface WeeklyTaskCardProps {
   task: Task;
   showAssignee: boolean;
   isDragging: boolean;
+  isHighlighted?: boolean;
   onToggle: () => void;
   onClick: () => void;
   onDragStart: () => void;
   onDragEnd: () => void;
 }
 
-function WeeklyTaskCard({ task, showAssignee, isDragging, onToggle, onClick, onDragStart, onDragEnd }: WeeklyTaskCardProps) {
+function WeeklyTaskCard({ task, showAssignee, isDragging, isHighlighted, onToggle, onClick, onDragStart, onDragEnd }: WeeklyTaskCardProps) {
   const isDone = task.status === "DONE";
   const isUrgent = task.priority === "דחוף";
   const initials = task.assignee_name ? task.assignee_name.trim().charAt(0).toUpperCase() : null;
@@ -635,13 +725,15 @@ function WeeklyTaskCard({ task, showAssignee, isDragging, onToggle, onClick, onD
         isDone ? "bg-success/10 border-success/20 opacity-60" :
         isUrgent ? "bg-destructive/10 border-destructive/20" :
         "bg-card border-border/40 hover:shadow-sm",
-        isDragging && "opacity-40 scale-95"
+        isDragging && "opacity-40 scale-95",
+        isHighlighted && "ring-2 ring-yellow-400 ring-offset-2 bg-yellow-50/50"
       )}
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={(e) => {
         e.stopPropagation();
+        if (e.detail !== 1) return; // prevent second click of a double-click from reopening
         onClick();
       }}
       onDoubleClick={(e) => {

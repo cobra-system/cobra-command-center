@@ -1,20 +1,49 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useData, type Priority, type TaskStatus } from "@/contexts/AppContext";
+import { supabase } from "@/lib/supabase";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { TaskStatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight, CheckCircle2, AlertOctagon, FileText, MessageSquare } from "lucide-react";
+import { ArrowRight, CheckCircle2, AlertOctagon, FileText, MessageSquare, Camera, Loader2, Trash2, ImageIcon, File } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import confetti from "canvas-confetti";
+
+interface TaskDoc {
+  name: string;
+  url: string;
+  isImage: boolean;
+}
 
 export default function MyTaskDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { tasks, updateTaskStatus, addTaskNote } = useData();
+  const { tasks, updateTaskStatus, addTaskNote, deleteTask } = useData();
   const task = tasks.find(t => t.id === id);
   const [note, setNote] = useState(task?.notes || "");
   const [saving, setSaving] = useState(false);
+  const [docs, setDocs] = useState<TaskDoc[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  const storagePath = `tasks/${id}`;
+
+  const fetchDocs = async () => {
+    if (!id) return;
+    const { data } = await supabase.storage.from("documents").list(storagePath);
+    if (data) {
+      const docList = data
+        .filter(f => f.name !== ".emptyFolderPlaceholder")
+        .map(f => {
+          const { data: urlData } = supabase.storage.from("documents").getPublicUrl(`${storagePath}/${f.name}`);
+          const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(f.name);
+          return { name: f.name, url: urlData.publicUrl, isImage };
+        });
+      setDocs(docList);
+    }
+  };
+
+  useEffect(() => { fetchDocs(); }, [id]);
 
   if (!task) {
     return (
@@ -45,12 +74,53 @@ export default function MyTaskDetailPage() {
     setSaving(false);
   };
 
+  const handleDeleteTask = async () => {
+    if (confirm("האם אתה בטוח שברצונך למחוק משימה זו? לא ניתן לשחזר פעולה זו.")) {
+      try {
+        await deleteTask(task.id);
+        toast({ title: "✅ משימה נמחקה בהצלחה" });
+        navigate("/my-tasks");
+      } catch (error) {
+        toast({ title: "שגיאה במחיקת משימה", description: "נסה שוב", variant: "destructive" });
+      }
+    }
+  };
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !id) return;
+    setUploading(true);
+    const safeName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+    const filePath = `${storagePath}/${safeName}`;
+    const { error } = await supabase.storage.from("documents").upload(filePath, file, { upsert: false });
+    if (error) {
+      toast({ title: "שגיאה בהעלאה", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "✅ הקובץ הועלה" });
+      await fetchDocs();
+    }
+    setUploading(false);
+    // Reset input
+    e.target.value = "";
+  };
+
+  const handleDeleteDoc = async (name: string) => {
+    if (!id) return;
+    const { error } = await supabase.storage.from("documents").remove([`${storagePath}/${name}`]);
+    if (error) {
+      toast({ title: "שגיאה במחיקה", variant: "destructive" });
+    } else {
+      toast({ title: "🗑️ קובץ נמחק" });
+      setDocs(prev => prev.filter(d => d.name !== name));
+    }
+  };
+
   const isUrgent = task.priority === "P0";
   const isDone = task.status === "DONE";
   const isBlocked = task.status === "BLOCKED";
 
   return (
-    <div className="px-5 py-6 pb-36 animate-task-appear">
+    <div className="px-5 py-6 pb-52 animate-task-appear">
       {/* Back button */}
       <button
         onClick={() => navigate("/my-tasks")}
@@ -84,6 +154,77 @@ export default function MyTaskDetailPage() {
           <p className="text-sm text-foreground leading-relaxed">{task.description}</p>
         </div>
       )}
+
+      {/* Documents & Photos */}
+      <div className="bg-card rounded-2xl border p-4 shadow-sm mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Camera className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs font-semibold text-muted-foreground">מסמכים ותמונות</span>
+            {docs.length > 0 && (
+              <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{docs.length}</span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            {/* Camera capture (mobile) */}
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleUpload}
+                disabled={uploading}
+              />
+              <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors">
+                {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+                צלם
+              </span>
+            </label>
+            {/* File upload */}
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                className="hidden"
+                onChange={handleUpload}
+                disabled={uploading}
+              />
+              <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-muted-foreground text-xs font-medium hover:bg-muted/50 transition-colors">
+                <File className="h-3.5 w-3.5" />
+                קובץ
+              </span>
+            </label>
+          </div>
+        </div>
+
+        {docs.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-3">אין מסמכים מצורפים</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {docs.map(doc => (
+              <div key={doc.name} className="relative rounded-xl overflow-hidden border bg-muted/20">
+                {doc.isImage ? (
+                  <a href={doc.url} target="_blank" rel="noopener noreferrer">
+                    <img src={doc.url} alt={doc.name} className="w-full h-24 object-cover" />
+                  </a>
+                ) : (
+                  <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-3">
+                    <ImageIcon className="h-6 w-6 text-muted-foreground shrink-0" />
+                    <span className="text-xs text-foreground truncate">{doc.name}</span>
+                  </a>
+                )}
+                <button
+                  className="absolute top-1 left-1 bg-destructive/80 text-white rounded-full p-1 hover:bg-destructive transition-colors"
+                  onClick={() => handleDeleteDoc(doc.name)}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Notes */}
       <div className="bg-card rounded-2xl border p-4 shadow-sm">
@@ -148,6 +289,14 @@ export default function MyTaskDetailPage() {
             החזר לביצוע
           </Button>
         )}
+        <Button
+          variant="outline"
+          className="w-full h-11 rounded-2xl text-sm text-destructive border-destructive/20 hover:bg-destructive/5 active:scale-[0.98] transition-all"
+          onClick={handleDeleteTask}
+        >
+          <Trash2 className="h-4 w-4 ml-2" />
+          מחק משימה
+        </Button>
       </div>
     </div>
   );

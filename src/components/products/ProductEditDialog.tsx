@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { type Product, categories, divisions } from "@/contexts/AppContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 const productCategories = categories.filter(c => c !== "הכל");
 const productTypes = ["מוגמר", "מורכב"];
@@ -46,7 +46,6 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
         product_type: product.product_type || "",
         description: product.description || "",
         supplier: product.supplier || "",
-        supplier_origin: product.supplier_origin || "",
         shipping: product.shipping || "",
         purchase_price: product.purchase_price ?? "",
         sale_price: product.sale_price ?? "",
@@ -71,7 +70,7 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
     try {
       const updates: Record<string, any> = {};
       const numericFields = ["purchase_price", "sale_price", "monthly_sales", "monthly_order", "monthly_sales_avg", "stock_qty", "incoming_qty", "reorder_point", "lead_time_days"];
-      const textFields = ["name", "sku", "category", "division", "product_type", "description", "supplier", "supplier_origin", "shipping", "end_product_url", "end_product_image", "notes"];
+      const textFields = ["name", "sku", "category", "division", "product_type", "description", "supplier", "shipping", "end_product_url", "end_product_image", "notes"];
 
       for (const key of textFields) {
         updates[key] = fields[key] === "" ? null : fields[key];
@@ -89,6 +88,16 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
       // stock_qty and incoming_qty default to 0
       updates.stock_qty = updates.stock_qty ?? 0;
       updates.incoming_qty = updates.incoming_qty ?? 0;
+
+      // If supplier is being updated, also set supplier_id
+      if (fields.supplier && typeof fields.supplier === "string") {
+        const selectedSupplier = suppliers.find(s => s.company === fields.supplier);
+        if (selectedSupplier) {
+          updates.supplier_id = selectedSupplier.id;
+        }
+      } else if (!fields.supplier) {
+        updates.supplier_id = null;
+      }
 
       await onSave(product.id, updates);
       onOpenChange(false);
@@ -182,7 +191,6 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
                   </SelectContent>
                 </Select>
               </div>
-              {textField("supplier_origin", "מקור ספק")}
               <div className="space-y-1">
                 <Label className="text-xs">שיטת משלוח</Label>
                 <Select value={fields.shipping || ""} onValueChange={v => set("shipping", v)}>
