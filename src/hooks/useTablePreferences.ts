@@ -39,8 +39,8 @@ export function useTablePreferences(
       setLoading(true)
 
       if (session?.user) {
-        // Load from database
-        const { data, error } = await supabase
+        // Load from database - user_preferences table may not be in generated types
+        const { data, error } = await (supabase as any)
           .from("user_preferences")
           .select("*")
           .eq("user_id", session.user.id)
