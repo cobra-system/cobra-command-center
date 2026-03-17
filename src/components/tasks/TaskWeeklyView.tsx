@@ -165,7 +165,7 @@ export default function TaskWeeklyView() {
   }, [weekOffset]);
 
   const days = useMemo(() =>
-    Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
+    Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)).reverse(),
     [weekStart]
   );
 
@@ -250,7 +250,7 @@ export default function TaskWeeklyView() {
             <ChevronLeft className="h-4 w-4" />
           </Button>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 me-4">
             <Users className="h-4 w-4 text-muted-foreground" />
             <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
               <SelectTrigger className="h-8 text-xs w-40">
@@ -438,7 +438,7 @@ export default function TaskWeeklyView() {
               <span className="h-4 w-1 rounded-full bg-muted-foreground/30" />
               ללא תאריך יעד ({unscheduled.length})
               {dragOverDay === "__unscheduled__" && (
-                <span className="text-xs text-primary font-normal">← שחרר כאן להסרת תאריך</span>
+                <span className="text-xs text-primary font-normal">שחרר כאן להסרת תאריך →</span>
               )}
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
