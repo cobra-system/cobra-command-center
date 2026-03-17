@@ -228,14 +228,14 @@ export default function TaskWeeklyView() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" dir="rtl">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-foreground">ניהול משימות</h1>
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground border rounded-lg px-3 py-1.5 bg-muted/30">
             <CalendarDays className="h-4 w-4" />
-            <span>{format(days[0], "d MMM", { locale: he })} – {format(days[6], "d MMM yyyy", { locale: he })}</span>
+            <span>{format(days[days.length - 1], "d MMM", { locale: he })} – {format(days[0], "d MMM yyyy", { locale: he })}</span>
           </div>
         </div>
 
@@ -363,8 +363,8 @@ export default function TaskWeeklyView() {
                 "px-2 py-2.5 border-b flex flex-col items-center gap-1",
                 today ? "border-primary/20" : "border-border/30"
               )}>
-                <p className={cn("text-xs font-semibold tracking-wide", today ? "text-primary" : "text-muted-foreground")}>
-                  {dayNames[i]}
+          <p className={cn("text-xs font-semibold tracking-wide", today ? "text-primary" : "text-muted-foreground")}>
+                  {dayNames[6 - i]}
                 </p>
                 <p className={cn("text-xl font-bold leading-none", today ? "text-primary" : "text-foreground")}>
                   {format(day, "d")}
@@ -438,7 +438,7 @@ export default function TaskWeeklyView() {
               <span className="h-4 w-1 rounded-full bg-muted-foreground/30" />
               ללא תאריך יעד ({unscheduled.length})
               {dragOverDay === "__unscheduled__" && (
-                <span className="text-xs text-primary font-normal">שחרר כאן להסרת תאריך →</span>
+                <span className="text-xs text-primary font-normal">← שחרר כאן להסרת תאריך</span>
               )}
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">

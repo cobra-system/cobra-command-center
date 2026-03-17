@@ -39,8 +39,8 @@ export function useTablePreferences(
       setLoading(true)
 
       if (session?.user) {
-        // Load from database
-        const { data, error } = await supabase
+        // Load from database - user_preferences table may not be in generated types
+        const { data, error } = await (supabase as any)
           .from("user_preferences")
           .select("*")
           .eq("user_id", session.user.id)
@@ -56,7 +56,7 @@ export function useTablePreferences(
           setPreferences({
             sortField: data.sort_field,
             sortDir: (data.sort_dir as SortDir) || null,
-            filters: data.filters || {},
+            filters: (typeof data.filters === 'object' && data.filters !== null && !Array.isArray(data.filters) ? data.filters : {}) as Record<string, any>,
           })
           return
         }
@@ -96,7 +96,7 @@ export function useTablePreferences(
       // Save to database if authenticated
       if (session?.user) {
         try {
-          const { error } = await supabase.from("user_preferences").upsert({
+          const { error } = await (supabase as any).from("user_preferences").upsert({
             user_id: session.user.id,
             page_name: pageName,
             sort_field: updated.sortField,

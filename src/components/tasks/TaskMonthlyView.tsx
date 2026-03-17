@@ -88,7 +88,7 @@ export default function TaskMonthlyView() {
             <ChevronLeft className="h-4 w-4" />
           </Button>
 
-          <div className="flex items-center gap-1.5 me-4">
+          <div className="flex items-center gap-1.5 ms-4">
             <Users className="h-4 w-4 text-muted-foreground" />
             <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
               <SelectTrigger className="h-8 text-xs w-40">
@@ -109,7 +109,7 @@ export default function TaskMonthlyView() {
       <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
         {/* Day names header */}
         <div className="grid grid-cols-7 bg-muted/30 border-b border-border/30" style={{ direction: 'rtl' }}>
-          {[...dayNames].reverse().map(day => (
+          {dayNames.map(day => (
             <div key={day} className="p-3 text-center text-xs font-semibold text-muted-foreground">
               {day}
             </div>
