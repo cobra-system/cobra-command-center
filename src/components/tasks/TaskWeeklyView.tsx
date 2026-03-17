@@ -235,7 +235,7 @@ export default function TaskWeeklyView() {
           <h1 className="text-2xl font-bold text-foreground">ניהול משימות</h1>
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground border rounded-lg px-3 py-1.5 bg-muted/30">
             <CalendarDays className="h-4 w-4" />
-            <span>{format(days[0], "d MMM", { locale: he })} – {format(days[6], "d MMM yyyy", { locale: he })}</span>
+            <span>{format(days[days.length - 1], "d MMM", { locale: he })} – {format(days[0], "d MMM yyyy", { locale: he })}</span>
           </div>
         </div>
 
