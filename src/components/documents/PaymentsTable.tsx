@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData } from "@/contexts/AppContext";
 import { ArrowUpDown, ArrowUp, ArrowDown, Pencil } from "lucide-react";
@@ -7,13 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { format, isPast } from "date-fns";
+import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import type { Payment } from "./types";
 import { payStatusColors, currencySymbol, paymentTypeLabels } from "./constants";
 
 type SortField = "supplier" | "amount" | "due_date" | "status" | "payment_type" | "paid_date";
-type SortDir = "asc" | "desc" | null;
 
 interface Props {
   payments: Payment[];
@@ -26,23 +26,18 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
   const { suppliers } = useData();
   const navigate = useNavigate();
 
-  const [sortField, setSortField] = useState<SortField | null>(null);
-  const [sortDir, setSortDir] = useState<SortDir>(null);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all");
+  const prefs = useTablePreferences("PaymentsTable", {
+    sortField: "due_date",
+    sortDir: "desc",
+    filters: { statusFilter: "all", typeFilter: "all" },
+  });
+
+  const sortField = prefs.sortField as SortField | null;
+  const sortDir = prefs.sortDir;
+  const statusFilter = prefs.filters.statusFilter || "all";
+  const typeFilter = prefs.filters.typeFilter || "all";
 
   const supplierName = (id: string | null) => suppliers.find(s => s.id === id)?.company || "—";
-
-  const toggleSort = (field: SortField) => {
-    if (sortField === field) {
-      if (sortDir === "asc") setSortDir("desc");
-      else if (sortDir === "desc") { setSortField(null); setSortDir(null); }
-      else setSortDir("asc");
-    } else {
-      setSortField(field);
-      setSortDir("asc");
-    }
-  };
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
@@ -97,7 +92,7 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
   return (
     <div>
       <div className="flex gap-2 mb-3">
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={(v) => prefs.setFilter("statusFilter", v)}>
           <SelectTrigger className="w-[130px]"><SelectValue placeholder="סטטוס" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">כל הסטטוסים</SelectItem>
@@ -106,7 +101,7 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
             <SelectItem value="מאוחר">מאוחר</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
+        <Select value={typeFilter} onValueChange={(v) => prefs.setFilter("typeFilter", v)}>
           <SelectTrigger className="w-[120px]"><SelectValue placeholder="סוג" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">כל הסוגים</SelectItem>
@@ -121,23 +116,23 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("supplier")}>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("supplier")}>
                 <span className="flex items-center gap-1">ספק <SortIcon field="supplier" /></span>
               </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("amount")}>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("amount")}>
                 <span className="flex items-center gap-1">סכום <SortIcon field="amount" /></span>
               </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("payment_type")}>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("payment_type")}>
                 <span className="flex items-center gap-1">סוג <SortIcon field="payment_type" /></span>
               </th>
               <th className="text-right p-3 font-semibold text-foreground">מסמך</th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("due_date")}>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("due_date")}>
                 <span className="flex items-center gap-1">מועד פירעון <SortIcon field="due_date" /></span>
               </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("status")}>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("status")}>
                 <span className="flex items-center gap-1">סטטוס <SortIcon field="status" /></span>
               </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("paid_date")}>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("paid_date")}>
                 <span className="flex items-center gap-1">תאריך תשלום <SortIcon field="paid_date" /></span>
               </th>
               {onEdit && <th className="p-3" />}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth } from "@/contexts/AppContext";
 import { ArrowUpDown, ArrowUp, ArrowDown, Paperclip } from "lucide-react";
@@ -7,13 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { supabase } from "@/lib/supabase";
 import type { PurchaseDocument } from "./types";
 import { docStatusFlow, docStatusColors, currencySymbol } from "./constants";
 import { DocTypeBadge } from "./DocStatusBadge";
 
 type SortField = "name" | "type" | "supplier" | "product" | "quantity" | "total_price" | "status" | "created_at" | "order";
-type SortDir = "asc" | "desc" | null;
 
 interface Props {
   docs: PurchaseDocument[];
@@ -27,10 +27,16 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
-  const [sortField, setSortField] = useState<SortField | null>(null);
-  const [sortDir, setSortDir] = useState<SortDir>(null);
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const prefs = useTablePreferences("DocumentsTable", {
+    sortField: "created_at",
+    sortDir: "desc",
+    filters: { typeFilter: "all", statusFilter: "all" },
+  });
+
+  const sortField = prefs.sortField as SortField | null;
+  const sortDir = prefs.sortDir;
+  const typeFilter = prefs.filters.typeFilter || "all";
+  const statusFilter = prefs.filters.statusFilter || "all";
 
   const supplierName = (id: string | null) => suppliers.find(s => s.id === id)?.company || "—";
   const productName = (id: string | null) => products.find(p => p.id === id)?.name || "—";
@@ -38,17 +44,6 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
     if (!id) return null;
     const o = orders.find(o => o.id === id);
     return o ? (o.supplier_name || o.id.slice(0, 8)) : null;
-  };
-
-  const toggleSort = (field: SortField) => {
-    if (sortField === field) {
-      if (sortDir === "asc") setSortDir("desc");
-      else if (sortDir === "desc") { setSortField(null); setSortDir(null); }
-      else setSortDir("asc");
-    } else {
-      setSortField(field);
-      setSortDir("asc");
-    }
   };
 
   const SortIcon = ({ field }: { field: SortField }) => {
@@ -103,7 +98,7 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
   return (
     <div>
       <div className="flex gap-2 mb-3">
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
+        <Select value={typeFilter} onValueChange={(v) => prefs.setFilter("typeFilter", v)}>
           <SelectTrigger className="w-[120px]"><SelectValue placeholder="סוג" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">כל הסוגים</SelectItem>
@@ -112,7 +107,7 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
             <SelectItem value="כללי">כללי</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={(v) => prefs.setFilter("statusFilter", v)}>
           <SelectTrigger className="w-[150px]"><SelectValue placeholder="סטטוס" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">כל הסטטוסים</SelectItem>
@@ -125,30 +120,30 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("name")}>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("name")}>
                 <span className="flex items-center gap-1">שם <SortIcon field="name" /></span>
               </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("type")}>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("type")}>
                 <span className="flex items-center gap-1">סוג <SortIcon field="type" /></span>
               </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("supplier")}>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("supplier")}>
                 <span className="flex items-center gap-1">ספק <SortIcon field="supplier" /></span>
               </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("product")}>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("product")}>
                 <span className="flex items-center gap-1">מוצר <SortIcon field="product" /></span>
               </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("quantity")}>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("quantity")}>
                 <span className="flex items-center gap-1">כמות <SortIcon field="quantity" /></span>
               </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("total_price")}>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("total_price")}>
                 <span className="flex items-center gap-1">מחיר כולל <SortIcon field="total_price" /></span>
               </th>
               <th className="text-right p-3 font-semibold text-foreground">הזמנה</th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("status")}>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("status")}>
                 <span className="flex items-center gap-1">סטטוס <SortIcon field="status" /></span>
               </th>
               <th className="text-right p-3 font-semibold text-foreground">אישור</th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => toggleSort("created_at")}>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("created_at")}>
                 <span className="flex items-center gap-1">תאריך <SortIcon field="created_at" /></span>
               </th>
               

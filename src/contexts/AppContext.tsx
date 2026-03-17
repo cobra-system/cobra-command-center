@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase";
+import { applyMigrations } from "@/lib/applyMigrations";
 import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 
@@ -242,6 +243,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setCurrentUser(profile);
       }
       setAuthLoading(false);
+
+      // Apply any pending database migrations
+      applyMigrations().catch(console.error);
     });
 
     return () => subscription.unsubscribe();
@@ -638,7 +642,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const createEmployee = useCallback(async (data: { name: string; role: Role; pin: string }): Promise<string | null> => {
     try {
-      const cloudUrl = import.meta.env.VITE_SUPABASE_URL || "https://pjruyvhtivbeikxrnipg.supabase.co";
+      const cloudUrl = import.meta.env.VITE_SUPABASE_URL || "https://ljpdwezgahrrffnwajho.supabase.co";
       const cloudKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
       const url = `${cloudUrl}/functions/v1/create-employee`;
       const sess = await supabase.auth.getSession();

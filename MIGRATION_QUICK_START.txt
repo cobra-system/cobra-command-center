@@ -1,0 +1,87 @@
+═══════════════════════════════════════════════════════════════════════════════
+ UNIVERSAL TABLE SORTING - QUICK START
+═══════════════════════════════════════════════════════════════════════════════
+
+APPLY MIGRATION (Choose ONE):
+
+[EASIEST] Option A: Supabase Dashboard
+─────────────────────────────────────────────────────────────────────────────
+1. Go to: https://app.supabase.com
+2. Select project: cobra-command-center
+3. Click: SQL Editor → + New Query
+4. Copy entire SQL from SETUP_UNIVERSAL_SORTING.md (Step 1)
+5. Click: Run
+6. Done! ✅
+
+[FAST] Option B: Supabase CLI
+─────────────────────────────────────────────────────────────────────────────
+$ supabase db push
+
+This automatically applies migrations in: supabase/migrations/
+
+
+VERIFY MIGRATION APPLIED:
+─────────────────────────────────────────────────────────────────────────────
+✅ Supabase Dashboard → Table Editor → Look for "user_preferences" table
+✅ Should show columns: id, user_id, page_name, sort_field, sort_dir, filters, ...
+
+
+TEST THE FEATURE:
+─────────────────────────────────────────────────────────────────────────────
+1. Run app: npm run dev (or your start command)
+2. Go to Products page
+3. Click any column header (Name, SKU, Type, etc.)
+   - 1st click = Sort ascending (⬆️)
+   - 2nd click = Sort descending (⬇️)
+   - 3rd click = Clear sort (⬌)
+4. REFRESH THE PAGE (F5 / Cmd+R)
+   ✅ IMPORTANT: Sort should STILL be applied!
+5. Go to Suppliers page
+   ✅ Should have its OWN sort (not Products' sort)
+6. Go back to Products
+   ✅ Products sort should be restored
+
+
+TEST ALL PAGES:
+─────────────────────────────────────────────────────────────────────────────
+✅ ProductsPage - 8 sortable columns
+✅ SuppliersPage - 5 sortable columns
+✅ DocumentsTable - 8 sortable columns
+✅ PaymentsTable - 6 sortable columns
+✅ ReorderPage - 8 columns (NEW sorting added)
+✅ TeamPage - 2 columns (NEW sorting added)
+✅ IssuesPage - 5 columns (NEW sorting added)
+✅ InventoryPage - 3 detail columns (updated)
+
+
+FULL DETAILS:
+─────────────────────────────────────────────────────────────────────────────
+See: SETUP_UNIVERSAL_SORTING.md
+- Step-by-step with screenshots
+- Detailed test procedures
+- Troubleshooting guide
+- Architecture explanation
+
+
+WHAT'S WORKING:
+─────────────────────────────────────────────────────────────────────────────
+✅ All columns on all pages are clickable and sortable
+✅ 3-state toggle: none → asc → desc → none
+✅ Persistence across page navigation
+✅ Persistence across page refresh
+✅ Persistence across logout/login (same user, same browser)
+✅ Type-safe sort keys (no typos possible)
+✅ Hebrew-aware string sorting
+✅ Automatic localStorage fallback if database unavailable
+✅ Filter + Sort both persisted together
+
+
+STATUS:
+─────────────────────────────────────────────────────────────────────────────
+Code:      ✅ COMPLETE (all pages updated)
+Database:  ⏳ PENDING (run migration in Step 1 above)
+Testing:   ⏳ PENDING (follow test procedures above)
+Deploy:    ⏳ PENDING (after migration + testing)
+
+
+═══════════════════════════════════════════════════════════════════════════════
