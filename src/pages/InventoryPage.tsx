@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useData, useAuth } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
+import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,9 +75,14 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("flow");
   const [detailSearch, setDetailSearch] = useState("");
-  const [detailSortKey, setDetailSortKey] = useState<"name" | "sku" | "total" | null>(null);
-  const [detailSortDir, setDetailSortDir] = useState<"asc" | "desc">("asc");
   const [selectedCenter, setSelectedCenter] = useState<string | null>(null);
+
+  const prefs = useTablePreferences("InventoryPage", {
+    sortField: "name",
+  });
+
+  const detailSortKey = prefs.sortField as "name" | "sku" | "total" | null;
+  const detailSortDir = prefs.sortDir;
 
   const [showAddCenter, setShowAddCenter] = useState(false);
   const [newCenterName, setNewCenterName] = useState("");
@@ -350,14 +356,7 @@ export default function InventoryPage() {
                   variant="outline"
                   size="sm"
                   className="gap-1"
-                  onClick={() => {
-                    if (detailSortKey === key) {
-                      setDetailSortDir(d => d === "asc" ? "desc" : "asc");
-                    } else {
-                      setDetailSortKey(key);
-                      setDetailSortDir("asc");
-                    }
-                  }}
+                  onClick={() => prefs.toggleSort(key)}
                 >
                   {label}
                   {detailSortKey === key ? (

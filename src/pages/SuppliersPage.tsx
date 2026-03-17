@@ -10,11 +10,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import SupplierEmailTab from "@/components/SupplierEmailTab";
+import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 type SortKey = "company" | "contact_name" | "email" | "phone" | "country";
-type SortDir = "asc" | "desc";
 
 const sortableColumns: { key: SortKey; label: string }[] = [
   { key: "company", label: "חברה" },
@@ -83,9 +83,15 @@ export default function SuppliersPage() {
   const [emailSupplier, setEmailSupplier] = useState<{ id: string; company: string; email: string | null } | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
-  const [countryFilter, setCountryFilter] = useState("all");
-  const [sortKey, setSortKey] = useState<SortKey | null>(null);
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  const prefs = useTablePreferences("SuppliersPage", {
+    sortField: "company",
+    filters: { countryFilter: "all" },
+  });
+
+  const sortKey = prefs.sortField as SortKey | null;
+  const sortDir = prefs.sortDir;
+  const countryFilter = prefs.filters.countryFilter || "all";
 
   const countries = useMemo(() => {
     const set = new Set(suppliers.map(s => s.country).filter(Boolean) as string[]);
@@ -114,16 +120,6 @@ export default function SuppliersPage() {
 
   const duplicateGroups = useMemo(() => detectDuplicates(suppliers), [suppliers]);
 
-  const toggleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      if (sortDir === "asc") setSortDir("desc");
-      else { setSortKey(null); setSortDir("asc"); }
-    } else {
-      setSortKey(key);
-      setSortDir("asc");
-    }
-  };
-
   const SortIcon = ({ col }: { col: SortKey }) => {
     if (sortKey !== col) return <ArrowUpDown className="h-3 w-3 opacity-30" />;
     return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
@@ -142,7 +138,7 @@ export default function SuppliersPage() {
           )}
         </div>
         <div className="flex items-center gap-3">
-          <Select value={countryFilter} onValueChange={setCountryFilter}>
+          <Select value={countryFilter} onValueChange={(v) => prefs.setFilter("countryFilter", v)}>
             <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">הכל</SelectItem>
@@ -173,7 +169,7 @@ export default function SuppliersPage() {
           <thead><tr className="border-b bg-muted/50">
             {sortableColumns.map(col => (
               <th key={col.key} className="text-right p-3 font-semibold text-foreground">
-                <button onClick={() => toggleSort(col.key)} className="flex items-center gap-1 hover:text-accent transition-colors">
+                <button onClick={() => prefs.toggleSort(col.key)} className="flex items-center gap-1 hover:text-accent transition-colors">
                   {col.label}
                   <SortIcon col={col.key} />
                 </button>

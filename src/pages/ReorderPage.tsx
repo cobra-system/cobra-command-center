@@ -1,13 +1,16 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth } from "@/contexts/AppContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CalendarClock, AlertTriangle, CheckCircle, ShoppingCart } from "lucide-react";
+import { CalendarClock, AlertTriangle, CheckCircle, ShoppingCart, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { InlineEditField } from "@/components/InlineEditField";
+import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { toast } from "sonner";
+
+type SortKey = "status" | "name" | "sku" | "stock_qty" | "incoming_qty" | "monthly_sales_avg" | "days_until_stockout" | "lead_time_days" | "order_by_date";
 
 interface ReorderRow {
   id: string;
@@ -30,8 +33,15 @@ export default function ReorderPage() {
   const navigate = useNavigate();
   const isManager = currentUser?.role === "MANAGER";
 
+  const prefs = useTablePreferences("ReorderPage", {
+    sortField: "status",
+  });
+
+  const sortKey = prefs.sortField as SortKey | null;
+  const sortDir = prefs.sortDir;
+
   const rows = useMemo<ReorderRow[]>(() => {
-    return products
+    let result = products
       .map(p => {
         const monthlySales = p.monthly_sales_avg ?? p.monthly_sales ?? 0;
         const dailySales = monthlySales / 30;
@@ -62,13 +72,56 @@ export default function ReorderPage() {
           status,
         } as ReorderRow;
       })
-      .filter(r => r.daily_sales > 0)
-      .sort((a, b) => {
+      .filter(r => r.daily_sales > 0);
+
+    // Apply sorting
+    if (sortKey && sortDir) {
+      result = [...result].sort((a, b) => {
+        let cmp = 0;
+        switch (sortKey) {
+          case "status": {
+            const order = { danger: 0, warning: 1, ok: 2 };
+            cmp = order[a.status] - order[b.status];
+            break;
+          }
+          case "name":
+            cmp = a.name.localeCompare(b.name, "he");
+            break;
+          case "sku":
+            cmp = a.sku.localeCompare(b.sku, "he");
+            break;
+          case "stock_qty":
+            cmp = a.stock_qty - b.stock_qty;
+            break;
+          case "incoming_qty":
+            cmp = a.incoming_qty - b.incoming_qty;
+            break;
+          case "monthly_sales_avg":
+            cmp = (a.monthly_sales_avg || 0) - (b.monthly_sales_avg || 0);
+            break;
+          case "days_until_stockout":
+            cmp = (a.days_until_stockout ?? 999) - (b.days_until_stockout ?? 999);
+            break;
+          case "lead_time_days":
+            cmp = (a.lead_time_days ?? 0) - (b.lead_time_days ?? 0);
+            break;
+          case "order_by_date":
+            cmp = (a.order_by_date?.getTime() ?? 0) - (b.order_by_date?.getTime() ?? 0);
+            break;
+        }
+        return sortDir === "desc" ? -cmp : cmp;
+      });
+    } else {
+      // Default sort: by status then days_until_stockout
+      result = [...result].sort((a, b) => {
         const order = { danger: 0, warning: 1, ok: 2 };
         if (order[a.status] !== order[b.status]) return order[a.status] - order[b.status];
         return (a.days_until_stockout ?? 999) - (b.days_until_stockout ?? 999);
       });
-  }, [products]);
+    }
+
+    return result;
+  }, [products, sortKey, sortDir]);
 
   const dangerCount = rows.filter(r => r.status === "danger").length;
   const warningCount = rows.filter(r => r.status === "warning").length;
@@ -79,6 +132,11 @@ export default function ReorderPage() {
     if (s === "danger") return <span className="text-destructive">🔴</span>;
     if (s === "warning") return <span className="text-warning">🟡</span>;
     return <span className="text-success">🟢</span>;
+  };
+
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortKey !== col) return <ArrowUpDown className="h-3 w-3 opacity-30" />;
+    return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   };
 
   const handleLeadTimeUpdate = async (productId: string, value: string) => {
@@ -120,14 +178,30 @@ export default function ReorderPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
-              <th className="text-right p-3 font-semibold text-foreground">סטטוס</th>
-              <th className="text-right p-3 font-semibold text-foreground">מוצר</th>
-              <th className="text-right p-3 font-semibold text-foreground">מלאי</th>
-              <th className="text-right p-3 font-semibold text-foreground">בדרך</th>
-              <th className="text-right p-3 font-semibold text-foreground">מכירות/חודש</th>
-              <th className="text-right p-3 font-semibold text-foreground">ימים לאזילה</th>
-              <th className="text-right p-3 font-semibold text-foreground">Lead Time</th>
-              <th className="text-right p-3 font-semibold text-foreground">צריך להזמין עד</th>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("status")}>
+                <span className="flex items-center gap-1">סטטוס <SortIcon col="status" /></span>
+              </th>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("name")}>
+                <span className="flex items-center gap-1">מוצר <SortIcon col="name" /></span>
+              </th>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("stock_qty")}>
+                <span className="flex items-center gap-1">מלאי <SortIcon col="stock_qty" /></span>
+              </th>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("incoming_qty")}>
+                <span className="flex items-center gap-1">בדרך <SortIcon col="incoming_qty" /></span>
+              </th>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("monthly_sales_avg")}>
+                <span className="flex items-center gap-1">מכירות/חודש <SortIcon col="monthly_sales_avg" /></span>
+              </th>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("days_until_stockout")}>
+                <span className="flex items-center gap-1">ימים לאזילה <SortIcon col="days_until_stockout" /></span>
+              </th>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("lead_time_days")}>
+                <span className="flex items-center gap-1">Lead Time <SortIcon col="lead_time_days" /></span>
+              </th>
+              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("order_by_date")}>
+                <span className="flex items-center gap-1">צריך להזמין עד <SortIcon col="order_by_date" /></span>
+              </th>
               {isManager && <th className="text-right p-3 font-semibold text-foreground">פעולה</th>}
             </tr>
           </thead>
