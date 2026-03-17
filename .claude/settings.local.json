@@ -9,7 +9,11 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git config:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(npx supabase:*)",
+      "Bash(run-migration.sh:*)",
+      "Bash(__NEW_LINE_2d3f740b828b587e__ chmod:*)",
+      "Bash(bash run-migration.sh)"
     ]
   }
 }

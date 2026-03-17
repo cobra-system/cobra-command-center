@@ -1,0 +1,103 @@
+name: Apply Database Migration
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/migrations/**'
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install pg --legacy-peer-deps
+
+      - name: Apply migration to Supabase
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: |
+          node << 'EOF'
+          import pkg from 'pg';
+          const { Client } = pkg;
+          const fs = require('fs');
+
+          const client = new Client({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+          });
+
+          const migrationFiles = fs.readdirSync('./supabase/migrations')
+            .filter(f => f.endsWith('.sql'))
+            .sort();
+
+          console.log(`📝 Found ${migrationFiles.length} migration files`);
+
+          (async () => {
+            try {
+              await client.connect();
+              console.log('✅ Connected to database');
+
+              for (const file of migrationFiles) {
+                const sql = fs.readFileSync(`./supabase/migrations/${file}`, 'utf8');
+                console.log(`\n🚀 Applying ${file}...`);
+                await client.query(sql);
+                console.log(`✅ ${file} completed`);
+              }
+
+              console.log('\n🎉 All migrations applied successfully!');
+              await client.end();
+              process.exit(0);
+            } catch (error) {
+              console.error('❌ Migration failed:', error.message);
+              await client.end();
+              process.exit(1);
+            }
+          })();
+          EOF
+
+      - name: Verify migration
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: |
+          node << 'EOF'
+          import pkg from 'pg';
+          const { Client } = pkg;
+
+          const client = new Client({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+          });
+
+          (async () => {
+            try {
+              await client.connect();
+              const result = await client.query(`
+                SELECT table_name FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name = 'user_preferences'
+              `);
+
+              if (result.rows.length > 0) {
+                console.log('✅ Table user_preferences verified!');
+              } else {
+                console.log('⚠️ Table not found');
+              }
+
+              await client.end();
+            } catch (error) {
+              console.error('❌ Verification failed:', error.message);
+              process.exit(1);
+            }
+          })();
+          EOF
