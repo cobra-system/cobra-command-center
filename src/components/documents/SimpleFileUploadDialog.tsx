@@ -76,7 +76,10 @@ export default function SimpleFileUploadDialog({
     let uploadedPath: string | null = null;
 
     if (file) {
-      const path = `uploads/${Date.now()}_${file.name}`;
+      const sanitizedName = file.name
+        .replace(/[^a-zA-Z0-9._-]/g, "_")
+        .replace(/_{2,}/g, "_");
+      const path = `uploads/${Date.now()}_${sanitizedName}`;
       const { error } = await supabase.storage.from("documents").upload(path, file);
       if (error) {
         toast.error("שגיאה בהעלאה: " + error.message);
