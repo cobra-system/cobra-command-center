@@ -109,7 +109,7 @@ export default function TaskMonthlyView() {
       <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
         {/* Day names header */}
         <div className="grid grid-cols-7 bg-muted/30 border-b border-border/30" style={{ direction: 'rtl' }}>
-          {[...dayNames].reverse().map(day => (
+          {dayNames.map(day => (
             <div key={day} className="p-3 text-center text-xs font-semibold text-muted-foreground">
               {day}
             </div>
