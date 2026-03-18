@@ -141,4 +141,69 @@ export function registerOrderTools(server: McpServer) {
       return { content: [{ type: "text" as const, text: `Order updated:\n${JSON.stringify(data, null, 2)}` }] };
     }
   );
+
+  server.tool(
+    "delete_order",
+    "מחיקת הזמנה — Delete an order and its items",
+    {
+      id: z.string().uuid().describe("Order UUID"),
+    },
+    async ({ id }) => {
+      // Delete order items first to avoid FK constraint issues
+      await supabase.from("order_items").delete().eq("order_id", id);
+
+      const { error } = await supabase
+        .from("orders")
+        .delete()
+        .eq("id", id);
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Order deleted successfully` }] };
+    }
+  );
+
+  server.tool(
+    "add_order_item",
+    "הוספת פריט להזמנה — Add a line item to an existing order",
+    {
+      order_id: z.string().uuid().describe("Order UUID"),
+      name: z.string().describe("Item name"),
+      qty: z.number().describe("Quantity"),
+      product_id: z.string().uuid().optional().describe("Product UUID"),
+      price: z.number().optional().describe("Unit price"),
+    },
+    async ({ order_id, name, qty, product_id, price }) => {
+      const { data, error } = await supabase
+        .from("order_items")
+        .insert({
+          order_id,
+          name,
+          qty,
+          product_id: product_id || null,
+          price: price || null,
+        })
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Item added:\n${JSON.stringify(data, null, 2)}` }] };
+    }
+  );
+
+  server.tool(
+    "remove_order_item",
+    "הסרת פריט מהזמנה — Remove a line item from an order",
+    {
+      id: z.string().uuid().describe("Order item UUID"),
+    },
+    async ({ id }) => {
+      const { error } = await supabase
+        .from("order_items")
+        .delete()
+        .eq("id", id);
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Order item removed successfully` }] };
+    }
+  );
 }

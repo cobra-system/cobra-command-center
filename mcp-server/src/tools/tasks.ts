@@ -112,4 +112,56 @@ export function registerTaskTools(server: McpServer) {
       return { content: [{ type: "text" as const, text: `Task deleted successfully` }] };
     }
   );
+
+  server.tool(
+    "list_task_instances",
+    "רשימת משימות — List individual task instances (the actual to-do items)",
+    {
+      status: z.enum(["TODO", "IN_PROGRESS", "DONE", "BLOCKED"]).optional().describe("Filter by status"),
+      assignee_name: z.string().optional().describe("Filter by assignee name"),
+      is_daily: z.boolean().optional().describe("Filter daily tasks only"),
+      limit: z.number().default(50).describe("Max results"),
+    },
+    async ({ status, assignee_name, is_daily, limit }) => {
+      let query = supabase
+        .from("tasks")
+        .select("*")
+        .order("due_date", { ascending: true })
+        .limit(limit);
+
+      if (status) query = query.eq("status", status);
+      if (assignee_name) query = query.ilike("assignee_name", `%${assignee_name}%`);
+      if (is_daily !== undefined) query = query.eq("is_daily", is_daily);
+
+      const { data, error } = await query;
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "complete_task_instance",
+    "סיום משימה — Mark a task instance as DONE",
+    {
+      id: z.string().uuid().describe("Task UUID"),
+      notes: z.string().optional().describe("Completion notes"),
+    },
+    async ({ id, notes }) => {
+      const updates: Record<string, unknown> = {
+        status: "DONE",
+        updated_at: new Date().toISOString(),
+      };
+      if (notes) updates.notes = notes;
+
+      const { data, error } = await supabase
+        .from("tasks")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Task marked as DONE:\n${JSON.stringify(data, null, 2)}` }] };
+    }
+  );
 }
