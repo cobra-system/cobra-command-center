@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import * as XLSX from "xlsx";
+import mammoth from "mammoth";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData, useAuth } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
@@ -33,6 +35,17 @@ interface PurchaseDocument {
 
 function FilePreview({ url, filename }: { url: string; filename?: string }) {
   const [urlValid, setUrlValid] = useState<boolean | null>(null);
+  const [excelHtml, setExcelHtml] = useState<string | null>(null);
+  const [wordHtml, setWordHtml] = useState<string | null>(null);
+  const [docLoading, setDocLoading] = useState(false);
+  const [docError, setDocError] = useState(false);
+
+  const ext = (url.split("?")[0].split(".").pop() || "").toLowerCase();
+  const isImage = ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext);
+  const isPdf = ext === "pdf";
+  const isExcel = ["xls", "xlsx", "csv"].includes(ext);
+  const isWord = ["doc", "docx"].includes(ext);
+  const isPpt = ["ppt", "pptx"].includes(ext);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,6 +54,41 @@ function FilePreview({ url, filename }: { url: string; filename?: string }) {
       .catch(() => { if (!cancelled) setUrlValid(false); });
     return () => { cancelled = true; };
   }, [url]);
+
+  useEffect(() => {
+    if (!urlValid || (!isExcel && !isWord)) return;
+    let cancelled = false;
+    setDocLoading(true);
+    setDocError(false);
+
+    fetch(url)
+      .then(r => r.arrayBuffer())
+      .then(buf => {
+        if (cancelled) return;
+        if (isExcel) {
+          const wb = XLSX.read(buf, { type: "array" });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const html = XLSX.utils.sheet_to_html(ws);
+          if (!cancelled) setExcelHtml(html);
+        } else if (isWord) {
+          return mammoth.convertToHtml({ arrayBuffer: buf }).then(result => {
+            if (!cancelled) setWordHtml(result.value);
+          });
+        }
+      })
+      .catch(() => { if (!cancelled) setDocError(true); })
+      .finally(() => { if (!cancelled) setDocLoading(false); });
+
+    return () => { cancelled = true; };
+  }, [url, urlValid, isExcel, isWord]);
+
+  if (urlValid === null) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (urlValid === false) {
     return (
@@ -51,19 +99,6 @@ function FilePreview({ url, filename }: { url: string; filename?: string }) {
         <a href={url} target="_blank" rel="noopener noreferrer">
           <Button variant="outline" size="sm"><ExternalLink className="h-4 w-4 ml-1" />נסה לפתוח ישירות</Button>
         </a>
-      </div>
-    );
-  }
-
-  const ext = (url.split("?")[0].split(".").pop() || "").toLowerCase();
-  const isImage = ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext);
-  const isPdf = ext === "pdf";
-  const isOffice = ["doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(ext);
-
-  if (urlValid === null) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -90,7 +125,79 @@ function FilePreview({ url, filename }: { url: string; filename?: string }) {
     );
   }
 
-  if (isOffice) {
+  if (isExcel) {
+    if (docLoading) {
+      return (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
+    if (docError || !excelHtml) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-4 py-12 border rounded-lg bg-muted/20">
+          <FileText className="h-16 w-16 text-muted-foreground opacity-40" />
+          <p className="text-sm text-muted-foreground">לא ניתן להציג את הקובץ</p>
+          <a href={url} target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" size="sm"><ExternalLink className="h-4 w-4 ml-1" />הורד קובץ</Button>
+          </a>
+        </div>
+      );
+    }
+    return (
+      <div className="flex flex-col gap-2">
+        <style>{`
+          .excel-preview table { border-collapse: collapse; width: 100%; font-size: 0.8rem; }
+          .excel-preview td, .excel-preview th { border: 1px solid #e2e8f0; padding: 4px 8px; text-align: left; white-space: nowrap; }
+          .excel-preview tr:nth-child(even) { background: #f8fafc; }
+          .excel-preview tr:first-child td, .excel-preview tr:first-child th { background: #f1f5f9; font-weight: 600; }
+        `}</style>
+        <div
+          className="excel-preview w-full rounded-lg border overflow-auto bg-white"
+          style={{ maxHeight: "70vh" }}
+          dangerouslySetInnerHTML={{ __html: excelHtml }}
+        />
+        <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary hover:underline">
+          <ExternalLink className="h-3 w-3" />הורד קובץ אקסל
+        </a>
+      </div>
+    );
+  }
+
+  if (isWord) {
+    if (docLoading) {
+      return (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
+    if (docError || !wordHtml) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-4 py-12 border rounded-lg bg-muted/20">
+          <FileText className="h-16 w-16 text-muted-foreground opacity-40" />
+          <p className="text-sm text-muted-foreground">לא ניתן להציג את הקובץ</p>
+          <a href={url} target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" size="sm"><ExternalLink className="h-4 w-4 ml-1" />הורד קובץ</Button>
+          </a>
+        </div>
+      );
+    }
+    return (
+      <div className="flex flex-col gap-2">
+        <div
+          className="w-full rounded-lg border bg-white p-6 overflow-auto prose prose-sm max-w-none"
+          style={{ maxHeight: "70vh", direction: "ltr" }}
+          dangerouslySetInnerHTML={{ __html: wordHtml }}
+        />
+        <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary hover:underline">
+          <ExternalLink className="h-3 w-3" />הורד קובץ וורד
+        </a>
+      </div>
+    );
+  }
+
+  if (isPpt) {
     return (
       <div className="flex flex-col gap-2">
         <iframe
