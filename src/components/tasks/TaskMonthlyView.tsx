@@ -1,37 +1,49 @@
 import { useMemo, useState, useCallback } from "react";
 import { useData, useAuth, type Task, type Priority } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths, startOfDay, isSameDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths, startOfDay, isSameDay, getDay } from "date-fns";
 import { he } from "date-fns/locale";
-import { ChevronRight, ChevronLeft, Calendar, Users } from "lucide-react";
+import { ChevronRight, ChevronLeft, Calendar, Users, Settings, Plus, Repeat, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
+import RecurringTasksPanel from "@/components/tasks/RecurringTasksPanel";
+import WorkflowsPanel from "@/components/tasks/WorkflowsPanel";
+import TaskCreateDialog from "@/components/tasks/TaskCreateDialog";
 
-const dayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+const dayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי"];
 const monthNames = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
 
 export default function TaskMonthlyView() {
-  const { tasks, updateTaskStatus, profiles } = useData();
+  const { tasks, updateTaskStatus, updateTask, profiles } = useData();
   const { currentUser } = useAuth();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [assigneeFilter, setAssigneeFilter] = useState("all");
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState("recurring");
+  const [taskCreateOpen, setTaskCreateOpen] = useState(false);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  // Fill in previous month's days to complete the grid
+  // Fill in previous month's days to complete the 6-column (Sun–Fri) grid
   const firstDayOfWeek = monthStart.getDay();
+  // If month starts on Saturday (6), no leading blanks since Saturday is hidden
+  const leadingBlanks = firstDayOfWeek === 6 ? 0 : firstDayOfWeek;
   const previousMonthEnd = new Date(monthStart);
   previousMonthEnd.setDate(0);
-  const previousMonthDays = Array.from({ length: firstDayOfWeek }, (_, i) =>
-    new Date(previousMonthEnd.getFullYear(), previousMonthEnd.getMonth(), previousMonthEnd.getDate() - (firstDayOfWeek - i - 1))
+  const previousMonthDays = Array.from({ length: leadingBlanks }, (_, i) =>
+    new Date(previousMonthEnd.getFullYear(), previousMonthEnd.getMonth(), previousMonthEnd.getDate() - (leadingBlanks - i - 1))
   );
 
-  const calendarDays = [...previousMonthDays, ...daysInMonth];
+  // Filter out Saturdays from the calendar days
+  const calendarDays = [...previousMonthDays, ...daysInMonth].filter(d => getDay(d) !== 6);
 
   const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
 
@@ -89,6 +101,16 @@ export default function TaskMonthlyView() {
           </Button>
 
           <div className="flex items-center gap-1.5 ms-4">
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSettingsOpen(true)}>
+              <Settings className="h-4 w-4" />
+            </Button>
+            <Button size="sm" className="gap-1.5" onClick={() => setTaskCreateOpen(true)}>
+              <Plus className="h-4 w-4" />
+              צור
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-1.5 ms-4">
             <Users className="h-4 w-4 text-muted-foreground" />
             <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
               <SelectTrigger className="h-8 text-xs w-40">
@@ -108,7 +130,7 @@ export default function TaskMonthlyView() {
       {/* Calendar Grid */}
       <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
         {/* Day names header */}
-        <div className="grid grid-cols-7 bg-muted/30 border-b border-border/30" style={{ direction: 'rtl' }}>
+        <div className="grid grid-cols-6 bg-muted/30 border-b border-border/30" style={{ direction: 'rtl' }}>
           {dayNames.map(day => (
             <div key={day} className="p-3 text-center text-xs font-semibold text-muted-foreground">
               {day}
@@ -117,7 +139,7 @@ export default function TaskMonthlyView() {
         </div>
 
         {/* Calendar days */}
-        <div className="grid grid-cols-7" style={{ direction: 'rtl' }}>
+        <div className="grid grid-cols-6" style={{ direction: 'rtl' }}>
           {calendarDays.map((day, idx) => {
             const key = format(startOfDay(day), "yyyy-MM-dd");
             const dayTasks = tasksByDay.get(key) || [];
@@ -207,7 +229,7 @@ export default function TaskMonthlyView() {
                       ? "bg-destructive/10 border-destructive/20"
                       : "bg-card border-border/50"
                   )}
-                  onClick={() => handleToggle(task.id, task.status)}
+                  onClick={() => setSelectedTask(task)}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
@@ -233,6 +255,47 @@ export default function TaskMonthlyView() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Task Detail Dialog */}
+      <TaskDetailDialog
+        task={selectedTask}
+        onClose={() => setSelectedTask(null)}
+        profiles={profiles}
+        currentUser={currentUser}
+        onUpdate={updateTask}
+        onStatusChange={updateTaskStatus}
+      />
+
+      {/* Settings popup */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="max-w-[92vw] w-full max-h-[85vh] overflow-y-auto">
+          <DialogHeader className="mb-4">
+            <DialogTitle>ניהול חוזרות ותהליכים</DialogTitle>
+          </DialogHeader>
+          <Tabs value={settingsTab} onValueChange={setSettingsTab}>
+            <TabsList className="w-full mb-4">
+              <TabsTrigger value="recurring" className="flex-1 gap-1.5">
+                <Repeat className="h-3.5 w-3.5" />חוזרות
+              </TabsTrigger>
+              <TabsTrigger value="workflows" className="flex-1 gap-1.5">
+                <Zap className="h-3.5 w-3.5" />תהליכים
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="recurring">
+              <RecurringTasksPanel />
+            </TabsContent>
+            <TabsContent value="workflows">
+              <WorkflowsPanel />
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* Task create dialog */}
+      <TaskCreateDialog
+        open={taskCreateOpen}
+        onOpenChange={setTaskCreateOpen}
+      />
     </div>
   );
 }
