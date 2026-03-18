@@ -180,6 +180,11 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
                 placeholder="בחר ספק"
                 searchPlaceholder="חיפוש ספק..."
               />
+              {suppliers.find(s => s.id === supplierId)?.country === "ישראל" && (
+                <div className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded px-2 py-1">
+                  🇮🇱 ספק ישראלי — תהליך מקומי (אישור + חתימה)
+                </div>
+              )}
             </div>
           </div>
 

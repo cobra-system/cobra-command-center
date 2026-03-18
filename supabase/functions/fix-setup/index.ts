@@ -145,6 +145,28 @@ Deno.serve(async (req) => {
       results.push(`Procurement template exists: ${existingTpl.id}`);
     }
 
+    // Ensure Israeli supplier workflow template exists
+    const { data: existingIsraelTpl } = await supabaseAdmin
+      .from("workflow_templates").select("id").eq("category", "procurement_israel").maybeSingle();
+    if (!existingIsraelTpl) {
+      const { error: israelTplError } = await supabaseAdmin.from("workflow_templates").insert({
+        name: "הזמנת רכש מישראל",
+        category: "procurement_israel",
+        description: "תהליך רכש מספק ישראלי — אישור וחתימה",
+        steps: [
+          { action: "confirm",    index: 0, name: "הפקת הזמנה / הזמנת עבודה", required: true },
+          { action: "approve",    index: 1, name: "העברה למחסן לטיפול",        required: true },
+          { action: "approve",    index: 2, name: "אישור וחתימה",               required: true },
+          { action: "send_email", index: 3, name: "שליחה לספק",                 required: true },
+          { action: "send_email", index: 4, name: "קליטת סחורה + מייל לאלינור", required: true },
+          { action: "confirm",    index: 5, name: "אישור קליטה במלאי",          required: true },
+        ],
+      });
+      results.push(israelTplError ? `Israel template error: ${israelTplError.message}` : "Israel procurement template created");
+    } else {
+      results.push(`Israel procurement template exists: ${existingIsraelTpl.id}`);
+    }
+
     return new Response(JSON.stringify({ results }, null, 2), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

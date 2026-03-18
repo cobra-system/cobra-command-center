@@ -217,6 +217,22 @@ Deno.serve(async (req) => {
       };
       await sb.from("workflow_templates").upsert(workflowTemplate, { onConflict: "id" });
 
+      const israelWorkflowTemplate = {
+        id: "c7b881d0-68ae-4e0a-9f1b-a1b9967be11c",
+        name: "הזמנת רכש מישראל",
+        description: "תהליך רכש מספק ישראלי — אישור וחתימה",
+        category: "procurement_israel",
+        steps: [
+          { action: "confirm",    index: 0, name: "הפקת הזמנה / הזמנת עבודה", required: true },
+          { action: "approve",    index: 1, name: "העברה למחסן לטיפול",        required: true },
+          { action: "approve",    index: 2, name: "אישור וחתימה",               required: true },
+          { action: "send_email", index: 3, name: "שליחה לספק",                 required: true },
+          { action: "send_email", index: 4, name: "קליטת סחורה + מייל לאלינור", required: true },
+          { action: "confirm",    index: 5, name: "אישור קליטה במלאי",          required: true },
+        ],
+      };
+      await sb.from("workflow_templates").upsert(israelWorkflowTemplate, { onConflict: "id" });
+
       return new Response(JSON.stringify({ success: true, step: "extras" }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
