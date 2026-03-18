@@ -14,6 +14,9 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editProduct?: Product | null;
+  presetSupplierId?: string;
+  presetSupplierName?: string;
+  presetProductName?: string;
 }
 
 interface CompDraft {
@@ -28,7 +31,7 @@ interface CompDraft {
 
 const emptyComp = (): CompDraft => ({ name: "", sku: "", supplier: "", origin: "", stock_qty: "", price: "", notes: "" });
 
-export default function ProductFormDialog({ open, onOpenChange, editProduct }: Props) {
+export default function ProductFormDialog({ open, onOpenChange, editProduct, presetSupplierId, presetSupplierName, presetProductName }: Props) {
   const { addProduct, updateProduct, suppliers, products } = useData();
   const navigate = useNavigate();
 
@@ -42,12 +45,12 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct }: P
 
   function initForm(p?: Product | null) {
     return {
-      name: p?.name || "",
+      name: p?.name || (!p && presetProductName) || "",
       sku: p?.sku || "",
       category: p?.category || "מיגון ואיתור",
       division: p?.division || "",
       product_type: p?.product_type || "מוגמר",
-      supplier: p?.supplier || "",
+      supplier: p?.supplier || (!p && presetSupplierName) || "",
       shipping: p?.shipping || "",
       purchase_price: String(p?.purchase_price ?? ""),
       sale_price: String(p?.sale_price ?? ""),
@@ -129,6 +132,7 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct }: P
       await updateProduct(editProduct.id, productData);
       toast.success("המוצר עודכן");
     } else {
+      if (presetSupplierId) productData.supplier_id = presetSupplierId;
       await addProduct(productData, compData);
       toast.success("המוצר נוצר");
     }

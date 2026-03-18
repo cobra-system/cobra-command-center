@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowRight, Pencil, Trash2, ExternalLink, Mail, Phone, Globe, TruckIcon, UserPlus, Users, X, Link2, Search, Plus } from "lucide-react";
 import DocumentsSection from "@/components/DocumentsSection";
+import ProductFormDialog from "@/components/products/ProductFormDialog";
 import { InlineEditField } from "@/components/InlineEditField";
 import SapSyncBadge from "@/components/SapSyncBadge";
 import { supabase } from "@/lib/supabase";
@@ -32,6 +33,7 @@ export default function SupplierDetailPage() {
   const [linkProductSearch, setLinkProductSearch] = useState("");
   const [linkProductId, setLinkProductId] = useState("");
   const [linkingSaving, setLinkingSaving] = useState(false);
+  const [createProductOpen, setCreateProductOpen] = useState(false);
 
   const supplier = suppliers.find(s => s.id === id);
 
@@ -438,15 +440,41 @@ export default function SupplierDetailPage() {
                 (p.supplier !== supplier.company && p.supplier_id !== supplier.id) &&
                 p.name.toLowerCase().includes(linkProductSearch.toLowerCase())
               ).length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">אין מוצרים להצגה</p>
+                <div className="text-center py-4 space-y-2">
+                  <p className="text-sm text-muted-foreground">מוצר לא נמצא</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setLinkProductOpen(false); setCreateProductOpen(true); }}
+                  >
+                    <Plus className="h-4 w-4 ml-1" />הגדר מוצר חדש
+                  </Button>
+                </div>
               )}
             </div>
-            <Button onClick={handleLinkProduct} className="w-full" disabled={!linkProductId || linkingSaving}>
-              {linkingSaving ? "משייך..." : "שייך מוצר"}
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={handleLinkProduct} className="flex-1" disabled={!linkProductId || linkingSaving}>
+                {linkingSaving ? "משייך..." : "שייך מוצר"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => { setLinkProductOpen(false); setCreateProductOpen(true); }}
+              >
+                <Plus className="h-4 w-4 ml-1" />מוצר חדש
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Create Product Dialog (pre-linked to this supplier) */}
+      <ProductFormDialog
+        open={createProductOpen}
+        onOpenChange={setCreateProductOpen}
+        presetSupplierId={supplier.id}
+        presetSupplierName={supplier.company}
+        presetProductName={linkProductSearch}
+      />
 
       {/* Edit Dialog */}
       <SupplierEditDialog open={editOpen} onOpenChange={setEditOpen} supplier={supplier} onSave={updateSupplier} />
