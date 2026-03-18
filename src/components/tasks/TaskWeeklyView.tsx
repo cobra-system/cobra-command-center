@@ -7,17 +7,14 @@ import { format, startOfWeek, addDays, isSameDay, isToday, isPast, addWeeks, sub
 import { he } from "date-fns/locale";
 import { ChevronRight, ChevronLeft, CalendarDays, AlertTriangle, Users, Repeat, Zap, Settings, X, Plus, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import RecurringTasksPanel from "@/components/tasks/RecurringTasksPanel";
 import WorkflowsPanel from "@/components/tasks/WorkflowsPanel";
 import TaskCreateDialog from "@/components/tasks/TaskCreateDialog";
+import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
 
 const dayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 
@@ -47,12 +44,6 @@ interface WorkflowInstance {
   template?: WorkflowTemplate;
 }
 
-const priorityOptions: { value: Priority; label: string }[] = [
-  { value: "דחוף", label: "דחוף" },
-  { value: "גבוה", label: "גבוה" },
-  { value: "בינוני", label: "בינוני" },
-  { value: "נמוך", label: "נמוך" },
-];
 
 function ProgressRing({ done, total }: { done: number; total: number }) {
   const r = 20;
@@ -165,7 +156,7 @@ export default function TaskWeeklyView() {
   }, [weekOffset]);
 
   const days = useMemo(() =>
-    Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)).reverse(),
+    Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)).filter(d => getDay(d) !== 6),
     [weekStart]
   );
 
@@ -235,7 +226,7 @@ export default function TaskWeeklyView() {
           <h1 className="text-2xl font-bold text-foreground">ניהול משימות</h1>
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground border rounded-lg px-3 py-1.5 bg-muted/30">
             <CalendarDays className="h-4 w-4" />
-            <span>{format(days[days.length - 1], "d MMM", { locale: he })} – {format(days[0], "d MMM yyyy", { locale: he })}</span>
+            <span>{format(days[0], "d MMM", { locale: he })} – {format(days[days.length - 1], "d MMM yyyy", { locale: he })}</span>
           </div>
         </div>
 
@@ -333,7 +324,7 @@ export default function TaskWeeklyView() {
       </div>
 
       {/* Weekly grid */}
-      <div className="grid grid-cols-7 gap-2">
+      <div className="grid grid-cols-6 gap-2">
         {days.map((day, i) => {
           const key = format(day, "yyyy-MM-dd");
           const dayTasks = tasksByDay.get(key) || [];
@@ -364,7 +355,7 @@ export default function TaskWeeklyView() {
                 today ? "border-primary/20" : "border-border/30"
               )}>
           <p className={cn("text-xs font-semibold tracking-wide", today ? "text-primary" : "text-muted-foreground")}>
-                  {dayNames[6 - i]}
+                  {dayNames[day.getDay()]}
                 </p>
                 <p className={cn("text-xl font-bold leading-none", today ? "text-primary" : "text-foreground")}>
                   {format(day, "d")}
@@ -503,12 +494,12 @@ export default function TaskWeeklyView() {
         onSaved={loadRecurring}
       />
 
-      {/* Settings drawer */}
-      <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <SheetContent side="left" className="w-[600px] max-w-[95vw] overflow-y-auto">
-          <SheetHeader className="mb-4">
-            <SheetTitle>ניהול חוזרות ותהליכים</SheetTitle>
-          </SheetHeader>
+      {/* Settings popup */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="max-w-[92vw] w-full max-h-[85vh] overflow-y-auto">
+          <DialogHeader className="mb-4">
+            <DialogTitle>ניהול חוזרות ותהליכים</DialogTitle>
+          </DialogHeader>
           <Tabs value={settingsTab} onValueChange={setSettingsTab}>
             <TabsList className="w-full mb-4">
               <TabsTrigger value="recurring" className="flex-1 gap-1.5">
@@ -525,8 +516,8 @@ export default function TaskWeeklyView() {
               <WorkflowsPanel />
             </TabsContent>
           </Tabs>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       {/* Task Detail Dialog */}
       <TaskDetailDialog
@@ -538,165 +529,6 @@ export default function TaskWeeklyView() {
         onStatusChange={updateTaskStatus}
       />
     </div>
-  );
-}
-
-// ─── Task Detail Dialog ───────────────────────────────────────────────────────
-
-function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdate, onStatusChange }: {
-  task: Task | null;
-  onClose: () => void;
-  profiles: { id: string; name: string; role: string }[];
-  currentUser: { id: string; role: string; name: string } | null;
-  onUpdate: (id: string, updates: Partial<Task>) => Promise<void>;
-  onStatusChange: (id: string, status: any) => Promise<void>;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState<Priority>("בינוני");
-  const [assigneeId, setAssigneeId] = useState("");
-  const [notes, setNotes] = useState("");
-
-  useEffect(() => {
-    if (task) {
-      setTitle(task.title);
-      setDescription(task.description || "");
-      setPriority(task.priority as Priority);
-      setAssigneeId(task.assignee_id || "");
-      setNotes(task.notes || "");
-      setEditing(false);
-    }
-  }, [task]);
-
-  if (!task) return null;
-
-  const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
-
-  const handleSave = async () => {
-    const assignee = profiles.find(p => p.id === assigneeId);
-    await onUpdate(task.id, {
-      title: title.trim(),
-      description: description.trim() || null,
-      priority,
-      assignee_id: assigneeId || null,
-      assignee_name: assignee?.name || null,
-      notes: notes.trim() || null,
-    });
-    setEditing(false);
-  };
-
-  const statusOptions = [
-    { value: "TODO", label: "לביצוע" },
-    { value: "IN_PROGRESS", label: "בביצוע" },
-    { value: "DONE", label: "הושלם" },
-    { value: "BLOCKED", label: "חסום" },
-  ];
-
-  return (
-    <Dialog open={!!task} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>{editing ? "עריכת משימה" : "פירוט משימה"}</span>
-            {!editing && (
-              <Button variant="ghost" size="sm" onClick={() => setEditing(true)} className="text-xs">
-                ✏️ עריכה
-              </Button>
-            )}
-          </DialogTitle>
-        </DialogHeader>
-
-        {editing ? (
-          <div className="space-y-3 pt-2">
-            <div className="space-y-1">
-              <Label className="text-xs">כותרת</Label>
-              <Input value={title} onChange={e => setTitle(e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">תיאור</Label>
-              <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">עדיפות</Label>
-                <Select value={priority} onValueChange={v => setPriority(v as Priority)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{priorityOptions.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">שיוך</Label>
-                <Select value={assigneeId || "none"} onValueChange={v => setAssigneeId(v === "none" ? "" : v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">ללא</SelectItem>
-                    {assignableUsers.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">הערות</Label>
-              <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={handleSave} className="flex-1">שמור</Button>
-              <Button variant="outline" onClick={() => setEditing(false)} className="flex-1">ביטול</Button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4 pt-2">
-            <div>
-              <h3 className="text-lg font-semibold text-foreground">{task.title}</h3>
-              {task.description && <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{task.description}</p>}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-muted/30 rounded-lg p-3">
-                <p className="text-xs text-muted-foreground mb-1">עדיפות</p>
-                <PriorityBadge priority={task.priority as Priority} />
-              </div>
-              <div className="bg-muted/30 rounded-lg p-3">
-                <p className="text-xs text-muted-foreground mb-1">סטטוס</p>
-                <Select value={task.status} onValueChange={v => onStatusChange(task.id, v)}>
-                  <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {statusOptions.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="bg-muted/30 rounded-lg p-3">
-                <p className="text-xs text-muted-foreground mb-1">משויך ל</p>
-                <p className="text-sm font-medium text-foreground">{task.assignee_name || "לא משויך"}</p>
-              </div>
-              <div className="bg-muted/30 rounded-lg p-3">
-                <p className="text-xs text-muted-foreground mb-1">תאריך יעד</p>
-                <p className="text-sm font-medium text-foreground">{task.due_date ? format(new Date(task.due_date), "dd/MM/yyyy") : "לא נקבע"}</p>
-              </div>
-            </div>
-
-            {task.notes && (
-              <div className="bg-muted/30 rounded-lg p-3">
-                <p className="text-xs text-muted-foreground mb-1">הערות</p>
-                <p className="text-sm text-foreground whitespace-pre-wrap">{task.notes}</p>
-              </div>
-            )}
-
-            {task.deliverable && (
-              <div className="bg-muted/30 rounded-lg p-3">
-                <p className="text-xs text-muted-foreground mb-1">תוצר</p>
-                <p className="text-sm text-foreground">{task.deliverable}</p>
-              </div>
-            )}
-
-            {task.is_daily && (
-              <span className="inline-block text-xs bg-warning/15 text-warning px-2 py-0.5 rounded-full">משימה יומית</span>
-            )}
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
   );
 }
 

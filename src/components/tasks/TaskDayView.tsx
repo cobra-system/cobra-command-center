@@ -3,15 +3,19 @@ import { useData, useAuth, type Task, type Priority } from "@/contexts/AppContex
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { format, addDays, subDays, isToday, isSameDay, startOfDay } from "date-fns";
 import { he } from "date-fns/locale";
-import { ChevronRight, ChevronLeft, Calendar, Users, CheckCircle2, Circle, Flame } from "lucide-react";
+import { ChevronRight, ChevronLeft, Calendar, Users, CheckCircle2, Circle, Flame, Settings, Plus, Repeat, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import confetti from "canvas-confetti";
+import RecurringTasksPanel from "@/components/tasks/RecurringTasksPanel";
+import WorkflowsPanel from "@/components/tasks/WorkflowsPanel";
+import TaskCreateDialog from "@/components/tasks/TaskCreateDialog";
 
 const dayNames = ["יום ראשון", "יום שני", "יום שלישי", "יום רביעי", "יום חמישי", "יום שישי", "שבת"];
 
@@ -24,6 +28,9 @@ export default function TaskDayView() {
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState("recurring");
+  const [taskCreateOpen, setTaskCreateOpen] = useState(false);
 
   const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
 
@@ -130,6 +137,14 @@ export default function TaskDayView() {
               </SelectContent>
             </Select>
           </div>
+
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSettingsOpen(true)}>
+            <Settings className="h-4 w-4" />
+          </Button>
+          <Button size="sm" className="gap-1.5" onClick={() => setTaskCreateOpen(true)}>
+            <Plus className="h-4 w-4" />
+            צור
+          </Button>
         </div>
       </div>
 
@@ -325,6 +340,37 @@ export default function TaskDayView() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Settings popup */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="max-w-[92vw] w-full max-h-[85vh] overflow-y-auto">
+          <DialogHeader className="mb-4">
+            <DialogTitle>ניהול חוזרות ותהליכים</DialogTitle>
+          </DialogHeader>
+          <Tabs value={settingsTab} onValueChange={setSettingsTab}>
+            <TabsList className="w-full mb-4">
+              <TabsTrigger value="recurring" className="flex-1 gap-1.5">
+                <Repeat className="h-3.5 w-3.5" />חוזרות
+              </TabsTrigger>
+              <TabsTrigger value="workflows" className="flex-1 gap-1.5">
+                <Zap className="h-3.5 w-3.5" />תהליכים
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="recurring">
+              <RecurringTasksPanel />
+            </TabsContent>
+            <TabsContent value="workflows">
+              <WorkflowsPanel />
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* Task create dialog */}
+      <TaskCreateDialog
+        open={taskCreateOpen}
+        onOpenChange={setTaskCreateOpen}
+      />
     </div>
   );
 }
