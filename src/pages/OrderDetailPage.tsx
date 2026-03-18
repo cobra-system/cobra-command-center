@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { InlineEditField } from "@/components/InlineEditField";
 import { DateInput } from "@/components/ui/date-input";
@@ -425,15 +426,18 @@ export default function OrderDetailPage() {
           <div className="space-y-3 pt-2">
             <div className="space-y-1">
               <Label>מוצר</Label>
-              <Select value={itemProductId} onValueChange={v => {
-                setItemProductId(v);
-                setItemComponentId("");
-                const p = products.find(p => p.id === v);
-                if (p) { setItemName(p.name); setItemPrice(p.purchase_price?.toString() || ""); }
-              }}>
-                <SelectTrigger><SelectValue placeholder="בחר מוצר (אופציונלי)" /></SelectTrigger>
-                <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-              </Select>
+              <Combobox
+                value={itemProductId}
+                onValueChange={v => {
+                  setItemProductId(v);
+                  setItemComponentId("");
+                  const p = products.find(p => p.id === v);
+                  if (p) { setItemName(p.name); setItemPrice(p.purchase_price?.toString() || ""); }
+                }}
+                options={[{ value: "", label: "ללא" }, ...products.map(p => ({ value: p.id, label: p.name }))]}
+                placeholder="בחר מוצר (אופציונלי)"
+                searchPlaceholder="חיפוש מוצר..."
+              />
             </div>
             {/* Component selector for composite products */}
             {itemProductId && (() => {
@@ -443,21 +447,20 @@ export default function OrderDetailPage() {
               return (
                 <div className="space-y-1">
                   <Label>רכיב (מתוך {selectedProduct?.name})</Label>
-                  <Select value={itemComponentId} onValueChange={v => {
-                    setItemComponentId(v);
-                    const comp = comps.find(c => c.id === v);
-                    if (comp) {
-                      setItemName(`${comp.name} (${selectedProduct?.name})`);
-                      setItemPrice(comp.price?.toString() || "");
-                    }
-                  }}>
-                    <SelectTrigger><SelectValue placeholder="בחר רכיב (אופציונלי)" /></SelectTrigger>
-                    <SelectContent>
-                      {comps.map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}{c.sku ? ` — ${c.sku}` : ""}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    value={itemComponentId}
+                    onValueChange={v => {
+                      setItemComponentId(v);
+                      const comp = comps.find(c => c.id === v);
+                      if (comp) {
+                        setItemName(`${comp.name} (${selectedProduct?.name})`);
+                        setItemPrice(comp.price?.toString() || "");
+                      }
+                    }}
+                    options={[{ value: "", label: "ללא" }, ...comps.map(c => ({ value: c.id, label: `${c.name}${c.sku ? ` — ${c.sku}` : ""}` }))]}
+                    placeholder="בחר רכיב (אופציונלי)"
+                    searchPlaceholder="חיפוש רכיב..."
+                  />
                 </div>
               );
             })()}

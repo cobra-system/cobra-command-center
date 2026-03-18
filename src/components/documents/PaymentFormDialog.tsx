@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -97,30 +98,33 @@ export default function PaymentFormDialog({ open, onOpenChange, onSaved, docs, e
         <div className="space-y-3 pt-2">
           <div className="space-y-1">
             <Label>ספק</Label>
-            <Select value={paySupplier} onValueChange={setPaySupplier}>
-              <SelectTrigger><SelectValue placeholder="בחר ספק" /></SelectTrigger>
-              <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.company}</SelectItem>)}</SelectContent>
-            </Select>
+            <Combobox
+              value={paySupplier}
+              onValueChange={setPaySupplier}
+              options={[{ value: "", label: "בחר ספק" }, ...suppliers.map(s => ({ value: s.id, label: s.company }))]}
+              placeholder="בחר ספק"
+              searchPlaceholder="חיפוש ספק..."
+            />
           </div>
           <div className="space-y-1">
             <Label>הזמנה מקושרת (אופציונלי)</Label>
-            <Select value={payOrder} onValueChange={setPayOrder}>
-              <SelectTrigger><SelectValue placeholder="בחר הזמנה" /></SelectTrigger>
-              <SelectContent>{orders.map(o => <SelectItem key={o.id} value={o.id}>{o.supplier_name || o.id.slice(0, 8)}</SelectItem>)}</SelectContent>
-            </Select>
+            <Combobox
+              value={payOrder}
+              onValueChange={setPayOrder}
+              options={[{ value: "", label: "ללא" }, ...orders.map(o => ({ value: o.id, label: o.supplier_name || o.id.slice(0, 8) }))]}
+              placeholder="בחר הזמנה"
+              searchPlaceholder="חיפוש הזמנה..."
+            />
           </div>
           <div className="space-y-1">
             <Label>מסמך מקושר (אופציונלי)</Label>
-            <Select value={payDocument} onValueChange={setPayDocument}>
-              <SelectTrigger><SelectValue placeholder="בחר מסמך PI/PO" /></SelectTrigger>
-              <SelectContent>
-                {filteredDocs.map(d => (
-                  <SelectItem key={d.id} value={d.id}>
-                    {d.type} — {d.total_price ? `${d.total_price.toLocaleString()} ${d.currency}` : d.id.slice(0, 8)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Combobox
+              value={payDocument}
+              onValueChange={setPayDocument}
+              options={[{ value: "", label: "ללא" }, ...filteredDocs.map(d => ({ value: d.id, label: `${d.type} — ${d.total_price ? `${d.total_price.toLocaleString()} ${d.currency}` : d.id.slice(0, 8)}` }))]}
+              placeholder="בחר מסמך PI/PO"
+              searchPlaceholder="חיפוש מסמך..."
+            />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1"><Label>סכום</Label><Input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} /></div>

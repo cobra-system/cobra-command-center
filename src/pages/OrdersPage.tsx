@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useData, useAuth, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { Plus, Trash2, Search, ArrowUpDown, ArrowUp, ArrowDown, Zap, CheckCircle } from "lucide-react";
+import { Plus, Trash2, Copy, Search, ArrowUpDown, ArrowUp, ArrowDown, Zap, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -207,6 +207,31 @@ export default function OrdersPage() {
     toast.success("ההזמנה נמחקה");
   };
 
+  const handleDuplicateOrder = async (orderId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+    await addOrder({
+      priority: order.priority,
+      supplier_id: order.supplier_id || undefined,
+      supplier_name: order.supplier_name || undefined,
+      shipping: order.shipping || undefined,
+      status: "PENDING",
+      order_date: new Date().toISOString(),
+      etd: order.etd || undefined,
+      eta: order.eta || undefined,
+      total_price: order.total_price || undefined,
+      notes: order.notes || undefined,
+      items: order.items.map(i => ({
+        name: i.name,
+        qty: i.qty,
+        price: i.price || undefined,
+        product_id: i.product_id || undefined,
+      })),
+    });
+    toast.success("ההזמנה שוכפלה");
+  };
+
   const handleWorkflowStepChange = async (orderId: string, wf: WorkflowInfo, newStep: number) => {
     const totalSteps = wf.steps.length;
     const newStatus = newStep >= totalSteps ? "completed" : "active";
@@ -312,13 +337,14 @@ export default function OrdersPage() {
               <ThButton field="total_price">סה״כ</ThButton>
               <ThButton field="payment">תשלום</ThButton>
               <th className="text-right p-3 font-semibold text-foreground">תהליך</th>
+              <th className="text-right p-3 font-semibold text-foreground w-10"></th>
               {isManager && <th className="text-right p-3 font-semibold text-foreground w-10"></th>}
             </tr>
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={isManager ? 13 : 12} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
-            ) : filtered.map(order => (
+              <tr><td colSpan={isManager ? 14 : 13} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
+            ) : filtered.map((order) => (
               <tr key={order.id} className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={(e) => { if (e.detail !== 1) return; navigate(`/orders/${order.id}`); }}>
                 <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
                 <td className="p-3 font-medium text-foreground max-w-[200px] truncate" onClick={e => e.stopPropagation()}>
@@ -470,6 +496,15 @@ export default function OrdersPage() {
                   ) : (
                     <span className="text-xs text-muted-foreground">—</span>
                   )}
+                </td>
+                <td className="p-3" onClick={e => e.stopPropagation()}>
+                  <button
+                    className="p-1 rounded hover:bg-muted transition-colors"
+                    title="שכפל הזמנה"
+                    onClick={(e) => handleDuplicateOrder(order.id, e)}
+                  >
+                    <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                  </button>
                 </td>
                 {isManager && (
                   <td className="p-3" onClick={e => e.stopPropagation()}>
