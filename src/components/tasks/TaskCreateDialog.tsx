@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Switch } from "@/components/ui/switch";
 import { DateInput } from "@/components/ui/date-input";
 import { Loader2, Paperclip, X } from "lucide-react";
@@ -220,13 +221,13 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
             </div>
             <div className="space-y-1">
               <Label className="text-xs">שיוך לעובד</Label>
-              <Select value={assigneeId || "none"} onValueChange={v => setAssigneeId(v === "none" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="ללא" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">ללא</SelectItem>
-                  {assignableUsers.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={assigneeId}
+                onValueChange={setAssigneeId}
+                options={[{ value: "", label: "ללא" }, ...assignableUsers.map(u => ({ value: u.id, label: u.name }))]}
+                placeholder="ללא"
+                searchPlaceholder="חיפוש עובד..."
+              />
             </div>
           </div>
 

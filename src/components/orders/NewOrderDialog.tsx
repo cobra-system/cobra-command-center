@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DateInput } from "@/components/ui/date-input";
 
@@ -55,6 +56,10 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
     (p.components || []).map(c => ({ ...c, productName: p.name }))
   );
 
+  const supplierOptions = suppliers.map(s => ({ value: s.id, label: `${s.company} — ${s.contact_name}` }));
+  const productOptions = products.map(p => ({ value: p.id, label: p.name }));
+  const componentOptions = allComponents.map(c => ({ value: c.id, label: `${c.name} — ${c.productName}` }));
+
   const resetForm = () => {
     setPriority("בינוני"); setSupplierId(""); setShipping(""); setNotes("");
     setEtd(undefined); setEta(undefined);
@@ -64,11 +69,11 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
   // Handle defaults when dialog opens
   useEffect(() => {
     if (!open) return;
-    
+
     if (defaultSupplierId) {
       setSupplierId(defaultSupplierId);
     }
-    
+
     if (defaultProductId) {
       const prod = products.find(p => p.id === defaultProductId);
       if (prod) {
@@ -168,10 +173,13 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
             </div>
             <div className="space-y-2">
               <Label>ספק</Label>
-              <Select value={supplierId} onValueChange={setSupplierId}>
-                <SelectTrigger><SelectValue placeholder="בחר ספק" /></SelectTrigger>
-                <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.company} — {s.contact_name}</SelectItem>)}</SelectContent>
-              </Select>
+              <Combobox
+                value={supplierId}
+                onValueChange={setSupplierId}
+                options={supplierOptions}
+                placeholder="בחר ספק"
+                searchPlaceholder="חיפוש ספק..."
+              />
             </div>
           </div>
 
@@ -210,20 +218,24 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
                 <div className="flex gap-2 items-center">
                   <div className="flex-1">
                     {item.type === "product" ? (
-                      <Select value={item.productId} onValueChange={v => selectProduct(idx, v)}>
-                        <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="בחר מוצר" /></SelectTrigger>
-                        <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                      </Select>
+                      <Combobox
+                        value={item.productId}
+                        onValueChange={v => selectProduct(idx, v)}
+                        options={productOptions}
+                        placeholder="בחר מוצר"
+                        searchPlaceholder="חיפוש מוצר..."
+                        className="h-8 text-sm"
+                      />
                     ) : (
-                      <Select value={item.componentId} onValueChange={v => selectComponent(idx, v)}>
-                        <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="בחר רכיב" /></SelectTrigger>
-                        <SelectContent>
-                          {allComponents.length === 0
-                            ? <SelectItem value="_none" disabled>אין רכיבים</SelectItem>
-                            : allComponents.map(c => <SelectItem key={c.id} value={c.id}>{c.name} — {c.productName}</SelectItem>)
-                          }
-                        </SelectContent>
-                      </Select>
+                      <Combobox
+                        value={item.componentId}
+                        onValueChange={v => selectComponent(idx, v)}
+                        options={componentOptions}
+                        placeholder="בחר רכיב"
+                        searchPlaceholder="חיפוש רכיב..."
+                        emptyText={allComponents.length === 0 ? "אין רכיבים" : "לא נמצאו תוצאות"}
+                        className="h-8 text-sm"
+                      />
                     )}
                   </div>
                   <div className="w-20"><Input type="number" value={item.qty} onChange={e => updateItem(idx, "qty", e.target.value)} placeholder="כמות" className="h-8 text-sm" /></div>

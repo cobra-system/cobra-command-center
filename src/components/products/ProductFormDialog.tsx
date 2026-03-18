@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Plus, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -221,13 +222,13 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>ספק</Label>
-              <Select value={form.supplier || "__none__"} onValueChange={v => setField("supplier", v === "__none__" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="בחר ספק" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">ללא</SelectItem>
-                  {suppliers.map(s => <SelectItem key={s.id} value={s.company}>{s.company}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={form.supplier || ""}
+                onValueChange={v => setField("supplier", v)}
+                options={[{ value: "", label: "ללא" }, ...suppliers.map(s => ({ value: s.company, label: s.company }))]}
+                placeholder="בחר ספק"
+                searchPlaceholder="חיפוש ספק..."
+              />
             </div>
           </div>
 
@@ -300,13 +301,14 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">ספק</Label>
-                    <Select value={comp.supplier || "__none__"} onValueChange={v => { const nc = [...comps]; nc[i].supplier = v === "__none__" ? "" : v; setComps(nc); }}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="בחר ספק" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">ללא</SelectItem>
-                        {suppliers.map(s => <SelectItem key={s.id} value={s.company}>{s.company}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      value={comp.supplier || ""}
+                      onValueChange={v => { const nc = [...comps]; nc[i].supplier = v; setComps(nc); }}
+                      options={[{ value: "", label: "ללא" }, ...suppliers.map(s => ({ value: s.company, label: s.company }))]}
+                      placeholder="בחר ספק"
+                      searchPlaceholder="חיפוש..."
+                      className="h-8 text-xs"
+                    />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">מלאי</Label>
