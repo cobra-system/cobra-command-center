@@ -108,4 +108,21 @@ export function registerIssueTools(server: McpServer) {
       return { content: [{ type: "text" as const, text: `Issue updated:\n${JSON.stringify(data, null, 2)}` }] };
     }
   );
+
+  server.tool(
+    "delete_issue",
+    "מחיקת תקלה — Delete a product issue by ID",
+    {
+      id: z.string().uuid().describe("Issue UUID"),
+    },
+    async ({ id }) => {
+      const { error } = await supabase
+        .from("product_issues")
+        .delete()
+        .eq("id", id);
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Issue deleted successfully` }] };
+    }
+  );
 }

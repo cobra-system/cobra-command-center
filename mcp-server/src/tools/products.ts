@@ -86,4 +86,61 @@ export function registerProductTools(server: McpServer) {
       return { content: [{ type: "text" as const, text: `Product updated:\n${JSON.stringify(data, null, 2)}` }] };
     }
   );
+
+  server.tool(
+    "create_product",
+    "יצירת מוצר חדש — Create a new product",
+    {
+      name: z.string().describe("Product name"),
+      sku: z.string().optional().describe("SKU / part number"),
+      category: z.string().optional().describe("Product category"),
+      division: z.string().optional().describe("Division"),
+      product_type: z.string().optional().describe("Product type"),
+      supplier: z.string().optional().describe("Supplier name"),
+      purchase_price: z.number().optional().describe("Purchase price"),
+      sale_price: z.number().optional().describe("Sale price"),
+      stock_qty: z.number().default(0).describe("Current stock quantity"),
+      incoming_qty: z.number().default(0).describe("Incoming quantity"),
+      notes: z.string().optional().describe("Product notes"),
+    },
+    async ({ name, sku, category, division, product_type, supplier, purchase_price, sale_price, stock_qty, incoming_qty, notes }) => {
+      const { data, error } = await supabase
+        .from("products")
+        .insert({
+          name,
+          sku: sku || null,
+          category: category || null,
+          division: division || null,
+          product_type: product_type || null,
+          supplier: supplier || null,
+          purchase_price: purchase_price ?? null,
+          sale_price: sale_price ?? null,
+          stock_qty,
+          incoming_qty,
+          notes: notes || null,
+        })
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Product created:\n${JSON.stringify(data, null, 2)}` }] };
+    }
+  );
+
+  server.tool(
+    "delete_product",
+    "מחיקת מוצר — Delete a product by ID",
+    {
+      id: z.string().uuid().describe("Product UUID"),
+    },
+    async ({ id }) => {
+      const { error } = await supabase
+        .from("products")
+        .delete()
+        .eq("id", id);
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Product deleted successfully` }] };
+    }
+  );
 }
