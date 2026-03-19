@@ -345,7 +345,7 @@ export default function OrdersPage() {
             {filtered.length === 0 ? (
               <tr><td colSpan={isManager ? 14 : 13} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
             ) : filtered.map((order) => (
-              <tr key={order.id} className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={(e) => { if (e.detail !== 1) return; navigate(`/orders/${order.id}`); }}>
+              <tr key={order.id} className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={(e) => { if (e.detail !== 1) return; navigate(`/orders/${order.id}`); }} data-navigate-to={`/orders/${order.id}`}>
                 <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
                 <td className="p-3 font-medium text-foreground max-w-[200px] truncate" onClick={e => e.stopPropagation()}>
                   {order.items.length === 0 ? (

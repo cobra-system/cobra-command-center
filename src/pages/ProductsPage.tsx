@@ -157,6 +157,7 @@ export default function ProductsPage() {
                     className="cursor-pointer hover:bg-muted/30 transition-colors"
                     onClick={(e) => { if (e.detail !== 1) return; isComposite ? toggleExpand(p.id) : navigate(`/products/${p.id}`); }}
                     onDoubleClick={() => isComposite && navigate(`/products/${p.id}`)}
+                    data-navigate-to={`/products/${p.id}`}
                   >
                     <td className="p-3 text-center">
                       {isComposite && (
@@ -239,7 +240,7 @@ export default function ProductsPage() {
                                 <span className="text-muted-foreground">
                                   <span className="text-muted-foreground/60">ספק: </span>
                                   {comp.supplier ? (
-                                    <button onClick={() => navigateToSupplier(comp.supplier!)} className="text-primary hover:underline">{comp.supplier}</button>
+                                    <button onClick={() => navigateToSupplier(comp.supplier!)} data-navigate-to={`/suppliers/${comp.supplier}`} className="text-primary hover:underline">{comp.supplier}</button>
                                   ) : "—"}
                                 </span>
                                 {comp.stock_qty != null && (

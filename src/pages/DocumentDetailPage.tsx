@@ -445,7 +445,7 @@ export default function DocumentDetailPage() {
   if (!doc) return (
     <div className="flex flex-col items-center justify-center py-20 gap-4">
       <p className="text-muted-foreground">מסמך לא נמצא</p>
-      <Button variant="outline" onClick={() => navigate("/documents")}><ArrowRight className="h-4 w-4 ml-1" />חזרה</Button>
+      <Button variant="outline" onClick={() => navigate("/documents")} data-navigate-to="/documents"><ArrowRight className="h-4 w-4 ml-1" />חזרה</Button>
     </div>
   );
 
@@ -458,7 +458,7 @@ export default function DocumentDetailPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3 flex-wrap">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/documents")}>
+        <Button variant="ghost" size="icon" onClick={() => navigate("/documents")} data-navigate-to="/documents">
           <ArrowRight className="h-5 w-5" />
         </Button>
         <div className="flex-1">

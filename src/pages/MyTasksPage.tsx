@@ -275,7 +275,7 @@ function TaskRow({ task, index, completed, blocked, urgent, isJustCompleted, onT
           }`} />
         )}
       </button>
-      <div className="flex-1 min-w-0 cursor-pointer" onClick={onTap}>
+      <div className="flex-1 min-w-0 cursor-pointer" onClick={onTap} data-navigate-to={`/my-tasks/${task.id}`}>
         <p className={`text-sm font-medium leading-snug ${
           completed ? "line-through text-muted-foreground" : blocked ? "text-muted-foreground" : "text-foreground"
         }`}>
