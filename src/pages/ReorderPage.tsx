@@ -142,8 +142,12 @@ export default function ReorderPage() {
   const handleLeadTimeUpdate = async (productId: string, value: string) => {
     const num = parseInt(value);
     if (isNaN(num) || num < 0) return;
-    await updateProduct(productId, { lead_time_days: num });
-    toast.success("Lead Time עודכן");
+    try {
+      await updateProduct(productId, { lead_time_days: num });
+      toast.success("Lead Time עודכן");
+    } catch {
+      // error toast already shown by AppContext
+    }
   };
 
   return (

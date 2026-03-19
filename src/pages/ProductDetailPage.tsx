@@ -65,8 +65,12 @@ export default function ProductDetailPage() {
     const finalValue = field === "sku" ? value.toUpperCase() : value;
     updates[field] = numericFields.includes(field) ? (finalValue ? Number(finalValue) : null) : (finalValue || null);
 
-    await updateProduct(product.id, updates);
-    toast.success("עודכן");
+    try {
+      await updateProduct(product.id, updates);
+      toast.success("עודכן");
+    } catch {
+      // error toast already shown by AppContext
+    }
   };
 
   const details: { label: string; field: string; value: string | number | undefined | null; isSupplierLink?: boolean; options?: { value: string; label: string }[]; multiSelect?: boolean }[] = [
@@ -87,8 +91,12 @@ export default function ProductDetailPage() {
   ];
 
   const handleSaveEdit = async (id: string, updates: Record<string, any>) => {
-    await updateProduct(id, updates);
-    toast.success("המוצר עודכן");
+    try {
+      await updateProduct(id, updates);
+      toast.success("המוצר עודכן");
+    } catch {
+      // error toast already shown by AppContext
+    }
   };
 
   const handleAddComponent = async () => {

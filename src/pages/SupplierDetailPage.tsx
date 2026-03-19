@@ -80,7 +80,7 @@ export default function SupplierDetailPage() {
     if (!newContact.name.trim()) return;
     setSavingContact(true);
     try {
-      await supabase.from("supplier_contacts").insert({
+      const { error } = await supabase.from("supplier_contacts").insert({
         supplier_id: supplier.id,
         name: newContact.name,
         role: newContact.role || null,
@@ -88,6 +88,7 @@ export default function SupplierDetailPage() {
         phone: newContact.phone || null,
         is_primary: contacts.length === 0,
       } as any);
+      if (error) { toast.error("שגיאה בהוספת איש קשר: " + error.message); return; }
       await refreshSuppliers();
       setNewContact({ name: "", role: "", email: "", phone: "" });
       setAddContactOpen(false);
@@ -101,12 +102,13 @@ export default function SupplierDetailPage() {
     if (!editingContact || !newContact.name.trim()) return;
     setSavingContact(true);
     try {
-      await supabase.from("supplier_contacts").update({
+      const { error } = await supabase.from("supplier_contacts").update({
         name: newContact.name,
         role: newContact.role || null,
         email: newContact.email || null,
         phone: newContact.phone || null,
       }).eq("id", editingContact.id);
+      if (error) { toast.error("שגיאה בעדכון איש קשר: " + error.message); return; }
       await refreshSuppliers();
       setNewContact({ name: "", role: "", email: "", phone: "" });
       setEditContactOpen(false);
@@ -129,7 +131,8 @@ export default function SupplierDetailPage() {
   };
 
   const handleDeleteContact = async (contactId: string) => {
-    await supabase.from("supplier_contacts").delete().eq("id", contactId);
+    const { error } = await supabase.from("supplier_contacts").delete().eq("id", contactId);
+    if (error) { toast.error("שגיאה במחיקת איש קשר: " + error.message); return; }
     await refreshSuppliers();
     toast.success("איש קשר נמחק");
   };

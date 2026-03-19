@@ -189,8 +189,12 @@ export default function OrderDetailPage() {
           action: {
             label: "עדכן",
             onClick: async () => {
-              await updateProduct(linkedProduct.id, { purchase_price: enteredPrice });
-              toast.success(`מחיר הרכישה של "${prodName}" עודכן ל-$${enteredPrice}`);
+              try {
+                await updateProduct(linkedProduct.id, { purchase_price: enteredPrice });
+                toast.success(`מחיר הרכישה של "${prodName}" עודכן ל-$${enteredPrice}`);
+              } catch {
+                // error toast already shown by AppContext
+              }
             },
           },
           duration: 10000,
