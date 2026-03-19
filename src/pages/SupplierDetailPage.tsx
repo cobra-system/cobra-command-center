@@ -140,7 +140,6 @@ export default function SupplierDetailPage() {
     try {
       await updateProduct(linkProductId, {
         supplier: supplier.company,
-        supplier_id: supplier.id
       });
       setLinkProductOpen(false);
       setLinkProductId("");

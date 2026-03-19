@@ -536,7 +536,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateProduct = useCallback(async (id: string, updates: Partial<Product>) => {
     try {
-      const { components, ...dbUpdates } = updates as any;
+      const { components, supplier_id, ...dbUpdates } = updates as any;
       const { error } = await supabase.from("products").update(dbUpdates).eq("id", id);
       if (error) throw error;
       // Sync stock with main center inventory
@@ -553,12 +553,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toast.success("מוצר עודכן בהצלחה");
     } catch (err) {
       toast.error("שגיאה בעדכון מוצר: " + (err instanceof Error ? err.message : "נסה שוב"));
+      throw err;
     }
   }, [refreshProducts]);
 
   const addProduct = useCallback(async (product: Omit<Product, "id" | "components">, components?: Omit<ProductComponent, "id" | "product_id">[]) => {
     try {
-      const { data: newProd, error: prodError } = await supabase.from("products").insert(product as any).select("id").single();
+      const { supplier_id, ...productData } = product as any;
+      const { data: newProd, error: prodError } = await supabase.from("products").insert(productData).select("id").single();
       if (prodError) throw prodError;
       if (newProd && components && components.length > 0) {
         const { error: compError } = await supabase.from("product_components").insert(components.map(c => ({ ...c, product_id: newProd.id })));
@@ -568,6 +570,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toast.success("מוצר נוצר בהצלחה");
     } catch (err) {
       toast.error("שגיאה ביצירת מוצר: " + (err instanceof Error ? err.message : "נסה שוב"));
+      throw err;
     }
   }, [refreshProducts]);
 
