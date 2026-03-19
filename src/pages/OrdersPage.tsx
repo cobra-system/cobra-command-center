@@ -9,8 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { NewOrderDialog } from "@/components/orders/NewOrderDialog";
+import { OrdersMapView } from "@/components/orders/OrdersMapView";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -32,7 +34,7 @@ const priorities: { value: Priority; label: string }[] = [
 const priorityOrder: Record<string, number> = { "דחוף": 0, "גבוה": 1, "בינוני": 2, "נמוך": 3 };
 const statusOrder: Record<string, number> = { PENDING: 0, ORDERED: 1, SHIPPED: 2, ARRIVED: 3, CANCELLED: 4 };
 
-type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment";
+type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment" | "workflow";
 type SortDir = "asc" | "desc" | null;
 
 const statusFilterOptions = [
@@ -182,8 +184,22 @@ export default function OrdersPage() {
           case "eta": cmp = (a.eta || "").localeCompare(b.eta || ""); break;
           case "total_price": cmp = (a.total_price || 0) - (b.total_price || 0); break;
           case "payment": cmp = (a.payment_date || "").localeCompare(b.payment_date || ""); break;
+          case "workflow": {
+            const stepA = orderWorkflows[a.id] ? (orderWorkflows[a.id].status === "completed" ? 999 : orderWorkflows[a.id].current_step) : -1;
+            const stepB = orderWorkflows[b.id] ? (orderWorkflows[b.id].status === "completed" ? 999 : orderWorkflows[b.id].current_step) : -1;
+            cmp = stepA - stepB;
+            break;
+          }
         }
         return sortDir === "desc" ? -cmp : cmp;
+      });
+    } else {
+      // Default sort: by ETA ascending (nulls last)
+      result = [...result].sort((a, b) => {
+        if (!a.eta && !b.eta) return 0;
+        if (!a.eta) return 1;
+        if (!b.eta) return -1;
+        return a.eta.localeCompare(b.eta);
       });
     }
 
@@ -281,6 +297,18 @@ export default function OrdersPage() {
         />
       </div>
 
+      <Tabs defaultValue="table" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="table">טבלת הזמנות</TabsTrigger>
+          <TabsTrigger value="map">מפת הזמנות</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="map" className="mt-0">
+          <OrdersMapView orders={filtered} orderWorkflows={orderWorkflows} suppliers={suppliers} />
+        </TabsContent>
+
+        <TabsContent value="table" className="mt-0 space-y-4">
+
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -336,7 +364,7 @@ export default function OrdersPage() {
               <ThButton field="eta">ETA</ThButton>
               <ThButton field="total_price">סה״כ</ThButton>
               <ThButton field="payment">תשלום</ThButton>
-              <th className="text-right p-3 font-semibold text-foreground">תהליך</th>
+              <ThButton field="workflow">תהליך</ThButton>
               <th className="text-right p-3 font-semibold text-foreground w-10"></th>
               {isManager && <th className="text-right p-3 font-semibold text-foreground w-10"></th>}
             </tr>
@@ -532,6 +560,9 @@ export default function OrdersPage() {
           </tbody>
         </table>
       </div>
+
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
