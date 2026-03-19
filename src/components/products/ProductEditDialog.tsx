@@ -89,16 +89,6 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
       updates.stock_qty = updates.stock_qty ?? 0;
       updates.incoming_qty = updates.incoming_qty ?? 0;
 
-      // If supplier is being updated, also set supplier_id
-      if (fields.supplier && typeof fields.supplier === "string") {
-        const selectedSupplier = suppliers.find(s => s.company === fields.supplier);
-        if (selectedSupplier) {
-          updates.supplier_id = selectedSupplier.id;
-        }
-      } else if (!fields.supplier) {
-        updates.supplier_id = null;
-      }
-
       await onSave(product.id, updates);
       onOpenChange(false);
     } finally {

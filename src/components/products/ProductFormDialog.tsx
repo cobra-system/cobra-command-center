@@ -133,7 +133,6 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
       await updateProduct(editProduct.id, productData);
       toast.success("המוצר עודכן");
     } else {
-      if (presetSupplierId) productData.supplier_id = presetSupplierId;
       await addProduct(productData, compData);
       toast.success("המוצר נוצר");
     }
