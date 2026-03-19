@@ -129,15 +129,16 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
       notes: c.notes || null,
     }));
 
-    if (editProduct) {
-      await updateProduct(editProduct.id, productData);
-      toast.success("המוצר עודכן");
-    } else {
-      if (presetSupplierId) productData.supplier_id = presetSupplierId;
-      await addProduct(productData, compData);
-      toast.success("המוצר נוצר");
+    try {
+      if (editProduct) {
+        await updateProduct(editProduct.id, productData);
+      } else {
+        await addProduct(productData, compData);
+      }
+      onOpenChange(false);
+    } catch {
+      // error already shown by AppContext
     }
-    onOpenChange(false);
   };
 
   const catOptions = categories.filter(c => c !== "הכל");

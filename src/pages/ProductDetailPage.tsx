@@ -65,16 +65,12 @@ export default function ProductDetailPage() {
     const finalValue = field === "sku" ? value.toUpperCase() : value;
     updates[field] = numericFields.includes(field) ? (finalValue ? Number(finalValue) : null) : (finalValue || null);
 
-    // If supplier is being updated, also set supplier_id
-    if (field === "supplier" && value) {
-      const selectedSupplier = suppliers.find(s => s.company === value);
-      if (selectedSupplier) {
-        updates.supplier_id = selectedSupplier.id;
-      }
+    try {
+      await updateProduct(product.id, updates);
+      toast.success("עודכן");
+    } catch {
+      // error toast already shown by AppContext
     }
-
-    await updateProduct(product.id, updates);
-    toast.success("עודכן");
   };
 
   const details: { label: string; field: string; value: string | number | undefined | null; isSupplierLink?: boolean; options?: { value: string; label: string }[]; multiSelect?: boolean }[] = [
@@ -95,15 +91,12 @@ export default function ProductDetailPage() {
   ];
 
   const handleSaveEdit = async (id: string, updates: Record<string, any>) => {
-    // If supplier name is being updated, also set supplier_id
-    if (updates.supplier && typeof updates.supplier === "string") {
-      const selectedSupplier = suppliers.find(s => s.company === updates.supplier);
-      if (selectedSupplier) {
-        updates.supplier_id = selectedSupplier.id;
-      }
+    try {
+      await updateProduct(id, updates);
+      toast.success("המוצר עודכן");
+    } catch {
+      // error toast already shown by AppContext
     }
-    await updateProduct(id, updates);
-    toast.success("המוצר עודכן");
   };
 
   const handleAddComponent = async () => {
