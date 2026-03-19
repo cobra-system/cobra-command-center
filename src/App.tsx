@@ -7,6 +7,7 @@ import { AppProvider, useAuth } from "@/contexts/AppContext";
 import { OutlookProvider } from "@/contexts/OutlookContext";
 import { useState, useCallback } from "react";
 import SplashScreen from "@/components/SplashScreen";
+import { useMiddleClickNavigation } from "@/hooks/useMiddleClickNavigation";
 import LoginPage from "@/pages/LoginPage";
 import ManagerLayout from "@/layouts/ManagerLayout";
 import EmployeeLayout from "@/layouts/EmployeeLayout";
@@ -94,6 +95,11 @@ function AppRoutes() {
   );
 }
 
+function AppRoutesWithMiddleClick() {
+  useMiddleClickNavigation();
+  return <AppRoutes />;
+}
+
 function AppWithSplash() {
   const [showSplash, setShowSplash] = useState(true);
   const handleSplashComplete = useCallback(() => setShowSplash(false), []);
@@ -102,7 +108,7 @@ function AppWithSplash() {
     <>
       {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
       <BrowserRouter>
-        <AppRoutes />
+        <AppRoutesWithMiddleClick />
       </BrowserRouter>
     </>
   );
