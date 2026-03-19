@@ -208,11 +208,11 @@ Deno.serve(async (req) => {
         category: "procurement",
         steps: [
           { action: "upload_file", index: 0, name: "קבלת PI מספק", required: true },
-          { action: "send_email", index: 1, name: "שליחת PI למור", required: true },
-          { action: "approve", index: 2, name: "אישור בישיבת רכש", required: true },
-          { action: "input_eta", index: 3, name: "שליחת SWIFT + תיעוד ETA", required: true },
-          { action: "send_email", index: 4, name: "קליטת סחורה + מייל לאלינור", required: true },
-          { action: "confirm", index: 5, name: "אישור קליטה במלאי", required: true },
+          { action: "approve",     index: 1, name: "אישור בישיבת רכש", required: true },
+          { action: "send_email",  index: 2, name: "שליחת PI למחלקת פיננסים", required: true },
+          { action: "input_eta",   index: 3, name: "שליחת SWIFT לספק + עדכון ETA במערכת", required: true },
+          { action: "send_email",  index: 4, name: "קליטת סחורה + מייל לאחרית SAP אלינור", required: true },
+          { action: "confirm",     index: 5, name: "אישור קליטה במלאי", required: true },
         ],
       };
       await sb.from("workflow_templates").upsert(workflowTemplate, { onConflict: "id" });
@@ -220,15 +220,13 @@ Deno.serve(async (req) => {
       const israelWorkflowTemplate = {
         id: "c7b881d0-68ae-4e0a-9f1b-a1b9967be11c",
         name: "הזמנת רכש מישראל",
-        description: "תהליך רכש מספק ישראלי — אישור וחתימה",
+        description: "תהליך רכש מספק ישראלי",
         category: "procurement_israel",
         steps: [
-          { action: "confirm",    index: 0, name: "הפקת הזמנה / הזמנת עבודה", required: true },
-          { action: "approve",    index: 1, name: "העברה למחסן לטיפול",        required: true },
-          { action: "approve",    index: 2, name: "אישור וחתימה",               required: true },
-          { action: "send_email", index: 3, name: "שליחה לספק",                 required: true },
-          { action: "send_email", index: 4, name: "קליטת סחורה + מייל לאלינור", required: true },
-          { action: "confirm",    index: 5, name: "אישור קליטה במלאי",          required: true },
+          { action: "confirm",    index: 0, name: "קבלת בקשה להזמנה", required: true },
+          { action: "approve",    index: 1, name: "הזמנה אושרה",       required: true },
+          { action: "send_email", index: 2, name: "שליחה לספק",        required: true },
+          { action: "confirm",    index: 3, name: "נשלחה לספק",        required: true },
         ],
       };
       await sb.from("workflow_templates").upsert(israelWorkflowTemplate, { onConflict: "id" });
