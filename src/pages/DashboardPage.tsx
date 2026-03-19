@@ -109,6 +109,7 @@ export default function DashboardPage() {
           <div
             key={k.label}
             onClick={() => navigate(k.path)}
+            data-navigate-to={k.path}
             className="bg-card rounded-xl border p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
           >
             <div className="flex items-center gap-2 mb-1">
@@ -123,7 +124,7 @@ export default function DashboardPage() {
       {/* Alert Banners - compact row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {activeWorkflows > 0 && (
-          <div onClick={() => navigate("/workflows")} className="bg-primary/5 border border-primary/20 rounded-lg p-3 cursor-pointer hover:bg-primary/10 transition-colors flex items-center gap-3">
+          <div onClick={() => navigate("/workflows")} data-navigate-to="/workflows" className="bg-primary/5 border border-primary/20 rounded-lg p-3 cursor-pointer hover:bg-primary/10 transition-colors flex items-center gap-3">
             <Zap className="h-5 w-5 text-primary flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground">{activeWorkflows} תהליכים פעילים</p>
@@ -133,7 +134,7 @@ export default function DashboardPage() {
           </div>
         )}
         {lowStockCount > 0 && (
-          <div onClick={() => navigate("/inventory")} className="bg-warning/5 border border-warning/20 rounded-lg p-3 cursor-pointer hover:bg-warning/10 transition-colors flex items-center gap-3">
+          <div onClick={() => navigate("/inventory")} data-navigate-to="/inventory" className="bg-warning/5 border border-warning/20 rounded-lg p-3 cursor-pointer hover:bg-warning/10 transition-colors flex items-center gap-3">
             <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground">{lowStockCount} מוצרים במלאי נמוך</p>
@@ -143,7 +144,7 @@ export default function DashboardPage() {
           </div>
         )}
         {expiringLicenses.length > 0 && (
-          <div onClick={() => navigate("/compliance")} className="bg-warning/5 border border-warning/20 rounded-lg p-3 cursor-pointer hover:bg-warning/10 transition-colors flex items-center gap-3">
+          <div onClick={() => navigate("/compliance")} data-navigate-to="/compliance" className="bg-warning/5 border border-warning/20 rounded-lg p-3 cursor-pointer hover:bg-warning/10 transition-colors flex items-center gap-3">
             <ScrollText className="h-5 w-5 text-warning flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground">{expiringLicenses.length} רישיונות פגים בקרוב</p>
@@ -153,7 +154,7 @@ export default function DashboardPage() {
           </div>
         )}
         {pendingPayments > 0 && (
-          <div onClick={() => navigate("/documents")} className="bg-accent/5 border border-accent/20 rounded-lg p-3 cursor-pointer hover:bg-accent/10 transition-colors flex items-center gap-3">
+          <div onClick={() => navigate("/documents")} data-navigate-to="/documents" className="bg-accent/5 border border-accent/20 rounded-lg p-3 cursor-pointer hover:bg-accent/10 transition-colors flex items-center gap-3">
             <DollarSign className="h-5 w-5 text-accent flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground">${pendingPayments.toLocaleString()} ממתין לתשלום</p>
@@ -186,6 +187,7 @@ export default function DashboardPage() {
                     key={o.id}
                     className="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-muted/40 cursor-pointer transition-colors"
                     onClick={() => navigate(`/orders/${o.id}`)}
+                    data-navigate-to={`/orders/${o.id}`}
                   >
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       <PriorityBadge priority={o.priority as Priority} />
@@ -222,6 +224,7 @@ export default function DashboardPage() {
                     key={t.id}
                     className="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-muted/40 cursor-pointer transition-colors"
                     onClick={() => navigate(`/tasks?highlight=${t.id}`)}
+                    data-navigate-to={`/tasks?highlight=${t.id}`}
                   >
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       <PriorityBadge priority={t.priority as Priority} />

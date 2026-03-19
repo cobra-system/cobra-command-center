@@ -181,7 +181,7 @@ export default function SuppliersPage() {
             {filtered.length === 0 ? (
               <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">לא נמצאו ספקים</td></tr>
             ) : filtered.map(s => (
-              <tr key={s.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/suppliers/${s.id}`)}>
+              <tr key={s.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/suppliers/${s.id}`)} data-navigate-to={`/suppliers/${s.id}`}>
                 <td className="p-3 font-medium text-foreground">{s.company}</td>
                 <td className="p-3 text-muted-foreground">{s.contact_name}</td>
                 <td className="p-3">
@@ -435,6 +435,7 @@ function AddSupplierDialog({ open, onOpenChange, onAdd, existingSuppliers }: {
                       key={s.id}
                       type="button"
                       onClick={() => { onOpenChange(false); navigate(`/suppliers/${s.id}`); }}
+                      data-navigate-to={`/suppliers/${s.id}`}
                       className="block w-full text-right text-xs text-primary hover:underline"
                     >
                       {s.company}{s.contact_name ? ` — ${s.contact_name}` : ""}
