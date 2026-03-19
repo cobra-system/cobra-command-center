@@ -5,8 +5,7 @@ import { useNavigate } from 'react-router-dom';
  * Hook to handle middle-click (scroll wheel click) on links to open them in a new tab
  * Supports:
  * - Standard <a> tags with href attributes
- * - React Router links with data-to attributes
- * - Clickable elements that navigate internally
+ * - Elements with data-navigate-to attribute for internal routing
  */
 export function useMiddleClickNavigation() {
   const navigate = useNavigate();
@@ -34,6 +33,19 @@ export function useMiddleClickNavigation() {
 
           // For internal routes, open in a new tab
           const newUrl = new URL(href, window.location.origin);
+          window.open(newUrl.toString(), '_blank');
+          event.preventDefault();
+        }
+        return;
+      }
+
+      // Find element with data-navigate-to attribute (for buttons, table rows, etc.)
+      const navigableElement = target.closest('[data-navigate-to]');
+
+      if (navigableElement) {
+        const path = navigableElement.getAttribute('data-navigate-to');
+        if (path) {
+          const newUrl = new URL(path, window.location.origin);
           window.open(newUrl.toString(), '_blank');
           event.preventDefault();
         }

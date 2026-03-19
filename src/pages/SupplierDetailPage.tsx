@@ -41,7 +41,7 @@ export default function SupplierDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <p className="text-lg text-muted-foreground">ספק לא נמצא</p>
-        <Button variant="outline" onClick={() => navigate("/suppliers")}><ArrowRight className="h-4 w-4 ml-2" />חזרה לספקים</Button>
+        <Button variant="outline" data-navigate-to="/suppliers" onClick={() => navigate("/suppliers")}><ArrowRight className="h-4 w-4 ml-2" />חזרה לספקים</Button>
       </div>
     );
   }
@@ -157,7 +157,7 @@ export default function SupplierDetailPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3 flex-wrap">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/suppliers")}><ArrowRight className="h-5 w-5" /></Button>
+        <Button variant="ghost" size="icon" data-navigate-to="/suppliers" onClick={() => navigate("/suppliers")}><ArrowRight className="h-5 w-5" /></Button>
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold text-foreground">{supplier.company}</h1>
           <div className="flex items-center gap-2">
@@ -248,6 +248,7 @@ export default function SupplierDetailPage() {
             disabled={!isManager}
             displayValue={supplier.backup_supplier_id ? (
               <button
+                data-navigate-to={supplier.backup_supplier_id ? `/suppliers/${supplier.backup_supplier_id}` : undefined}
                 onClick={() => {
                   const backupSupplier = suppliers.find(s => s.id === supplier.backup_supplier_id);
                   if (backupSupplier) navigate(`/suppliers/${backupSupplier.id}`);
@@ -341,7 +342,7 @@ export default function SupplierDetailPage() {
               </tr></thead>
               <tbody className="divide-y">
                 {relatedProducts.map(p => (
-                  <tr key={p.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/products/${p.id}`)}>
+                  <tr key={p.id} className="hover:bg-muted/30 cursor-pointer" data-navigate-to={`/products/${p.id}`} onClick={() => navigate(`/products/${p.id}`)}>
                     <td className="p-3 font-medium text-foreground">{p.name}</td>
                     <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">{p.sku}</td>
                     <td className="p-3 text-muted-foreground">{p.category}</td>
@@ -349,7 +350,7 @@ export default function SupplierDetailPage() {
                   </tr>
                 ))}
                 {componentProducts.map(({ product: p, components: comps }) => (
-                  <tr key={p.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/products/${p.id}`)}>
+                  <tr key={p.id} className="hover:bg-muted/30 cursor-pointer" data-navigate-to={`/products/${p.id}`} onClick={() => navigate(`/products/${p.id}`)}>
                     <td className="p-3 font-medium text-foreground">
                       {p.name} <span className="text-xs text-muted-foreground">({comps.map(c => c.name).join(", ")})</span>
                     </td>
@@ -371,7 +372,7 @@ export default function SupplierDetailPage() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2"><TruckIcon className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">היסטוריית הזמנות ({relatedOrders.length})</h2></div>
           {isManager && (
-            <Button size="sm" variant="outline" onClick={() => navigate(`/orders?newOrder=true&supplierId=${supplier.id}`)}>
+            <Button size="sm" variant="outline" data-navigate-to={`/orders?newOrder=true&supplierId=${supplier.id}`} onClick={() => navigate(`/orders?newOrder=true&supplierId=${supplier.id}`)}>
               <Plus className="h-3.5 w-3.5 ml-1" />הוסף הזמנה
             </Button>
           )}
@@ -388,7 +389,7 @@ export default function SupplierDetailPage() {
               </tr></thead>
               <tbody className="divide-y">
                 {relatedOrders.map(order => (
-                  <tr key={order.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/orders/${order.id}`)}>
+                  <tr key={order.id} className="cursor-pointer hover:bg-muted/30" data-navigate-to={`/orders/${order.id}`} onClick={() => navigate(`/orders/${order.id}`)}>
                     <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
                     <td className="p-3 text-muted-foreground text-xs">{order.items.map(i => i.name).join(", ")}</td>
                     <td className="p-3 text-muted-foreground">{order.total_price ? `$${order.total_price}` : "—"}</td>

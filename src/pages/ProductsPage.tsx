@@ -86,9 +86,14 @@ export default function ProductsPage() {
   const toggleExpand = (id: string) => setExpandedId(prev => prev === id ? null : id);
   const openAdd = () => { setEditProduct(null); setFormOpen(true); };
 
-  const navigateToSupplier = (supplierName: string) => {
+  const getSupplierPath = (supplierName: string) => {
     const s = suppliers.find(s => s.company === supplierName);
-    if (s) navigate(`/suppliers/${s.id}`);
+    return s ? `/suppliers/${s.id}` : null;
+  };
+
+  const navigateToSupplier = (supplierName: string) => {
+    const path = getSupplierPath(supplierName);
+    if (path) navigate(path);
   };
 
   return (
@@ -184,6 +189,7 @@ export default function ProductsPage() {
                     <td className="p-3">
                       {p.supplier ? (
                         <button
+                          data-navigate-to={getSupplierPath(p.supplier) || undefined}
                           onClick={(e) => { e.stopPropagation(); navigateToSupplier(p.supplier!); }}
                           className="text-primary hover:underline text-sm"
                         >
@@ -228,7 +234,7 @@ export default function ProductsPage() {
                               <Boxes className="h-4 w-4 text-accent" />
                               <span className="text-xs font-semibold text-foreground">רכיבים ({p.components!.length})</span>
                             </div>
-                            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); navigate(`/products/${p.id}`); }}>
+                            <Button variant="outline" size="sm" className="h-7 text-xs" data-navigate-to={`/products/${p.id}`} onClick={(e) => { e.stopPropagation(); navigate(`/products/${p.id}`); }}>
                               פתח תיק מוצר
                             </Button>
                           </div>
@@ -239,7 +245,7 @@ export default function ProductsPage() {
                                 <span className="text-muted-foreground">
                                   <span className="text-muted-foreground/60">ספק: </span>
                                   {comp.supplier ? (
-                                    <button onClick={() => navigateToSupplier(comp.supplier!)} className="text-primary hover:underline">{comp.supplier}</button>
+                                    <button data-navigate-to={getSupplierPath(comp.supplier) || undefined} onClick={() => navigateToSupplier(comp.supplier!)} className="text-primary hover:underline">{comp.supplier}</button>
                                   ) : "—"}
                                 </span>
                                 {comp.stock_qty != null && (

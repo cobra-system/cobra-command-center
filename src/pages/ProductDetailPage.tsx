@@ -45,7 +45,7 @@ export default function ProductDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <p className="text-lg text-muted-foreground">מוצר לא נמצא</p>
-        <Button variant="outline" onClick={() => navigate("/products")}><ArrowRight className="h-4 w-4 ml-2" />חזרה למוצרים</Button>
+        <Button variant="outline" data-navigate-to="/products" onClick={() => navigate("/products")}><ArrowRight className="h-4 w-4 ml-2" />חזרה למוצרים</Button>
       </div>
     );
   }
@@ -162,7 +162,7 @@ export default function ProductDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/products")}><ArrowRight className="h-5 w-5" /></Button>
+        <Button variant="ghost" size="icon" data-navigate-to="/products" onClick={() => navigate("/products")}><ArrowRight className="h-5 w-5" /></Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-foreground">{product.name}</h1>
           <p className="text-sm text-muted-foreground font-mono" dir="ltr">{product.sku}</p>
@@ -195,7 +195,7 @@ export default function ProductDetailPage() {
                 value={d.value}
                 displayValue={
                   supplierMatch ? (
-                    <button onClick={() => navigate(`/suppliers/${supplierMatch.id}`)} className="text-sm font-medium text-primary hover:underline">
+                    <button data-navigate-to={`/suppliers/${supplierMatch.id}`} onClick={() => navigate(`/suppliers/${supplierMatch.id}`)} className="text-sm font-medium text-primary hover:underline">
                       {d.value}
                     </button>
                   ) : d.field === "purchase_price" || d.field === "sale_price" ? (d.value ? `$${d.value}` : "—") : undefined
@@ -291,7 +291,7 @@ export default function ProductDetailPage() {
                         <td className="p-3 text-muted-foreground">{(() => {
                           const s = suppliers.find(s => s.company === comp.supplier);
                           return s ? (
-                            <button onClick={() => navigate(`/suppliers/${s.id}`)} className="text-primary hover:underline">{comp.supplier}</button>
+                            <button data-navigate-to={`/suppliers/${s.id}`} onClick={() => navigate(`/suppliers/${s.id}`)} className="text-primary hover:underline">{comp.supplier}</button>
                           ) : (comp.supplier || "—");
                         })()}</td>
                         
@@ -378,7 +378,7 @@ export default function ProductDetailPage() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2"><TruckIcon className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">היסטוריית הזמנות</h2></div>
           {isManager && (
-            <Button variant="outline" size="sm" onClick={() => navigate(`/orders?newOrder=true&productId=${product.id}`)}>
+            <Button variant="outline" size="sm" data-navigate-to={`/orders?newOrder=true&productId=${product.id}`} onClick={() => navigate(`/orders?newOrder=true&productId=${product.id}`)}>
               <Plus className="h-3.5 w-3.5 ml-1" />הוסף הזמנה
             </Button>
           )}
@@ -399,7 +399,7 @@ export default function ProductDetailPage() {
                 {relatedOrders.map(order => {
                   const relevantItem = order.items.find(i => i.name === product.name || i.product_id === product.id);
                   return (
-                    <tr key={order.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/orders/${order.id}`)}>
+                    <tr key={order.id} className="cursor-pointer hover:bg-muted/30" data-navigate-to={`/orders/${order.id}`} onClick={() => navigate(`/orders/${order.id}`)}>
                       <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
                       <td className="p-3 text-muted-foreground">{order.supplier_name || "—"}</td>
                       <td className="p-3 text-muted-foreground">{relevantItem?.qty || "—"}</td>

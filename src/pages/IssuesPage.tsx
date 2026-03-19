@@ -211,12 +211,12 @@ export default function IssuesPage() {
             ) : filtered.map(issue => {
               const supplier = getSupplierForProduct(issue.product_id);
               return (
-                <tr key={issue.id} className="hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => navigate(`/products/${issue.product_id}`)}>
+                <tr key={issue.id} className="hover:bg-muted/30 transition-colors cursor-pointer" data-navigate-to={`/products/${issue.product_id}`} onClick={() => navigate(`/products/${issue.product_id}`)}>
                   <td className="p-3 text-xs text-muted-foreground">{new Date(issue.reported_date).toLocaleDateString("he-IL")}</td>
                   <td className="p-3 text-primary font-medium">{productMap[issue.product_id] || "—"}</td>
                   <td className="p-3" onClick={supplier ? (e) => navigateToSupplier(issue.product_id, e) : undefined}>
                     {supplier ? (
-                      <button className="text-primary hover:underline text-sm">{supplier.company}</button>
+                      <button data-navigate-to={supplier ? `/suppliers/${supplier.id}` : undefined} className="text-primary hover:underline text-sm">{supplier.company}</button>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}

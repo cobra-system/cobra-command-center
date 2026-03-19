@@ -241,7 +241,7 @@ export default function OrderDetailPage() {
               return (
                 <span key={idx}>
                   {linkedProduct ? (
-                    <button onClick={(e) => { e.preventDefault(); navigate(`/products/${linkedProduct.id}`); }} className="text-primary hover:underline cursor-pointer">{i.name}</button>
+                    <button data-navigate-to={`/products/${linkedProduct.id}`} onClick={(e) => { e.preventDefault(); navigate(`/products/${linkedProduct.id}`); }} className="text-primary hover:underline cursor-pointer">{i.name}</button>
                   ) : i.name}
                   {idx < order.items.length - 1 && <span>, </span>}
                 </span>
@@ -283,7 +283,7 @@ export default function OrderDetailPage() {
             return (
               <InlineEditField key={d.label} label={d.label} value={d.value}
                 displayValue={supplierMatch ? (
-                  <button onClick={() => navigate(`/suppliers/${supplierMatch.id}`)} className="text-sm font-medium text-primary hover:underline">{supplierMatch.company}</button>
+                  <button data-navigate-to={`/suppliers/${supplierMatch.id}`} onClick={() => navigate(`/suppliers/${supplierMatch.id}`)} className="text-sm font-medium text-primary hover:underline">{supplierMatch.company}</button>
                 ) : d.field === "total_price" && d.value ? `$${d.value}` : undefined}
                 type={d.field === "total_price" ? "number" : "text"}
                 onSave={(v) => handleInlineSave(d.field, v)} disabled={d.isReadOnly || !isManager} options={d.options} />
@@ -338,7 +338,7 @@ export default function OrderDetailPage() {
             {order.items.map(item => {
               const linkedProduct = item.product_id ? products.find(p => p.id === item.product_id) : products.find(p => p.name === item.name);
               return (
-                <tr key={item.id} className={linkedProduct ? "cursor-pointer hover:bg-muted/30" : ""} onClick={() => linkedProduct && navigate(`/products/${linkedProduct.id}`)}>
+                <tr key={item.id} className={linkedProduct ? "cursor-pointer hover:bg-muted/30" : ""} data-navigate-to={linkedProduct ? `/products/${linkedProduct.id}` : undefined} onClick={() => linkedProduct && navigate(`/products/${linkedProduct.id}`)}>
                   <td className="p-3 font-medium text-foreground">
                     {linkedProduct ? <span className="text-primary hover:underline">{item.name}</span> : item.name}
                   </td>
