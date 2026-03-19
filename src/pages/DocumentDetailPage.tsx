@@ -7,13 +7,23 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { InlineEditField } from "@/components/InlineEditField";
-import { ArrowRight, FileText, Upload, ExternalLink, X, Loader2, Check } from "lucide-react";
+import { ArrowRight, FileText, Upload, ExternalLink, X, Loader2, Check, Download, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Payment } from "@/components/documents/types";
 import { docStatusFlow, docStatusColors, currencySymbol, payStatusColors, paymentTypeLabels } from "@/components/documents/constants";
+import html2pdf from "html2pdf.js";
 
 interface PurchaseDocument {
   id: string;
@@ -224,6 +234,109 @@ function FilePreview({ url, filename }: { url: string; filename?: string }) {
   );
 }
 
+function generateDocumentPDF(
+  doc: PurchaseDocument,
+  supplierName: string | undefined,
+  productName: string | undefined
+) {
+  const element = document.createElement("div");
+  element.style.padding = "20px";
+  element.style.fontFamily = "Arial, sans-serif";
+  element.style.lineHeight = "1.6";
+  element.style.direction = "rtl";
+
+  const formatCurrency = (amount: number | null, currency: string) => {
+    if (amount === null || amount === undefined) return "—";
+    return `${currencySymbol[currency] || currency} ${amount.toLocaleString()}`;
+  };
+
+  element.innerHTML = `
+    <div style="text-align: center; margin-bottom: 30px;">
+      <h1 style="margin: 0; font-size: 24px; font-weight: bold;">מסמך רכש</h1>
+      <p style="margin: 5px 0; color: #666; font-size: 14px;">${doc.document_name || "מסמך"}</p>
+    </div>
+
+    <div style="margin-bottom: 20px; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+        <div>
+          <p style="margin: 0; color: #666; font-size: 12px; font-weight: bold;">סוג מסמך</p>
+          <p style="margin: 5px 0; font-size: 14px; font-weight: bold;">${doc.type}</p>
+        </div>
+        <div>
+          <p style="margin: 0; color: #666; font-size: 12px; font-weight: bold;">סטטוס</p>
+          <p style="margin: 5px 0; font-size: 14px; font-weight: bold;">${doc.status}</p>
+        </div>
+        <div>
+          <p style="margin: 0; color: #666; font-size: 12px; font-weight: bold;">מטבע</p>
+          <p style="margin: 5px 0; font-size: 14px;">${doc.currency}</p>
+        </div>
+        <div>
+          <p style="margin: 0; color: #666; font-size: 12px; font-weight: bold;">תאריך יצירה</p>
+          <p style="margin: 5px 0; font-size: 14px;">${format(new Date(doc.created_at), "dd/MM/yyyy HH:mm")}</p>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+      <h2 style="margin: 0 0 15px 0; font-size: 16px; font-weight: bold; border-bottom: 2px solid #333; padding-bottom: 10px;">פרטי מסמך</h2>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #ddd; font-weight: bold; text-align: right;">שם מסמך</td>
+          <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">${doc.document_name || "—"}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #ddd; font-weight: bold; text-align: right;">ספק</td>
+          <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">${supplierName || "—"}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #ddd; font-weight: bold; text-align: right;">מוצר</td>
+          <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">${productName || "—"}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #ddd; font-weight: bold; text-align: right;">כמות</td>
+          <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">${doc.quantity || "—"}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #ddd; font-weight: bold; text-align: right;">מחיר יחידה</td>
+          <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">${formatCurrency(doc.unit_price, doc.currency)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; border-bottom: 2px solid #333; font-weight: bold; text-align: right;">סה״כ</td>
+          <td style="padding: 8px; border-bottom: 2px solid #333; text-align: right; font-weight: bold; font-size: 16px;">${formatCurrency(doc.total_price, doc.currency)}</td>
+        </tr>
+      </table>
+    </div>
+
+    ${doc.approval_date ? `
+      <div style="margin-bottom: 20px; padding: 10px; background-color: #e8f5e9; border-left: 4px solid #4caf50;">
+        <p style="margin: 0; font-size: 12px; color: #666;">אושר ב-${format(new Date(doc.approval_date), "dd/MM/yyyy")}</p>
+      </div>
+    ` : ""}
+
+    ${doc.notes ? `
+      <div style="margin-bottom: 20px;">
+        <h3 style="margin: 0 0 10px 0; font-size: 14px; font-weight: bold;">הערות</h3>
+        <p style="margin: 0; padding: 10px; background-color: #fff3cd; border-radius: 3px; font-size: 13px; white-space: pre-wrap;">${doc.notes}</p>
+      </div>
+    ` : ""}
+
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #999; font-size: 11px;">
+      <p style="margin: 0;">מסמך זה נוצר באופן אוטומטי ב-${format(new Date(), "dd/MM/yyyy HH:mm")}</p>
+    </div>
+  `;
+
+  const filename = `${doc.document_name || "document"}-${doc.type}-${format(new Date(doc.created_at), "yyyy-MM-dd")}.pdf`;
+  const opt = {
+    margin: [10, 10, 10, 10],
+    filename: filename,
+    image: { type: "jpeg", quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
+  };
+
+  html2pdf().set(opt).from(element).save();
+}
+
 export default function DocumentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -311,6 +424,23 @@ export default function DocumentDetailPage() {
     fetchDoc();
   };
 
+  const handleDownloadFile = async () => {
+    if (!doc?.file_url) return;
+    try {
+      const filename = doc.file_url.split("/").pop() || "file";
+      const a = document.createElement("a");
+      a.href = doc.file_url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast.success("הקובץ מורד");
+    } catch (err) {
+      toast.error("שגיאה בהורדת הקובץ");
+      console.error(err);
+    }
+  };
+
   if (loading) return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-64 w-full" /></div>;
   if (!doc) return (
     <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -359,6 +489,13 @@ export default function DocumentDetailPage() {
                 </div>
               </PopoverContent>
             </Popover>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => generateDocumentPDF(doc, supplierName, productName)}
+            >
+              <Download className="h-4 w-4 ml-1" />הורד כ PDF
+            </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-1">נוצר: {format(new Date(doc.created_at), "dd/MM/yyyy HH:mm")}</p>
         </div>
@@ -487,13 +624,35 @@ export default function DocumentDetailPage() {
           <div className="bg-card rounded-xl border shadow-sm p-5">
             <h2 className="text-base font-semibold text-foreground mb-3">קובץ מצורף</h2>
             {doc.file_url ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-primary hover:underline">
                   <ExternalLink className="h-4 w-4" />פתח קובץ
                 </a>
-                <Button variant="ghost" size="sm" onClick={handleRemoveFile} className="text-destructive hover:text-destructive">
-                  <X className="h-4 w-4 ml-1" />הסר
+                <Button variant="ghost" size="sm" onClick={handleDownloadFile} className="text-primary hover:text-primary">
+                  <Download className="h-4 w-4 ml-1" />הורד
                 </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                      <Trash2 className="h-4 w-4 ml-1" />מחק
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogTitle>מחיקת קובץ</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      האם אתה בטוח שברצונך למחוק את הקובץ המצורף? פעולה זו לא ניתנת לביטול.
+                    </AlertDialogDescription>
+                    <div className="flex gap-2 justify-end">
+                      <AlertDialogCancel>ביטול</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleRemoveFile}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        מחק
+                      </AlertDialogAction>
+                    </div>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             ) : (
               <label className="flex items-center gap-2 border border-dashed rounded-lg p-4 cursor-pointer hover:bg-muted/30 transition-colors">
