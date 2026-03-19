@@ -1,12 +1,22 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth } from "@/contexts/AppContext";
-import { ArrowUpDown, ArrowUp, ArrowDown, Paperclip } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Paperclip, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { supabase } from "@/lib/supabase";
 import type { PurchaseDocument } from "./types";
@@ -26,6 +36,7 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
   const { suppliers, products, orders } = useData();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const prefs = useTablePreferences("DocumentsTable", {
     sortField: "created_at",
@@ -95,6 +106,23 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
     onRefresh();
   };
 
+  const handleDeleteDocument = async (docId: string) => {
+    setDeletingId(docId);
+    try {
+      // Delete from database
+      const { error } = await supabase.from("purchase_documents").delete().eq("id", docId);
+      if (error) throw error;
+
+      toast.success("מסמך נמחק");
+      onRefresh();
+    } catch (err) {
+      toast.error("שגיאה במחיקת המסמך");
+      console.error(err);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div>
       <div className="flex gap-2 mb-3">
@@ -146,12 +174,12 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
               <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("created_at")}>
                 <span className="flex items-center gap-1">תאריך <SortIcon field="created_at" /></span>
               </th>
-              
+              <th className="text-right p-3 font-semibold text-foreground">פעולות</th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">אין מסמכים</td></tr>
+              <tr><td colSpan={11} className="p-8 text-center text-muted-foreground">אין מסמכים</td></tr>
             ) : filtered.map(doc => (
               <tr
                 key={doc.id}
@@ -207,6 +235,35 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
                   {doc.approved_by ? format(new Date(doc.approval_date!), "dd/MM/yy") : "—"}
                 </td>
                 <td className="p-3 text-muted-foreground text-xs">{format(new Date(doc.created_at), "dd/MM/yy")}</td>
+                <td className="p-3" onClick={e => e.stopPropagation()}>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        disabled={deletingId === doc.id}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogTitle>מחיקת מסמך</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        האם אתה בטוח שברצונך למחוק את המסמך "{doc.document_name || doc.notes || "ללא שם"}"? פעולה זו לא ניתנת לביטול.
+                      </AlertDialogDescription>
+                      <div className="flex gap-2 justify-end">
+                        <AlertDialogCancel>ביטול</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDeleteDocument(doc.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          מחק
+                        </AlertDialogAction>
+                      </div>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </td>
               </tr>
             ))}
           </tbody>

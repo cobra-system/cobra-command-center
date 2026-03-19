@@ -7,8 +7,17 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { InlineEditField } from "@/components/InlineEditField";
-import { ArrowRight, FileText, Upload, ExternalLink, X, Loader2, Check, Download } from "lucide-react";
+import { ArrowRight, FileText, Upload, ExternalLink, X, Loader2, Check, Download, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -415,6 +424,23 @@ export default function DocumentDetailPage() {
     fetchDoc();
   };
 
+  const handleDownloadFile = async () => {
+    if (!doc?.file_url) return;
+    try {
+      const filename = doc.file_url.split("/").pop() || "file";
+      const a = document.createElement("a");
+      a.href = doc.file_url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast.success("הקובץ מורד");
+    } catch (err) {
+      toast.error("שגיאה בהורדת הקובץ");
+      console.error(err);
+    }
+  };
+
   if (loading) return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-64 w-full" /></div>;
   if (!doc) return (
     <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -598,13 +624,35 @@ export default function DocumentDetailPage() {
           <div className="bg-card rounded-xl border shadow-sm p-5">
             <h2 className="text-base font-semibold text-foreground mb-3">קובץ מצורף</h2>
             {doc.file_url ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-primary hover:underline">
                   <ExternalLink className="h-4 w-4" />פתח קובץ
                 </a>
-                <Button variant="ghost" size="sm" onClick={handleRemoveFile} className="text-destructive hover:text-destructive">
-                  <X className="h-4 w-4 ml-1" />הסר
+                <Button variant="ghost" size="sm" onClick={handleDownloadFile} className="text-primary hover:text-primary">
+                  <Download className="h-4 w-4 ml-1" />הורד
                 </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                      <Trash2 className="h-4 w-4 ml-1" />מחק
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogTitle>מחיקת קובץ</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      האם אתה בטוח שברצונך למחוק את הקובץ המצורף? פעולה זו לא ניתנת לביטול.
+                    </AlertDialogDescription>
+                    <div className="flex gap-2 justify-end">
+                      <AlertDialogCancel>ביטול</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleRemoveFile}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        מחק
+                      </AlertDialogAction>
+                    </div>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             ) : (
               <label className="flex items-center gap-2 border border-dashed rounded-lg p-4 cursor-pointer hover:bg-muted/30 transition-colors">
