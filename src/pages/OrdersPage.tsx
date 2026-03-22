@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { NewOrderDialog } from "@/components/orders/NewOrderDialog";
 import { OrdersMapView } from "@/components/orders/OrdersMapView";
+import { OrdersDashboardView } from "@/components/orders/OrdersDashboardView";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -297,11 +298,16 @@ export default function OrdersPage() {
         />
       </div>
 
-      <Tabs defaultValue="table" className="space-y-4">
+      <Tabs defaultValue="dashboard" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>
           <TabsTrigger value="table">טבלת הזמנות</TabsTrigger>
-          <TabsTrigger value="map">מפת הזמנות</TabsTrigger>
+          <TabsTrigger value="map">Kanban</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="dashboard" className="mt-0">
+          <OrdersDashboardView orders={filtered} orderWorkflows={orderWorkflows} suppliers={suppliers} />
+        </TabsContent>
 
         <TabsContent value="map" className="mt-0">
           <OrdersMapView orders={filtered} orderWorkflows={orderWorkflows} suppliers={suppliers} />
