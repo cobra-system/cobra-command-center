@@ -194,8 +194,8 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={priorityChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} />
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} reversed />
+              <YAxis tick={{ fontSize: 12 }} orientation="right" />
               <Tooltip />
               <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -210,7 +210,7 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
               <div key={item.name} className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">{item.name}</span>
                 <div className="flex items-center gap-2">
-                  <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden" dir="ltr">
                     <div
                       className="h-full bg-blue-500 rounded-full"
                       style={{ width: `${(item.value / stats.totalOrders) * 100}%` }}

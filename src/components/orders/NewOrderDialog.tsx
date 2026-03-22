@@ -154,7 +154,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
   };
 
   const trigger = hideTrigger ? null : (
-    <DialogTrigger asChild><Button><Plus className="h-4 w-4 ml-2" />הזמנה חדשה</Button></DialogTrigger>
+    <DialogTrigger asChild><Button><Plus className="h-4 w-4 me-2" />הזמנה חדשה</Button></DialogTrigger>
   );
 
   return (
