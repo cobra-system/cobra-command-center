@@ -27,6 +27,8 @@ export default function TaskMonthlyView() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState("recurring");
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
+  const [dragTaskId, setDragTaskId] = useState<string | null>(null);
+  const [dragOverDay, setDragOverDay] = useState<string | null>(null);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -76,6 +78,13 @@ export default function TaskMonthlyView() {
     const newStatus = currentStatus === "DONE" ? "TODO" : "DONE";
     await updateTaskStatus(taskId, newStatus);
   }, [updateTaskStatus]);
+
+  const handleDrop = useCallback(async (day: Date) => {
+    if (!dragTaskId) return;
+    await updateTask(dragTaskId, { due_date: day.toISOString() });
+    setDragTaskId(null);
+    setDragOverDay(null);
+  }, [dragTaskId, updateTask]);
 
   return (
     <div className="space-y-5" dir="rtl">
@@ -146,17 +155,24 @@ export default function TaskMonthlyView() {
             const isCurrentMonth = isSameMonth(day, currentMonth);
             const isTodayDate = isToday(day);
             const doneTasks = dayTasks.filter(t => t.status === "DONE").length;
+            const isDropTarget = dragOverDay === key;
 
             return (
               <div
                 key={idx}
                 className={cn(
-                  "min-h-[140px] border-b border-r border-border/30 p-2 cursor-pointer transition-colors",
+                  "min-h-[140px] border-b border-r border-border/30 p-2 cursor-pointer transition-all",
                   !isCurrentMonth && "bg-muted/20",
                   isTodayDate && "bg-primary/5",
-                  selectedDay && isSameDay(day, selectedDay) && "bg-primary/10 border-primary/40"
+                  selectedDay && isSameDay(day, selectedDay) && "bg-primary/10 border-primary/40",
+                  isDropTarget && "ring-2 ring-primary/60 bg-primary/10 border-primary/40"
                 )}
                 onClick={() => setSelectedDay(day)}
+                onDragOver={(e) => { e.preventDefault(); setDragOverDay(key); }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverDay(null);
+                }}
+                onDrop={() => handleDrop(day)}
               >
                 <div className={cn(
                   "text-sm font-semibold mb-1.5",
@@ -175,14 +191,25 @@ export default function TaskMonthlyView() {
                   {dayTasks.slice(0, 2).map(task => (
                     <div
                       key={task.id}
+                      draggable
                       className={cn(
-                        "text-[10px] px-1.5 py-0.5 rounded border truncate",
+                        "text-[10px] px-1.5 py-0.5 rounded border truncate cursor-grab active:cursor-grabbing transition-opacity",
                         task.status === "DONE"
                           ? "bg-success/10 border-success/20 text-muted-foreground/60 line-through"
                           : task.priority === "דחוף"
                           ? "bg-destructive/10 border-destructive/20 text-destructive/80"
-                          : "bg-primary/10 border-primary/20 text-primary/80"
+                          : "bg-primary/10 border-primary/20 text-primary/80",
+                        dragTaskId === task.id && "opacity-40"
                       )}
+                      onDragStart={(e) => {
+                        e.stopPropagation();
+                        setDragTaskId(task.id);
+                      }}
+                      onDragEnd={(e) => {
+                        e.stopPropagation();
+                        setDragTaskId(null);
+                        setDragOverDay(null);
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedDay(day);
@@ -221,14 +248,18 @@ export default function TaskMonthlyView() {
               selectedDayTasks.map(task => (
                 <div
                   key={task.id}
+                  draggable
                   className={cn(
-                    "p-3 rounded-lg border transition-all cursor-pointer hover:shadow-sm",
+                    "p-3 rounded-lg border transition-all cursor-grab active:cursor-grabbing hover:shadow-sm",
                     task.status === "DONE"
                       ? "bg-success/10 border-success/20"
                       : task.priority === "דחוף"
                       ? "bg-destructive/10 border-destructive/20"
-                      : "bg-card border-border/50"
+                      : "bg-card border-border/50",
+                    dragTaskId === task.id && "opacity-40"
                   )}
+                  onDragStart={() => setDragTaskId(task.id)}
+                  onDragEnd={() => { setDragTaskId(null); setDragOverDay(null); }}
                   onClick={() => setSelectedTask(task)}
                 >
                   <div className="flex items-start justify-between gap-2">
