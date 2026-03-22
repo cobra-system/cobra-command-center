@@ -99,7 +99,7 @@ export default function ManagerLayout() {
   const handleDragEnd = () => { setDragIndex(null); setDragOverIndex(null); };
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-screen flex flex-row-reverse bg-background">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
@@ -108,10 +108,10 @@ export default function ManagerLayout() {
       {/* Sidebar */}
       <aside className={`
         fixed lg:static inset-y-0 right-0 z-50 flex flex-col
-        bg-card/95 backdrop-blur-xl border-l border-border/50
+        bg-card/95 backdrop-blur-xl border-l rtl:border-l-0 rtl:border-r border-border/50
         transition-all duration-300 ease-out
         ${collapsed ? "w-[72px]" : "w-[280px]"}
-        ${sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
+        ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
       `}>
         {/* Logo area */}
         <div className={`h-16 flex items-center border-b border-border/50 ${collapsed ? "justify-center px-2" : "px-5 justify-between"}`}>
@@ -181,12 +181,12 @@ export default function ManagerLayout() {
                   <Icon className={`${collapsed ? "h-5 w-5" : "h-[18px] w-[18px]"} shrink-0`} />
                   {!collapsed && <span>{item.label}</span>}
                   {!collapsed && item.to === "/tasks" && pendingCount > 0 && (
-                    <span className="ml-auto text-[10px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full leading-none">
+                    <span className="ms-auto text-[10px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full leading-none">
                       {pendingCount}
                     </span>
                   )}
                   {collapsed && item.to === "/tasks" && pendingCount > 0 && (
-                    <span className="absolute top-0 left-0 h-2 w-2 bg-primary rounded-full" />
+                    <span className="absolute top-0 right-0 h-2 w-2 bg-primary rounded-full" />
                   )}
                 </NavLink>
               </div>
