@@ -99,7 +99,7 @@ export default function ManagerLayout() {
   const handleDragEnd = () => { setDragIndex(null); setDragOverIndex(null); };
 
   return (
-    <div className="min-h-screen flex flex-row-reverse bg-background">
+    <div className="min-h-screen flex bg-background">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
@@ -108,7 +108,7 @@ export default function ManagerLayout() {
       {/* Sidebar */}
       <aside className={`
         fixed lg:static inset-y-0 right-0 z-50 flex flex-col
-        bg-card/95 backdrop-blur-xl border-l rtl:border-l-0 rtl:border-r border-border/50
+        bg-card/95 backdrop-blur-xl border-l border-border/50
         transition-all duration-300 ease-out
         ${collapsed ? "w-[72px]" : "w-[280px]"}
         ${sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
