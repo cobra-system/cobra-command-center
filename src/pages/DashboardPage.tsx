@@ -264,12 +264,12 @@ export default function DashboardPage() {
               <Package className="h-4 w-4 text-primary" />מלאי לפי מוצרים
             </h3>
             <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={productStockData} layout="vertical" margin={{ left: 10 }}>
+              <BarChart data={productStockData} layout="vertical" margin={{ right: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" fontSize={11} />
-                <YAxis type="category" dataKey="name" fontSize={11} width={100} />
+                <XAxis type="number" fontSize={11} reversed />
+                <YAxis type="category" dataKey="name" fontSize={11} width={100} orientation="right" />
                 <Tooltip />
-                <Bar dataKey="value" name="מלאי" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="value" name="מלאי" fill="hsl(var(--primary))" radius={[4, 0, 0, 4]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
