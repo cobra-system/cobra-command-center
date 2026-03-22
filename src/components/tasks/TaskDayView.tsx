@@ -1,6 +1,8 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useData, useAuth, type Task, type Priority } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
+import { type RecurringTask, recurringMatchesDay, findOrCreateRecurringInstance } from "@/lib/recurringUtils";
+import { supabase } from "@/lib/supabase";
 import { format, addDays, subDays, isToday, isSameDay, startOfDay } from "date-fns";
 import { he } from "date-fns/locale";
 import { ChevronRight, ChevronLeft, Calendar, Users, CheckCircle2, Circle, Flame, Settings, Plus, Repeat, Zap } from "lucide-react";
@@ -20,7 +22,7 @@ import TaskCreateDialog from "@/components/tasks/TaskCreateDialog";
 const dayNames = ["יום ראשון", "יום שני", "יום שלישי", "יום רביעי", "יום חמישי", "יום שישי", "שבת"];
 
 export default function TaskDayView() {
-  const { tasks, updateTaskStatus, updateTask, profiles } = useData();
+  const { tasks, updateTaskStatus, updateTask, profiles, refreshTasks } = useData();
   const { currentUser } = useAuth();
   const [selectedDay, setSelectedDay] = useState(new Date());
   const [assigneeFilter, setAssigneeFilter] = useState("all");
@@ -31,13 +33,42 @@ export default function TaskDayView() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState("recurring");
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
+  const [recurringTasks, setRecurringTasks] = useState<RecurringTask[]>([]);
 
   const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
+
+  const loadRecurring = useCallback(async () => {
+    const { data } = await supabase.from("recurring_tasks").select("*").eq("is_active", true);
+    if (data) setRecurringTasks(data as RecurringTask[]);
+  }, []);
+
+  useEffect(() => {
+    loadRecurring();
+  }, [loadRecurring]);
 
   const filteredTasks = useMemo(() =>
     tasks.filter(t => assigneeFilter === "all" || t.assignee_id === assigneeFilter),
     [tasks, assigneeFilter]
   );
+
+  const recurringForDay = useMemo(() => {
+    const filtered = recurringTasks.filter(rt =>
+      (assigneeFilter === "all" || rt.assignee_id === assigneeFilter) &&
+      recurringMatchesDay(rt, selectedDay)
+    );
+    return filtered;
+  }, [recurringTasks, selectedDay, assigneeFilter]);
+
+  const handleRecurringClick = useCallback(async (rt: RecurringTask) => {
+    const task = await findOrCreateRecurringInstance(rt, selectedDay);
+    if (task) {
+      await refreshTasks();
+      setSelectedTask(task);
+      setEditTitle(task.title);
+      setEditDescription(task.description || "");
+      setEditing(false);
+    }
+  }, [selectedDay, refreshTasks]);
 
   const dayTasks = useMemo(() => {
     const dayStart = startOfDay(selectedDay);
@@ -190,10 +221,15 @@ export default function TaskDayView() {
               </>
             )}
 
-            {total === 0 && (
+            {total === 0 && recurringForDay.length === 0 && (
               <div className="text-center py-6">
                 <p className="text-2xl mb-2">🎉</p>
                 <p className="text-sm font-medium text-muted-foreground">אין משימות ביום זה</p>
+              </div>
+            )}
+            {total === 0 && recurringForDay.length > 0 && (
+              <div className="text-center py-3">
+                <p className="text-sm font-medium text-violet-600 dark:text-violet-400">{recurringForDay.length} משימות חוזרות</p>
               </div>
             )}
           </div>
@@ -203,62 +239,85 @@ export default function TaskDayView() {
         <div className="lg:col-span-2">
           <div className="bg-card rounded-xl border border-border/50 overflow-hidden flex flex-col h-full">
             <div className="px-5 py-4 border-b border-border/30 bg-muted/20">
-              <h2 className="font-semibold text-foreground">משימות ({dayTasks.length})</h2>
+              <h2 className="font-semibold text-foreground">משימות ({dayTasks.length + recurringForDay.length})</h2>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
-              {dayTasks.length === 0 ? (
+              {dayTasks.length === 0 && recurringForDay.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-center py-12">
                   <p className="text-sm text-muted-foreground">אין משימות ביום זה</p>
                 </div>
               ) : (
-                dayTasks.map(task => (
-                  <div
-                    key={task.id}
-                    className={cn(
-                      "p-3 rounded-lg border transition-all cursor-pointer hover:shadow-sm flex items-center gap-3",
-                      task.status === "DONE"
-                        ? "bg-success/10 border-success/20"
-                        : task.priority === "דחוף"
-                        ? "bg-destructive/10 border-destructive/20"
-                        : "bg-card border-border/50"
-                    )}
-                    onClick={() => handleSelectTask(task)}
-                    onDoubleClick={() => handleToggle(task.id, task.status)}
-                  >
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleToggle(task.id, task.status);
-                      }}
-                      className="shrink-0"
+                <>
+                  {dayTasks.map(task => (
+                    <div
+                      key={task.id}
+                      className={cn(
+                        "p-3 rounded-lg border transition-all cursor-pointer hover:shadow-sm flex items-center gap-3",
+                        task.status === "DONE"
+                          ? "bg-success/10 border-success/20"
+                          : task.priority === "דחוף"
+                          ? "bg-destructive/10 border-destructive/20"
+                          : "bg-card border-border/50"
+                      )}
+                      onClick={() => handleSelectTask(task)}
+                      onDoubleClick={() => handleToggle(task.id, task.status)}
                     >
-                      {task.status === "DONE" ? (
-                        <CheckCircle2 className="h-5 w-5 text-success" />
-                      ) : (
-                        <Circle className="h-5 w-5 text-muted-foreground/30 hover:text-primary transition-colors" />
-                      )}
-                    </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggle(task.id, task.status);
+                        }}
+                        className="shrink-0"
+                      >
+                        {task.status === "DONE" ? (
+                          <CheckCircle2 className="h-5 w-5 text-success" />
+                        ) : (
+                          <Circle className="h-5 w-5 text-muted-foreground/30 hover:text-primary transition-colors" />
+                        )}
+                      </button>
 
-                    <div className="flex-1 min-w-0">
-                      <p className={cn(
-                        "text-sm font-medium",
-                        task.status === "DONE" && "line-through text-muted-foreground"
-                      )}>
-                        {task.title}
-                      </p>
-                      {task.description && (
-                        <p className="text-xs text-muted-foreground/60 mt-0.5 line-clamp-1">
-                          {task.description}
+                      <div className="flex-1 min-w-0">
+                        <p className={cn(
+                          "text-sm font-medium",
+                          task.status === "DONE" && "line-through text-muted-foreground"
+                        )}>
+                          {task.title}
                         </p>
-                      )}
-                    </div>
+                        {task.description && (
+                          <p className="text-xs text-muted-foreground/60 mt-0.5 line-clamp-1">
+                            {task.description}
+                          </p>
+                        )}
+                      </div>
 
-                    <div className="shrink-0">
-                      <PriorityBadge priority={task.priority as Priority} />
+                      <div className="shrink-0">
+                        <PriorityBadge priority={task.priority as Priority} />
+                      </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                  {recurringForDay.map(rt => (
+                    <div
+                      key={`r-${rt.id}`}
+                      className="p-3 rounded-lg border border-violet-500/30 bg-violet-500/10 transition-all cursor-pointer hover:bg-violet-500/20 flex items-center gap-3"
+                      onClick={() => handleRecurringClick(rt)}
+                    >
+                      <Repeat className="h-5 w-5 text-violet-400 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-violet-900 dark:text-violet-200">{rt.title}</p>
+                        {rt.description && (
+                          <p className="text-xs text-muted-foreground/60 mt-0.5 line-clamp-1">{rt.description}</p>
+                        )}
+                        {rt.assignee_name && (
+                          <p className="text-xs text-muted-foreground/50 mt-0.5">{rt.assignee_name}</p>
+                        )}
+                      </div>
+                      <div className="shrink-0">
+                        <PriorityBadge priority={rt.priority as Priority} />
+                      </div>
+                    </div>
+                  ))}
+                </>
               )}
             </div>
           </div>

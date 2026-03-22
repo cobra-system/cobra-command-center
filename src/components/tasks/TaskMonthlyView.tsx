@@ -1,6 +1,8 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { useData, useAuth, type Task, type Priority } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
+import { type RecurringTask, recurringMatchesDay, findOrCreateRecurringInstance } from "@/lib/recurringUtils";
+import { supabase } from "@/lib/supabase";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths, startOfDay, isSameDay, getDay } from "date-fns";
 import { he } from "date-fns/locale";
 import { ChevronRight, ChevronLeft, Calendar, Users, Settings, Plus, Repeat, Zap } from "lucide-react";
@@ -18,7 +20,7 @@ const dayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמיש�
 const monthNames = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
 
 export default function TaskMonthlyView() {
-  const { tasks, updateTaskStatus, updateTask, profiles } = useData();
+  const { tasks, updateTaskStatus, updateTask, profiles, refreshTasks } = useData();
   const { currentUser } = useAuth();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
@@ -29,6 +31,7 @@ export default function TaskMonthlyView() {
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [dragOverDay, setDragOverDay] = useState<string | null>(null);
+  const [recurringTasks, setRecurringTasks] = useState<RecurringTask[]>([]);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -49,9 +52,23 @@ export default function TaskMonthlyView() {
 
   const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
 
+  const loadRecurring = useCallback(async () => {
+    const { data } = await supabase.from("recurring_tasks").select("*").eq("is_active", true);
+    if (data) setRecurringTasks(data as RecurringTask[]);
+  }, []);
+
+  useEffect(() => {
+    loadRecurring();
+  }, [loadRecurring]);
+
   const filteredTasks = useMemo(() =>
     tasks.filter(t => assigneeFilter === "all" || t.assignee_id === assigneeFilter),
     [tasks, assigneeFilter]
+  );
+
+  const filteredRecurring = useMemo(() =>
+    recurringTasks.filter(rt => assigneeFilter === "all" || rt.assignee_id === assigneeFilter),
+    [recurringTasks, assigneeFilter]
   );
 
   const tasksByDay = useMemo(() => {
@@ -71,8 +88,26 @@ export default function TaskMonthlyView() {
     return map;
   }, [filteredTasks, calendarDays]);
 
+  const recurringByDay = useMemo(() => {
+    const map = new Map<string, RecurringTask[]>();
+    calendarDays.forEach(day => {
+      const key = format(startOfDay(day), "yyyy-MM-dd");
+      map.set(key, filteredRecurring.filter(rt => recurringMatchesDay(rt, day)));
+    });
+    return map;
+  }, [filteredRecurring, calendarDays]);
+
   const selectedDayKey = selectedDay ? format(selectedDay, "yyyy-MM-dd") : null;
   const selectedDayTasks = selectedDayKey ? tasksByDay.get(selectedDayKey) || [] : [];
+  const selectedDayRecurring = selectedDayKey ? recurringByDay.get(selectedDayKey) || [] : [];
+
+  const handleRecurringClick = useCallback(async (rt: RecurringTask, day: Date) => {
+    const task = await findOrCreateRecurringInstance(rt, day);
+    if (task) {
+      await refreshTasks();
+      setSelectedTask(task);
+    }
+  }, [refreshTasks]);
 
   const handleToggle = useCallback(async (taskId: string, currentStatus: string) => {
     const newStatus = currentStatus === "DONE" ? "TODO" : "DONE";
@@ -152,10 +187,15 @@ export default function TaskMonthlyView() {
           {calendarDays.map((day, idx) => {
             const key = format(startOfDay(day), "yyyy-MM-dd");
             const dayTasks = tasksByDay.get(key) || [];
+            const dayRecurring = recurringByDay.get(key) || [];
             const isCurrentMonth = isSameMonth(day, currentMonth);
             const isTodayDate = isToday(day);
             const doneTasks = dayTasks.filter(t => t.status === "DONE").length;
             const isDropTarget = dragOverDay === key;
+            const totalVisible = dayTasks.length + dayRecurring.length;
+            const regularSlots = Math.min(dayTasks.length, 2);
+            const recurringSlots = Math.min(dayRecurring.length, Math.max(0, 2 - regularSlots));
+            const overflow = totalVisible - regularSlots - recurringSlots;
 
             return (
               <div
@@ -188,7 +228,7 @@ export default function TaskMonthlyView() {
                       {doneTasks}/{dayTasks.length}
                     </div>
                   )}
-                  {dayTasks.slice(0, 2).map(task => (
+                  {dayTasks.slice(0, regularSlots).map(task => (
                     <div
                       key={task.id}
                       draggable
@@ -218,9 +258,22 @@ export default function TaskMonthlyView() {
                       {task.title}
                     </div>
                   ))}
-                  {dayTasks.length > 2 && (
+                  {dayRecurring.slice(0, recurringSlots).map(rt => (
+                    <div
+                      key={`r-${rt.id}`}
+                      className="text-[10px] px-1.5 py-0.5 rounded border truncate cursor-pointer transition-colors bg-violet-500/10 border-violet-500/30 text-violet-700 dark:text-violet-300 hover:bg-violet-500/20 flex items-center gap-0.5"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRecurringClick(rt, day);
+                      }}
+                    >
+                      <span className="shrink-0">↻</span>
+                      <span className="truncate">{rt.title}</span>
+                    </div>
+                  ))}
+                  {overflow > 0 && (
                     <div className="text-[9px] text-muted-foreground/50 px-1.5 py-0.5">
-                      +{dayTasks.length - 2} עוד
+                      +{overflow} עוד
                     </div>
                   )}
                 </div>
@@ -240,12 +293,38 @@ export default function TaskMonthlyView() {
           </DialogHeader>
 
           <div className="space-y-3 max-h-[500px] overflow-y-auto">
-            {selectedDayTasks.length === 0 ? (
+            {selectedDayTasks.length === 0 && selectedDayRecurring.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-sm text-muted-foreground">אין משימות ביום זה</p>
               </div>
             ) : (
-              selectedDayTasks.map(task => (
+              <>
+              {selectedDayRecurring.map(rt => (
+                <div
+                  key={`r-${rt.id}`}
+                  className="p-3 rounded-lg border border-violet-500/30 bg-violet-500/10 transition-all cursor-pointer hover:bg-violet-500/20"
+                  onClick={() => selectedDay && handleRecurringClick(rt, selectedDay)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0 flex items-center gap-2">
+                      <Repeat className="h-4 w-4 text-violet-400 shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-violet-900 dark:text-violet-200">{rt.title}</p>
+                        {rt.description && (
+                          <p className="text-xs text-muted-foreground/60 mt-0.5 line-clamp-2">{rt.description}</p>
+                        )}
+                        {rt.assignee_name && (
+                          <p className="text-xs text-muted-foreground/50 mt-0.5">{rt.assignee_name}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="shrink-0">
+                      <PriorityBadge priority={rt.priority as Priority} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {selectedDayTasks.map(task => (
                 <div
                   key={task.id}
                   draggable
@@ -281,7 +360,8 @@ export default function TaskMonthlyView() {
                     </div>
                   </div>
                 </div>
-              ))
+              ))}
+              </>
             )}
           </div>
         </DialogContent>

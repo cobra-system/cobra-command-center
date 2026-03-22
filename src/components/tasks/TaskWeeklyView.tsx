@@ -3,7 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import { useData, useAuth, type Task, type Priority } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
 import { PriorityBadge } from "@/components/PriorityBadge";
-import { format, startOfWeek, addDays, isSameDay, isToday, isPast, addWeeks, subWeeks, getDay, getDate } from "date-fns";
+import { type RecurringTask, recurringMatchesDay, findOrCreateRecurringInstance } from "@/lib/recurringUtils";
+import { format, startOfWeek, addDays, isSameDay, isToday, isPast, addWeeks, subWeeks, getDay } from "date-fns";
 import { he } from "date-fns/locale";
 import { ChevronRight, ChevronLeft, CalendarDays, AlertTriangle, Users, Repeat, Zap, Settings, X, Plus, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,21 +18,6 @@ import TaskCreateDialog from "@/components/tasks/TaskCreateDialog";
 import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
 
 const dayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
-
-interface RecurringTask {
-  id: string;
-  title: string;
-  description: string | null;
-  frequency: string;
-  day_of_week: number | null;
-  day_of_month: number | null;
-  days_before: number;
-  priority: string;
-  assignee_id: string | null;
-  assignee_name: string | null;
-  is_active: boolean;
-  next_due: string | null;
-}
 
 interface WorkflowStep {
   index: number; name: string; description: string; action: string;
@@ -72,23 +58,8 @@ function ProgressRing({ done, total }: { done: number; total: number }) {
   );
 }
 
-function recurringMatchesDay(rt: RecurringTask, day: Date): boolean {
-  const dayOfWeek = getDay(day);
-  const dayOfMonth = getDate(day);
-  switch (rt.frequency) {
-    case "daily": return true;
-    case "weekly": return rt.day_of_week === dayOfWeek;
-    case "biweekly": return rt.day_of_week === dayOfWeek;
-    case "monthly": return rt.day_of_month === dayOfMonth;
-    case "quarterly":
-    case "biannual":
-    case "annual": return rt.day_of_month === dayOfMonth;
-    default: return false;
-  }
-}
-
 export default function TaskWeeklyView() {
-  const { tasks, updateTaskStatus, updateTask, profiles } = useData();
+  const { tasks, updateTaskStatus, updateTask, profiles, refreshTasks } = useData();
   const { currentUser } = useAuth();
   const [searchParams] = useSearchParams();
   const [weekOffset, setWeekOffset] = useState(0);
@@ -136,6 +107,14 @@ export default function TaskWeeklyView() {
     loadRecurring();
     loadWorkflows();
   }, [loadRecurring, loadWorkflows]);
+
+  const handleRecurringClick = useCallback(async (rt: RecurringTask, day: Date) => {
+    const task = await findOrCreateRecurringInstance(rt, day);
+    if (task) {
+      await refreshTasks();
+      setSelectedTask(task);
+    }
+  }, [refreshTasks]);
 
   // Handle highlight from search params
   useEffect(() => {
@@ -396,7 +375,7 @@ export default function TaskWeeklyView() {
 
                 {/* Recurring task cards */}
                 {showRecurring && dayRecurring.map(rt => (
-                  <RecurringTaskCard key={`r-${rt.id}`} rt={rt} showAssignee={assigneeFilter === "all"} />
+                  <RecurringTaskCard key={`r-${rt.id}`} rt={rt} showAssignee={assigneeFilter === "all"} onClick={() => handleRecurringClick(rt, day)} />
                 ))}
 
                 {/* Workflow step cards */}
@@ -593,11 +572,11 @@ function WeeklyTaskCard({ task, showAssignee, isDragging, isHighlighted, onToggl
 
 // ─── Recurring task card ──────────────────────────────────────────────────────
 
-function RecurringTaskCard({ rt, showAssignee }: { rt: RecurringTask; showAssignee: boolean }) {
+function RecurringTaskCard({ rt, showAssignee, onClick }: { rt: RecurringTask; showAssignee: boolean; onClick?: () => void }) {
   const initials = rt.assignee_name ? rt.assignee_name.trim().charAt(0).toUpperCase() : null;
 
   return (
-    <div className="rounded-lg px-2 py-2 text-[11px] border border-violet-500/30 bg-violet-500/10 select-none">
+    <div className="rounded-lg px-2 py-2 text-[11px] border border-violet-500/30 bg-violet-500/10 select-none cursor-pointer hover:bg-violet-500/20 transition-colors" onClick={onClick}>
       <div className="flex items-start gap-1">
         <Repeat className="h-3 w-3 text-violet-400 shrink-0 mt-0.5" />
         <p className="font-medium leading-tight line-clamp-2 text-violet-900 dark:text-violet-200">{rt.title}</p>
