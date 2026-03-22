@@ -1,6 +1,6 @@
 import { useState, useMemo, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
-import { useData, useAuth, categories, type Product } from "@/contexts/AppContext";
+import { useData, categories, type Product } from "@/contexts/AppContext";
 import { Search, ChevronDown, ChevronUp, Boxes, Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import ProductFormDialog from "@/components/products/ProductFormDialog";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
+import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "sonner";
 
 type SortKey = "name" | "sku" | "product_type" | "supplier" | "stock_qty" | "incoming_qty" | "purchase_price" | "monthly_order";
@@ -25,7 +26,6 @@ const sortableColumns: { key: SortKey; label: string }[] = [
 
 export default function ProductsPage() {
   const { products, suppliers, deleteProduct } = useData();
-  const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [category, setCategory] = useState("הכל");
   const [search, setSearch] = useState("");
@@ -38,7 +38,7 @@ export default function ProductsPage() {
     filters: { category: "הכל", typeFilter: "all", supplierFilter: "all" },
   });
 
-  const isManager = currentUser?.role === "MANAGER";
+  const { hasEdit } = usePermissions("products");
   const sortKey = prefs.sortField as SortKey | null;
   const sortDir = prefs.sortDir;
   const typeFilter = (prefs.filters.typeFilter || "all") as "all" | "מוגמר" | "מורכב";
@@ -95,7 +95,7 @@ export default function ProductsPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-foreground">מוצרים</h1>
-        <Button onClick={openAdd}><Plus className="h-4 w-4 ml-2" />מוצר חדש</Button>
+        {hasEdit && <Button onClick={openAdd}><Plus className="h-4 w-4 ml-2" />מוצר חדש</Button>}
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -140,12 +140,12 @@ export default function ProductsPage() {
                   </button>
                 </th>
               ))}
-              {isManager && <th className="text-right p-3 font-semibold text-foreground w-10"></th>}
+              {hasEdit && <th className="text-right p-3 font-semibold text-foreground w-10"></th>}
             </tr>
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={isManager ? 10 : 9} className="p-8 text-center text-muted-foreground">לא נמצאו מוצרים</td></tr>
+              <tr><td colSpan={hasEdit ? 10 : 9} className="p-8 text-center text-muted-foreground">לא נמצאו מוצרים</td></tr>
             ) : filtered.map(p => {
               const isComposite = p.product_type === "מורכב";
               const isExpanded = expandedId === p.id;
@@ -196,7 +196,7 @@ export default function ProductsPage() {
                     <td className="p-3 text-muted-foreground">{p.incoming_qty || "—"}</td>
                     <td className="p-3 text-muted-foreground">{p.purchase_price ? `$${p.purchase_price}` : "—"}</td>
                     <td className="p-3 text-muted-foreground">{p.monthly_order || "—"}</td>
-                    {isManager && (
+                    {hasEdit && (
                       <td className="p-3" onClick={e => e.stopPropagation()}>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -222,7 +222,7 @@ export default function ProductsPage() {
                   {/* Expanded components */}
                   {isExpanded && hasComponents && (
                     <tr>
-                      <td colSpan={isManager ? 10 : 9} className="p-0">
+                      <td colSpan={hasEdit ? 10 : 9} className="p-0">
                         <div className="bg-muted/30 border-t border-b px-6 py-3">
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
@@ -263,7 +263,7 @@ export default function ProductsPage() {
                   )}
                   {isExpanded && isComposite && !hasComponents && (
                     <tr>
-                      <td colSpan={isManager ? 10 : 9} className="p-0">
+                      <td colSpan={hasEdit ? 10 : 9} className="p-0">
                         <div className="bg-muted/30 border-t border-b px-6 py-4 text-center text-xs text-muted-foreground">
                           לא הוגדרו רכיבים למוצר זה
                         </div>

@@ -2,12 +2,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AppProvider, useAuth } from "@/contexts/AppContext";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { AppProvider, useAuth, useData } from "@/contexts/AppContext";
 import { OutlookProvider } from "@/contexts/OutlookContext";
 import { useState, useCallback } from "react";
 import SplashScreen from "@/components/SplashScreen";
 import { useMiddleClickNavigation } from "@/hooks/useMiddleClickNavigation";
+import { canView, getModuleKeyFromRoute, MODULES } from "@/lib/permissions";
 import LoginPage from "@/pages/LoginPage";
 import ManagerLayout from "@/layouts/ManagerLayout";
 import EmployeeLayout from "@/layouts/EmployeeLayout";
@@ -40,6 +41,20 @@ function RequireManager() {
   return <ManagerLayout />;
 }
 
+function RequirePermission() {
+  const { currentUser, loading } = useAuth();
+  const { currentUserPermissions } = useData();
+  const location = useLocation();
+  if (loading) return null;
+  if (!currentUser) return <Navigate to="/login" replace />;
+  if (currentUser.role === "MANAGER") return <ManagerLayout />;
+  const moduleKey = getModuleKeyFromRoute(location.pathname);
+  if (!moduleKey || !canView(currentUserPermissions, moduleKey)) {
+    return <Navigate to="/my-tasks" replace />;
+  }
+  return <ManagerLayout />;
+}
+
 function RequireAuth() {
   const { currentUser, loading } = useAuth();
   if (loading) return null;
@@ -49,9 +64,12 @@ function RequireAuth() {
 
 function RootRedirect() {
   const { currentUser, loading } = useAuth();
+  const { currentUserPermissions } = useData();
   if (loading) return null;
   if (!currentUser) return <Navigate to="/login" replace />;
   if (currentUser.role === "MANAGER") return <Navigate to="/dashboard" replace />;
+  const firstPermitted = MODULES.find((m) => canView(currentUserPermissions, m.key));
+  if (firstPermitted) return <Navigate to={firstPermitted.route} replace />;
   return <Navigate to="/my-tasks" replace />;
 }
 
@@ -62,6 +80,11 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
 
       <Route element={<RequireManager />}>
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/sap" element={<Navigate to="/settings" replace />} />
+      </Route>
+
+      <Route element={<RequirePermission />}>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/products/:id" element={<ProductDetailPage />} />
@@ -78,8 +101,6 @@ function AppRoutes() {
         <Route path="/documents/:id" element={<DocumentDetailPage />} />
         <Route path="/reorder" element={<ReorderPage />} />
         <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/sap" element={<Navigate to="/settings" replace />} />
         <Route path="/compliance" element={<Navigate to="/documents" replace />} />
       </Route>
 

@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import type { Payment } from "@/components/documents/types";
 import { docStatusFlow, docStatusColors, currencySymbol, payStatusColors, paymentTypeLabels } from "@/components/documents/constants";
 import html2pdf from "html2pdf.js";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface PurchaseDocument {
   id: string;
@@ -347,6 +348,7 @@ export default function DocumentDetailPage() {
   const [linkedPayments, setLinkedPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const { hasEdit } = usePermissions("documents");
 
   const fetchDoc = useCallback(async () => {
     if (!id) return;
@@ -469,26 +471,32 @@ export default function DocumentDetailPage() {
               <h1 className="text-xl font-bold text-foreground">
                 {doc.document_name || supplierName || "מסמך"} {productName ? `— ${productName}` : ""}
               </h1>
-            <Popover>
-              <PopoverTrigger asChild>
-                <button className={cn("px-3 py-1 rounded-full text-xs font-medium cursor-pointer", docStatusColors[doc.status] || "bg-muted text-muted-foreground")}>
-                  {doc.status}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-1" align="start">
-                <div className="flex flex-col gap-0.5">
-                  {docStatusFlow.map(s => (
-                    <button
-                      key={s}
-                      onClick={() => handleStatusChange(s)}
-                      className={cn("px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted", doc.status === s && "bg-muted")}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+            {hasEdit ? (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className={cn("px-3 py-1 rounded-full text-xs font-medium cursor-pointer", docStatusColors[doc.status] || "bg-muted text-muted-foreground")}>
+                    {doc.status}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-1" align="start">
+                  <div className="flex flex-col gap-0.5">
+                    {docStatusFlow.map(s => (
+                      <button
+                        key={s}
+                        onClick={() => handleStatusChange(s)}
+                        className={cn("px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted", doc.status === s && "bg-muted")}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            ) : (
+              <span className={cn("px-3 py-1 rounded-full text-xs font-medium", docStatusColors[doc.status] || "bg-muted text-muted-foreground")}>
+                {doc.status}
+              </span>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -631,35 +639,39 @@ export default function DocumentDetailPage() {
                 <Button variant="ghost" size="sm" onClick={handleDownloadFile} className="text-primary hover:text-primary">
                   <Download className="h-4 w-4 ml-1" />הורד
                 </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10">
-                      <Trash2 className="h-4 w-4 ml-1" />מחק
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogTitle>מחיקת קובץ</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      האם אתה בטוח שברצונך למחוק את הקובץ המצורף? פעולה זו לא ניתנת לביטול.
-                    </AlertDialogDescription>
-                    <div className="flex gap-2 justify-end">
-                      <AlertDialogCancel>ביטול</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleRemoveFile}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        מחק
-                      </AlertDialogAction>
-                    </div>
-                  </AlertDialogContent>
-                </AlertDialog>
+                {hasEdit && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                        <Trash2 className="h-4 w-4 ml-1" />מחק
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogTitle>מחיקת קובץ</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        האם אתה בטוח שברצונך למחוק את הקובץ המצורף? פעולה זו לא ניתנת לביטול.
+                      </AlertDialogDescription>
+                      <div className="flex gap-2 justify-end">
+                        <AlertDialogCancel>ביטול</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleRemoveFile}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          מחק
+                        </AlertDialogAction>
+                      </div>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
               </div>
-            ) : (
+            ) : hasEdit ? (
               <label className="flex items-center gap-2 border border-dashed rounded-lg p-4 cursor-pointer hover:bg-muted/30 transition-colors">
                 {uploading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : <Upload className="h-5 w-5 text-muted-foreground" />}
                 <span className="text-sm text-muted-foreground">{uploading ? "מעלה..." : "העלה קובץ (PDF, Word, Excel, תמונה)"}</span>
                 <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt,.csv" className="hidden" onChange={handleFileUpload} disabled={uploading} />
               </label>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">אין קובץ מצורף</p>
             )}
           </div>
         </div>
@@ -683,7 +695,7 @@ export default function DocumentDetailPage() {
       <div className="bg-card rounded-xl border shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-foreground">מצב מסמך</h2>
-          {currentStepIdx >= 0 && currentStepIdx < docStatusFlow.length - 1 && (
+          {hasEdit && currentStepIdx >= 0 && currentStepIdx < docStatusFlow.length - 1 && (
             <Button size="sm" onClick={() => handleStatusChange(docStatusFlow[currentStepIdx + 1])}>
               <Check className="h-4 w-4 ml-1" />קדם ל: {docStatusFlow[currentStepIdx + 1]}
             </Button>
@@ -740,7 +752,7 @@ export default function DocumentDetailPage() {
                         </span>
                       </td>
                       <td className="p-3">
-                        {p.status !== "שולם" && (
+                        {hasEdit && p.status !== "שולם" && (
                           <Button variant="outline" size="sm" onClick={async () => {
                             await supabase.from("supplier_payments").update({ status: "שולם", paid_date: new Date().toISOString().split("T")[0] }).eq("id", p.id);
                             toast.success("סומן כשולם");

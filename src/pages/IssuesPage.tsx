@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
 import { useData } from "@/contexts/AppContext";
 import { useNavigate } from "react-router-dom";
@@ -37,6 +38,7 @@ const statusColors: Record<string, string> = {
 
 export default function IssuesPage() {
   const { products, suppliers } = useData();
+  const { hasEdit } = usePermissions("issues");
   const navigate = useNavigate();
   const [issues, setIssues] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,9 +149,11 @@ export default function IssuesPage() {
           <Wrench className="h-6 w-6 text-primary" />
           תקלות
         </h1>
-        <Button onClick={() => { setNewIssueProductId(""); setNewIssueOpen(true); }}>
-          <Plus className="h-4 w-4 ml-2" />פתח תקלה
-        </Button>
+        {hasEdit && (
+          <Button onClick={() => { setNewIssueProductId(""); setNewIssueOpen(true); }}>
+            <Plus className="h-4 w-4 ml-2" />פתח תקלה
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-3">

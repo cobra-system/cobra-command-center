@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth, useData } from "@/contexts/AppContext";
+import { canView, getModuleKeyFromRoute } from "@/lib/permissions";
 import {
   LayoutDashboard,
   Package,
@@ -65,7 +66,7 @@ function getStoredOrder(): typeof defaultNavItems {
 
 export default function ManagerLayout() {
   const { currentUser, logout } = useAuth();
-  const { tasks } = useData();
+  const { tasks, currentUserPermissions } = useData();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -73,6 +74,13 @@ export default function ManagerLayout() {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
+  const isManager = currentUser?.role === "MANAGER";
+  const visibleNavItems = navItems.filter((item) => {
+    if (isManager) return true;
+    if (item.to === "/settings") return false;
+    const moduleKey = getModuleKeyFromRoute(item.to);
+    return moduleKey ? canView(currentUserPermissions, moduleKey) : false;
+  });
   const pendingCount = tasks.filter(t => t.status !== "DONE").length;
 
   const handleLogout = () => {
@@ -145,7 +153,7 @@ export default function ManagerLayout() {
 
         {/* Navigation */}
         <nav className={`flex-1 overflow-y-auto py-3 ${collapsed ? "px-2" : "px-3"} space-y-0.5 scrollbar-thin scrollbar-thumb-border/50 scrollbar-track-transparent`}>
-          {navItems.map((item, index) => {
+          {visibleNavItems.map((item, index) => {
             const Icon = iconMap[item.icon] || Package;
             return (
               <div

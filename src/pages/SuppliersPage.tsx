@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import SupplierEmailTab from "@/components/SupplierEmailTab";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
+import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -78,6 +79,7 @@ function detectDuplicates(suppliers: Supplier[]): DuplicateGroup[] {
 export default function SuppliersPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const { hasEdit } = usePermissions("suppliers");
   const { suppliers, addSupplier, updateSupplier, deleteSupplier, refreshSuppliers } = useData();
   const [search, setSearch] = useState("");
   const [emailSupplier, setEmailSupplier] = useState<{ id: string; company: string; email: string | null } | null>(null);
@@ -151,7 +153,7 @@ export default function SuppliersPage() {
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="חיפוש ספק..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
           </div>
-          {currentUser?.role === "MANAGER" && (
+          {hasEdit && (
             <>
               {duplicateGroups.length > 0 && (
                 <Button size="sm" variant="outline" onClick={() => setMergeOpen(true)}>

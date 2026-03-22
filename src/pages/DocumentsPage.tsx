@@ -12,6 +12,7 @@ import PaymentsTable from "@/components/documents/PaymentsTable";
 import ComplianceTab from "@/components/documents/ComplianceTab";
 import SimpleFileUploadDialog from "@/components/documents/SimpleFileUploadDialog";
 import PaymentFormDialog from "@/components/documents/PaymentFormDialog";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export default function DocumentsPage() {
   const [docs, setDocs] = useState<PurchaseDocument[]>([]);
@@ -23,6 +24,7 @@ export default function DocumentsPage() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const { hasEdit } = usePermissions("documents");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -48,12 +50,12 @@ export default function DocumentsPage() {
           <h1 className="text-2xl font-bold text-foreground">מסמכים</h1>
         </div>
         <div className="flex gap-2">
-          {tab === "documents" && (
+          {hasEdit && tab === "documents" && (
             <Button onClick={() => setUploadDialogOpen(true)}>
               <Upload className="h-4 w-4 ml-1" />העלה מסמך
             </Button>
           )}
-          {tab === "payments" && (
+          {hasEdit && tab === "payments" && (
             <Button onClick={() => setPayDialogOpen(true)}>
               <CreditCard className="h-4 w-4 ml-1" />תשלום חדש
             </Button>

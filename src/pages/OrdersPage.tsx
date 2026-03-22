@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useData, useAuth, type Priority, type OrderStatus } from "@/contexts/AppContext";
+import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { Plus, Trash2, Copy, Search, ArrowUpDown, ArrowUp, ArrowDown, Zap, CheckCircle } from "lucide-react";
@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/usePermissions";
 import { NewOrderDialog } from "@/components/orders/NewOrderDialog";
 import { OrdersDashboardView } from "@/components/orders/OrdersDashboardView";
 import { supabase } from "@/lib/supabase";
@@ -51,11 +52,10 @@ interface WorkflowInfo {
 
 export default function OrdersPage() {
   const { orders, updateOrderStatus, updateOrder, addOrder, deleteOrder, suppliers, products } = useData();
-  const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [orderWorkflows, setOrderWorkflows] = useState<Record<string, WorkflowInfo>>({});
-  const isManager = currentUser?.role === "MANAGER";
+  const { hasEdit } = usePermissions("orders");
   const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
   const [defaultProductId, setDefaultProductId] = useState<string | undefined>();
   const [defaultSupplierId, setDefaultSupplierId] = useState<string | undefined>();
@@ -366,12 +366,12 @@ export default function OrdersPage() {
               <ThButton field="payment">תשלום</ThButton>
               <ThButton field="workflow">תהליך</ThButton>
               <th className="text-right p-3 font-semibold text-foreground w-10"></th>
-              {isManager && <th className="text-right p-3 font-semibold text-foreground w-10"></th>}
+              {hasEdit && <th className="text-right p-3 font-semibold text-foreground w-10"></th>}
             </tr>
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={isManager ? 14 : 13} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
+              <tr><td colSpan={hasEdit ? 14 : 13} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
             ) : filtered.map((order) => (
               <tr key={order.id} className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={(e) => { if (e.detail !== 1) return; navigate(`/orders/${order.id}`); }} data-navigate-to={`/orders/${order.id}`}>
                 <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
@@ -534,7 +534,7 @@ export default function OrdersPage() {
                     <Copy className="h-3.5 w-3.5 text-muted-foreground" />
                   </button>
                 </td>
-                {isManager && (
+                {hasEdit && (
                   <td className="p-3" onClick={e => e.stopPropagation()}>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>

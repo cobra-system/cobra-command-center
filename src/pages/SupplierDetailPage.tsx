@@ -13,6 +13,7 @@ import DocumentsSection from "@/components/DocumentsSection";
 import ProductFormDialog from "@/components/products/ProductFormDialog";
 import { InlineEditField } from "@/components/InlineEditField";
 import SapSyncBadge from "@/components/SapSyncBadge";
+import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -21,6 +22,7 @@ export default function SupplierDetailPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { suppliers, orders, products, updateSupplier, deleteSupplier, refreshSuppliers, updateProduct } = useData();
+  const { hasEdit } = usePermissions("suppliers");
 
   const [editOpen, setEditOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -46,7 +48,6 @@ export default function SupplierDetailPage() {
     );
   }
 
-  const isManager = currentUser?.role === "MANAGER";
   const relatedOrders = orders.filter(o => o.supplier_id === supplier.id || o.supplier_name === supplier.company);
 
   // Filter products by supplier_id (preferred) or supplier name (fallback)
@@ -165,7 +166,7 @@ export default function SupplierDetailPage() {
             <SapSyncBadge sapCode={(supplier as any).sap_code} />
           </div>
         </div>
-        {isManager && (
+        {hasEdit && (
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4 ml-1" />עריכה</Button>
             <Button variant="destructive" size="sm" onClick={() => setDeleteConfirm(true)}><Trash2 className="h-4 w-4 ml-1" />מחיקה</Button>
@@ -177,12 +178,12 @@ export default function SupplierDetailPage() {
       <div className="bg-card rounded-xl border shadow-sm p-5">
         <h2 className="text-lg font-semibold text-foreground mb-4">פרטי קשר</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          <InlineEditField label="איש קשר ראשי" value={supplier.contact_name} onSave={(v) => handleInlineSave("contact_name", v)} disabled={!isManager} />
+          <InlineEditField label="איש קשר ראשי" value={supplier.contact_name} onSave={(v) => handleInlineSave("contact_name", v)} disabled={!hasEdit} />
           <InlineEditField
             label="אימייל"
             value={supplier.email}
             onSave={(v) => handleInlineSave("email", v)}
-            disabled={!isManager}
+            disabled={!hasEdit}
             displayValue={supplier.email ? (
               <a href={`mailto:${supplier.email}`} className="text-sm text-accent hover:underline flex items-center gap-1" dir="ltr">
                 <Mail className="h-3 w-3" />{supplier.email}
@@ -193,7 +194,7 @@ export default function SupplierDetailPage() {
             label="טלפון"
             value={supplier.phone}
             onSave={(v) => handleInlineSave("phone", v)}
-            disabled={!isManager}
+            disabled={!hasEdit}
             displayValue={supplier.phone ? (
               <a href={`tel:${supplier.phone}`} className="text-sm text-accent hover:underline flex items-center gap-1" dir="ltr">
                 <Phone className="h-3 w-3" />{supplier.phone}
@@ -204,7 +205,7 @@ export default function SupplierDetailPage() {
             label="אתר"
             value={supplier.website}
             onSave={(v) => handleInlineSave("website", v)}
-            disabled={!isManager}
+            disabled={!hasEdit}
             displayValue={supplier.website ? (
               <a href={supplier.website.startsWith("http") ? supplier.website : `https://${supplier.website}`} target="_blank" rel="noopener noreferrer" className="text-sm text-accent hover:underline flex items-center gap-1" dir="ltr">
                 <Globe className="h-3 w-3" />{supplier.website}
@@ -213,17 +214,17 @@ export default function SupplierDetailPage() {
           />
         </div>
         <div className="mt-4 pt-4 border-t grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <InlineEditField label="מדינה" value={supplier.country} onSave={(v) => handleInlineSave("country", v)} disabled={!isManager} />
-          <InlineEditField label="תנאי תשלום" value={supplier.payment_terms} onSave={(v) => handleInlineSave("payment_terms", v)} disabled={!isManager} />
-          <InlineEditField label="מוצרים" value={supplier.products} onSave={(v) => handleInlineSave("products", v)} disabled={!isManager} />
-          <InlineEditField label="הערות" value={supplier.notes} onSave={(v) => handleInlineSave("notes", v)} disabled={!isManager} />
+          <InlineEditField label="מדינה" value={supplier.country} onSave={(v) => handleInlineSave("country", v)} disabled={!hasEdit} />
+          <InlineEditField label="תנאי תשלום" value={supplier.payment_terms} onSave={(v) => handleInlineSave("payment_terms", v)} disabled={!hasEdit} />
+          <InlineEditField label="מוצרים" value={supplier.products} onSave={(v) => handleInlineSave("products", v)} disabled={!hasEdit} />
+          <InlineEditField label="הערות" value={supplier.notes} onSave={(v) => handleInlineSave("notes", v)} disabled={!hasEdit} />
         </div>
         <div className="mt-4 pt-4 border-t grid grid-cols-1 sm:grid-cols-3 gap-4">
           <InlineEditField
             label="רמת סיכון"
             value={supplier.risk_level}
             onSave={(v) => handleInlineSave("risk_level", v)}
-            disabled={!isManager}
+            disabled={!hasEdit}
             displayValue={supplier.risk_level ? (
               <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                 supplier.risk_level === "low" ? "bg-success/15 text-success" :
@@ -238,14 +239,14 @@ export default function SupplierDetailPage() {
             label="זמן הובלה (ימים)"
             value={supplier.lead_time_days?.toString()}
             onSave={(v) => handleInlineSave("lead_time_days", v)}
-            disabled={!isManager}
+            disabled={!hasEdit}
             displayValue={supplier.lead_time_days ? `${supplier.lead_time_days} ימים` : "—"}
           />
           <InlineEditField
             label="ספק גיבוי"
             value={supplier.backup_supplier_id}
             onSave={(v) => handleInlineSave("backup_supplier_id", v)}
-            disabled={!isManager}
+            disabled={!hasEdit}
             displayValue={supplier.backup_supplier_id ? (
               <button
                 onClick={() => {
@@ -263,14 +264,14 @@ export default function SupplierDetailPage() {
       </div>
 
       {/* Additional Contacts */}
-      {(contacts.length > 0 || isManager) && (
+      {(contacts.length > 0 || hasEdit) && (
         <div className="bg-card rounded-xl border shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold text-foreground">אנשי קשר ({contacts.length})</h2>
             </div>
-            {isManager && (
+            {hasEdit && (
               <Button variant="outline" size="sm" onClick={() => { setNewContact({ name: "", role: "", email: "", phone: "" }); setAddContactOpen(true); }}>
                 <UserPlus className="h-4 w-4 ml-1" />הוסף איש קשר
               </Button>
@@ -302,7 +303,7 @@ export default function SupplierDetailPage() {
                       ) : <p className="text-sm text-muted-foreground">—</p>}
                     </div>
                   </div>
-                  {isManager && (
+                  {hasEdit && (
                     <div className="flex items-center gap-1">
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => openEditContact(contact)}>
                         <Pencil className="h-3.5 w-3.5" />
@@ -325,7 +326,7 @@ export default function SupplierDetailPage() {
       <div className="bg-card rounded-xl border shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">מוצרים משויכים ({relatedProducts.length + componentProducts.length})</h2>
-          {isManager && (
+          {hasEdit && (
             <Button size="sm" variant="outline" onClick={() => setLinkProductOpen(true)}>
               <Link2 className="h-3.5 w-3.5 ml-1" />שייך מוצר
             </Button>
@@ -371,7 +372,7 @@ export default function SupplierDetailPage() {
       <div className="bg-card rounded-xl border shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2"><TruckIcon className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">היסטוריית הזמנות ({relatedOrders.length})</h2></div>
-          {isManager && (
+          {hasEdit && (
             <Button size="sm" variant="outline" onClick={() => navigate(`/orders?newOrder=true&supplierId=${supplier.id}`)} data-navigate-to={`/orders?newOrder=true&supplierId=${supplier.id}`}>
               <Plus className="h-3.5 w-3.5 ml-1" />הוסף הזמנה
             </Button>
