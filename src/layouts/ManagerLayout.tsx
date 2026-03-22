@@ -111,7 +111,7 @@ export default function ManagerLayout() {
         bg-card/95 backdrop-blur-xl border-l rtl:border-l-0 rtl:border-r border-border/50
         transition-all duration-300 ease-out
         ${collapsed ? "w-[72px]" : "w-[280px]"}
-        ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+        ${sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
       `}>
         {/* Logo area */}
         <div className={`h-16 flex items-center border-b border-border/50 ${collapsed ? "justify-center px-2" : "px-5 justify-between"}`}>
@@ -200,7 +200,7 @@ export default function ManagerLayout() {
             onClick={() => setCollapsed(!collapsed)}
             className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-muted/60 transition-colors"
           >
-            <ChevronLeft className={`h-4 w-4 transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`} />
+            <ChevronLeft className={`h-4 w-4 transition-transform duration-300 ${collapsed ? "rotate-180 rtl:rotate-0" : "rtl:rotate-180"}`} />
           </button>
         </div>
 
