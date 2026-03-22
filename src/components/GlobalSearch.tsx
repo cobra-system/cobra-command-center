@@ -112,16 +112,16 @@ export default function GlobalSearch() {
   return (
     <div ref={ref} className="relative px-3 mb-2">
       <div className="relative">
-        <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-sidebar-foreground/40" />
+        <Search className="absolute start-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-sidebar-foreground/40" />
         <Input
           value={query}
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
           placeholder="חיפוש..."
-          className="pr-8 pl-7 h-8 text-xs bg-sidebar-accent/50 border-sidebar-border text-sidebar-foreground placeholder:text-sidebar-foreground/40 focus-visible:ring-primary/50"
+          className="ps-8 pe-7 h-8 text-xs bg-sidebar-accent/50 border-sidebar-border text-sidebar-foreground placeholder:text-sidebar-foreground/40 focus-visible:ring-primary/50"
         />
         {query && (
-          <button onClick={() => { setQuery(""); setOpen(false); }} className="absolute left-2 top-1/2 -translate-y-1/2 text-sidebar-foreground/40 hover:text-sidebar-foreground">
+          <button onClick={() => { setQuery(""); setOpen(false); }} className="absolute end-2 top-1/2 -translate-y-1/2 text-sidebar-foreground/40 hover:text-sidebar-foreground">
             <X className="h-3.5 w-3.5" />
           </button>
         )}
@@ -136,7 +136,7 @@ export default function GlobalSearch() {
               <button
                 key={`${r.type}-${r.id}`}
                 onClick={() => handleSelect(r)}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-right hover:bg-accent transition-colors text-sm"
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-end hover:bg-accent transition-colors text-sm"
               >
                 <Icon className={`h-4 w-4 shrink-0 ${cfg.color}`} />
                 <div className="flex-1 min-w-0">

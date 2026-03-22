@@ -12,7 +12,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { NewOrderDialog } from "@/components/orders/NewOrderDialog";
-import { OrdersMapView } from "@/components/orders/OrdersMapView";
 import { OrdersDashboardView } from "@/components/orders/OrdersDashboardView";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -276,7 +275,7 @@ export default function OrdersPage() {
 
   const ThButton = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
     <th className="text-right p-3 font-semibold text-foreground">
-      <button onClick={() => toggleSort(field)} className="flex items-center gap-1 hover:text-primary transition-colors">
+      <button onClick={() => toggleSort(field)} className="flex flex-row-reverse items-center gap-1 hover:text-primary transition-colors">
         {children}
         <SortIcon field={field} />
       </button>
@@ -302,15 +301,10 @@ export default function OrdersPage() {
         <TabsList>
           <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>
           <TabsTrigger value="table">טבלת הזמנות</TabsTrigger>
-          <TabsTrigger value="map">Kanban</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-0">
           <OrdersDashboardView orders={filtered} orderWorkflows={orderWorkflows} suppliers={suppliers} />
-        </TabsContent>
-
-        <TabsContent value="map" className="mt-0">
-          <OrdersMapView orders={filtered} orderWorkflows={orderWorkflows} suppliers={suppliers} />
         </TabsContent>
 
         <TabsContent value="table" className="mt-0 space-y-4">
@@ -318,8 +312,8 @@ export default function OrdersPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="חיפוש לפי מוצר או ספק..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
+          <Search className="absolute left-3 rtl:left-auto rtl:right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="חיפוש לפי מוצר או ספק..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9 rtl:pr-0 rtl:pl-9" />
         </div>
         <div className="flex bg-secondary rounded-lg p-1">
           {statusFilterOptions.map(s => (
