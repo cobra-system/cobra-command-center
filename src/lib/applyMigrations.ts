@@ -7,7 +7,7 @@
 import { supabase } from "@/lib/supabase";
 
 const MIGRATION_KEY = "cobra_migrations_applied"
-const CURRENT_VERSION = "20260319_workflow_updates"
+const CURRENT_VERSION = "20260322_task_depends_on"
 
 const INTERNATIONAL_TEMPLATE_ID = "b5a990c9-579d-4d9f-8e9a-90a8856ad00b";
 const ISRAEL_TEMPLATE_ID = "c7b881d0-68ae-4e0a-9f1b-a1b9967be11c";
@@ -129,6 +129,17 @@ export async function applyMigrations() {
     // Migration 2: Update workflow templates and fix Israeli orders
     await migrateWorkflowTemplates();
     await fixIsraeliOrderWorkflows();
+
+    // Migration 3: Add depends_on column to tasks
+    if (applied !== CURRENT_VERSION) {
+      try {
+        await supabase.rpc("exec_sql" as any, {
+          sql: "ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS depends_on uuid[] DEFAULT '{}';"
+        });
+      } catch {
+        console.warn("depends_on column may need to be added via Supabase dashboard");
+      }
+    }
 
     localStorage.setItem(MIGRATION_KEY, CURRENT_VERSION)
     console.log("✅ All migrations applied successfully")

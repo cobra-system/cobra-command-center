@@ -125,6 +125,7 @@ export interface Task {
   notes?: string | null;
   is_daily: boolean;
   recurring_task_id?: string | null;
+  depends_on?: string[] | null;
 }
 
 interface AuthState {
