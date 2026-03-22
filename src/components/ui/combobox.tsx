@@ -51,8 +51,8 @@ export function Combobox({
             className
           )}
         >
-          <span className="truncate text-right flex-1">{selected ? selected.label : placeholder}</span>
-          <ChevronsUpDown className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+          <span className="truncate text-end flex-1">{selected ? selected.label : placeholder}</span>
+          <ChevronsUpDown className="ms-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -76,7 +76,7 @@ export function Combobox({
                 >
                   <Check
                     className={cn(
-                      "ml-2 h-4 w-4 shrink-0",
+                      "ms-2 h-4 w-4 shrink-0",
                       value === option.value ? "opacity-100" : "opacity-0"
                     )}
                   />
