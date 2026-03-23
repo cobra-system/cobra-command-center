@@ -1,5 +1,3 @@
-import type { Role } from "@/contexts/AppContext";
-
 export type PermissionLevel = "none" | "view" | "edit";
 export type RolePermissions = Record<string, PermissionLevel>;
 
