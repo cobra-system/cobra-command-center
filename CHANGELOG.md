@@ -11,9 +11,14 @@
 
 ## [2026-03-23]
 
+- fix: remove unused circular import in permissions.ts causing TDZ error (9dbd1a8)
+
+<!-- last-commit: 282c162d38dbb75772ca953ba6f0e56ca5192707 -->
+
+## [2026-03-23]
+
 - fix: move advanceOverdueTasks declaration before its useEffect usage (24554c4)
 
-<!-- last-commit: 0a8784f5f83ff4da322f34fb8695d0ad17ec226d -->
 
 ## [2026-03-23]
 
