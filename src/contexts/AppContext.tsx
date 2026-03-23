@@ -378,7 +378,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       await refreshRolePermissions();
     } catch (err) {
-      toast.error("שגיאה בעדכון הרשאות: " + (err instanceof Error ? err.message : "נסה שוב"));
+      toast.error("שגיאה בעדכון הרשאות: " + ((err as any)?.message || "נסה שוב"));
     }
   }, [refreshRolePermissions]);
 
