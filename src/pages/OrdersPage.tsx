@@ -284,7 +284,7 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-3">
         <h1 className="text-2xl font-bold text-foreground">הזמנות</h1>
         <NewOrderDialog
           suppliers={suppliers}
@@ -349,7 +349,7 @@ export default function OrdersPage() {
         </Select>
       </div>
 
-      <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
+      <div className="bg-card rounded-xl border shadow-sm overflow-x-auto" dir="rtl">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">

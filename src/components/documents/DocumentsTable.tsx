@@ -144,7 +144,7 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
         </Select>
       </div>
 
-      <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
+      <div className="bg-card rounded-xl border shadow-sm overflow-x-auto" dir="rtl">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
