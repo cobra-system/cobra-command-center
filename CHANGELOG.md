@@ -11,10 +11,15 @@
 
 ## [2026-03-23]
 
+- fix: move advanceOverdueTasks declaration before its useEffect usage (24554c4)
+
+<!-- last-commit: 0a8784f5f83ff4da322f34fb8695d0ad17ec226d -->
+
+## [2026-03-23]
+
 - Merge pull request #41 from cobra-system/claude/add-order-fields-OFuGZ (98ab3e4)
 - Add missing order fields to MCP tools (order_date, total_price, payment_status, payment_date, contact_name, supplier_name) (b6ebe73)
 
-<!-- last-commit: 98ab3e47c98a258286f8e3bef53b8019d0d4977d -->
 
 ## [2026-03-23]
 
