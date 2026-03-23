@@ -11,10 +11,15 @@
 
 ## [2026-03-23]
 
+- Fix permissions editing: surface Supabase errors and add WITH CHECK to UPDATE policy (de68f71)
+
+<!-- last-commit: eef7da6b6f70fd5672910cfc5dc1f7493787d1c8 -->
+
+## [2026-03-23]
+
 - feat: add goals DB table and management UI for Gantt view (eb46c3e)
 - feat: grouped Gantt view by goals (מטרת-על) with colored categories (5306009)
 
-<!-- last-commit: ee971b0ad58e3d930529741c91a59a6a35e37ba2 -->
 
 ## [2026-03-23]
 
