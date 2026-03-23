@@ -11,9 +11,15 @@
 
 ## [2026-03-23]
 
+- Merge pull request #46 from cobra-system/claude/fix-goal-creation-gkDNg (f3a582a)
+- fix: apply goals table migration at runtime to resolve schema cache error (80c0ef6)
+
+<!-- last-commit: f3a582a8abf1d19094170f797f06c97b6af1037c -->
+
+## [2026-03-23]
+
 - Fix permissions editing: surface Supabase errors and add WITH CHECK to UPDATE policy (de68f71)
 
-<!-- last-commit: eef7da6b6f70fd5672910cfc5dc1f7493787d1c8 -->
 
 ## [2026-03-23]
 
