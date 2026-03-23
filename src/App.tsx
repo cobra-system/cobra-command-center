@@ -30,6 +30,7 @@ import InventoryPage from "@/pages/InventoryPage";
 
 import NotFound from "@/pages/NotFound";
 import IssuesPage from "@/pages/IssuesPage";
+import MeetingsPage from "@/pages/MeetingsPage";
 const queryClient = new QueryClient();
 
 function RequireManager() {
@@ -72,6 +73,7 @@ function AppRoutes() {
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/recurring-tasks" element={<Navigate to="/tasks" replace />} />
         <Route path="/issues" element={<IssuesPage />} />
+        <Route path="/meetings" element={<MeetingsPage />} />
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/workflows" element={<Navigate to="/tasks" replace />} />
         <Route path="/documents" element={<DocumentsPage />} />
