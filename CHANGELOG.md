@@ -11,9 +11,15 @@
 
 ## [2026-03-23]
 
+- Merge pull request #44 from cobra-system/claude/meeting-participants-documents-KqQwI (d15ff19)
+- feat: structured meeting participants + document upload (9357bcb)
+
+<!-- last-commit: d15ff190e4e0e6072926f3f7ad8d0d009894e75a -->
+
+## [2026-03-23]
+
 - fix: remove unused circular import in permissions.ts causing TDZ error (9dbd1a8)
 
-<!-- last-commit: 282c162d38dbb75772ca953ba6f0e56ca5192707 -->
 
 ## [2026-03-23]
 
