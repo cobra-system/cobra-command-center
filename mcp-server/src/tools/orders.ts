@@ -9,10 +9,11 @@ export function registerOrderTools(server: McpServer) {
     {
       status: z.string().optional().describe("Filter by status"),
       supplier_id: z.string().uuid().optional().describe("Filter by supplier UUID"),
+      supplier_name: z.string().optional().describe("Filter by supplier name (partial match)"),
       priority: z.string().optional().describe("Filter by priority"),
       limit: z.number().default(50).describe("Max results"),
     },
-    async ({ status, supplier_id, priority, limit }) => {
+    async ({ status, supplier_id, supplier_name, priority, limit }) => {
       let query = supabase
         .from("orders")
         .select("*")
@@ -21,6 +22,7 @@ export function registerOrderTools(server: McpServer) {
 
       if (status) query = query.eq("status", status);
       if (supplier_id) query = query.eq("supplier_id", supplier_id);
+      if (supplier_name) query = query.ilike("supplier_name", `%${supplier_name}%`);
       if (priority) query = query.eq("priority", priority);
 
       const { data, error } = await query;
@@ -56,9 +58,13 @@ export function registerOrderTools(server: McpServer) {
     "יצירת הזמנה חדשה — Create a new order",
     {
       supplier_id: z.string().uuid().optional().describe("Supplier UUID"),
-      supplier_name: z.string().optional().describe("Supplier name"),
+      supplier_name: z.string().optional().describe("Supplier name (auto-filled from supplier_id if omitted)"),
       status: z.string().default("חדשה").describe("Order status"),
       priority: z.string().default("רגיל").describe("Order priority"),
+      order_date: z.string().optional().describe("Order date (YYYY-MM-DD)"),
+      total_price: z.number().optional().describe("Total order price"),
+      contact_name: z.string().optional().describe("Contact person name"),
+      payment_status: z.string().optional().describe("Payment status (ממתין / שולם פיקדון / שולם)"),
       notes: z.string().optional().describe("Order notes"),
       eta: z.string().optional().describe("Estimated arrival date (YYYY-MM-DD)"),
       etd: z.string().optional().describe("Estimated departure date (YYYY-MM-DD)"),
@@ -69,14 +75,24 @@ export function registerOrderTools(server: McpServer) {
         price: z.number().optional().describe("Unit price"),
       })).optional().describe("Order line items"),
     },
-    async ({ supplier_id, supplier_name, status, priority, notes, eta, etd, items }) => {
+    async ({ supplier_id, supplier_name, status, priority, order_date, total_price, contact_name, payment_status, notes, eta, etd, items }) => {
+      let resolvedSupplierName = supplier_name || null;
+      if (supplier_id && !supplier_name) {
+        const { data: sup } = await supabase.from("suppliers").select("company").eq("id", supplier_id).single();
+        if (sup) resolvedSupplierName = sup.company;
+      }
+
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .insert({
           supplier_id: supplier_id || null,
-          supplier_name: supplier_name || null,
+          supplier_name: resolvedSupplierName,
           status,
           priority,
+          order_date: order_date || null,
+          total_price: total_price ?? null,
+          contact_name: contact_name || null,
+          payment_status: payment_status || null,
           notes: notes || null,
           eta: eta || null,
           etd: etd || null,
@@ -115,6 +131,12 @@ export function registerOrderTools(server: McpServer) {
       id: z.string().uuid().describe("Order UUID"),
       status: z.string().optional().describe("New status"),
       priority: z.string().optional().describe("New priority"),
+      order_date: z.string().optional().describe("Order date (YYYY-MM-DD)"),
+      total_price: z.number().optional().describe("Total order price"),
+      payment_status: z.string().optional().describe("Payment status (ממתין / שולם פיקדון / שולם)"),
+      payment_date: z.string().optional().describe("Payment date (YYYY-MM-DD)"),
+      contact_name: z.string().optional().describe("Contact person name"),
+      supplier_name: z.string().optional().describe("Supplier name"),
       notes: z.string().optional().describe("Updated notes"),
       eta: z.string().optional().describe("Updated ETA (YYYY-MM-DD)"),
       etd: z.string().optional().describe("Updated ETD (YYYY-MM-DD)"),
