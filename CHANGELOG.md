@@ -11,6 +11,17 @@
 
 ## [2026-03-23]
 
+- Merge pull request #40 from cobra-system/claude/update-readme-changelog-q9Rr1 (4eef836)
+- Merge pull request #39 from cobra-system/claude/auto-advance-overdue-tasks-BwIyv (08e4779)
+- Merge pull request #38 from cobra-system/claude/product-linking-drag-drop-hJABb (bf3d57c)
+- docs: update README and add CHANGELOG with auto-update workflow (95c8bfd)
+- Implement auto-advance overdue tasks feature (e1eb732)
+- feat: add multiple product linking and drag-drop file upload (b6ea5b5)
+
+<!-- last-commit: 4eef83694adf1e3e9c971b0ce98e03d5c32158ff -->
+
+## [2026-03-23]
+
 ### נוסף
 - **פגישות:** עמוד ניהול פגישות עם פרוטוקולים ופריטי פעולה (#37)
 - **מחיקת מוצר:** אפשרות מחיקת מוצר מתיק המוצר (#36)
@@ -107,4 +118,3 @@
 - 12 Edge Functions לשירותים שונים
 - תמיכת RTL מלאה לממשק עברי
 
-<!-- last-commit: b423bc7 -->
