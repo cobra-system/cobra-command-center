@@ -85,6 +85,8 @@ export default function OrderDetailPage() {
       updates.supplier_id = value || null;
       const s = suppliers.find(s => s.id === value);
       updates.supplier_name = s?.company || null;
+    } else if (field === "tracking_number") {
+      updates[field] = value || null;
     } else {
       updates[field] = value || null;
     }
@@ -216,6 +218,7 @@ export default function OrderDetailPage() {
     { label: "ספק", field: "supplier_id", value: order.supplier_id, options: supplierOptions, isSupplierLink: true, icon: Truck },
     { label: "סה״כ ($)", field: "total_price", value: order.total_price?.toString() ?? "", icon: DollarSign, isReadOnly: true },
     { label: "שיטת משלוח", field: "shipping", value: order.shipping, options: shippingOptions, icon: Ship },
+    { label: "מספר מעקב", field: "tracking_number", value: order.tracking_number, icon: Hash },
     { label: "הערות", field: "notes", value: order.notes, icon: FileText },
   ];
 

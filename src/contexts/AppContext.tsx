@@ -99,6 +99,7 @@ export interface Order {
   total_price?: number | null;
   contact_name?: string | null;
   notes?: string | null;
+  tracking_number?: string | null;
   items: OrderItem[];
 }
 
