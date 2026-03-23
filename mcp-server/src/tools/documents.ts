@@ -227,4 +227,45 @@ export function registerDocumentTools(server: McpServer) {
       return { content: [{ type: "text" as const, text: "Document deleted successfully" }] };
     }
   );
+
+  server.tool(
+    "attach_document_to_order",
+    "צירוף מסמך להזמנה — Link an existing document (PI/PO) to an order",
+    {
+      document_id: z.string().uuid().describe("Document UUID"),
+      order_id: z.string().uuid().describe("Order UUID to attach to"),
+    },
+    async ({ document_id, order_id }) => {
+      const { data, error } = await supabase
+        .from("purchase_documents")
+        .update({ order_id })
+        .eq("id", document_id)
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Document attached to order:\n${JSON.stringify(data, null, 2)}` }] };
+    }
+  );
+
+  server.tool(
+    "list_order_documents",
+    "הצגת מסמכים מצורפים להזמנה — List all documents attached to an order",
+    {
+      order_id: z.string().uuid().describe("Order UUID"),
+    },
+    async ({ order_id }) => {
+      const { data, error } = await supabase
+        .from("purchase_documents")
+        .select("*")
+        .eq("order_id", order_id)
+        .order("created_at", { ascending: false });
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      if (!data || data.length === 0) {
+        return { content: [{ type: "text" as const, text: `No documents found for order ${order_id}` }] };
+      }
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
 }

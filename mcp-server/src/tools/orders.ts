@@ -228,4 +228,127 @@ export function registerOrderTools(server: McpServer) {
       return { content: [{ type: "text" as const, text: `Order item removed successfully` }] };
     }
   );
+
+  server.tool(
+    "search_orders",
+    "חיפוש הזמנות — Search orders by supplier, status, date range, or product name",
+    {
+      supplier_name: z.string().optional().describe("Partial supplier name match"),
+      status: z.string().optional().describe("Filter by order status"),
+      date_from: z.string().optional().describe("Start date for order_date range (YYYY-MM-DD)"),
+      date_to: z.string().optional().describe("End date for order_date range (YYYY-MM-DD)"),
+      product_name: z.string().optional().describe("Search for orders containing a product (partial name match)"),
+      limit: z.number().default(50).describe("Max results"),
+    },
+    async ({ supplier_name, status, date_from, date_to, product_name, limit }) => {
+      // If searching by product name, first find matching order IDs
+      let orderIdFilter: string[] | null = null;
+      if (product_name) {
+        const { data: items } = await supabase
+          .from("order_items")
+          .select("order_id")
+          .ilike("name", `%${product_name}%`);
+        orderIdFilter = [...new Set((items || []).map((i: { order_id: string }) => i.order_id))];
+        if (orderIdFilter.length === 0) {
+          return { content: [{ type: "text" as const, text: "No orders found matching that product name" }] };
+        }
+      }
+
+      let query = supabase
+        .from("orders")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+      if (supplier_name) query = query.ilike("supplier_name", `%${supplier_name}%`);
+      if (status) query = query.eq("status", status);
+      if (date_from) query = query.gte("order_date", date_from);
+      if (date_to) query = query.lte("order_date", date_to);
+      if (orderIdFilter) query = query.in("id", orderIdFilter);
+
+      const { data, error } = await query;
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "get_order_by_reference",
+    "משיכת הזמנה לפי מספר PI / מספר הזמנה — Find an order by PI number, SAP doc entry, or reference string",
+    {
+      reference: z.string().describe("PI number, SAP doc entry, or reference string to search for"),
+    },
+    async ({ reference }) => {
+      // Strategy 1: exact match on sap_doc_entry
+      const { data: bySap } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("sap_doc_entry", reference);
+
+      if (bySap && bySap.length > 0) {
+        return { content: [{ type: "text" as const, text: JSON.stringify(bySap, null, 2) }] };
+      }
+
+      // Strategy 2: search in purchase_documents by document_name containing the reference
+      const { data: docs } = await supabase
+        .from("purchase_documents")
+        .select("order_id, document_name, type")
+        .ilike("document_name", `%${reference}%`)
+        .not("order_id", "is", null);
+
+      if (docs && docs.length > 0) {
+        const orderIds = [...new Set(docs.map((d: { order_id: string }) => d.order_id))];
+        const { data: orders, error } = await supabase
+          .from("orders")
+          .select("*")
+          .in("id", orderIds);
+
+        if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+        return { content: [{ type: "text" as const, text: JSON.stringify({ orders, matched_documents: docs }, null, 2) }] };
+      }
+
+      // Strategy 3: partial match in notes
+      const { data: byNotes } = await supabase
+        .from("orders")
+        .select("*")
+        .ilike("notes", `%${reference}%`);
+
+      if (byNotes && byNotes.length > 0) {
+        return { content: [{ type: "text" as const, text: JSON.stringify(byNotes, null, 2) }] };
+      }
+
+      return { content: [{ type: "text" as const, text: `No orders found for reference "${reference}"` }] };
+    }
+  );
+
+  server.tool(
+    "bulk_create_order_items",
+    "הוספת כמה פריטים להזמנה — Add multiple line items to an order in a single call",
+    {
+      order_id: z.string().uuid().describe("Order UUID"),
+      items: z.array(z.object({
+        name: z.string().describe("Item name"),
+        qty: z.number().describe("Quantity"),
+        product_id: z.string().uuid().optional().describe("Product UUID"),
+        price: z.number().optional().describe("Unit price"),
+      })).describe("Array of items to add"),
+    },
+    async ({ order_id, items }) => {
+      const rows = items.map((item) => ({
+        order_id,
+        name: item.name,
+        qty: item.qty,
+        product_id: item.product_id || null,
+        price: item.price ?? null,
+      }));
+
+      const { data, error } = await supabase
+        .from("order_items")
+        .insert(rows)
+        .select();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `${data.length} items added:\n${JSON.stringify(data, null, 2)}` }] };
+    }
+  );
 }
