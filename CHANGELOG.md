@@ -11,10 +11,16 @@
 
 ## [2026-03-23]
 
+- feat: add goals DB table and management UI for Gantt view (eb46c3e)
+- feat: grouped Gantt view by goals (מטרת-על) with colored categories (5306009)
+
+<!-- last-commit: ee971b0ad58e3d930529741c91a59a6a35e37ba2 -->
+
+## [2026-03-23]
+
 - Merge pull request #44 from cobra-system/claude/meeting-participants-documents-KqQwI (d15ff19)
 - feat: structured meeting participants + document upload (9357bcb)
 
-<!-- last-commit: d15ff190e4e0e6072926f3f7ad8d0d009894e75a -->
 
 ## [2026-03-23]
 
