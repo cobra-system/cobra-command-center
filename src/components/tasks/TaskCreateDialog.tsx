@@ -45,16 +45,21 @@ interface Props {
 }
 
 export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props) {
-  const { refreshTasks, profiles, tasks } = useData();
+  const { refreshTasks, profiles, tasks, goals } = useData();
   const { currentUser } = useAuth();
   const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
 
-  // Derive unique milestones from existing tasks for the combobox
+  // Derive milestone options from DB goals + existing task milestones
   const existingMilestones = useMemo(() => {
-    const set = new Set<string>();
-    tasks.forEach(t => { if (t.milestone) set.add(t.milestone); });
-    return Array.from(set).sort();
-  }, [tasks]);
+    const fromGoals = goals.map(g => g.name);
+    const fromTasks = new Set<string>();
+    tasks.forEach(t => { if (t.milestone) fromTasks.add(t.milestone); });
+    const all = [...fromGoals];
+    for (const m of fromTasks) {
+      if (!all.includes(m)) all.push(m);
+    }
+    return all;
+  }, [tasks, goals]);
 
   // Base fields
   const [title, setTitle] = useState("");

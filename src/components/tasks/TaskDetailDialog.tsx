@@ -25,7 +25,7 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
   onUpdate: (id: string, updates: Partial<Task>) => Promise<void>;
   onStatusChange: (id: string, status: any) => Promise<void>;
 }) {
-  const { tasks: allTasks } = useData();
+  const { tasks: allTasks, goals } = useData();
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -35,10 +35,15 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
   const [notes, setNotes] = useState("");
 
   const existingMilestones = useMemo(() => {
-    const set = new Set<string>();
-    allTasks.forEach(t => { if (t.milestone) set.add(t.milestone); });
-    return Array.from(set).sort();
-  }, [allTasks]);
+    const fromGoals = goals.map(g => g.name);
+    const fromTasks = new Set<string>();
+    allTasks.forEach(t => { if (t.milestone) fromTasks.add(t.milestone); });
+    const all = [...fromGoals];
+    for (const m of fromTasks) {
+      if (!all.includes(m)) all.push(m);
+    }
+    return all;
+  }, [allTasks, goals]);
 
   useEffect(() => {
     if (task) {

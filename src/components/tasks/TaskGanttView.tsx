@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from "react";
-import { useData, useAuth, type Task, type TaskStatus } from "@/contexts/AppContext";
+import { useData, useAuth, type Task, type TaskStatus, type Goal } from "@/contexts/AppContext";
 import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
 import TaskCreateDialog from "@/components/tasks/TaskCreateDialog";
 import {
@@ -36,7 +36,8 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { getGoalColor, type GoalColor } from "./goalColors";
+import { getGoalColor, type GoalColor, GOAL_PALETTE } from "./goalColors";
+import GoalsManageDialog from "./GoalsManageDialog";
 
 // --- Constants ---
 const ROW_HEIGHT = 40;
@@ -101,8 +102,24 @@ type RowItem =
 // ================================================
 // MAIN COMPONENT
 // ================================================
+/** Build a GoalColor from a hex color string */
+function goalColorFromHex(hex: string): GoalColor {
+  // Find the closest palette entry, or build from hex
+  const match = GOAL_PALETTE.find(p => p.bg === hex);
+  if (match) return match;
+  return {
+    bg: hex,
+    light: hex + "15",
+    border: hex + "80",
+    headerText: "#ffffff",
+    barBg: "",
+    barBorder: "",
+    barText: "text-white",
+  };
+}
+
 export default function TaskGanttView() {
-  const { tasks, updateTask, updateTaskStatus, profiles, refreshTasks } = useData();
+  const { tasks, updateTask, updateTaskStatus, profiles, refreshTasks, goals, addGoal } = useData();
   const { currentUser } = useAuth();
 
   // State
@@ -112,6 +129,7 @@ export default function TaskGanttView() {
   const [selectedGoal, setSelectedGoal] = useState("all");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showGoalsDialog, setShowGoalsDialog] = useState(false);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [dragDelta, setDragDelta] = useState(0);
   const [linkingState, setLinkingState] = useState<LinkingState | null>(null);
@@ -178,34 +196,66 @@ export default function TaskGanttView() {
     return list;
   }, [tasks, selectedAssignee, selectedGoal]);
 
-  // Group tasks by milestone
+  // Build a map from goal name -> DB goal for color lookup
+  const goalByName = useMemo(() => {
+    const map = new Map<string, Goal>();
+    goals.forEach(g => map.set(g.name, g));
+    return map;
+  }, [goals]);
+
+  // Group tasks by milestone, ordered by DB goal sort_order
   const goalGroups = useMemo((): GoalGroup[] => {
     const groupMap = new Map<string, Task[]>();
-    const order: string[] = [];
 
     for (const task of filteredTasks) {
       const goal = task.milestone || "__אחר__";
       if (!groupMap.has(goal)) {
         groupMap.set(goal, []);
-        order.push(goal);
       }
       groupMap.get(goal)!.push(task);
     }
 
-    // Move "אחר" to end
-    const otherIdx = order.indexOf("__אחר__");
-    if (otherIdx > -1 && otherIdx < order.length - 1) {
-      order.splice(otherIdx, 1);
-      order.push("__אחר__");
+    // Build groups: first DB goals in sort_order, then any milestone-only groups, then "אחר"
+    const result: GoalGroup[] = [];
+    const used = new Set<string>();
+
+    // 1. DB goals in order
+    for (const dbGoal of goals) {
+      if (groupMap.has(dbGoal.name)) {
+        result.push({
+          goalName: dbGoal.name,
+          color: goalColorFromHex(dbGoal.color),
+          colorIndex: result.length,
+          tasks: groupMap.get(dbGoal.name)!,
+        });
+        used.add(dbGoal.name);
+      }
     }
 
-    return order.map((goalName, i) => ({
-      goalName,
-      color: getGoalColor(i),
-      colorIndex: i,
-      tasks: groupMap.get(goalName)!,
-    }));
-  }, [filteredTasks]);
+    // 2. Milestones not in DB goals
+    for (const [name, tasks] of groupMap) {
+      if (name !== "__אחר__" && !used.has(name)) {
+        result.push({
+          goalName: name,
+          color: getGoalColor(result.length),
+          colorIndex: result.length,
+          tasks,
+        });
+      }
+    }
+
+    // 3. "אחר" last
+    if (groupMap.has("__אחר__")) {
+      result.push({
+        goalName: "__אחר__",
+        color: getGoalColor(result.length),
+        colorIndex: result.length,
+        tasks: groupMap.get("__אחר__")!,
+      });
+    }
+
+    return result;
+  }, [filteredTasks, goals]);
 
   // Build flat row list (group headers + tasks)
   const rows = useMemo((): RowItem[] => {
@@ -232,12 +282,18 @@ export default function TaskGanttView() {
     return result;
   }, [goalGroups, collapsedGoals]);
 
-  // All unique milestones for the filter
+  // All unique milestones for the filter (DB goals first, then any orphan milestones)
   const allMilestones = useMemo(() => {
-    const set = new Set<string>();
-    tasks.forEach((t) => { if (t.milestone) set.add(t.milestone); });
-    return Array.from(set).sort();
-  }, [tasks]);
+    const fromDb = goals.map(g => g.name);
+    const fromTasks = new Set<string>();
+    tasks.forEach((t) => { if (t.milestone) fromTasks.add(t.milestone); });
+    // Merge: DB goals first, then any extra milestones from tasks
+    const all = [...fromDb];
+    for (const m of fromTasks) {
+      if (!all.includes(m)) all.push(m);
+    }
+    return all;
+  }, [tasks, goals]);
 
   // Zoom
   const zoomIn = () => setDayWidth((w) => clamp(w + 6, MIN_DAY_WIDTH, MAX_DAY_WIDTH));
@@ -511,6 +567,10 @@ export default function TaskGanttView() {
         </Button>
 
         <div className="flex-1" />
+
+        <Button variant="outline" size="sm" onClick={() => setShowGoalsDialog(true)}>
+          ניהול מטרות
+        </Button>
 
         <Button size="sm" onClick={() => setShowCreate(true)}>
           <Plus className="h-4 w-4 ml-1" />
@@ -899,6 +959,9 @@ export default function TaskGanttView() {
 
       {/* Task create dialog */}
       <TaskCreateDialog open={showCreate} onOpenChange={setShowCreate} />
+
+      {/* Goals management dialog */}
+      <GoalsManageDialog open={showGoalsDialog} onOpenChange={setShowGoalsDialog} />
     </div>
   );
 }
