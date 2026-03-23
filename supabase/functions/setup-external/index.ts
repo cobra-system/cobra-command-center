@@ -208,8 +208,8 @@ Deno.serve(async (req) => {
         category: "procurement",
         steps: [
           { action: "upload_file", index: 0, name: "קבלת PI מספק", required: true },
-          { action: "approve",     index: 1, name: "אישור בישיבת רכש", required: true },
-          { action: "send_email",  index: 2, name: "שליחת PI למחלקת פיננסים", required: true },
+          { action: "send_email",  index: 1, name: "שליחת PI למחלקת פיננסים", required: true },
+          { action: "approve",     index: 2, name: "אישור בישיבת רכש", required: true },
           { action: "input_eta",   index: 3, name: "שליחת SWIFT לספק + עדכון ETA במערכת", required: true },
           { action: "send_email",  index: 4, name: "קליטת סחורה + מייל לאחרית SAP אלינור", required: true },
           { action: "confirm",     index: 5, name: "אישור קליטה במלאי", required: true },
