@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ArrowRight, Package, Boxes, TruckIcon, Pencil, ExternalLink, Plus, Trash2, Save, X } from "lucide-react";
 import ProductIssuesTab from "@/components/ProductIssuesTab";
 import ProductLicensesTab from "@/components/ProductLicensesTab";
@@ -23,7 +24,7 @@ import { toast } from "sonner";
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { products, orders, updateProduct, suppliers, addComponent, updateComponent, deleteComponent } = useData();
+  const { products, orders, updateProduct, suppliers, addComponent, updateComponent, deleteComponent, deleteProduct } = useData();
   const [editOpen, setEditOpen] = useState(false);
   const [addCompOpen, setAddCompOpen] = useState(false);
   const [editingCompId, setEditingCompId] = useState<string | null>(null);
@@ -159,6 +160,13 @@ export default function ProductDetailPage() {
     toast.success("רכיב נמחק");
   };
 
+  const handleDeleteProduct = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    await deleteProduct(product.id);
+    toast.success("המוצר נמחק");
+    navigate("/products");
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -173,6 +181,23 @@ export default function ProductDetailPage() {
           </Button>
         )}
         {hasEdit && <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4 ml-1" />עריכה</Button>}
+        {hasEdit && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="sm" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4 ml-1" />מחק</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>מחיקת מוצר</AlertDialogTitle>
+                <AlertDialogDescription>האם למחוק את "{product.name}"? פעולה זו לא ניתנת לביטול.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>ביטול</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteProduct} className="bg-destructive text-destructive-foreground">מחק</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
         <span className={`px-3 py-1 rounded-full text-xs font-medium ${stockStatus.className}`}>{stockStatus.label}</span>
         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
           product.product_type === "מורכב" ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"

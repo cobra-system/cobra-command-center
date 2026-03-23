@@ -154,7 +154,7 @@ export default function ProductsPage() {
               return (
                 <Fragment key={p.id}>
                   <tr
-                    className="cursor-pointer hover:bg-muted/30 transition-colors"
+                    className="group cursor-pointer hover:bg-muted/30 transition-colors"
                     onClick={(e) => { if (e.detail !== 1) return; isComposite ? toggleExpand(p.id) : navigate(`/products/${p.id}`); }}
                     onDoubleClick={() => isComposite && navigate(`/products/${p.id}`)}
                     data-navigate-to={`/products/${p.id}`}
