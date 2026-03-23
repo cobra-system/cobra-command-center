@@ -143,4 +143,59 @@ export function registerProductTools(server: McpServer) {
       return { content: [{ type: "text" as const, text: `Product deleted successfully` }] };
     }
   );
+
+  server.tool(
+    "search_products",
+    "חיפוש מוצר — Search products by SKU, partial name, or category",
+    {
+      sku: z.string().optional().describe("SKU (partial match)"),
+      name: z.string().optional().describe("Product name (partial match)"),
+      category: z.string().optional().describe("Category (exact match)"),
+      limit: z.number().default(50).describe("Max results"),
+    },
+    async ({ sku, name, category, limit }) => {
+      let query = supabase
+        .from("products")
+        .select("id, name, sku, category, product_type, stock_qty, incoming_qty, sale_price, purchase_price, supplier, division")
+        .order("name")
+        .limit(limit);
+
+      if (sku) query = query.ilike("sku", `%${sku}%`);
+      if (name) query = query.ilike("name", `%${name}%`);
+      if (category) query = query.eq("category", category);
+
+      const { data, error } = await query;
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "get_product_by_sku",
+    "משיכת מוצר לפי מק״ט — Get a product by exact SKU, including components",
+    {
+      sku: z.string().describe("Exact SKU / part number"),
+    },
+    async ({ sku }) => {
+      const { data: product, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("sku", sku)
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+
+      const { data: components } = await supabase
+        .from("product_components")
+        .select("*")
+        .eq("product_id", product.id);
+
+      const result = {
+        ...product,
+        components: components || [],
+      };
+
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+    }
+  );
 }
