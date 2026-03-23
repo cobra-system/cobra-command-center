@@ -1,0 +1,49 @@
+name: Advance Overdue Tasks
+
+on:
+  schedule:
+    # Run daily at 6 AM UTC (can be adjusted as needed)
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  advance-tasks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Call Advance Overdue Tasks Edge Function
+        run: |
+          echo "Starting advance overdue tasks job..."
+
+          SUPABASE_URL="${{ secrets.SUPABASE_URL }}"
+          SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
+
+          # Construct the Edge Function URL
+          EDGE_FUNCTION_URL="${SUPABASE_URL}/functions/v1/advance-overdue-tasks"
+
+          echo "Calling Edge Function: $EDGE_FUNCTION_URL"
+
+          # Call the Edge Function
+          RESPONSE=$(curl -s -X POST "$EDGE_FUNCTION_URL" \
+            -H "Content-Type: application/json" \
+            -H "apikey: $SUPABASE_ANON_KEY")
+
+          echo "Response: $RESPONSE"
+
+          # Check if response indicates success
+          if echo "$RESPONSE" | grep -q '"success":true'; then
+            echo "✓ Advance overdue tasks completed successfully"
+            exit 0
+          else
+            echo "✗ Error: Task advancement failed"
+            echo "$RESPONSE"
+            exit 1
+          fi
+
+      - name: Log job completion
+        if: always()
+        run: |
+          echo "Advance overdue tasks job completed at $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
