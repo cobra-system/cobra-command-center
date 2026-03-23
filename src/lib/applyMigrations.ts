@@ -7,7 +7,7 @@
 import { supabase } from "@/lib/supabase";
 
 const MIGRATION_KEY = "cobra_migrations_applied"
-const CURRENT_VERSION = "20260322_task_depends_on"
+const CURRENT_VERSION = "20260324_create_goals_table"
 
 const INTERNATIONAL_TEMPLATE_ID = "b5a990c9-579d-4d9f-8e9a-90a8856ad00b";
 const ISRAEL_TEMPLATE_ID = "c7b881d0-68ae-4e0a-9f1b-a1b9967be11c";
@@ -138,6 +138,45 @@ export async function applyMigrations() {
         });
       } catch {
         console.warn("depends_on column may need to be added via Supabase dashboard");
+      }
+    }
+
+    // Migration 4: Create goals table
+    const goalsSqls = [
+      `CREATE TABLE IF NOT EXISTS public.goals (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name TEXT NOT NULL UNIQUE,
+        color TEXT NOT NULL DEFAULT '#0e7490',
+        sort_order INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );`,
+      `ALTER TABLE public.goals ENABLE ROW LEVEL SECURITY;`,
+      `DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='goals' AND policyname='Authenticated users can read goals') THEN
+          CREATE POLICY "Authenticated users can read goals" ON public.goals FOR SELECT TO authenticated USING (true);
+        END IF;
+      END $$;`,
+      `DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='goals' AND policyname='Managers can insert goals') THEN
+          CREATE POLICY "Managers can insert goals" ON public.goals FOR INSERT TO authenticated WITH CHECK (public.is_manager());
+        END IF;
+      END $$;`,
+      `DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='goals' AND policyname='Managers can update goals') THEN
+          CREATE POLICY "Managers can update goals" ON public.goals FOR UPDATE TO authenticated USING (public.is_manager());
+        END IF;
+      END $$;`,
+      `DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='goals' AND policyname='Managers can delete goals') THEN
+          CREATE POLICY "Managers can delete goals" ON public.goals FOR DELETE TO authenticated USING (public.is_manager());
+        END IF;
+      END $$;`,
+    ];
+    for (const sql of goalsSqls) {
+      try {
+        await supabase.rpc("exec_sql" as any, { sql });
+      } catch {
+        console.warn("goals migration step may need to be applied via Supabase dashboard");
       }
     }
 
