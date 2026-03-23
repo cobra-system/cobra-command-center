@@ -430,6 +430,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, [session]);
 
+  const advanceOverdueTasks = useCallback(async () => {
+    const overdueTasks = getOverdueTasksToAdvance(tasks);
+    if (overdueTasks.length === 0) return;
+
+    // Optimistic update
+    setTasks(prev => prev.map(t =>
+      overdueTasks.some(ot => ot.id === t.id)
+        ? { ...t, ...advanceTaskToToday(t) }
+        : t
+    ));
+
+    // Update in database
+    for (const task of overdueTasks) {
+      ownMutationIds.current.add(task.id);
+      const updates = advanceTaskToToday(task);
+      await supabase.from("tasks").update(updates).eq("id", task.id);
+    }
+
+    // Show notification
+    toast.success(formatAdvancementSummary(overdueTasks.length));
+  }, [tasks]);
+
   // Track if we've already advanced overdue tasks on app load
   const hasAdvancedOverdueOnLoad = useRef(false);
 
@@ -705,28 +727,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ownMutationIds.current.add(t.id);
       await supabase.from("tasks").update({ status: "TODO" }).eq("id", t.id);
     }
-  }, [tasks]);
-
-  const advanceOverdueTasks = useCallback(async () => {
-    const overdueTasks = getOverdueTasksToAdvance(tasks);
-    if (overdueTasks.length === 0) return;
-
-    // Optimistic update
-    setTasks(prev => prev.map(t =>
-      overdueTasks.some(ot => ot.id === t.id)
-        ? { ...t, ...advanceTaskToToday(t) }
-        : t
-    ));
-
-    // Update in database
-    for (const task of overdueTasks) {
-      ownMutationIds.current.add(task.id);
-      const updates = advanceTaskToToday(task);
-      await supabase.from("tasks").update(updates).eq("id", task.id);
-    }
-
-    // Show notification
-    toast.success(formatAdvancementSummary(overdueTasks.length));
   }, [tasks]);
 
   const createEmployee = useCallback(async (data: { name: string; role: Role; pin: string }): Promise<string | null> => {
