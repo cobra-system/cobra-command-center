@@ -54,7 +54,6 @@ export default function MeetingsPage() {
     const q = search.trim().toLowerCase();
     return meetings.filter(m =>
       m.title.toLowerCase().includes(q) ||
-      (m.participants && m.participants.toLowerCase().includes(q)) ||
       (m.summary && m.summary.toLowerCase().includes(q))
     );
   }, [meetings, search]);
@@ -117,12 +116,6 @@ export default function MeetingsPage() {
                         <CalendarDays className="h-3.5 w-3.5" />
                         {new Date(meeting.meeting_date).toLocaleDateString("he-IL")}
                       </span>
-                      {meeting.participants && (
-                        <span className="flex items-center gap-1">
-                          <Users className="h-3.5 w-3.5" />
-                          {meeting.participants}
-                        </span>
-                      )}
                       {counts && (
                         <span className="flex items-center gap-1">
                           <ListChecks className="h-3.5 w-3.5" />

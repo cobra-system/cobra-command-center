@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { DateInput } from "@/components/ui/date-input";
 import { Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import type { Meeting } from "./types";
+import MeetingParticipantSelector from "./MeetingParticipantSelector";
+import type { Meeting, SelectedParticipant } from "./types";
 
 interface Props {
   open: boolean;
@@ -17,10 +18,23 @@ interface Props {
   editingMeeting?: Meeting | null;
 }
 
+async function saveParticipants(meetingId: string, participants: SelectedParticipant[]) {
+  // Delete existing and re-insert
+  await supabase.from("meeting_participants").delete().eq("meeting_id", meetingId);
+  if (participants.length === 0) return;
+  await supabase.from("meeting_participants").insert(
+    participants.map(p => ({
+      meeting_id: meetingId,
+      participant_type: p.type,
+      participant_id: p.id,
+    }))
+  );
+}
+
 export default function MeetingFormDialog({ open, onOpenChange, onSaved, editingMeeting }: Props) {
   const [title, setTitle] = useState("");
   const [meetingDate, setMeetingDate] = useState<Date>(new Date());
-  const [participants, setParticipants] = useState("");
+  const [participants, setParticipants] = useState<SelectedParticipant[]>([]);
   const [summary, setSummary] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -29,13 +43,30 @@ export default function MeetingFormDialog({ open, onOpenChange, onSaved, editing
     if (open && editingMeeting) {
       setTitle(editingMeeting.title);
       setMeetingDate(new Date(editingMeeting.meeting_date));
-      setParticipants(editingMeeting.participants || "");
       setSummary(editingMeeting.summary || "");
       setNotes(editingMeeting.notes || "");
+      // Load existing participants
+      supabase
+        .from("meeting_participants")
+        .select("*")
+        .eq("meeting_id", editingMeeting.id)
+        .then(({ data }) => {
+          if (data) {
+            // We need labels — resolve them via the selector's own data
+            // Store minimal info; the selector will handle display via its own context
+            setParticipants(
+              data.map(p => ({
+                type: p.participant_type as SelectedParticipant["type"],
+                id: p.participant_id,
+                label: "", // will be resolved by selector
+              }))
+            );
+          }
+        });
     } else if (!open) {
       setTitle("");
       setMeetingDate(new Date());
-      setParticipants("");
+      setParticipants([]);
       setSummary("");
       setNotes("");
     }
@@ -51,7 +82,6 @@ export default function MeetingFormDialog({ open, onOpenChange, onSaved, editing
     const payload = {
       title: title.trim(),
       meeting_date: meetingDate.toISOString(),
-      participants: participants.trim() || null,
       summary: summary.trim() || null,
       notes: notes.trim() || null,
     };
@@ -61,15 +91,17 @@ export default function MeetingFormDialog({ open, onOpenChange, onSaved, editing
       if (error) {
         toast({ title: "שגיאה בעדכון פגישה", description: error.message, variant: "destructive" });
       } else {
+        await saveParticipants(editingMeeting.id, participants);
         toast({ title: "הפגישה עודכנה" });
         onSaved?.();
         onOpenChange(false);
       }
     } else {
-      const { error } = await supabase.from("meetings").insert(payload);
-      if (error) {
-        toast({ title: "שגיאה ביצירת פגישה", description: error.message, variant: "destructive" });
+      const { data, error } = await supabase.from("meetings").insert(payload).select("id").single();
+      if (error || !data) {
+        toast({ title: "שגיאה ביצירת פגישה", description: error?.message, variant: "destructive" });
       } else {
+        await saveParticipants(data.id, participants);
         toast({ title: "פגישה חדשה נוצרה" });
         onSaved?.();
         onOpenChange(false);
@@ -99,7 +131,7 @@ export default function MeetingFormDialog({ open, onOpenChange, onSaved, editing
 
           <div className="space-y-1">
             <Label className="text-xs">משתתפים</Label>
-            <Textarea value={participants} onChange={e => setParticipants(e.target.value)} rows={2} placeholder="שמות המשתתפים..." />
+            <MeetingParticipantSelector value={participants} onChange={setParticipants} />
           </div>
 
           <div className="space-y-1">
