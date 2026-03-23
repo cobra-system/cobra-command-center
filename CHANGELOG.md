@@ -11,6 +11,13 @@
 
 ## [2026-03-23]
 
+- Merge pull request #41 from cobra-system/claude/add-order-fields-OFuGZ (98ab3e4)
+- Add missing order fields to MCP tools (order_date, total_price, payment_status, payment_date, contact_name, supplier_name) (b6ebe73)
+
+<!-- last-commit: 98ab3e47c98a258286f8e3bef53b8019d0d4977d -->
+
+## [2026-03-23]
+
 - Merge pull request #40 from cobra-system/claude/update-readme-changelog-q9Rr1 (4eef836)
 - Merge pull request #39 from cobra-system/claude/auto-advance-overdue-tasks-BwIyv (08e4779)
 - Merge pull request #38 from cobra-system/claude/product-linking-drag-drop-hJABb (bf3d57c)
@@ -18,7 +25,6 @@
 - Implement auto-advance overdue tasks feature (e1eb732)
 - feat: add multiple product linking and drag-drop file upload (b6ea5b5)
 
-<!-- last-commit: 4eef83694adf1e3e9c971b0ce98e03d5c32158ff -->
 
 ## [2026-03-23]
 
