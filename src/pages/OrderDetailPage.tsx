@@ -97,7 +97,7 @@ export default function OrderDetailPage() {
     toast.success("עודכן");
   };
 
-  // Payment status cycle via double-click: ממתין → שולם פיקדון → שולם → ממתין
+  // Payment status cycle via click: ממתין → שולם פיקדון → שולם → ממתין
   const paymentStatuses = ["ממתין", "שולם פיקדון", "שולם"] as const;
   const cyclePaymentStatus = async () => {
     if (!hasEdit) return;
@@ -364,7 +364,7 @@ export default function OrderDetailPage() {
         </table>
       </div>
 
-      {/* Payment Tracking - double-click to toggle */}
+      {/* Payment Tracking - click to toggle */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
         <div className="flex items-center gap-2 mb-4">
           <CreditCard className="h-5 w-5 text-primary" />
@@ -380,7 +380,7 @@ export default function OrderDetailPage() {
             <p className="text-sm font-medium text-foreground">{order.payment_date ? new Date(order.payment_date).toLocaleDateString("he-IL") : "טרם שולם"}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">סטטוס תשלום {hasEdit && <span className="text-xs text-muted-foreground/60">(לחיצה כפולה לשינוי)</span>}</p>
+            <p className="text-xs text-muted-foreground">סטטוס תשלום {hasEdit && <span className="text-xs text-muted-foreground/60">(לחיצה לשינוי)</span>}</p>
             {(() => {
               const ps = (order as any).payment_status || "ממתין";
               const colors: Record<string, string> = {
@@ -390,7 +390,7 @@ export default function OrderDetailPage() {
               };
               return (
                 <span
-                  onDoubleClick={cyclePaymentStatus}
+                  onClick={cyclePaymentStatus}
                   className={cn(
                     "inline-block px-2 py-0.5 rounded-full text-xs font-medium select-none",
                     hasEdit && "cursor-pointer hover:ring-2 hover:ring-primary/30",
