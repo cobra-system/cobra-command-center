@@ -25,6 +25,7 @@ import type { Payment } from "@/components/documents/types";
 import { docStatusFlow, docStatusColors, currencySymbol, payStatusColors, paymentTypeLabels } from "@/components/documents/constants";
 import html2pdf from "html2pdf.js";
 import { usePermissions } from "@/hooks/usePermissions";
+import DocumentProductSelector from "@/components/documents/DocumentProductSelector";
 
 interface PurchaseDocument {
   id: string;
@@ -346,8 +347,10 @@ export default function DocumentDetailPage() {
 
   const [doc, setDoc] = useState<PurchaseDocument | null>(null);
   const [linkedPayments, setLinkedPayments] = useState<Payment[]>([]);
+  const [linkedProductIds, setLinkedProductIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const { hasEdit } = usePermissions("documents");
 
   const fetchDoc = useCallback(async () => {
@@ -360,6 +363,17 @@ export default function DocumentDetailPage() {
     if (orderIdVal) {
       const paysRes = await supabase.from("supplier_payments").select("*").eq("order_id", orderIdVal).order("created_at", { ascending: false });
       if (paysRes.data) setLinkedPayments(paysRes.data as unknown as Payment[]);
+    }
+    // Fetch linked products from document_products junction table
+    if (docRes.data?.id) {
+      const productsRes = await supabase
+        .from("document_products")
+        .select("product_id")
+        .eq("document_id", docRes.data.id)
+        .order("created_at", { ascending: true });
+      if (productsRes.data) {
+        setLinkedProductIds(productsRes.data.map(row => (row as any).product_id));
+      }
     }
     setLoading(false);
   }, [id]);
@@ -425,6 +439,40 @@ export default function DocumentDetailPage() {
     toast.success("קובץ הוסר");
     fetchDoc();
   };
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !doc) return;
+
+    setUploading(true);
+    const sanitizedName = file.name
+      .replace(/[^a-zA-Z0-9._-]/g, "_")
+      .replace(/_{2,}/g, "_");
+
+    const path = `uploads/${Date.now()}_${sanitizedName}`;
+    const { error } = await supabase.storage.from("documents").upload(path, file);
+    if (error) {
+      toast.error("שגיאה בהעלאה");
+      setUploading(false);
+      return;
+    }
+    const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
+    await supabase.from("purchase_documents").update({ file_url: urlData.publicUrl }).eq("id", doc.id);
+    toast.success("קובץ הועלה");
+    setUploading(false);
+    fetchDoc();
+  }, [doc, fetchDoc]);
 
   const handleDownloadFile = async () => {
     if (!doc?.file_url) return;
@@ -592,7 +640,7 @@ export default function DocumentDetailPage() {
               </InfoCell>
 
               {/* Product */}
-              <InfoCell label="מוצר">
+              <InfoCell label="מוצר (ראשי)">
                 <InlineEditField
                   value={doc.product_id || ""}
                   displayValue={productName || "—"}
@@ -603,6 +651,31 @@ export default function DocumentDetailPage() {
                   ]}
                 />
               </InfoCell>
+
+              {/* Multiple products selector */}
+              <div className="col-span-2">
+                {hasEdit ? (
+                  <DocumentProductSelector
+                    documentId={doc.id}
+                    linkedProductIds={linkedProductIds}
+                    onProductsUpdated={setLinkedProductIds}
+                  />
+                ) : linkedProductIds.length > 0 ? (
+                  <div>
+                    <label className="text-sm font-medium">מוצרים מקושרים נוספים</label>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {linkedProductIds.map(pid => {
+                        const p = products.find(prod => prod.id === pid);
+                        return p ? (
+                          <span key={pid} className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-sm font-medium bg-secondary text-secondary-foreground">
+                            {p.name}
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
 
               {/* Linked order */}
               <InfoCell label="הזמנה מקושרת">
@@ -665,11 +738,21 @@ export default function DocumentDetailPage() {
                 )}
               </div>
             ) : hasEdit ? (
-              <label className="flex items-center gap-2 border border-dashed rounded-lg p-4 cursor-pointer hover:bg-muted/30 transition-colors">
-                {uploading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : <Upload className="h-5 w-5 text-muted-foreground" />}
-                <span className="text-sm text-muted-foreground">{uploading ? "מעלה..." : "העלה קובץ (PDF, Word, Excel, תמונה)"}</span>
-                <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt,.csv" className="hidden" onChange={handleFileUpload} disabled={uploading} />
-              </label>
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={cn(
+                  "border-2 border-dashed rounded-lg p-4 transition-colors",
+                  dragOver ? "border-primary bg-primary/5" : "border-muted hover:bg-muted/30"
+                )}
+              >
+                <label className="flex items-center gap-2 cursor-pointer">
+                  {uploading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : <Upload className="h-5 w-5 text-muted-foreground" />}
+                  <span className="text-sm text-muted-foreground">{uploading ? "מעלה..." : "גרור קובץ או לחץ להעלאה (PDF, Word, Excel, תמונה)"}</span>
+                  <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt,.csv" className="hidden" onChange={handleFileUpload} disabled={uploading} />
+                </label>
+              </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">אין קובץ מצורף</p>
             )}
