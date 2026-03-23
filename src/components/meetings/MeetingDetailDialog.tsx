@@ -1,14 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { useData } from "@/contexts/AppContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Pencil, Save, Trash2, X, CalendarDays, Users } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import MeetingActionItemsList from "./MeetingActionItemsList";
-import type { Meeting } from "./types";
+import MeetingParticipantSelector from "./MeetingParticipantSelector";
+import MeetingDocumentsList from "./MeetingDocumentsList";
+import type { Meeting, MeetingParticipant, SelectedParticipant } from "./types";
 
 interface Props {
   meeting: Meeting | null;
@@ -17,16 +21,55 @@ interface Props {
 }
 
 export default function MeetingDetailDialog({ meeting, onClose, onRefresh }: Props) {
+  const { profiles, suppliers } = useData();
   const [editing, setEditing] = useState(false);
   const [summary, setSummary] = useState("");
   const [notes, setNotes] = useState("");
-  const [participants, setParticipants] = useState("");
+  const [editParticipants, setEditParticipants] = useState<SelectedParticipant[]>([]);
+  const [dbParticipants, setDbParticipants] = useState<MeetingParticipant[]>([]);
+
+  const fetchParticipants = async (meetingId: string) => {
+    const { data } = await supabase
+      .from("meeting_participants")
+      .select("*")
+      .eq("meeting_id", meetingId);
+    if (data) setDbParticipants(data as MeetingParticipant[]);
+  };
+
+  useEffect(() => {
+    if (meeting) fetchParticipants(meeting.id);
+    else setDbParticipants([]);
+  }, [meeting?.id]);
+
+  // Resolve participant labels from context data
+  const resolveLabel = (p: MeetingParticipant): string => {
+    if (p.participant_type === "profile") {
+      return profiles.find(x => x.id === p.participant_id)?.name || p.participant_id;
+    }
+    if (p.participant_type === "supplier") {
+      return suppliers.find(x => x.id === p.participant_id)?.company || p.participant_id;
+    }
+    if (p.participant_type === "supplier_contact") {
+      for (const s of suppliers) {
+        const contact = s.contacts?.find(c => c.id === p.participant_id);
+        if (contact) return `${contact.name} (${s.company})`;
+      }
+      return p.participant_id;
+    }
+    return p.participant_id;
+  };
 
   const startEdit = () => {
     if (!meeting) return;
     setSummary(meeting.summary || "");
     setNotes(meeting.notes || "");
-    setParticipants(meeting.participants || "");
+    setEditParticipants(
+      dbParticipants.map(p => ({
+        type: p.participant_type,
+        id: p.participant_id,
+        label: resolveLabel(p),
+      }))
+    );
     setEditing(true);
   };
 
@@ -37,15 +80,28 @@ export default function MeetingDetailDialog({ meeting, onClose, onRefresh }: Pro
     const { error } = await supabase.from("meetings").update({
       summary: summary.trim() || null,
       notes: notes.trim() || null,
-      participants: participants.trim() || null,
     }).eq("id", meeting.id);
     if (error) {
       toast({ title: "שגיאה בעדכון", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "הפגישה עודכנה" });
-      setEditing(false);
-      onRefresh();
+      return;
     }
+
+    // Update participants
+    await supabase.from("meeting_participants").delete().eq("meeting_id", meeting.id);
+    if (editParticipants.length > 0) {
+      await supabase.from("meeting_participants").insert(
+        editParticipants.map(p => ({
+          meeting_id: meeting.id,
+          participant_type: p.type,
+          participant_id: p.id,
+        }))
+      );
+    }
+
+    toast({ title: "הפגישה עודכנה" });
+    setEditing(false);
+    await fetchParticipants(meeting.id);
+    onRefresh();
   };
 
   const handleDelete = async () => {
@@ -92,7 +148,7 @@ export default function MeetingDetailDialog({ meeting, onClose, onRefresh }: Pro
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>מחיקת פגישה</AlertDialogTitle>
-                        <AlertDialogDescription>האם למחוק את הפגישה "{meeting.title}"? פעולה זו תמחק גם את כל המשימות המשויכות.</AlertDialogDescription>
+                        <AlertDialogDescription>האם למחוק את הפגישה "{meeting.title}"? פעולה זו תמחק גם את כל המשימות והמסמכים המשויכים.</AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>ביטול</AlertDialogCancel>
@@ -107,13 +163,24 @@ export default function MeetingDetailDialog({ meeting, onClose, onRefresh }: Pro
                   <CalendarDays className="h-3.5 w-3.5" />
                   {new Date(meeting.meeting_date).toLocaleDateString("he-IL")}
                 </span>
-                {meeting.participants && (
+                {dbParticipants.length > 0 && !editing && (
                   <span className="flex items-center gap-1">
                     <Users className="h-3.5 w-3.5" />
-                    {meeting.participants}
+                    <span className="flex flex-wrap gap-1">
+                      {dbParticipants.map(p => (
+                        <Badge key={p.id} variant="secondary" className="text-xs font-normal px-1.5 py-0">
+                          {resolveLabel(p)}
+                        </Badge>
+                      ))}
+                    </span>
                   </span>
                 )}
               </div>
+              {editing && (
+                <div className="mt-2">
+                  <MeetingParticipantSelector value={editParticipants} onChange={setEditParticipants} />
+                </div>
+              )}
             </DialogHeader>
 
             <Tabs defaultValue="summary" className="mt-2">
@@ -121,14 +188,12 @@ export default function MeetingDetailDialog({ meeting, onClose, onRefresh }: Pro
                 <TabsTrigger value="summary" className="flex-1">סיכום</TabsTrigger>
                 <TabsTrigger value="notes" className="flex-1">הערות</TabsTrigger>
                 <TabsTrigger value="actions" className="flex-1">משימות לביצוע</TabsTrigger>
+                <TabsTrigger value="documents" className="flex-1">מסמכים</TabsTrigger>
               </TabsList>
 
               <TabsContent value="summary" className="mt-4 space-y-3">
                 {editing ? (
-                  <>
-                    <Textarea value={participants} onChange={e => setParticipants(e.target.value)} rows={2} placeholder="משתתפים..." />
-                    <Textarea value={summary} onChange={e => setSummary(e.target.value)} rows={5} placeholder="סיכום הפגישה..." />
-                  </>
+                  <Textarea value={summary} onChange={e => setSummary(e.target.value)} rows={5} placeholder="סיכום הפגישה..." />
                 ) : (
                   <>
                     {meeting.summary ? (
@@ -156,6 +221,10 @@ export default function MeetingDetailDialog({ meeting, onClose, onRefresh }: Pro
 
               <TabsContent value="actions" className="mt-4">
                 <MeetingActionItemsList meetingId={meeting.id} />
+              </TabsContent>
+
+              <TabsContent value="documents" className="mt-4">
+                <MeetingDocumentsList meetingId={meeting.id} />
               </TabsContent>
             </Tabs>
           </>

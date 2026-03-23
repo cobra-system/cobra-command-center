@@ -3,7 +3,6 @@ CREATE TABLE IF NOT EXISTS public.meetings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   meeting_date TIMESTAMPTZ NOT NULL DEFAULT now(),
-  participants TEXT,
   summary TEXT,
   notes TEXT,
   created_by UUID REFERENCES auth.users(id),
