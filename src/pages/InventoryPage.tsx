@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useData, useAuth } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
@@ -67,6 +68,7 @@ interface InventoryTransfer {
 export default function InventoryPage() {
   const { products, refreshProducts } = useData();
   const { currentUser } = useAuth();
+  const { hasEdit } = usePermissions("inventory");
   const [centers, setCenters] = useState<DistributionCenter[]>([]);
   const [contacts, setContacts] = useState<CenterContact[]>([]);
   const [inventory, setInventory] = useState<CenterInventoryItem[]>([]);
@@ -279,14 +281,16 @@ export default function InventoryPage() {
           <h1 className="text-2xl font-bold text-foreground">מלאי ומרכזי הפצה</h1>
           <p className="text-muted-foreground text-sm">{centers.length} מרכזים · {products.length} מוצרים</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowTransfer(true)}>
-            <ArrowLeftRight className="h-4 w-4 ml-2" />העבר מלאי
-          </Button>
-          <Button onClick={() => setShowAddCenter(true)}>
-            <Plus className="h-4 w-4 ml-2" />הוסף מרכז הפצה
-          </Button>
-        </div>
+        {hasEdit && (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowTransfer(true)}>
+              <ArrowLeftRight className="h-4 w-4 ml-2" />העבר מלאי
+            </Button>
+            <Button onClick={() => setShowAddCenter(true)}>
+              <Plus className="h-4 w-4 ml-2" />הוסף מרכז הפצה
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Low stock alerts banner */}
@@ -422,29 +426,39 @@ export default function InventoryPage() {
                             return (
                               <TableCell key={c.id} className="text-center">
                                 <div className="flex items-center justify-center gap-1">
-                                  <InlineEditField
-                                    value={inv?.quantity ?? 0}
-                                    type="number"
-                                    onSave={(v) => handleUpdateInventory(c.id, p.id, parseInt(v) || 0)}
-                                    className="min-w-[50px]"
-                                    inputClassName={`w-16 h-7 text-center text-sm ${isLow ? "border-destructive bg-destructive/5" : ""}`}
-                                    displayValue={
-                                      <span className={`text-sm font-medium ${isLow ? "text-destructive" : ""}`}>
-                                        {inv?.quantity ?? 0}
-                                      </span>
-                                    }
-                                  />
+                                  {hasEdit ? (
+                                    <InlineEditField
+                                      value={inv?.quantity ?? 0}
+                                      type="number"
+                                      onSave={(v) => handleUpdateInventory(c.id, p.id, parseInt(v) || 0)}
+                                      className="min-w-[50px]"
+                                      inputClassName={`w-16 h-7 text-center text-sm ${isLow ? "border-destructive bg-destructive/5" : ""}`}
+                                      displayValue={
+                                        <span className={`text-sm font-medium ${isLow ? "text-destructive" : ""}`}>
+                                          {inv?.quantity ?? 0}
+                                        </span>
+                                      }
+                                    />
+                                  ) : (
+                                    <span className={`text-sm font-medium ${isLow ? "text-destructive" : ""}`}>
+                                      {inv?.quantity ?? 0}
+                                    </span>
+                                  )}
                                   <span className="text-muted-foreground text-xs">/</span>
-                                  <InlineEditField
-                                    value={inv?.min_stock ?? 0}
-                                    type="number"
-                                    onSave={(v) => handleUpdateMinStock(c.id, p.id, parseInt(v) || 0)}
-                                    className="min-w-[40px]"
-                                    inputClassName="w-14 h-7 text-center text-xs"
-                                    displayValue={
-                                      <span className="text-xs text-muted-foreground">{inv?.min_stock ?? 0}</span>
-                                    }
-                                  />
+                                  {hasEdit ? (
+                                    <InlineEditField
+                                      value={inv?.min_stock ?? 0}
+                                      type="number"
+                                      onSave={(v) => handleUpdateMinStock(c.id, p.id, parseInt(v) || 0)}
+                                      className="min-w-[40px]"
+                                      inputClassName="w-14 h-7 text-center text-xs"
+                                      displayValue={
+                                        <span className="text-xs text-muted-foreground">{inv?.min_stock ?? 0}</span>
+                                      }
+                                    />
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">{inv?.min_stock ?? 0}</span>
+                                  )}
                                   {isLow && <AlertTriangle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />}
                                 </div>
                               </TableCell>

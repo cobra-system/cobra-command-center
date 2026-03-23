@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Grid3x3, Clock } from "lucide-react";
 import TaskWeeklyView from "@/components/tasks/TaskWeeklyView";
@@ -7,6 +8,7 @@ import TaskDayView from "@/components/tasks/TaskDayView";
 
 export default function TasksPage() {
   const [view, setView] = useState("weekly");
+  const { hasEdit } = usePermissions("tasks");
 
   return (
     <div className="h-full flex flex-col" dir="rtl">

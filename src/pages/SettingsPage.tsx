@@ -16,6 +16,7 @@ import {
   Clock, Loader2, Plug,
 } from "lucide-react";
 import { format } from "date-fns";
+import RolePermissionsManager from "@/components/settings/RolePermissionsManager";
 
 interface SyncLogEntry {
   id: string;
@@ -408,6 +409,9 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Role Permissions Management */}
+      {isManager && <RolePermissionsManager />}
 
       {/* Integrations Section */}
       <div className="space-y-3">

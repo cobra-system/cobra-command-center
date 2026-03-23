@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useData, useAuth } from "@/contexts/AppContext";
+import { useData } from "@/contexts/AppContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { CalendarClock, AlertTriangle, CheckCircle, ShoppingCart, ArrowUpDown, A
 import { format, addDays } from "date-fns";
 import { InlineEditField } from "@/components/InlineEditField";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
+import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "sonner";
 
 type SortKey = "status" | "name" | "sku" | "stock_qty" | "incoming_qty" | "monthly_sales_avg" | "days_until_stockout" | "lead_time_days" | "order_by_date";
@@ -29,9 +30,8 @@ interface ReorderRow {
 
 export default function ReorderPage() {
   const { products, updateProduct, loading } = useData();
-  const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const isManager = currentUser?.role === "MANAGER";
+  const { hasEdit } = usePermissions("reorder");
 
   const prefs = useTablePreferences("ReorderPage", {
     sortField: "status",
@@ -206,12 +206,12 @@ export default function ReorderPage() {
               <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("order_by_date")}>
                 <span className="flex items-center gap-1">צריך להזמין עד <SortIcon col="order_by_date" /></span>
               </th>
-              {isManager && <th className="text-right p-3 font-semibold text-foreground">פעולה</th>}
+              {hasEdit && <th className="text-right p-3 font-semibold text-foreground">פעולה</th>}
             </tr>
           </thead>
           <tbody className="divide-y">
             {rows.length === 0 ? (
-              <tr><td colSpan={isManager ? 9 : 8} className="p-8 text-center text-muted-foreground">אין מוצרים עם נתוני מכירות לחישוב</td></tr>
+              <tr><td colSpan={hasEdit ? 9 : 8} className="p-8 text-center text-muted-foreground">אין מוצרים עם נתוני מכירות לחישוב</td></tr>
             ) : (
               rows.map(r => (
                 <tr key={r.id} className={`hover:bg-muted/30 transition-colors ${r.status === "danger" ? "bg-destructive/5" : r.status === "warning" ? "bg-warning/5" : ""}`}>
@@ -231,7 +231,7 @@ export default function ReorderPage() {
                     </span>
                   </td>
                   <td className="p-3">
-                    {isManager ? (
+                    {hasEdit ? (
                       <InlineEditField
                         value={r.lead_time_days?.toString() || ""}
                         onSave={(v) => handleLeadTimeUpdate(r.id, v)}
@@ -251,7 +251,7 @@ export default function ReorderPage() {
                       </span>
                     ) : "—"}
                   </td>
-                  {isManager && (
+                  {hasEdit && (
                     <td className="p-3">
                       {r.status === "danger" && (
                         <Button

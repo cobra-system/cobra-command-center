@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo, type ReactNode } from "react";
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { applyMigrations } from "@/lib/applyMigrations";
 import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
+import { MODULES, getFullPermissionsForManager, type PermissionLevel, type RolePermissions } from "@/lib/permissions";
 
 // Re-export types for compatibility
 export type Role = "MANAGER" | "WAREHOUSE_MANAGER" | "LOGISTICS" | "DRIVER";
@@ -141,6 +142,13 @@ export interface RoleDefinition {
   system_key: string | null;
 }
 
+export interface RolePermissionRecord {
+  id: string;
+  role: Role;
+  module_key: string;
+  permission_level: PermissionLevel;
+}
+
 interface DataState {
   products: Product[];
   orders: Order[];
@@ -180,6 +188,10 @@ interface DataState {
   addRoleDefinition: (name: string) => Promise<void>;
   updateRoleDefinition: (id: string, name: string) => Promise<void>;
   deleteRoleDefinition: (id: string) => Promise<void>;
+  rolePermissions: RolePermissionRecord[];
+  currentUserPermissions: RolePermissions;
+  refreshRolePermissions: () => Promise<void>;
+  upsertRolePermission: (role: Role, moduleKey: string, level: PermissionLevel) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -210,6 +222,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [roleDefinitions, setRoleDefinitions] = useState<RoleDefinition[]>([]);
+  const [rolePermissions, setRolePermissions] = useState<RolePermissionRecord[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   // Track own mutations to suppress self-notifications
@@ -329,6 +342,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (data) setRoleDefinitions(data as RoleDefinition[]);
   }, []);
 
+  const refreshRolePermissions = useCallback(async () => {
+    const { data } = await supabase.from("role_permissions").select("*");
+    if (data) setRolePermissions(data as RolePermissionRecord[]);
+  }, []);
+
+  const upsertRolePermission = useCallback(async (role: Role, moduleKey: string, level: PermissionLevel) => {
+    try {
+      const { error } = await supabase.from("role_permissions").upsert(
+        { role, module_key: moduleKey, permission_level: level } as any,
+        { onConflict: "role,module_key" }
+      );
+      if (error) throw error;
+      await refreshRolePermissions();
+    } catch (err) {
+      toast.error("שגיאה בעדכון הרשאות: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
+  }, [refreshRolePermissions]);
+
   // Fetch data when authenticated
   useEffect(() => {
     if (!session) {
@@ -343,8 +374,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       refreshSuppliers(),
       refreshProfiles(),
       refreshRoleDefinitions(),
+      refreshRolePermissions(),
     ]).finally(() => setDataLoading(false));
-  }, [session, refreshProducts, refreshOrders, refreshTasks, refreshSuppliers, refreshProfiles, refreshRoleDefinitions]);
+  }, [session, refreshProducts, refreshOrders, refreshTasks, refreshSuppliers, refreshProfiles, refreshRoleDefinitions, refreshRolePermissions]);
 
   // Realtime subscription for tasks
   useEffect(() => {
@@ -745,6 +777,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshRoleDefinitions]);
 
+  const currentUserPermissions: RolePermissions = useMemo(() => {
+    if (!currentUser || currentUser.role === "MANAGER") {
+      return getFullPermissionsForManager();
+    }
+    const perms: RolePermissions = {};
+    for (const mod of MODULES) {
+      const record = rolePermissions.find(
+        (rp) => rp.role === currentUser.role && rp.module_key === mod.key
+      );
+      perms[mod.key] = record?.permission_level ?? "none";
+    }
+    return perms;
+  }, [currentUser, rolePermissions]);
+
   return (
     <AuthContext.Provider value={{ currentUser, session, loading: authLoading, loginWithEmail, logout }}>
       <DataContext.Provider value={{
@@ -786,6 +832,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addRoleDefinition,
         updateRoleDefinition,
         deleteRoleDefinition,
+        rolePermissions,
+        currentUserPermissions,
+        refreshRolePermissions,
+        upsertRolePermission,
       }}>
         {children}
       </DataContext.Provider>

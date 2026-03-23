@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
-import { useData, useAuth, categories, divisions, type ProductComponent, type Priority, type OrderStatus } from "@/contexts/AppContext";
+import { useData, categories, divisions, type ProductComponent, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -17,12 +17,12 @@ import ProductEditDialog from "@/components/products/ProductEditDialog";
 import SupplierComparisonPanel from "@/components/SupplierComparisonPanel";
 import { InlineEditField } from "@/components/InlineEditField";
 import SapSyncBadge from "@/components/SapSyncBadge";
+import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "sonner";
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
   const { products, orders, updateProduct, suppliers, addComponent, updateComponent, deleteComponent } = useData();
   const [editOpen, setEditOpen] = useState(false);
   const [addCompOpen, setAddCompOpen] = useState(false);
@@ -50,7 +50,7 @@ export default function ProductDetailPage() {
     );
   }
 
-  const isManager = currentUser?.role === "MANAGER";
+  const { hasEdit } = usePermissions("products");
   const relatedOrders = orders.filter(o => o.items.some(item => item.name === product.name || item.product_id === product.id));
 
   const stockStatus = product.stock_qty === 0
@@ -172,7 +172,7 @@ export default function ProductDetailPage() {
             <a href={product.end_product_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4 ml-1" />אתר המוצר</a>
           </Button>
         )}
-        <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4 ml-1" />עריכה</Button>
+        {hasEdit && <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4 ml-1" />עריכה</Button>}
         <span className={`px-3 py-1 rounded-full text-xs font-medium ${stockStatus.className}`}>{stockStatus.label}</span>
         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
           product.product_type === "מורכב" ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"
@@ -202,7 +202,7 @@ export default function ProductDetailPage() {
                 }
                 type={["purchase_price", "sale_price", "monthly_sales", "monthly_order", "stock_qty", "incoming_qty"].includes(d.field) ? "number" : "text"}
                 onSave={(v) => handleInlineSave(d.field, v)}
-                disabled={!isManager}
+                disabled={!hasEdit}
                 options={d.options}
                 multiSelect={d.multiSelect}
               />
@@ -233,7 +233,7 @@ export default function ProductDetailPage() {
               <Boxes className="h-5 w-5 text-accent" />
               <h2 className="text-lg font-semibold text-foreground">רכיבים (BOM)</h2>
             </div>
-            {isManager && (
+            {hasEdit && (
               <Button variant="outline" size="sm" onClick={() => setAddCompOpen(true)}>
                 <Plus className="h-4 w-4 ml-1" />הוסף רכיב
               </Button>
@@ -251,7 +251,7 @@ export default function ProductDetailPage() {
                     <th className="text-right p-3 font-semibold text-foreground">מלאי</th>
                     <th className="text-right p-3 font-semibold text-foreground">מחיר</th>
                     <th className="text-right p-3 font-semibold text-foreground">הערות</th>
-                    {isManager && <th className="text-right p-3 font-semibold text-foreground">פעולות</th>}
+                    {hasEdit && <th className="text-right p-3 font-semibold text-foreground">פעולות</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -298,7 +298,7 @@ export default function ProductDetailPage() {
                         <td className="p-3 text-muted-foreground">{comp.stock_qty ?? "—"}</td>
                         <td className="p-3 text-muted-foreground">{comp.price ? `$${comp.price}` : "—"}</td>
                         <td className="p-3 text-muted-foreground text-xs">{comp.notes || "—"}</td>
-                        {isManager && (
+                        {hasEdit && (
                           <td className="p-3">
                             <div className="flex gap-1">
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEditComp(comp)}>
@@ -377,7 +377,7 @@ export default function ProductDetailPage() {
       <div className="bg-card rounded-xl border shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2"><TruckIcon className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">היסטוריית הזמנות</h2></div>
-          {isManager && (
+          {hasEdit && (
             <Button variant="outline" size="sm" onClick={() => navigate(`/orders?newOrder=true&productId=${product.id}`)} data-navigate-to={`/orders?newOrder=true&productId=${product.id}`}>
               <Plus className="h-3.5 w-3.5 ml-1" />הוסף הזמנה
             </Button>
@@ -421,7 +421,7 @@ export default function ProductDetailPage() {
 
       {/* Product Licenses Tab */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
-        <ProductLicensesTab productId={product.id} isManager={isManager} />
+        <ProductLicensesTab productId={product.id} hasEdit={hasEdit} />
       </div>
 
       {/* Compliance */}

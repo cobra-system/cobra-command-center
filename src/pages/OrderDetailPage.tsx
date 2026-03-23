@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect, useMemo } from "react";
-import { useData, useAuth, type Priority, type OrderStatus } from "@/contexts/AppContext";
+import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Trash2, CreditCard, Zap, Check, Ship, Hash, Plus, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
@@ -16,6 +16,7 @@ import { DateInput } from "@/components/ui/date-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "sonner";
 
 const allStatuses: { value: OrderStatus; label: string }[] = [
@@ -46,7 +47,6 @@ const priorityOptions = priorities.map(p => ({ value: p.value, label: p.label })
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
   const { orders, updateOrderStatus, updateOrder, deleteOrder, suppliers, products, refreshOrders, updateProduct, updateComponent } = useData();
 
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -60,7 +60,7 @@ export default function OrderDetailPage() {
 
   const order = orders.find(o => o.id === id);
   const supplier = order?.supplier_id ? suppliers.find(s => s.id === order.supplier_id) : null;
-  const isManager = currentUser?.role === "MANAGER";
+  const { hasEdit } = usePermissions("orders");
 
   const supplierOptions = useMemo(() => suppliers.map(s => ({ value: s.id, label: s.company })), [suppliers]);
 
@@ -100,7 +100,7 @@ export default function OrderDetailPage() {
   // Payment status cycle via double-click: ממתין → שולם פיקדון → שולם → ממתין
   const paymentStatuses = ["ממתין", "שולם פיקדון", "שולם"] as const;
   const cyclePaymentStatus = async () => {
-    if (!isManager) return;
+    if (!hasEdit) return;
     const current = (order as any).payment_status || "ממתין";
     const idx = paymentStatuses.indexOf(current);
     const next = paymentStatuses[(idx + 1) % paymentStatuses.length];
@@ -249,7 +249,7 @@ export default function OrderDetailPage() {
             })}
           </p>
         </div>
-        {isManager && (
+        {hasEdit && (
           <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteConfirm(true)}>
             <Trash2 className="h-4 w-4 ml-1" />מחיקה
           </Button>
@@ -270,14 +270,14 @@ export default function OrderDetailPage() {
               return (
                 <InlineEditField key={d.label} label={d.label} value={d.value as string}
                   displayValue={<OrderStatusBadge status={order.status as OrderStatus} />}
-                  onSave={(v) => handleInlineSave(d.field, v)} disabled={!isManager} options={d.options} />
+                  onSave={(v) => handleInlineSave(d.field, v)} disabled={!hasEdit} options={d.options} />
               );
             }
             if (d.field === "priority") {
               return (
                 <InlineEditField key={d.label} label={d.label} value={d.value as string}
                   displayValue={<PriorityBadge priority={order.priority as Priority} />}
-                  onSave={(v) => handleInlineSave(d.field, v)} disabled={!isManager} options={d.options} />
+                  onSave={(v) => handleInlineSave(d.field, v)} disabled={!hasEdit} options={d.options} />
               );
             }
             return (
@@ -286,7 +286,7 @@ export default function OrderDetailPage() {
                   <button onClick={() => navigate(`/suppliers/${supplierMatch.id}`)} className="text-sm font-medium text-primary hover:underline">{supplierMatch.company}</button>
                 ) : d.field === "total_price" && d.value ? `$${d.value}` : undefined}
                 type={d.field === "total_price" ? "number" : "text"}
-                onSave={(v) => handleInlineSave(d.field, v)} disabled={d.isReadOnly || !isManager} options={d.options} />
+                onSave={(v) => handleInlineSave(d.field, v)} disabled={d.isReadOnly || !hasEdit} options={d.options} />
             );
           })}
         </div>
@@ -301,7 +301,7 @@ export default function OrderDetailPage() {
               <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
                 <d.icon className="h-3.5 w-3.5" />{d.label}
               </div>
-              {isManager ? (
+              {hasEdit ? (
                 <DateInput value={date} onChange={dt => handleDateSave(d.field, dt)} clearable />
               ) : (
                 <div className="text-sm font-semibold text-foreground">{date ? date.toLocaleDateString("he-IL") : "—"}</div>
@@ -318,7 +318,7 @@ export default function OrderDetailPage() {
             <Package className="h-4 w-4 text-accent" />
             <h2 className="font-semibold text-foreground">פריטים ({order.items.length})</h2>
           </div>
-          {isManager && (
+          {hasEdit && (
             <Button variant="outline" size="sm" onClick={openAddItem}>
               <Plus className="h-3.5 w-3.5 ml-1" />הוסף פריט
             </Button>
@@ -331,7 +331,7 @@ export default function OrderDetailPage() {
               <th className="text-right p-3 font-semibold text-foreground">כמות</th>
               <th className="text-right p-3 font-semibold text-foreground">מחיר יחידה</th>
               <th className="text-right p-3 font-semibold text-foreground">סה״כ</th>
-              {isManager && <th className="text-right p-3 font-semibold text-foreground w-20">פעולות</th>}
+              {hasEdit && <th className="text-right p-3 font-semibold text-foreground w-20">פעולות</th>}
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -345,7 +345,7 @@ export default function OrderDetailPage() {
                   <td className="p-3 text-muted-foreground">{item.qty}</td>
                   <td className="p-3 text-muted-foreground">{item.price ? `$${item.price}` : "—"}</td>
                   <td className="p-3 text-muted-foreground">{item.price ? `$${(item.price * item.qty).toLocaleString()}` : "—"}</td>
-                  {isManager && (
+                  {hasEdit && (
                     <td className="p-3" onClick={e => e.stopPropagation()}>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="sm" onClick={() => openEditItem(item)}>
@@ -380,7 +380,7 @@ export default function OrderDetailPage() {
             <p className="text-sm font-medium text-foreground">{order.payment_date ? new Date(order.payment_date).toLocaleDateString("he-IL") : "טרם שולם"}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">סטטוס תשלום {isManager && <span className="text-xs text-muted-foreground/60">(לחיצה כפולה לשינוי)</span>}</p>
+            <p className="text-xs text-muted-foreground">סטטוס תשלום {hasEdit && <span className="text-xs text-muted-foreground/60">(לחיצה כפולה לשינוי)</span>}</p>
             {(() => {
               const ps = (order as any).payment_status || "ממתין";
               const colors: Record<string, string> = {
@@ -393,7 +393,7 @@ export default function OrderDetailPage() {
                   onDoubleClick={cyclePaymentStatus}
                   className={cn(
                     "inline-block px-2 py-0.5 rounded-full text-xs font-medium select-none",
-                    isManager && "cursor-pointer hover:ring-2 hover:ring-primary/30",
+                    hasEdit && "cursor-pointer hover:ring-2 hover:ring-primary/30",
                     colors[ps] || "bg-muted text-muted-foreground"
                   )}
                 >
@@ -406,7 +406,7 @@ export default function OrderDetailPage() {
       </div>
 
       {/* Workflow Timeline with advance */}
-      <OrderWorkflowTimeline orderId={order.id} isManager={isManager} />
+      <OrderWorkflowTimeline orderId={order.id} hasEdit={hasEdit} />
 
       {/* Documents */}
       <DocumentsSection orderId={order.id} />
@@ -492,7 +492,7 @@ export default function OrderDetailPage() {
   );
 }
 
-function OrderWorkflowTimeline({ orderId, isManager }: { orderId: string; isManager: boolean }) {
+function OrderWorkflowTimeline({ orderId, hasEdit }: { orderId: string; hasEdit: boolean }) {
   const [workflow, setWorkflow] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -562,7 +562,7 @@ function OrderWorkflowTimeline({ orderId, isManager }: { orderId: string; isMana
           <h2 className="font-semibold text-foreground">{workflow.templateName || "תהליך רכש"}</h2>
         </div>
         <div className="flex items-center gap-2">
-          {isManager && workflow.status === "active" && (
+          {hasEdit && workflow.status === "active" && (
             <Button size="sm" variant="default" onClick={advanceStep}>
               {workflow.current_step >= totalSteps - 1 ? "סיים תהליך" : "קדם שלב"}
               <ChevronLeft className="h-3.5 w-3.5 mr-1" />
@@ -589,9 +589,9 @@ function OrderWorkflowTimeline({ orderId, isManager }: { orderId: string; isMana
               key={idx}
               className={cn(
                 "flex items-start gap-3 py-2 px-2 rounded-lg transition-colors",
-                isManager && "cursor-pointer hover:bg-muted/50"
+                hasEdit && "cursor-pointer hover:bg-muted/50"
               )}
-              onClick={() => isManager && goToStep(idx)}
+              onClick={() => hasEdit && goToStep(idx)}
             >
               <div className={cn(
                 "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 text-xs",
