@@ -35,7 +35,7 @@ const priorities: { value: Priority; label: string }[] = [
 const priorityOrder: Record<string, number> = { "דחוף": 0, "גבוה": 1, "בינוני": 2, "נמוך": 3 };
 const statusOrder: Record<string, number> = { PENDING: 0, ORDERED: 1, SHIPPED: 2, ARRIVED: 3, CANCELLED: 4 };
 
-type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment" | "workflow";
+type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment" | "workflow" | "tracking_number";
 type SortDir = "asc" | "desc" | null;
 
 const statusFilterOptions = [
@@ -184,6 +184,7 @@ export default function OrdersPage() {
           case "eta": cmp = (a.eta || "").localeCompare(b.eta || ""); break;
           case "total_price": cmp = (a.total_price || 0) - (b.total_price || 0); break;
           case "payment": cmp = (a.payment_date || "").localeCompare(b.payment_date || ""); break;
+          case "tracking_number": cmp = (a.tracking_number || "").localeCompare(b.tracking_number || "", "he"); break;
           case "workflow": {
             const stepA = orderWorkflows[a.id] ? (orderWorkflows[a.id].status === "completed" ? 999 : orderWorkflows[a.id].current_step) : -1;
             const stepB = orderWorkflows[b.id] ? (orderWorkflows[b.id].status === "completed" ? 999 : orderWorkflows[b.id].current_step) : -1;
@@ -365,13 +366,14 @@ export default function OrdersPage() {
               <ThButton field="total_price">סה״כ</ThButton>
               <ThButton field="payment">תשלום</ThButton>
               <ThButton field="workflow">תהליך</ThButton>
+              <ThButton field="tracking_number">מספר מעקב</ThButton>
               <th className="text-right p-3 font-semibold text-foreground w-10"></th>
               {hasEdit && <th className="text-right p-3 font-semibold text-foreground w-10"></th>}
             </tr>
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={hasEdit ? 14 : 13} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
+              <tr><td colSpan={hasEdit ? 15 : 14} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
             ) : filtered.map((order) => (
               <tr key={order.id} className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={(e) => { if (e.detail !== 1) return; navigate(`/orders/${order.id}`); }} data-navigate-to={`/orders/${order.id}`}>
                 <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
@@ -525,6 +527,7 @@ export default function OrdersPage() {
                     <span className="text-xs text-muted-foreground">—</span>
                   )}
                 </td>
+                <td className="p-3 text-muted-foreground text-xs">{order.tracking_number || "—"}</td>
                 <td className="p-3" onClick={e => e.stopPropagation()}>
                   <button
                     className="p-1 rounded hover:bg-muted transition-colors"

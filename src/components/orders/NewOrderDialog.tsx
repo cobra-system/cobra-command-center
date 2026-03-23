@@ -50,6 +50,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
   const [notes, setNotes] = useState("");
   const [etd, setEtd] = useState<Date>();
   const [eta, setEta] = useState<Date>();
+  const [tracking_number, setTrackingNumber] = useState("");
   const [items, setItems] = useState<ItemRow[]>([{ type: "product", name: "", qty: "", price: "", productId: "", componentId: "" }]);
 
   const allComponents: FlatComponent[] = products.flatMap(p =>
@@ -62,7 +63,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
 
   const resetForm = () => {
     setPriority("בינוני"); setSupplierId(""); setShipping(""); setNotes("");
-    setEtd(undefined); setEta(undefined);
+    setEtd(undefined); setEta(undefined); setTrackingNumber("");
     setItems([{ type: "product", name: "", qty: "", price: "", productId: "", componentId: "" }]);
   };
 
@@ -142,6 +143,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
       eta: eta?.toISOString(),
       total_price: validItems.reduce((s, i) => s + (Number(i.price) || 0) * Number(i.qty), 0) || undefined,
       notes: notes.trim() || undefined,
+      tracking_number: tracking_number.trim() || undefined,
       items: validItems.map(item => ({
         name: item.name,
         qty: Number(item.qty),
@@ -248,6 +250,11 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="space-y-2">
+            <Label>מספר מעקב</Label>
+            <Input value={tracking_number} onChange={e => setTrackingNumber(e.target.value)} placeholder="מספר עקיבות שיחה..." />
           </div>
 
           <div className="space-y-2"><Label>הערות</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="הערות להזמנה..." rows={2} /></div>
