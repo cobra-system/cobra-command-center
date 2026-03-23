@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from "react";
-import { useData, useAuth, type Task, type TaskStatus } from "@/contexts/AppContext";
+import { useData, useAuth, type Task, type TaskStatus, type Goal } from "@/contexts/AppContext";
 import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
 import TaskCreateDialog from "@/components/tasks/TaskCreateDialog";
 import {
@@ -7,14 +7,16 @@ import {
   differenceInDays,
   format,
   startOfDay,
-  endOfDay,
   isWeekend,
   isSameDay,
   addWeeks,
   subWeeks,
   startOfWeek,
+  startOfMonth,
+  endOfMonth,
   parseISO,
   isValid,
+  isSameMonth,
 } from "date-fns";
 import { he } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
@@ -31,30 +33,30 @@ import {
   Link2,
   Link2Off,
   GripVertical,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
+import { getGoalColor, type GoalColor, GOAL_PALETTE } from "./goalColors";
+import GoalsManageDialog from "./GoalsManageDialog";
 
 // --- Constants ---
-const ROW_HEIGHT = 44;
-const HEADER_HEIGHT = 60;
-const SIDEBAR_WIDTH = 260;
-const MIN_DAY_WIDTH = 28;
+const ROW_HEIGHT = 40;
+const GROUP_HEADER_HEIGHT = 36;
+const HEADER_HEIGHT = 52;
+const MONTH_HEADER_HEIGHT = 24;
+const TOTAL_HEADER_HEIGHT = HEADER_HEIGHT + MONTH_HEADER_HEIGHT;
+const SIDEBAR_WIDTH = 280;
+const MIN_DAY_WIDTH = 20;
 const MAX_DAY_WIDTH = 80;
-const DEFAULT_DAY_WIDTH = 44;
-const BAR_HEIGHT = 28;
+const DEFAULT_DAY_WIDTH = 36;
+const BAR_HEIGHT = 26;
 const BAR_TOP_OFFSET = (ROW_HEIGHT - BAR_HEIGHT) / 2;
 
-const STATUS_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  TODO: { bg: "bg-slate-200", border: "border-slate-400", text: "text-slate-700" },
-  IN_PROGRESS: { bg: "bg-blue-200", border: "border-blue-500", text: "text-blue-800" },
-  DONE: { bg: "bg-emerald-200", border: "border-emerald-500", text: "text-emerald-800" },
-  BLOCKED: { bg: "bg-red-200", border: "border-red-400", text: "text-red-800" },
-};
-
-const PRIORITY_COLORS: Record<string, string> = {
-  "דחוף": "border-l-red-500",
-  "גבוה": "border-l-orange-500",
-  "בינוני": "border-l-yellow-500",
-  "נמוך": "border-l-green-500",
+const STATUS_ICONS: Record<string, string> = {
+  TODO: "○",
+  IN_PROGRESS: "◐",
+  DONE: "●",
+  BLOCKED: "◆",
 };
 
 // --- Helpers ---
@@ -85,33 +87,90 @@ interface LinkingState {
   fromTaskId: string;
 }
 
+interface GoalGroup {
+  goalName: string;
+  color: GoalColor;
+  colorIndex: number;
+  tasks: Task[];
+}
+
+// Row types for unified layout
+type RowItem =
+  | { type: "group-header"; goalName: string; color: GoalColor; colorIndex: number; taskCount: number }
+  | { type: "task"; task: Task; goalColor: GoalColor; goalColorIndex: number };
+
 // ================================================
 // MAIN COMPONENT
 // ================================================
+/** Build a GoalColor from a hex color string */
+function goalColorFromHex(hex: string): GoalColor {
+  // Find the closest palette entry, or build from hex
+  const match = GOAL_PALETTE.find(p => p.bg === hex);
+  if (match) return match;
+  return {
+    bg: hex,
+    light: hex + "15",
+    border: hex + "80",
+    headerText: "#ffffff",
+    barBg: "",
+    barBorder: "",
+    barText: "text-white",
+  };
+}
+
 export default function TaskGanttView() {
-  const { tasks, updateTask, updateTaskStatus, profiles, refreshTasks } = useData();
+  const { tasks, updateTask, updateTaskStatus, profiles, refreshTasks, goals, addGoal } = useData();
   const { currentUser } = useAuth();
 
   // State
   const [dayWidth, setDayWidth] = useState(DEFAULT_DAY_WIDTH);
   const [viewStart, setViewStart] = useState(() => startOfWeek(new Date(), { locale: he }));
   const [selectedAssignee, setSelectedAssignee] = useState("all");
+  const [selectedGoal, setSelectedGoal] = useState("all");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showGoalsDialog, setShowGoalsDialog] = useState(false);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [dragDelta, setDragDelta] = useState(0);
   const [linkingState, setLinkingState] = useState<LinkingState | null>(null);
+  const [collapsedGoals, setCollapsedGoals] = useState<Set<string>>(new Set());
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const timelineRef = useRef<HTMLDivElement>(null);
+  const sidebarScrollRef = useRef<HTMLDivElement>(null);
 
   // Number of visible days
-  const totalDays = Math.max(28, Math.ceil(900 / dayWidth));
+  const totalDays = Math.max(42, Math.ceil(1100 / dayWidth));
 
   // Generate day columns
   const days = useMemo(() => {
     return Array.from({ length: totalDays }, (_, i) => addDays(viewStart, i));
   }, [viewStart, totalDays]);
+
+  // Month headers
+  const monthHeaders = useMemo(() => {
+    const months: { label: string; startCol: number; span: number }[] = [];
+    let currentMonth = -1;
+    let currentYear = -1;
+    let startCol = 0;
+
+    days.forEach((day, i) => {
+      const m = day.getMonth();
+      const y = day.getFullYear();
+      if (m !== currentMonth || y !== currentYear) {
+        if (months.length > 0) {
+          months[months.length - 1].span = i - startCol;
+        }
+        months.push({ label: format(day, "MMMM yyyy", { locale: he }), startCol: i, span: 0 });
+        currentMonth = m;
+        currentYear = y;
+        startCol = i;
+      }
+    });
+    if (months.length > 0) {
+      months[months.length - 1].span = days.length - months[months.length - 1].startCol;
+    }
+    return months;
+  }, [days]);
 
   // Filter tasks
   const filteredTasks = useMemo(() => {
@@ -119,7 +178,13 @@ export default function TaskGanttView() {
     if (selectedAssignee !== "all") {
       list = list.filter((t) => t.assignee_id === selectedAssignee);
     }
-    // Sort by start_date, then due_date
+    if (selectedGoal !== "all") {
+      if (selectedGoal === "__none__") {
+        list = list.filter((t) => !t.milestone);
+      } else {
+        list = list.filter((t) => t.milestone === selectedGoal);
+      }
+    }
     list.sort((a, b) => {
       const aStart = parseDateSafe(a.start_date)?.getTime() ?? Infinity;
       const bStart = parseDateSafe(b.start_date)?.getTime() ?? Infinity;
@@ -129,16 +194,125 @@ export default function TaskGanttView() {
       return aDue - bDue;
     });
     return list;
-  }, [tasks, selectedAssignee]);
+  }, [tasks, selectedAssignee, selectedGoal]);
+
+  // Build a map from goal name -> DB goal for color lookup
+  const goalByName = useMemo(() => {
+    const map = new Map<string, Goal>();
+    goals.forEach(g => map.set(g.name, g));
+    return map;
+  }, [goals]);
+
+  // Group tasks by milestone, ordered by DB goal sort_order
+  const goalGroups = useMemo((): GoalGroup[] => {
+    const groupMap = new Map<string, Task[]>();
+
+    for (const task of filteredTasks) {
+      const goal = task.milestone || "__אחר__";
+      if (!groupMap.has(goal)) {
+        groupMap.set(goal, []);
+      }
+      groupMap.get(goal)!.push(task);
+    }
+
+    // Build groups: first DB goals in sort_order, then any milestone-only groups, then "אחר"
+    const result: GoalGroup[] = [];
+    const used = new Set<string>();
+
+    // 1. DB goals in order
+    for (const dbGoal of goals) {
+      if (groupMap.has(dbGoal.name)) {
+        result.push({
+          goalName: dbGoal.name,
+          color: goalColorFromHex(dbGoal.color),
+          colorIndex: result.length,
+          tasks: groupMap.get(dbGoal.name)!,
+        });
+        used.add(dbGoal.name);
+      }
+    }
+
+    // 2. Milestones not in DB goals
+    for (const [name, tasks] of groupMap) {
+      if (name !== "__אחר__" && !used.has(name)) {
+        result.push({
+          goalName: name,
+          color: getGoalColor(result.length),
+          colorIndex: result.length,
+          tasks,
+        });
+      }
+    }
+
+    // 3. "אחר" last
+    if (groupMap.has("__אחר__")) {
+      result.push({
+        goalName: "__אחר__",
+        color: getGoalColor(result.length),
+        colorIndex: result.length,
+        tasks: groupMap.get("__אחר__")!,
+      });
+    }
+
+    return result;
+  }, [filteredTasks, goals]);
+
+  // Build flat row list (group headers + tasks)
+  const rows = useMemo((): RowItem[] => {
+    const result: RowItem[] = [];
+    for (const group of goalGroups) {
+      result.push({
+        type: "group-header",
+        goalName: group.goalName,
+        color: group.color,
+        colorIndex: group.colorIndex,
+        taskCount: group.tasks.length,
+      });
+      if (!collapsedGoals.has(group.goalName)) {
+        for (const task of group.tasks) {
+          result.push({
+            type: "task",
+            task,
+            goalColor: group.color,
+            goalColorIndex: group.colorIndex,
+          });
+        }
+      }
+    }
+    return result;
+  }, [goalGroups, collapsedGoals]);
+
+  // All unique milestones for the filter (DB goals first, then any orphan milestones)
+  const allMilestones = useMemo(() => {
+    const fromDb = goals.map(g => g.name);
+    const fromTasks = new Set<string>();
+    tasks.forEach((t) => { if (t.milestone) fromTasks.add(t.milestone); });
+    // Merge: DB goals first, then any extra milestones from tasks
+    const all = [...fromDb];
+    for (const m of fromTasks) {
+      if (!all.includes(m)) all.push(m);
+    }
+    return all;
+  }, [tasks, goals]);
 
   // Zoom
-  const zoomIn = () => setDayWidth((w) => clamp(w + 8, MIN_DAY_WIDTH, MAX_DAY_WIDTH));
-  const zoomOut = () => setDayWidth((w) => clamp(w - 8, MIN_DAY_WIDTH, MAX_DAY_WIDTH));
+  const zoomIn = () => setDayWidth((w) => clamp(w + 6, MIN_DAY_WIDTH, MAX_DAY_WIDTH));
+  const zoomOut = () => setDayWidth((w) => clamp(w - 6, MIN_DAY_WIDTH, MAX_DAY_WIDTH));
 
   // Navigate
   const goBack = () => setViewStart((d) => subWeeks(d, 1));
   const goForward = () => setViewStart((d) => addWeeks(d, 1));
   const goToday = () => setViewStart(startOfWeek(new Date(), { locale: he }));
+
+  // Toggle collapse
+  const toggleCollapse = useCallback((goalName: string) => {
+    setCollapsedGoals((prev) => {
+      const next = new Set(prev);
+      if (next.has(goalName)) next.delete(goalName);
+      else next.add(goalName);
+      return next;
+    });
+  }, []);
 
   // --- Drag handlers ---
   const handleDragStart = useCallback(
@@ -209,7 +383,6 @@ export default function TaskGanttView() {
         return;
       }
 
-      // Add dependency: taskId depends on linkingState.fromTaskId
       const targetTask = tasks.find((t) => t.id === taskId);
       if (targetTask) {
         const currentDeps = targetTask.depends_on ?? [];
@@ -235,38 +408,65 @@ export default function TaskGanttView() {
     [tasks, updateTask]
   );
 
+  // --- Compute Y positions for each row ---
+  const rowPositions = useMemo(() => {
+    const positions: { top: number; height: number }[] = [];
+    let y = 0;
+    for (const row of rows) {
+      const h = row.type === "group-header" ? GROUP_HEADER_HEIGHT : ROW_HEIGHT;
+      positions.push({ top: y, height: h });
+      y += h;
+    }
+    return positions;
+  }, [rows]);
+
+  const totalHeight = rowPositions.length > 0
+    ? rowPositions[rowPositions.length - 1].top + rowPositions[rowPositions.length - 1].height
+    : 0;
+
   // --- Compute bar positions ---
   const taskBars = useMemo(() => {
-    const viewStartTime = startOfDay(viewStart).getTime();
-    return filteredTasks.map((task, rowIndex) => {
-      const start = parseDateSafe(task.start_date);
-      const end = parseDateSafe(task.due_date);
-      if (!start && !end) return { task, rowIndex, visible: false, left: 0, width: 0, start: null, end: null };
+    return rows
+      .map((row, rowIndex) => {
+        if (row.type !== "task") return null;
+        const { task, goalColor } = row;
+        const start = parseDateSafe(task.start_date);
+        const end = parseDateSafe(task.due_date);
+        const { top } = rowPositions[rowIndex];
 
-      const barStart = start ?? end!;
-      const barEnd = end ?? start!;
-      const startDay = differenceInDays(startOfDay(barStart), startOfDay(viewStart));
-      const duration = Math.max(1, differenceInDays(startOfDay(barEnd), startOfDay(barStart)) + 1);
-
-      let left = startDay * dayWidth;
-      let width = duration * dayWidth;
-
-      // Apply drag delta
-      if (dragState && dragState.taskId === task.id) {
-        if (dragState.type === "move") {
-          left += dragDelta;
-        } else if (dragState.type === "resize-start") {
-          left += dragDelta;
-          width -= dragDelta;
-        } else if (dragState.type === "resize-end") {
-          width += dragDelta;
+        if (!start && !end) {
+          return { task, rowIndex, visible: false, left: 0, width: 0, start: null, end: null, top, goalColor };
         }
-        width = Math.max(dayWidth, width);
-      }
 
-      return { task, rowIndex, visible: true, left, width, start: barStart, end: barEnd };
-    });
-  }, [filteredTasks, viewStart, dayWidth, dragState, dragDelta]);
+        const barStart = start ?? end!;
+        const barEnd = end ?? start!;
+        const startDay = differenceInDays(startOfDay(barStart), startOfDay(viewStart));
+        const duration = Math.max(1, differenceInDays(startOfDay(barEnd), startOfDay(barStart)) + 1);
+
+        let left = startDay * dayWidth;
+        let width = duration * dayWidth;
+
+        // Apply drag delta
+        if (dragState && dragState.taskId === task.id) {
+          if (dragState.type === "move") {
+            left += dragDelta;
+          } else if (dragState.type === "resize-start") {
+            left += dragDelta;
+            width -= dragDelta;
+          } else if (dragState.type === "resize-end") {
+            width += dragDelta;
+          }
+          width = Math.max(dayWidth, width);
+        }
+
+        return { task, rowIndex, visible: true, left, width, start: barStart, end: barEnd, top, goalColor };
+      })
+      .filter(Boolean) as {
+        task: Task; rowIndex: number; visible: boolean;
+        left: number; width: number; start: Date | null; end: Date | null;
+        top: number; goalColor: GoalColor;
+      }[];
+  }, [rows, rowPositions, viewStart, dayWidth, dragState, dragDelta]);
 
   // --- Dependency arrows ---
   const dependencyArrows = useMemo(() => {
@@ -280,9 +480,9 @@ export default function TaskGanttView() {
         if (!depBar || !depBar.visible || !bar.visible) continue;
 
         const fromX = depBar.left + depBar.width;
-        const fromY = depBar.rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
+        const fromY = depBar.top + ROW_HEIGHT / 2;
         const toX = bar.left;
-        const toY = bar.rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
+        const toY = bar.top + ROW_HEIGHT / 2;
 
         arrows.push({ fromX, fromY, toX, toY, taskId: bar.task.id, depId });
       }
@@ -295,7 +495,13 @@ export default function TaskGanttView() {
   }, [viewStart, dayWidth]);
 
   const totalWidth = totalDays * dayWidth;
-  const totalHeight = filteredTasks.length * ROW_HEIGHT;
+
+  // Sync sidebar scroll with timeline scroll
+  const handleTimelineScroll = useCallback(() => {
+    if (scrollContainerRef.current && sidebarScrollRef.current) {
+      sidebarScrollRef.current.scrollTop = scrollContainerRef.current.scrollTop;
+    }
+  }, []);
 
   return (
     <div className="flex flex-col h-full" dir="rtl">
@@ -322,7 +528,7 @@ export default function TaskGanttView() {
         </div>
 
         <Select value={selectedAssignee} onValueChange={setSelectedAssignee}>
-          <SelectTrigger className="w-[160px] h-8 text-sm">
+          <SelectTrigger className="w-[140px] h-8 text-sm">
             <SelectValue placeholder="כולם" />
           </SelectTrigger>
           <SelectContent>
@@ -332,6 +538,21 @@ export default function TaskGanttView() {
                 {p.name}
               </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={selectedGoal} onValueChange={setSelectedGoal}>
+          <SelectTrigger className="w-[180px] h-8 text-sm">
+            <SelectValue placeholder="כל המטרות" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">כל המטרות</SelectItem>
+            {allMilestones.map((m) => (
+              <SelectItem key={m} value={m}>
+                {m}
+              </SelectItem>
+            ))}
+            <SelectItem value="__none__">ללא מטרה</SelectItem>
           </SelectContent>
         </Select>
 
@@ -347,6 +568,10 @@ export default function TaskGanttView() {
 
         <div className="flex-1" />
 
+        <Button variant="outline" size="sm" onClick={() => setShowGoalsDialog(true)}>
+          ניהול מטרות
+        </Button>
+
         <Button size="sm" onClick={() => setShowCreate(true)}>
           <Plus className="h-4 w-4 ml-1" />
           משימה חדשה
@@ -357,54 +582,78 @@ export default function TaskGanttView() {
       <div className="flex-1 border rounded-lg overflow-hidden bg-white flex flex-row-reverse">
         {/* Sidebar - Task list */}
         <div
-          className="border-l bg-gray-50 flex-shrink-0 overflow-hidden"
+          className="border-l bg-gray-50 flex-shrink-0 overflow-hidden flex flex-col"
           style={{ width: SIDEBAR_WIDTH }}
         >
           {/* Sidebar header */}
           <div
-            className="border-b bg-gray-100 flex items-center px-3 font-semibold text-sm text-gray-600"
-            style={{ height: HEADER_HEIGHT }}
+            className="border-b bg-gray-100 flex items-center px-3 font-semibold text-sm text-gray-600 flex-shrink-0"
+            style={{ height: TOTAL_HEADER_HEIGHT }}
           >
             משימות ({filteredTasks.length})
           </div>
           {/* Sidebar rows */}
-          <div className="overflow-y-auto" style={{ maxHeight: `calc(100% - ${HEADER_HEIGHT}px)` }}>
-            {filteredTasks.map((task) => {
-              const colors = STATUS_COLORS[task.status] ?? STATUS_COLORS.TODO;
-              const priorityBorder = PRIORITY_COLORS[task.priority] ?? "";
-              return (
-                <div
-                  key={task.id}
-                  className={`flex items-center px-3 gap-2 border-b border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors border-r-4 ${priorityBorder}`}
-                  style={{ height: ROW_HEIGHT }}
-                  onClick={() => setSelectedTask(task)}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm truncate font-medium">{task.title}</div>
-                    {task.assignee_name && (
-                      <div className="text-xs text-gray-400 truncate">{task.assignee_name}</div>
-                    )}
-                  </div>
-                  <Badge
-                    variant="secondary"
-                    className={`text-[10px] px-1.5 py-0 ${colors.bg} ${colors.text} border ${colors.border}`}
+          <div
+            ref={sidebarScrollRef}
+            className="overflow-hidden flex-1"
+          >
+            <div style={{ height: totalHeight }}>
+              {rows.map((row, i) => {
+                const pos = rowPositions[i];
+                if (row.type === "group-header") {
+                  const isCollapsed = collapsedGoals.has(row.goalName);
+                  const displayName = row.goalName === "__אחר__" ? "אחר" : row.goalName;
+                  return (
+                    <div
+                      key={`group-${row.goalName}`}
+                      className="flex items-center gap-2 px-2 cursor-pointer select-none"
+                      style={{
+                        height: pos.height,
+                        background: row.color.bg,
+                        color: row.color.headerText,
+                      }}
+                      onClick={() => toggleCollapse(row.goalName)}
+                    >
+                      {isCollapsed
+                        ? <ChevronLeft className="h-4 w-4 flex-shrink-0" />
+                        : <ChevronDown className="h-4 w-4 flex-shrink-0" />
+                      }
+                      <span className="text-sm font-bold truncate flex-1">{displayName}</span>
+                      <span className="text-xs opacity-80">{row.taskCount}</span>
+                    </div>
+                  );
+                }
+
+                // Task row
+                const { task, goalColor } = row;
+                return (
+                  <div
+                    key={task.id}
+                    className="flex items-center px-2 gap-2 border-b border-gray-100 cursor-pointer hover:bg-gray-100/70 transition-colors"
+                    style={{
+                      height: pos.height,
+                      borderRight: `4px solid ${goalColor.bg}`,
+                    }}
+                    onClick={() => setSelectedTask(task)}
                   >
-                    {task.status === "TODO"
-                      ? "לביצוע"
-                      : task.status === "IN_PROGRESS"
-                      ? "בביצוע"
-                      : task.status === "DONE"
-                      ? "הושלם"
-                      : "חסום"}
-                  </Badge>
+                    <span className="text-xs flex-shrink-0 opacity-60" title={task.status}>
+                      {STATUS_ICONS[task.status] || "○"}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] truncate font-medium leading-tight">{task.title}</div>
+                      {task.assignee_name && (
+                        <div className="text-[11px] text-gray-400 truncate leading-tight">{task.assignee_name}</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {filteredTasks.length === 0 && (
+                <div className="flex items-center justify-center h-32 text-sm text-gray-400">
+                  אין משימות להצגה
                 </div>
-              );
-            })}
-            {filteredTasks.length === 0 && (
-              <div className="flex items-center justify-center h-32 text-sm text-gray-400">
-                אין משימות להצגה
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
@@ -413,10 +662,28 @@ export default function TaskGanttView() {
           ref={scrollContainerRef}
           className="flex-1 overflow-auto relative"
           style={{ direction: "ltr" }}
+          onScroll={handleTimelineScroll}
         >
-          <div ref={timelineRef} style={{ width: totalWidth, minHeight: HEADER_HEIGHT + totalHeight }}>
+          <div style={{ width: totalWidth, minHeight: TOTAL_HEADER_HEIGHT + totalHeight }}>
             {/* Date headers */}
-            <div className="sticky top-0 z-20 bg-white border-b" style={{ height: HEADER_HEIGHT }}>
+            <div className="sticky top-0 z-20 bg-white border-b" style={{ height: TOTAL_HEADER_HEIGHT }}>
+              {/* Month row */}
+              <div className="relative border-b" style={{ height: MONTH_HEADER_HEIGHT }}>
+                {monthHeaders.map((mh, i) => (
+                  <div
+                    key={i}
+                    className="absolute top-0 text-center text-xs font-semibold text-gray-700 bg-gray-50 border-r flex items-center justify-center"
+                    style={{
+                      left: mh.startCol * dayWidth,
+                      width: mh.span * dayWidth,
+                      height: MONTH_HEADER_HEIGHT,
+                    }}
+                  >
+                    {mh.label}
+                  </div>
+                ))}
+              </div>
+              {/* Day row */}
               <div className="relative" style={{ height: HEADER_HEIGHT }}>
                 {days.map((day, i) => {
                   const isToday = isSameDay(day, new Date());
@@ -429,7 +696,7 @@ export default function TaskGanttView() {
                           ? "bg-blue-50 font-bold text-blue-600"
                           : isWkend
                           ? "bg-gray-50 text-gray-400"
-                          : "text-gray-600"
+                          : "text-gray-500"
                       }`}
                       style={{
                         left: i * dayWidth,
@@ -437,9 +704,8 @@ export default function TaskGanttView() {
                         height: HEADER_HEIGHT,
                       }}
                     >
-                      <div className="text-[10px] mt-1">{format(day, "EEE", { locale: he })}</div>
-                      <div className="text-xs">{format(day, "d")}</div>
-                      <div className="text-[9px] text-gray-400">{format(day, "MMM", { locale: he })}</div>
+                      <div className="text-[9px] mt-0.5">{format(day, "EEE", { locale: he })}</div>
+                      <div className="text-[11px]">{format(day, "d")}</div>
                     </div>
                   );
                 })}
@@ -467,14 +733,31 @@ export default function TaskGanttView() {
                 );
               })}
 
-              {/* Row separators */}
-              {filteredTasks.map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute w-full border-b border-gray-100"
-                  style={{ top: (i + 1) * ROW_HEIGHT }}
-                />
-              ))}
+              {/* Group header backgrounds + row separators */}
+              {rows.map((row, i) => {
+                const pos = rowPositions[i];
+                if (row.type === "group-header") {
+                  return (
+                    <div
+                      key={`ghbg-${row.goalName}`}
+                      className="absolute w-full"
+                      style={{
+                        top: pos.top,
+                        height: pos.height,
+                        backgroundColor: row.color.light,
+                        borderBottom: `1px solid ${row.color.border}`,
+                      }}
+                    />
+                  );
+                }
+                return (
+                  <div
+                    key={`sep-${row.task.id}`}
+                    className="absolute w-full border-b border-gray-100"
+                    style={{ top: pos.top + pos.height }}
+                  />
+                );
+              })}
 
               {/* Today line */}
               {todayOffset >= 0 && todayOffset <= totalWidth && (
@@ -522,13 +805,12 @@ export default function TaskGanttView() {
               {/* Task bars */}
               {taskBars.map((bar) => {
                 if (!bar.visible) {
-                  // No dates — show placeholder
                   return (
                     <div
                       key={bar.task.id}
                       className="absolute flex items-center justify-center"
                       style={{
-                        top: bar.rowIndex * ROW_HEIGHT + BAR_TOP_OFFSET,
+                        top: bar.top + BAR_TOP_OFFSET,
                         left: 10,
                         height: BAR_HEIGHT,
                       }}
@@ -538,27 +820,31 @@ export default function TaskGanttView() {
                   );
                 }
 
-                const colors = STATUS_COLORS[bar.task.status] ?? STATUS_COLORS.TODO;
                 const isDragging = dragState?.taskId === bar.task.id;
                 const isLinking = linkingState !== null;
                 const isLinkSource = linkingState?.fromTaskId === bar.task.id;
                 const hasDeps = (bar.task.depends_on ?? []).length > 0;
+                const isDone = bar.task.status === "DONE";
 
                 return (
                   <TooltipProvider key={bar.task.id}>
                     <Tooltip delayDuration={300}>
                       <TooltipTrigger asChild>
                         <div
-                          className={`absolute group rounded-md border-2 ${colors.bg} ${colors.border} ${colors.text}
+                          className={`absolute group rounded-md border
                             ${isDragging ? "opacity-80 shadow-lg z-30" : "z-10 hover:shadow-md"}
                             ${isLinking && !isLinkSource ? "ring-2 ring-indigo-400 cursor-crosshair" : ""}
                             ${isLinkSource ? "ring-2 ring-indigo-600 ring-offset-1" : ""}
-                            transition-shadow select-none`}
+                            ${isDone ? "opacity-70" : ""}
+                            transition-shadow select-none cursor-default`}
                           style={{
-                            top: bar.rowIndex * ROW_HEIGHT + BAR_TOP_OFFSET,
+                            top: bar.top + BAR_TOP_OFFSET,
                             left: bar.left,
                             width: Math.max(dayWidth, bar.width),
                             height: BAR_HEIGHT,
+                            backgroundColor: bar.goalColor.bg,
+                            borderColor: bar.goalColor.border,
+                            color: bar.goalColor.headerText,
                           }}
                           onClick={() => {
                             if (isLinking) {
@@ -569,7 +855,7 @@ export default function TaskGanttView() {
                         >
                           {/* Resize handle - start (left) */}
                           <div
-                            className="absolute top-0 bottom-0 w-2 cursor-col-resize hover:bg-black/10 rounded-l"
+                            className="absolute top-0 bottom-0 w-2 cursor-col-resize hover:bg-white/20 rounded-l"
                             style={{ left: 0 }}
                             onMouseDown={(e) =>
                               handleDragStart(e, bar.task.id, "resize-start", bar.start!, bar.end!)
@@ -583,32 +869,34 @@ export default function TaskGanttView() {
                               handleDragStart(e, bar.task.id, "move", bar.start!, bar.end!)
                             }
                           >
-                            <GripVertical className="h-3 w-3 flex-shrink-0 opacity-0 group-hover:opacity-40 mr-0.5" />
-                            <span className="text-[11px] font-medium truncate">
+                            <span className="text-[11px] font-medium truncate drop-shadow-sm">
                               {bar.width > dayWidth * 2 ? bar.task.title : ""}
                             </span>
                             {hasDeps && (
-                              <Link2 className="h-3 w-3 flex-shrink-0 opacity-50 mr-auto" />
+                              <Link2 className="h-3 w-3 flex-shrink-0 opacity-60 mr-auto" />
                             )}
                           </div>
 
                           {/* Resize handle - end (right) */}
                           <div
-                            className="absolute top-0 bottom-0 w-2 cursor-col-resize hover:bg-black/10 rounded-r"
+                            className="absolute top-0 bottom-0 w-2 cursor-col-resize hover:bg-white/20 rounded-r"
                             style={{ right: 0 }}
                             onMouseDown={(e) =>
                               handleDragStart(e, bar.task.id, "resize-end", bar.start!, bar.end!)
                             }
                           />
 
-                          {/* Progress fill for DONE */}
-                          {bar.task.status === "DONE" && (
-                            <div className="absolute inset-0 bg-emerald-400/30 rounded-md" />
+                          {/* Done strikethrough effect */}
+                          {isDone && (
+                            <div className="absolute inset-0 bg-white/20 rounded-md" />
                           )}
                         </div>
                       </TooltipTrigger>
                       <TooltipContent side="top" className="text-right max-w-xs" dir="rtl">
                         <div className="font-semibold text-sm">{bar.task.title}</div>
+                        {bar.task.milestone && (
+                          <div className="text-xs text-gray-400">{bar.task.milestone}</div>
+                        )}
                         <div className="text-xs text-gray-500 mt-1">
                           {bar.start && format(bar.start, "dd/MM/yyyy")}
                           {bar.start && bar.end && " → "}
@@ -671,6 +959,9 @@ export default function TaskGanttView() {
 
       {/* Task create dialog */}
       <TaskCreateDialog open={showCreate} onOpenChange={setShowCreate} />
+
+      {/* Goals management dialog */}
+      <GoalsManageDialog open={showGoalsDialog} onOpenChange={setShowGoalsDialog} />
     </div>
   );
 }

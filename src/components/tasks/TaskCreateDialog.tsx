@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useData, useAuth, type Priority } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -45,15 +45,29 @@ interface Props {
 }
 
 export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props) {
-  const { refreshTasks, profiles } = useData();
+  const { refreshTasks, profiles, tasks, goals } = useData();
   const { currentUser } = useAuth();
   const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
+
+  // Derive milestone options from DB goals + existing task milestones
+  const existingMilestones = useMemo(() => {
+    const fromGoals = goals.map(g => g.name);
+    const fromTasks = new Set<string>();
+    tasks.forEach(t => { if (t.milestone) fromTasks.add(t.milestone); });
+    const all = [...fromGoals];
+    for (const m of fromTasks) {
+      if (!all.includes(m)) all.push(m);
+    }
+    return all;
+  }, [tasks, goals]);
 
   // Base fields
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<Priority>("בינוני");
   const [assigneeId, setAssigneeId] = useState("");
+  const [milestone, setMilestone] = useState("");
+  const [startDate, setStartDate] = useState<Date>();
   const [dueDate, setDueDate] = useState<Date>();
 
   // Recurrence
@@ -75,6 +89,8 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
       setDescription("");
       setPriority("בינוני");
       setAssigneeId("");
+      setMilestone("");
+      setStartDate(undefined);
       setDueDate(undefined);
       setIsRecurring(false);
       setFrequency("weekly");
@@ -158,6 +174,8 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
         status: "TODO",
         assignee_id: assigneeId || null,
         assignee_name: assignee?.name || null,
+        milestone: milestone.trim() || null,
+        start_date: startDate?.toISOString() || null,
         due_date: dueDate?.toISOString() || null,
         is_daily: false,
       };
@@ -231,11 +249,33 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
             </div>
           </div>
 
-          {/* Due date (shown if not recurring, or as "start date" if recurring) */}
+          {/* Milestone / Goal */}
+          <div className="space-y-1">
+            <Label className="text-xs">מטרת-על</Label>
+            <Combobox
+              value={milestone}
+              onValueChange={setMilestone}
+              options={[
+                { value: "", label: "ללא" },
+                ...existingMilestones.map(m => ({ value: m, label: m })),
+              ]}
+              placeholder="בחר או הקלד מטרת-על..."
+              searchPlaceholder="חיפוש / הוספת מטרה..."
+              allowCustomValue
+            />
+          </div>
+
+          {/* Dates (shown if not recurring) */}
           {!isRecurring && (
-            <div className="space-y-1">
-              <Label className="text-xs">תאריך יעד</Label>
-              <DateInput value={dueDate} onChange={setDueDate} clearable />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">תאריך התחלה</Label>
+                <DateInput value={startDate} onChange={setStartDate} clearable />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">תאריך יעד</Label>
+                <DateInput value={dueDate} onChange={setDueDate} clearable />
+              </div>
             </div>
           )}
 
