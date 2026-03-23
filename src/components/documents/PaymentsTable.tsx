@@ -112,7 +112,7 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
         </Select>
       </div>
 
-      <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
+      <div className="bg-card rounded-xl border shadow-sm overflow-x-auto" dir="rtl">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
