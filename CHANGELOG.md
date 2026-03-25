@@ -11,9 +11,15 @@
 
 ## [2026-03-25]
 
+- Merge pull request #51 from cobra-system/claude/new-session-AZUhe (50b8d1e)
+- fix: add missing role_permissions table and other post-2026-03-15 migrations (9c09b24)
+
+<!-- last-commit: 50b8d1e698341c825b83e5c88e95dfe52ae6bcc7 -->
+
+## [2026-03-25]
+
 - Fix advance-overdue-tasks workflow failing with exit code 3 (2f9c934)
 
-<!-- last-commit: f9065684455e27be08680263f085956d98894e87 -->
 
 ## [2026-03-25]
 
