@@ -334,7 +334,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshGoals = useCallback(async () => {
-    const { data } = await supabase.from("goals").select("*").order("sort_order");
+    const { data, error } = await supabase.from("goals").select("*").order("sort_order");
+    if (error) {
+      if (error.message?.includes("schema cache") || error.code === "42P01") {
+        console.error("טבלת goals לא קיימת. יש להריץ את המיגרציה דרך Supabase SQL Editor.");
+      }
+      return;
+    }
     if (data) setGoals(data as Goal[]);
   }, []);
 
@@ -631,7 +637,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addGoal = useCallback(async (goal: Omit<Goal, "id">) => {
     const { error } = await supabase.from("goals").insert(goal);
     if (error) {
-      toast.error("שגיאה ביצירת מטרה: " + (error.message || "נסה שוב"));
+      if (error.message?.includes("schema cache") || error.code === "42P01") {
+        toast.error("טבלת מטרות-על לא נמצאה. יש להריץ את המיגרציה דרך Supabase SQL Editor — ראה קונסול לפרטים.");
+      } else {
+        toast.error("שגיאה ביצירת מטרה: " + (error.message || "נסה שוב"));
+      }
       return;
     }
     await refreshGoals();
