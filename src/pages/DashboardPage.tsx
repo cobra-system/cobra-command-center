@@ -98,7 +98,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-5">
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3">
         {[
           { label: "מוצרים", value: products.length, icon: Package, color: "text-primary", path: "/products" },
           { label: "הזמנות פתוחות", value: openOrdersCount, icon: Truck, color: "text-accent", path: "/orders" },
@@ -111,13 +111,13 @@ export default function DashboardPage() {
             key={k.label}
             onClick={() => navigate(k.path)}
             data-navigate-to={k.path}
-            className="bg-card rounded-xl border p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+            className="bg-card rounded-xl border p-3 sm:p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
           >
-            <div className="flex items-center gap-2 mb-1">
-              <k.icon className={cn("h-4 w-4", k.color)} />
-              <span className="text-xs text-muted-foreground">{k.label}</span>
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
+              <k.icon className={cn("h-3.5 w-3.5 sm:h-4 sm:w-4", k.color)} />
+              <span className="text-[10px] sm:text-xs text-muted-foreground leading-tight">{k.label}</span>
             </div>
-            <p className="text-2xl font-bold text-foreground">{k.value}</p>
+            <p className="text-xl sm:text-2xl font-bold text-foreground">{k.value}</p>
           </div>
         ))}
       </div>
@@ -246,7 +246,7 @@ export default function DashboardPage() {
       {/* Charts row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {severityData.length > 0 && (
-          <div className="bg-card rounded-xl border shadow-sm p-5">
+          <div className="bg-card rounded-xl border shadow-sm p-3 sm:p-5">
             <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
               <Wrench className="h-4 w-4 text-destructive" />תקלות פתוחות לפי חומרה
             </h3>
@@ -263,7 +263,7 @@ export default function DashboardPage() {
           </div>
         )}
         {productStockData.length > 0 && (
-          <div className="bg-card rounded-xl border shadow-sm p-5">
+          <div className="bg-card rounded-xl border shadow-sm p-3 sm:p-5">
             <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
               <Package className="h-4 w-4 text-primary" />מלאי לפי מוצרים
             </h3>
@@ -271,7 +271,7 @@ export default function DashboardPage() {
               <BarChart data={productStockData} layout="vertical" margin={{ right: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                 <XAxis type="number" fontSize={11} reversed />
-                <YAxis type="category" dataKey="name" fontSize={11} width={100} orientation="right" />
+                <YAxis type="category" dataKey="name" fontSize={11} width={80} orientation="right" />
                 <Tooltip />
                 <Bar dataKey="value" name="מלאי" fill="hsl(var(--primary))" radius={[4, 0, 0, 4]} />
               </BarChart>

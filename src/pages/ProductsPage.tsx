@@ -106,7 +106,7 @@ export default function ProductsPage() {
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-3 items-center">
+      <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
         <div className="flex bg-secondary rounded-lg p-1">
           {(["all", "מוגמר", "מורכב"] as const).map(t => (
             <button key={t} onClick={() => prefs.setFilter("typeFilter", t)} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
@@ -115,32 +115,35 @@ export default function ProductsPage() {
           ))}
         </div>
         <Select value={supplierFilter} onValueChange={(v) => prefs.setFilter("supplierFilter", v)}>
-          <SelectTrigger className="w-[160px]"><SelectValue placeholder="ספק" /></SelectTrigger>
+          <SelectTrigger className="w-[140px] sm:w-[160px]"><SelectValue placeholder="ספק" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">כל הספקים</SelectItem>
             {uniqueSuppliers.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+        <div className="relative flex-1 min-w-[150px] max-w-sm">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="חיפוש לפי שם או מק״ט..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
         </div>
       </div>
 
       <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm min-w-[600px]">
           <thead>
             <tr className="border-b bg-muted/50">
-              <th className="text-right p-3 font-semibold text-foreground w-8"></th>
-              {sortableColumns.map(col => (
-                <th key={col.key} className="text-right p-3 font-semibold text-foreground">
-                  <button onClick={() => prefs.toggleSort(col.key)} className="flex items-center gap-1 hover:text-accent transition-colors">
-                    {col.label}
-                    <SortIcon col={col.key} />
-                  </button>
-                </th>
-              ))}
-              {hasEdit && <th className="text-right p-3 font-semibold text-foreground w-10"></th>}
+              <th className="text-right p-2 sm:p-3 font-semibold text-foreground w-8"></th>
+              {sortableColumns.map(col => {
+                const hiddenOnMobile = ["incoming_qty", "purchase_price", "monthly_order"].includes(col.key);
+                return (
+                  <th key={col.key} className={`text-right p-2 sm:p-3 font-semibold text-foreground ${hiddenOnMobile ? "hidden sm:table-cell" : ""}`}>
+                    <button onClick={() => prefs.toggleSort(col.key)} className="flex items-center gap-1 hover:text-accent transition-colors">
+                      {col.label}
+                      <SortIcon col={col.key} />
+                    </button>
+                  </th>
+                );
+              })}
+              {hasEdit && <th className="text-right p-2 sm:p-3 font-semibold text-foreground w-10"></th>}
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -159,14 +162,14 @@ export default function ProductsPage() {
                     onDoubleClick={() => isComposite && navigate(`/products/${p.id}`)}
                     data-navigate-to={`/products/${p.id}`}
                   >
-                    <td className="p-3 text-center">
+                    <td className="p-2 sm:p-3 text-center">
                       {isComposite && (
                         <span className="text-muted-foreground">
                           {isExpanded ? <ChevronUp className="h-4 w-4 inline" /> : <ChevronDown className="h-4 w-4 inline" />}
                         </span>
                       )}
                     </td>
-                    <td className="p-3 font-medium text-foreground">
+                    <td className="p-2 sm:p-3 font-medium text-foreground">
                       <div className="flex items-center gap-2">
                         {p.end_product_image ? (
                           <img src={p.end_product_image} alt={p.name} className="h-8 w-8 rounded object-cover shrink-0" />
@@ -176,13 +179,13 @@ export default function ProductsPage() {
                         {p.name}
                       </div>
                     </td>
-                    <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">{p.sku}</td>
-                    <td className="p-3">
+                    <td className="p-2 sm:p-3 text-muted-foreground font-mono text-xs" dir="ltr">{p.sku}</td>
+                    <td className="p-2 sm:p-3">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                         isComposite ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"
                       }`}>{p.product_type}</span>
                     </td>
-                    <td className="p-3">
+                    <td className="p-2 sm:p-3">
                       {p.supplier ? (
                         <button
                           onClick={(e) => { e.stopPropagation(); navigateToSupplier(p.supplier!); }}
@@ -192,10 +195,10 @@ export default function ProductsPage() {
                         </button>
                       ) : <span className="text-muted-foreground">—</span>}
                     </td>
-                    <td className={`p-3 font-semibold ${p.stock_qty === 0 ? "text-destructive" : "text-foreground"}`}>{p.stock_qty}</td>
-                    <td className="p-3 text-muted-foreground">{p.incoming_qty || "—"}</td>
-                    <td className="p-3 text-muted-foreground">{p.purchase_price ? `$${p.purchase_price}` : "—"}</td>
-                    <td className="p-3 text-muted-foreground">{p.monthly_order || "—"}</td>
+                    <td className={`p-2 sm:p-3 font-semibold ${p.stock_qty === 0 ? "text-destructive" : "text-foreground"}`}>{p.stock_qty}</td>
+                    <td className="p-2 sm:p-3 text-muted-foreground hidden sm:table-cell">{p.incoming_qty || "—"}</td>
+                    <td className="p-2 sm:p-3 text-muted-foreground hidden sm:table-cell">{p.purchase_price ? `$${p.purchase_price}` : "—"}</td>
+                    <td className="p-2 sm:p-3 text-muted-foreground hidden sm:table-cell">{p.monthly_order || "—"}</td>
                     {hasEdit && (
                       <td className="p-3" onClick={e => e.stopPropagation()}>
                         <AlertDialog>
@@ -235,8 +238,8 @@ export default function ProductsPage() {
                           </div>
                           <div className="grid gap-1.5">
                             {p.components!.map(comp => (
-                              <div key={comp.id} className="flex items-center gap-4 bg-card/70 rounded-lg px-3 py-2 text-xs">
-                                <span className="font-medium text-foreground min-w-[180px]">{comp.name}</span>
+                              <div key={comp.id} className="flex flex-wrap items-center gap-2 sm:gap-4 bg-card/70 rounded-lg px-3 py-2 text-xs">
+                                <span className="font-medium text-foreground min-w-[120px] sm:min-w-[180px]">{comp.name}</span>
                                 <span className="text-muted-foreground">
                                   <span className="text-muted-foreground/60">ספק: </span>
                                   {comp.supplier ? (

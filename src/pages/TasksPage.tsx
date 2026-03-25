@@ -15,21 +15,21 @@ export default function TasksPage() {
     <div className="h-full flex flex-col" dir="rtl">
       <Tabs value={view} onValueChange={setView} className="w-full">
         <TabsList className="grid w-full grid-cols-4 mb-4">
-          <TabsTrigger value="weekly" className="gap-1.5">
+          <TabsTrigger value="weekly" className="gap-1 sm:gap-1.5 text-xs sm:text-sm px-1 sm:px-3">
             <Grid3x3 className="h-4 w-4" />
-            שבוע
+            <span className="hidden sm:inline">שבוע</span>
           </TabsTrigger>
-          <TabsTrigger value="daily" className="gap-1.5">
+          <TabsTrigger value="daily" className="gap-1 sm:gap-1.5 text-xs sm:text-sm px-1 sm:px-3">
             <Calendar className="h-4 w-4" />
-            יום
+            <span className="hidden sm:inline">יום</span>
           </TabsTrigger>
-          <TabsTrigger value="monthly" className="gap-1.5">
+          <TabsTrigger value="monthly" className="gap-1 sm:gap-1.5 text-xs sm:text-sm px-1 sm:px-3">
             <Clock className="h-4 w-4" />
-            חודש
+            <span className="hidden sm:inline">חודש</span>
           </TabsTrigger>
-          <TabsTrigger value="gantt" className="gap-1.5">
+          <TabsTrigger value="gantt" className="gap-1 sm:gap-1.5 text-xs sm:text-sm px-1 sm:px-3">
             <GanttChart className="h-4 w-4" />
-            גאנט
+            <span className="hidden sm:inline">גאנט</span>
           </TabsTrigger>
         </TabsList>
 

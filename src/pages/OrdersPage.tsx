@@ -311,27 +311,27 @@ export default function OrdersPage() {
         <TabsContent value="table" className="mt-0 space-y-4">
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+      <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
+        <div className="relative flex-1 min-w-[150px] max-w-sm order-first w-full sm:w-auto sm:order-none">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="חיפוש לפי מוצר או ספק..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
         </div>
-        <div className="flex bg-secondary rounded-lg p-1">
+        <div className="flex bg-secondary rounded-lg p-1 overflow-x-auto">
           {statusFilterOptions.map(s => (
-            <button key={s.value} onClick={() => setStatusFilter(s.value)} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            <button key={s.value} onClick={() => setStatusFilter(s.value)} className={`px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
               statusFilter === s.value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
             }`}>{s.label}</button>
           ))}
         </div>
         <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="w-[130px]"><SelectValue placeholder="עדיפות" /></SelectTrigger>
+          <SelectTrigger className="w-[110px] sm:w-[130px]"><SelectValue placeholder="עדיפות" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">כל העדיפויות</SelectItem>
             {priorities.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-          <SelectTrigger className="w-[120px]"><SelectValue placeholder="תשלום" /></SelectTrigger>
+          <SelectTrigger className="w-[100px] sm:w-[120px]"><SelectValue placeholder="תשלום" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">כל התשלומים</SelectItem>
             <SelectItem value="שולם">שולם</SelectItem>
@@ -340,7 +340,7 @@ export default function OrdersPage() {
           </SelectContent>
         </Select>
         <Select value={workflowFilter} onValueChange={setWorkflowFilter}>
-          <SelectTrigger className="w-[130px]"><SelectValue placeholder="תהליך" /></SelectTrigger>
+          <SelectTrigger className="w-[110px] sm:w-[130px]"><SelectValue placeholder="תהליך" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">כל התהליכים</SelectItem>
             <SelectItem value="active">תהליך פעיל</SelectItem>
@@ -351,24 +351,48 @@ export default function OrdersPage() {
       </div>
 
       <div className="bg-card rounded-xl border shadow-sm overflow-x-auto" dir="rtl">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm min-w-[700px]">
           <thead>
             <tr className="border-b bg-muted/50">
               <ThButton field="priority">עדיפות</ThButton>
               <ThButton field="product">מוצר</ThButton>
               <ThButton field="qty">כמות</ThButton>
               <ThButton field="supplier">ספק</ThButton>
-              <ThButton field="shipping">משלוח</ThButton>
+              <th className="text-right p-2 sm:p-3 font-semibold text-foreground hidden md:table-cell">
+                <button onClick={() => toggleSort("shipping")} className="flex items-center gap-1 hover:text-primary transition-colors">
+                  משלוח<SortIcon field="shipping" />
+                </button>
+              </th>
               <ThButton field="status">סטטוס</ThButton>
-              <ThButton field="order_date">תאריך הזמנה</ThButton>
-              <ThButton field="etd">ETD</ThButton>
+              <th className="text-right p-2 sm:p-3 font-semibold text-foreground hidden md:table-cell">
+                <button onClick={() => toggleSort("order_date")} className="flex items-center gap-1 hover:text-primary transition-colors">
+                  תאריך הזמנה<SortIcon field="order_date" />
+                </button>
+              </th>
+              <th className="text-right p-2 sm:p-3 font-semibold text-foreground hidden lg:table-cell">
+                <button onClick={() => toggleSort("etd")} className="flex items-center gap-1 hover:text-primary transition-colors">
+                  ETD<SortIcon field="etd" />
+                </button>
+              </th>
               <ThButton field="eta">ETA</ThButton>
               <ThButton field="total_price">סה״כ</ThButton>
-              <ThButton field="payment">תשלום</ThButton>
-              <ThButton field="workflow">תהליך</ThButton>
-              <ThButton field="tracking_number">מספר מעקב</ThButton>
-              <th className="text-right p-3 font-semibold text-foreground w-10"></th>
-              {hasEdit && <th className="text-right p-3 font-semibold text-foreground w-10"></th>}
+              <th className="text-right p-2 sm:p-3 font-semibold text-foreground hidden lg:table-cell">
+                <button onClick={() => toggleSort("payment")} className="flex items-center gap-1 hover:text-primary transition-colors">
+                  תשלום<SortIcon field="payment" />
+                </button>
+              </th>
+              <th className="text-right p-2 sm:p-3 font-semibold text-foreground hidden lg:table-cell">
+                <button onClick={() => toggleSort("workflow")} className="flex items-center gap-1 hover:text-primary transition-colors">
+                  תהליך<SortIcon field="workflow" />
+                </button>
+              </th>
+              <th className="text-right p-2 sm:p-3 font-semibold text-foreground hidden lg:table-cell">
+                <button onClick={() => toggleSort("tracking_number")} className="flex items-center gap-1 hover:text-primary transition-colors">
+                  מספר מעקב<SortIcon field="tracking_number" />
+                </button>
+              </th>
+              <th className="text-right p-2 sm:p-3 font-semibold text-foreground w-10"></th>
+              {hasEdit && <th className="text-right p-2 sm:p-3 font-semibold text-foreground w-10"></th>}
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -401,8 +425,8 @@ export default function OrdersPage() {
                     </button>
                   ) : <span className="text-muted-foreground">—</span>}
                 </td>
-                <td className="p-3 text-muted-foreground">{order.shipping || "—"}</td>
-                <td className="p-3" onClick={e => e.stopPropagation()}>
+                <td className="p-2 sm:p-3 text-muted-foreground hidden md:table-cell">{order.shipping || "—"}</td>
+                <td className="p-2 sm:p-3" onClick={e => e.stopPropagation()}>
                   <Popover>
                     <PopoverTrigger asChild>
                       <button className="cursor-pointer"><OrderStatusBadge status={order.status as OrderStatus} /></button>
@@ -425,11 +449,11 @@ export default function OrdersPage() {
                     </PopoverContent>
                   </Popover>
                 </td>
-                <td className="p-3 text-muted-foreground text-xs">{order.order_date ? new Date(order.order_date).toLocaleDateString("he-IL") : "—"}</td>
-                <td className="p-3 text-muted-foreground text-xs">{order.etd ? new Date(order.etd).toLocaleDateString("he-IL") : "—"}</td>
-                <td className="p-3 text-muted-foreground text-xs">{order.eta ? new Date(order.eta).toLocaleDateString("he-IL") : "—"}</td>
-                <td className="p-3 text-muted-foreground text-xs">{order.total_price ? `$${order.total_price.toLocaleString()}` : "—"}</td>
-                <td className="p-3" onClick={e => e.stopPropagation()}>
+                <td className="p-2 sm:p-3 text-muted-foreground text-xs hidden md:table-cell">{order.order_date ? new Date(order.order_date).toLocaleDateString("he-IL") : "—"}</td>
+                <td className="p-2 sm:p-3 text-muted-foreground text-xs hidden lg:table-cell">{order.etd ? new Date(order.etd).toLocaleDateString("he-IL") : "—"}</td>
+                <td className="p-2 sm:p-3 text-muted-foreground text-xs">{order.eta ? new Date(order.eta).toLocaleDateString("he-IL") : "—"}</td>
+                <td className="p-2 sm:p-3 text-muted-foreground text-xs">{order.total_price ? `$${order.total_price.toLocaleString()}` : "—"}</td>
+                <td className="p-2 sm:p-3 hidden lg:table-cell" onClick={e => e.stopPropagation()}>
                   <Popover>
                     <PopoverTrigger asChild>
                       <button className="cursor-pointer">
@@ -462,7 +486,7 @@ export default function OrdersPage() {
                     </PopoverContent>
                   </Popover>
                 </td>
-                <td className="p-3" onClick={e => e.stopPropagation()}>
+                <td className="p-2 sm:p-3 hidden lg:table-cell" onClick={e => e.stopPropagation()}>
                   {orderWorkflows[order.id] ? (
                     <Popover>
                       <PopoverTrigger asChild>
@@ -527,7 +551,7 @@ export default function OrdersPage() {
                     <span className="text-xs text-muted-foreground">—</span>
                   )}
                 </td>
-                <td className="p-3 text-muted-foreground text-xs">{order.tracking_number || "—"}</td>
+                <td className="p-2 sm:p-3 text-muted-foreground text-xs hidden lg:table-cell">{order.tracking_number || "—"}</td>
                 <td className="p-3" onClick={e => e.stopPropagation()}>
                   <button
                     className="p-1 rounded hover:bg-muted transition-colors"
