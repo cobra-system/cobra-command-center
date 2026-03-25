@@ -11,9 +11,15 @@
 
 ## [2026-03-25]
 
+- resolve merge conflict in index.ts - keep daily-reports import (32f890a)
+- feat: daily reports dashboard widget + MCP tools (71e083b)
+
+<!-- last-commit: 8954075732927c1e1b5a67a2d208b9e9aeb1b5b5 -->
+
+## [2026-03-25]
+
 - feat: make payment status and document type/status inline-editable (c739a63)
 
-<!-- last-commit: a38fc29e061583cc5107a58c6830a8f218e1cd1f -->
 
 ## [2026-03-25]
 
