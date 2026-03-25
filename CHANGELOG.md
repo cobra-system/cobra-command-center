@@ -11,10 +11,16 @@
 
 ## [2026-03-25]
 
+- Merge pull request #55 from cobra-system/claude/user-type-views-JRVnZ (41c59d9)
+- feat: add employee bottom navigation for permitted modules (b0f3e9f)
+
+<!-- last-commit: 41c59d9bf4fef0b2fc9b5875fe6ed4042da3deaa -->
+
+## [2026-03-25]
+
 - merge: resolve conflict with main, keep mobile fixes + DailyReportWidget (b41ddb9)
 - fix: improve mobile/iPhone layout across all main pages (03c0ce1)
 
-<!-- last-commit: f1c37c0f04cbe88b60a05a794b5d9a1a8e87af10 -->
 
 ## [2026-03-25]
 
