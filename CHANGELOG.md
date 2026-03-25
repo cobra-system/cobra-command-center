@@ -11,10 +11,16 @@
 
 ## [2026-03-25]
 
+- refactor: merge recurring_tasks table into tasks table (dd10fdb)
+- fix: recurring tasks showing duplicates and incorrect frequency matching (a6efaa6)
+
+<!-- last-commit: bd5b524b39c18d770684eef64fc6669f362c06d3 -->
+
+## [2026-03-25]
+
 - Merge pull request #57 from cobra-system/claude/task-inline-editing-y8iYy (d1cec4e)
 - feat: replace task detail edit mode with inline double-click editing (ab02dc1)
 
-<!-- last-commit: d1cec4e17dc36a0766b256c10a8388b819358f9d -->
 
 ## [2026-03-25]
 
