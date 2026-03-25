@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
@@ -10,7 +11,7 @@ interface InlineEditFieldProps {
   onSave: (newValue: string) => void;
   label?: string;
   displayValue?: string | React.ReactNode;
-  type?: "text" | "number";
+  type?: "text" | "number" | "textarea";
   className?: string;
   inputClassName?: string;
   disabled?: boolean;
@@ -35,13 +36,19 @@ export function InlineEditField({
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(String(value ?? ""));
   const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (editing && inputRef.current && !options) {
-      inputRef.current.focus();
-      inputRef.current.select();
+    if (editing && !options) {
+      if (type === "textarea" && textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(textareaRef.current.value.length, textareaRef.current.value.length);
+      } else if (inputRef.current) {
+        inputRef.current.focus();
+        inputRef.current.select();
+      }
     }
-  }, [editing, options]);
+  }, [editing, options, type]);
 
   const handleSave = () => {
     setEditing(false);
@@ -140,6 +147,25 @@ export function InlineEditField({
       );
     }
 
+    if (type === "textarea") {
+      return (
+        <div className={cn("space-y-1", className)}>
+          {label && <p className="text-xs text-muted-foreground">{label}</p>}
+          <Textarea
+            ref={textareaRef}
+            value={editValue}
+            onChange={e => setEditValue(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") { setEditValue(String(value ?? "")); setEditing(false); }
+            }}
+            rows={3}
+            className={cn("text-sm", inputClassName)}
+          />
+        </div>
+      );
+    }
+
     return (
       <div className={cn("space-y-1", className)}>
         {label && <p className="text-xs text-muted-foreground">{label}</p>}
@@ -187,7 +213,7 @@ export function InlineEditField({
       title="לחץ פעמיים לעריכה"
     >
       {label && <p className="text-xs text-muted-foreground">{label}</p>}
-      <div className="text-sm font-medium text-foreground group-hover:bg-muted/50 group-hover:rounded px-1 -mx-1 transition-colors">
+      <div className={cn("text-sm font-medium text-foreground group-hover:bg-muted/50 group-hover:rounded px-1 -mx-1 transition-colors", type === "textarea" && "whitespace-pre-wrap")}>
         {renderDisplay()}
       </div>
     </div>
