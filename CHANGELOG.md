@@ -11,10 +11,16 @@
 
 ## [2026-03-25]
 
+- merge: resolve conflict with main, keep mobile fixes + DailyReportWidget (b41ddb9)
+- fix: improve mobile/iPhone layout across all main pages (03c0ce1)
+
+<!-- last-commit: f1c37c0f04cbe88b60a05a794b5d9a1a8e87af10 -->
+
+## [2026-03-25]
+
 - resolve merge conflict in index.ts - keep daily-reports import (32f890a)
 - feat: daily reports dashboard widget + MCP tools (71e083b)
 
-<!-- last-commit: 8954075732927c1e1b5a67a2d208b9e9aeb1b5b5 -->
 
 ## [2026-03-25]
 
