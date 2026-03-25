@@ -11,10 +11,15 @@
 
 ## [2026-03-25]
 
+- feat: make payment status and document type/status inline-editable (c739a63)
+
+<!-- last-commit: a38fc29e061583cc5107a58c6830a8f218e1cd1f -->
+
+## [2026-03-25]
+
 - Merge pull request #51 from cobra-system/claude/new-session-AZUhe (50b8d1e)
 - fix: add missing role_permissions table and other post-2026-03-15 migrations (9c09b24)
 
-<!-- last-commit: 50b8d1e698341c825b83e5c88e95dfe52ae6bcc7 -->
 
 ## [2026-03-25]
 
