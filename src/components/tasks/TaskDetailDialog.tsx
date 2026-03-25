@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { type Task, type Priority } from "@/contexts/AppContext";
+import { useState, useEffect, useMemo } from "react";
+import { type Task, type Priority, useData } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const priorityOptions: { value: Priority; label: string }[] = [
@@ -24,12 +25,25 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
   onUpdate: (id: string, updates: Partial<Task>) => Promise<void>;
   onStatusChange: (id: string, status: any) => Promise<void>;
 }) {
+  const { tasks: allTasks, goals } = useData();
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<Priority>("בינוני");
   const [assigneeId, setAssigneeId] = useState("");
+  const [milestone, setMilestone] = useState("");
   const [notes, setNotes] = useState("");
+
+  const existingMilestones = useMemo(() => {
+    const fromGoals = goals.map(g => g.name);
+    const fromTasks = new Set<string>();
+    allTasks.forEach(t => { if (t.milestone) fromTasks.add(t.milestone); });
+    const all = [...fromGoals];
+    for (const m of fromTasks) {
+      if (!all.includes(m)) all.push(m);
+    }
+    return all;
+  }, [allTasks, goals]);
 
   useEffect(() => {
     if (task) {
@@ -37,6 +51,7 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
       setDescription(task.description || "");
       setPriority(task.priority as Priority);
       setAssigneeId(task.assignee_id || "");
+      setMilestone(task.milestone || "");
       setNotes(task.notes || "");
       setEditing(false);
     }
@@ -54,6 +69,7 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
       priority,
       assignee_id: assigneeId || null,
       assignee_name: assignee?.name || null,
+      milestone: milestone.trim() || null,
       notes: notes.trim() || null,
     });
     setEditing(false);
@@ -110,6 +126,20 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
               </div>
             </div>
             <div className="space-y-1">
+              <Label className="text-xs">מטרת-על</Label>
+              <Combobox
+                value={milestone}
+                onValueChange={setMilestone}
+                options={[
+                  { value: "", label: "ללא" },
+                  ...existingMilestones.map(m => ({ value: m, label: m })),
+                ]}
+                placeholder="בחר או הקלד מטרת-על..."
+                searchPlaceholder="חיפוש / הוספת מטרה..."
+                allowCustomValue
+              />
+            </div>
+            <div className="space-y-1">
               <Label className="text-xs">הערות</Label>
               <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
             </div>
@@ -148,6 +178,13 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
                 <p className="text-sm font-medium text-foreground">{task.due_date ? format(new Date(task.due_date), "dd/MM/yyyy") : "לא נקבע"}</p>
               </div>
             </div>
+
+            {task.milestone && (
+              <div className="bg-muted/30 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground mb-1">מטרת-על</p>
+                <p className="text-sm text-foreground font-medium">{task.milestone}</p>
+              </div>
+            )}
 
             {task.notes && (
               <div className="bg-muted/30 rounded-lg p-3">

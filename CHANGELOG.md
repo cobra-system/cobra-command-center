@@ -9,12 +9,56 @@
 
 ---
 
+## [2026-03-25]
+
+- feat: make payment status and document type/status inline-editable (c739a63)
+
+<!-- last-commit: a38fc29e061583cc5107a58c6830a8f218e1cd1f -->
+
+## [2026-03-25]
+
+- Merge pull request #51 from cobra-system/claude/new-session-AZUhe (50b8d1e)
+- fix: add missing role_permissions table and other post-2026-03-15 migrations (9c09b24)
+
+
+## [2026-03-25]
+
+- Fix advance-overdue-tasks workflow failing with exit code 3 (2f9c934)
+
+
+## [2026-03-25]
+
+- fix: verify goals table exists before marking migration complete (76fc45e)
+
+
+## [2026-03-23]
+
+- Merge pull request #48 from cobra-system/claude/workflow-management-api-QY3Sn (318a81b)
+- feat: add workflow, payment, and enhanced order/document/product MCP tools (78c3e24)
+
+
+## [2026-03-23]
+
+- Merge pull request #46 from cobra-system/claude/fix-goal-creation-gkDNg (f3a582a)
+- fix: apply goals table migration at runtime to resolve schema cache error (80c0ef6)
+
+
+## [2026-03-23]
+
+- Fix permissions editing: surface Supabase errors and add WITH CHECK to UPDATE policy (de68f71)
+
+
+## [2026-03-23]
+
+- feat: add goals DB table and management UI for Gantt view (eb46c3e)
+- feat: grouped Gantt view by goals (מטרת-על) with colored categories (5306009)
+
+
 ## [2026-03-23]
 
 - Merge pull request #44 from cobra-system/claude/meeting-participants-documents-KqQwI (d15ff19)
 - feat: structured meeting participants + document upload (9357bcb)
 
-<!-- last-commit: d15ff190e4e0e6072926f3f7ad8d0d009894e75a -->
 
 ## [2026-03-23]
 

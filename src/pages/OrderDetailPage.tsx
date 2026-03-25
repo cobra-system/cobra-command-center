@@ -15,6 +15,7 @@ import { InlineEditField } from "@/components/InlineEditField";
 import { DateInput } from "@/components/ui/date-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "sonner";
@@ -99,13 +100,10 @@ export default function OrderDetailPage() {
     toast.success("עודכן");
   };
 
-  // Payment status cycle via click: ממתין → שולם פיקדון → שולם → ממתין
+  // Payment status options
   const paymentStatuses = ["ממתין", "שולם פיקדון", "שולם"] as const;
-  const cyclePaymentStatus = async () => {
+  const setPaymentStatus = async (next: string) => {
     if (!hasEdit) return;
-    const current = (order as any).payment_status || "ממתין";
-    const idx = paymentStatuses.indexOf(current);
-    const next = paymentStatuses[(idx + 1) % paymentStatuses.length];
     await updateOrder(order.id, {
       payment_status: next,
       payment_date: next === "שולם" || next === "שולם פיקדון" ? new Date().toISOString() : null,
@@ -383,7 +381,7 @@ export default function OrderDetailPage() {
             <p className="text-sm font-medium text-foreground">{order.payment_date ? new Date(order.payment_date).toLocaleDateString("he-IL") : "טרם שולם"}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">סטטוס תשלום {hasEdit && <span className="text-xs text-muted-foreground/60">(לחיצה לשינוי)</span>}</p>
+            <p className="text-xs text-muted-foreground">סטטוס תשלום</p>
             {(() => {
               const ps = (order as any).payment_status || "ממתין";
               const colors: Record<string, string> = {
@@ -391,17 +389,34 @@ export default function OrderDetailPage() {
                 "שולם פיקדון": "bg-accent/15 text-accent",
                 "ממתין": "bg-warning/15 text-warning",
               };
+              if (!hasEdit) {
+                return (
+                  <span className={cn("inline-block px-2 py-0.5 rounded-full text-xs font-medium", colors[ps] || "bg-muted text-muted-foreground")}>
+                    {ps}
+                  </span>
+                );
+              }
               return (
-                <span
-                  onClick={cyclePaymentStatus}
-                  className={cn(
-                    "inline-block px-2 py-0.5 rounded-full text-xs font-medium select-none",
-                    hasEdit && "cursor-pointer hover:ring-2 hover:ring-primary/30",
-                    colors[ps] || "bg-muted text-muted-foreground"
-                  )}
-                >
-                  {ps}
-                </span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button className={cn("px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer", colors[ps] || "bg-muted text-muted-foreground")}>
+                      {ps}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-1" align="start">
+                    <div className="flex flex-col gap-0.5">
+                      {paymentStatuses.map(s => (
+                        <button
+                          key={s}
+                          onClick={() => setPaymentStatus(s)}
+                          className={cn("px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted", ps === s && "bg-muted")}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               );
             })()}
           </div>

@@ -113,6 +113,13 @@ export interface OrderItem {
   price?: number | null;
 }
 
+export interface Goal {
+  id: string;
+  name: string;
+  color: string;
+  sort_order: number;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -156,6 +163,7 @@ interface DataState {
   products: Product[];
   orders: Order[];
   tasks: Task[];
+  goals: Goal[];
   suppliers: Supplier[];
   profiles: Profile[];
   roleDefinitions: RoleDefinition[];
@@ -174,6 +182,10 @@ interface DataState {
   addTask: (task: Omit<Task, "id">) => Promise<void>;
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
+  refreshGoals: () => Promise<void>;
+  addGoal: (goal: Omit<Goal, "id">) => Promise<void>;
+  updateGoal: (id: string, updates: Partial<Goal>) => Promise<void>;
+  deleteGoal: (id: string) => Promise<void>;
   updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
   addProduct: (product: Omit<Product, "id" | "components">, components?: Omit<ProductComponent, "id" | "product_id">[]) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
@@ -223,6 +235,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [roleDefinitions, setRoleDefinitions] = useState<RoleDefinition[]>([]);
@@ -320,6 +333,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (data) setTasks(data as Task[]);
   }, []);
 
+  const refreshGoals = useCallback(async () => {
+    const { data, error } = await supabase.from("goals").select("*").order("sort_order");
+    if (error) {
+      if (error.message?.includes("schema cache") || error.code === "42P01") {
+        console.error("טבלת goals לא קיימת. יש להריץ את המיגרציה דרך Supabase SQL Editor.");
+      }
+      return;
+    }
+    if (data) setGoals(data as Goal[]);
+  }, []);
+
   const refreshSuppliers = useCallback(async () => {
     const { data } = await supabase.from("suppliers").select("*").order("company");
     if (data) {
@@ -360,7 +384,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       await refreshRolePermissions();
     } catch (err) {
-      toast.error("שגיאה בעדכון הרשאות: " + (err instanceof Error ? err.message : "נסה שוב"));
+      toast.error("שגיאה בעדכון הרשאות: " + ((err as any)?.message || "נסה שוב"));
     }
   }, [refreshRolePermissions]);
 
@@ -375,12 +399,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       refreshProducts(),
       refreshOrders(),
       refreshTasks(),
+      refreshGoals(),
       refreshSuppliers(),
       refreshProfiles(),
       refreshRoleDefinitions(),
       refreshRolePermissions(),
     ]).finally(() => setDataLoading(false));
-  }, [session, refreshProducts, refreshOrders, refreshTasks, refreshSuppliers, refreshProfiles, refreshRoleDefinitions, refreshRolePermissions]);
+  }, [session, refreshProducts, refreshOrders, refreshTasks, refreshGoals, refreshSuppliers, refreshProfiles, refreshRoleDefinitions, refreshRolePermissions]);
 
   // Realtime subscription for tasks
   useEffect(() => {
@@ -608,6 +633,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
       throw error;
     }
   }, [tasks]);
+
+  const addGoal = useCallback(async (goal: Omit<Goal, "id">) => {
+    const { error } = await supabase.from("goals").insert(goal);
+    if (error) {
+      if (error.message?.includes("schema cache") || error.code === "42P01") {
+        toast.error("טבלת מטרות-על לא נמצאה. יש להריץ את המיגרציה דרך Supabase SQL Editor — ראה קונסול לפרטים.");
+      } else {
+        toast.error("שגיאה ביצירת מטרה: " + (error.message || "נסה שוב"));
+      }
+      return;
+    }
+    await refreshGoals();
+    toast.success("מטרה נוספה");
+  }, [refreshGoals]);
+
+  const updateGoal = useCallback(async (id: string, updates: Partial<Goal>) => {
+    const prev = goals;
+    setGoals(g => g.map(item => item.id === id ? { ...item, ...updates } : item));
+    const { error } = await supabase.from("goals").update(updates).eq("id", id);
+    if (error) {
+      setGoals(prev);
+      toast.error("שגיאה בעדכון מטרה: " + (error.message || "נסה שוב"));
+    }
+  }, [goals]);
+
+  const deleteGoal = useCallback(async (id: string) => {
+    const prev = goals;
+    setGoals(g => g.filter(item => item.id !== id));
+    const { error } = await supabase.from("goals").delete().eq("id", id);
+    if (error) {
+      setGoals(prev);
+      toast.error("שגיאה במחיקת מטרה: " + (error.message || "נסה שוב"));
+    }
+  }, [goals]);
 
   const updateProduct = useCallback(async (id: string, updates: Partial<Product>) => {
     try {
@@ -839,6 +898,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         products,
         orders,
         tasks,
+        goals,
         suppliers,
         profiles,
         loading: dataLoading,
@@ -856,6 +916,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addTask,
         updateTask,
         deleteTask,
+        refreshGoals,
+        addGoal,
+        updateGoal,
+        deleteGoal,
         updateProduct,
         addProduct,
         deleteProduct,
