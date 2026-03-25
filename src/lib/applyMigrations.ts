@@ -110,11 +110,28 @@ async function fixIsraeliOrderWorkflows() {
   }
 }
 
+async function verifyTableExists(tableName: string): Promise<boolean> {
+  const { error } = await supabase.from(tableName).select("id").limit(1);
+  // If table doesn't exist, error code is "42P01" or message contains "relation"
+  if (error && (error.code === "42P01" || error.message?.includes("relation") || error.message?.includes("schema cache"))) {
+    return false;
+  }
+  return true;
+}
+
 export async function applyMigrations() {
   try {
     const applied = localStorage.getItem(MIGRATION_KEY)
+
+    // Even if localStorage says current version, verify the goals table actually exists
     if (applied === CURRENT_VERSION) {
-      return true
+      const goalsExist = await verifyTableExists("goals");
+      if (goalsExist) {
+        return true;
+      }
+      // Table doesn't exist despite localStorage — clear flag and re-run
+      console.warn("⚠️ goals table not found despite migration flag. Re-running migrations...");
+      localStorage.removeItem(MIGRATION_KEY);
     }
 
     // Migration 1: Create user_preferences table
@@ -178,6 +195,28 @@ export async function applyMigrations() {
       } catch {
         console.warn("goals migration step may need to be applied via Supabase dashboard");
       }
+    }
+
+    // Verify the goals table was actually created before marking migration as complete
+    const goalsCreated = await verifyTableExists("goals");
+    if (!goalsCreated) {
+      console.error(
+        "❌ Goals table was not created. Please run the following SQL in Supabase SQL Editor:\n\n" +
+        "CREATE TABLE IF NOT EXISTS public.goals (\n" +
+        "  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n" +
+        "  name TEXT NOT NULL UNIQUE,\n" +
+        "  color TEXT NOT NULL DEFAULT '#0e7490',\n" +
+        "  sort_order INT NOT NULL DEFAULT 0,\n" +
+        "  created_at TIMESTAMPTZ NOT NULL DEFAULT now()\n" +
+        ");\n\n" +
+        "ALTER TABLE public.goals ENABLE ROW LEVEL SECURITY;\n\n" +
+        "CREATE POLICY \"Authenticated users can read goals\" ON public.goals FOR SELECT TO authenticated USING (true);\n" +
+        "CREATE POLICY \"Managers can insert goals\" ON public.goals FOR INSERT TO authenticated WITH CHECK (public.is_manager());\n" +
+        "CREATE POLICY \"Managers can update goals\" ON public.goals FOR UPDATE TO authenticated USING (public.is_manager());\n" +
+        "CREATE POLICY \"Managers can delete goals\" ON public.goals FOR DELETE TO authenticated USING (public.is_manager());"
+      );
+      // Do NOT set localStorage — migration will retry on next load
+      return false;
     }
 
     localStorage.setItem(MIGRATION_KEY, CURRENT_VERSION)
