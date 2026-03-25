@@ -11,9 +11,14 @@
 
 ## [2026-03-25]
 
+- Fix advance-overdue-tasks workflow failing with exit code 3 (2f9c934)
+
+<!-- last-commit: f9065684455e27be08680263f085956d98894e87 -->
+
+## [2026-03-25]
+
 - fix: verify goals table exists before marking migration complete (76fc45e)
 
-<!-- last-commit: 8ed59aad3d6a7f8372fab409de90301ca3fdb4c0 -->
 
 ## [2026-03-23]
 
