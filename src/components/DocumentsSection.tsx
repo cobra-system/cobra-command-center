@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { FileText, ExternalLink, Upload, CreditCard, AlertTriangle, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AppContext";
 import type { PurchaseDocument, Payment } from "@/components/documents/types";
-import { docStatusColors, payStatusColors, currencySymbol, paymentTypeLabels } from "@/components/documents/constants";
+import { docStatusFlow, docStatusColors, payStatusColors, currencySymbol, paymentTypeLabels } from "@/components/documents/constants";
 import SimpleFileUploadDialog from "@/components/documents/SimpleFileUploadDialog";
 
 interface Props {
@@ -15,8 +17,11 @@ interface Props {
   orderId?: string;
 }
 
+const docTypes = ["PI", "PO", "כללי"] as const;
+
 export default function DocumentsSection({ supplierId, productId, orderId }: Props) {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [docs, setDocs] = useState<PurchaseDocument[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +47,21 @@ export default function DocumentsSection({ supplierId, productId, orderId }: Pro
   }, [supplierId, productId, orderId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleDocStatusChange = async (docId: string, newStatus: string) => {
+    const updates: Record<string, any> = { status: newStatus };
+    if (newStatus === "אושר") {
+      updates.approval_date = new Date().toISOString();
+      updates.approved_by = currentUser?.id;
+    }
+    await supabase.from("purchase_documents").update(updates).eq("id", docId);
+    fetchData();
+  };
+
+  const handleDocTypeChange = async (docId: string, newType: string) => {
+    await supabase.from("purchase_documents").update({ type: newType }).eq("id", docId);
+    fetchData();
+  };
 
   if (loading) return null;
 
@@ -91,18 +111,52 @@ export default function DocumentsSection({ supplierId, productId, orderId }: Pro
                         <span>{doc.document_name || doc.notes || "ללא שם"}</span>
                       </div>
                     </td>
-                    <td className="p-3">
-                      <span className={cn("px-2 py-0.5 rounded text-xs font-bold", doc.type === "PI" ? "bg-primary/15 text-primary" : doc.type === "PO" ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground")}>
-                        {doc.type}
-                      </span>
+                    <td className="p-3" onClick={e => e.stopPropagation()}>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button className={cn("px-2 py-0.5 rounded text-xs font-bold cursor-pointer", doc.type === "PI" ? "bg-primary/15 text-primary" : doc.type === "PO" ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground")}>
+                            {doc.type}
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-1" align="start">
+                          <div className="flex flex-col gap-0.5">
+                            {docTypes.map(t => (
+                              <button
+                                key={t}
+                                onClick={() => handleDocTypeChange(doc.id, t)}
+                                className={cn("px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted", doc.type === t && "bg-muted")}
+                              >
+                                {t}
+                              </button>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </td>
                     <td className="p-3 text-muted-foreground font-mono" dir="ltr">
                       {doc.total_price ? `${currencySymbol[doc.currency] || ""}${doc.total_price.toLocaleString()}` : "—"}
                     </td>
-                    <td className="p-3">
-                      <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", docStatusColors[doc.status] || "bg-muted text-muted-foreground")}>
-                        {doc.status}
-                      </span>
+                    <td className="p-3" onClick={e => e.stopPropagation()}>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button className={cn("px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer", docStatusColors[doc.status] || "bg-muted text-muted-foreground")}>
+                            {doc.status}
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-1" align="start">
+                          <div className="flex flex-col gap-0.5">
+                            {docStatusFlow.map(s => (
+                              <button
+                                key={s}
+                                onClick={() => handleDocStatusChange(doc.id, s)}
+                                className={cn("px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted", doc.status === s && "bg-muted")}
+                              >
+                                {s}
+                              </button>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </td>
                     <td className="p-3 text-muted-foreground text-xs">{format(new Date(doc.created_at), "dd/MM/yy")}</td>
                   </tr>
