@@ -45,7 +45,7 @@ export default function DailyReportWidget() {
         setError(null);
 
         const { data, error: err } = await supabase
-          .from("daily_report")
+          .from("daily_reports")
           .select("*")
           .order("report_date", { ascending: false })
           .limit(1)
@@ -82,7 +82,7 @@ export default function DailyReportWidget() {
       );
 
       const { error: err } = await supabase
-        .from("daily_report")
+        .from("daily_reports")
         .update({ action_items: updatedItems })
         .eq("id", report.id);
 
@@ -105,7 +105,7 @@ export default function DailyReportWidget() {
       );
 
       const { error: err } = await supabase
-        .from("daily_report")
+        .from("daily_reports")
         .update({ mail_drafts: updatedDrafts })
         .eq("id", report.id);
 
