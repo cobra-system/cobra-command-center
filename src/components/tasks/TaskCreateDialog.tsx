@@ -152,7 +152,9 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
         payload.end_date = endDate.toISOString().split("T")[0];
       }
 
-      const { data, error } = await supabase.from("recurring_tasks").insert(payload).select("id").single();
+      payload.status = "TEMPLATE";
+      payload.is_daily = false;
+      const { data, error } = await supabase.from("tasks").insert(payload).select("id").single();
       if (error) {
         toast({ title: "שגיאה ביצירת משימה חוזרת", description: error.message, variant: "destructive" });
       } else {

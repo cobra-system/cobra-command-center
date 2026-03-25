@@ -81,7 +81,7 @@ export default function TaskWeeklyView() {
   const [workflowInstances, setWorkflowInstances] = useState<WorkflowInstance[]>([]);
 
   const loadRecurring = useCallback(async () => {
-    const { data } = await supabase.from("recurring_tasks").select("*").eq("is_active", true);
+    const { data } = await supabase.from("tasks").select("*").eq("status", "TEMPLATE").eq("is_active", true);
     if (data) setRecurringTasks(data as RecurringTask[]);
   }, []);
 

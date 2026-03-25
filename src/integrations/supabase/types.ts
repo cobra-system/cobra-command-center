@@ -788,63 +788,7 @@ export type Database = {
           },
         ]
       }
-      recurring_tasks: {
-        Row: {
-          assignee_id: string | null
-          assignee_name: string | null
-          created_at: string | null
-          day_of_month: number | null
-          day_of_week: number | null
-          days_before: number | null
-          description: string | null
-          frequency: string
-          id: string
-          is_active: boolean | null
-          last_generated: string | null
-          next_due: string | null
-          priority: string | null
-          time_of_day: string | null
-          title: string
-          updated_at: string | null
-        }
-        Insert: {
-          assignee_id?: string | null
-          assignee_name?: string | null
-          created_at?: string | null
-          day_of_month?: number | null
-          day_of_week?: number | null
-          days_before?: number | null
-          description?: string | null
-          frequency: string
-          id?: string
-          is_active?: boolean | null
-          last_generated?: string | null
-          next_due?: string | null
-          priority?: string | null
-          time_of_day?: string | null
-          title: string
-          updated_at?: string | null
-        }
-        Update: {
-          assignee_id?: string | null
-          assignee_name?: string | null
-          created_at?: string | null
-          day_of_month?: number | null
-          day_of_week?: number | null
-          days_before?: number | null
-          description?: string | null
-          frequency?: string
-          id?: string
-          is_active?: boolean | null
-          last_generated?: string | null
-          next_due?: string | null
-          priority?: string | null
-          time_of_day?: string | null
-          title?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
+      /* recurring_tasks table removed — merged into tasks */
       role_definitions: {
         Row: {
           created_at: string
@@ -1136,17 +1080,24 @@ export type Database = {
           assignee_id: string | null
           assignee_name: string | null
           created_at: string
+          day_of_month: number | null
+          day_of_week: number | null
+          days_before: number | null
           deliverable: string | null
           description: string | null
           due_date: string | null
+          frequency: string | null
           id: string
+          is_active: boolean | null
           is_daily: boolean
+          last_generated: string | null
           milestone: string | null
           notes: string | null
           priority: string
           recurring_task_id: string | null
           start_date: string | null
           status: string
+          time_of_day: string | null
           title: string
           updated_at: string
         }
@@ -1154,17 +1105,24 @@ export type Database = {
           assignee_id?: string | null
           assignee_name?: string | null
           created_at?: string
+          day_of_month?: number | null
+          day_of_week?: number | null
+          days_before?: number | null
           deliverable?: string | null
           description?: string | null
           due_date?: string | null
+          frequency?: string | null
           id?: string
+          is_active?: boolean | null
           is_daily?: boolean
+          last_generated?: string | null
           milestone?: string | null
           notes?: string | null
           priority?: string
           recurring_task_id?: string | null
           start_date?: string | null
           status?: string
+          time_of_day?: string | null
           title: string
           updated_at?: string
         }
@@ -1172,17 +1130,24 @@ export type Database = {
           assignee_id?: string | null
           assignee_name?: string | null
           created_at?: string
+          day_of_month?: number | null
+          day_of_week?: number | null
+          days_before?: number | null
           deliverable?: string | null
           description?: string | null
           due_date?: string | null
+          frequency?: string | null
           id?: string
+          is_active?: boolean | null
           is_daily?: boolean
+          last_generated?: string | null
           milestone?: string | null
           notes?: string | null
           priority?: string
           recurring_task_id?: string | null
           start_date?: string | null
           status?: string
+          time_of_day?: string | null
           title?: string
           updated_at?: string
         }
@@ -1191,7 +1156,7 @@ export type Database = {
             foreignKeyName: "tasks_recurring_task_id_fkey"
             columns: ["recurring_task_id"]
             isOneToOne: false
-            referencedRelation: "recurring_tasks"
+            referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
         ]

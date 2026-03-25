@@ -33,10 +33,11 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Get all active recurring tasks
+    // Get all active recurring task templates
     const { data: recurringTasks, error: fetchError } = await supabase
-      .from("recurring_tasks")
+      .from("tasks")
       .select("*")
+      .eq("status", "TEMPLATE")
       .eq("is_active", true);
 
     if (fetchError) {
@@ -145,7 +146,7 @@ Deno.serve(async (req) => {
 
         // Update last_generated
         await supabase
-          .from("recurring_tasks")
+          .from("tasks")
           .update({ last_generated: now.toISOString() })
           .eq("id", task.id);
       }

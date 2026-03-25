@@ -15,22 +15,8 @@ import { useData, type Priority } from "@/contexts/AppContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-interface RecurringTask {
-  id: string;
-  title: string;
-  description: string | null;
-  frequency: string;
-  day_of_week: number | null;
-  day_of_month: number | null;
-  days_before: number;
-  time_of_day: string;
-  priority: string;
-  assignee_id: string | null;
-  assignee_name: string | null;
-  is_active: boolean;
-  next_due: string | null;
-  last_generated: string | null;
-}
+import type { Task } from "@/contexts/AppContext";
+type RecurringTask = Task;
 
 interface WorkflowInstance {
   id: string;
@@ -86,7 +72,7 @@ export default function RecurringTasksPanel() {
   const [activeTab, setActiveTab] = useState("recurring");
 
   const fetchTasks = async () => {
-    const { data, error } = await supabase.from("recurring_tasks").select("*").order("title");
+    const { data, error } = await supabase.from("tasks").select("*").eq("status", "TEMPLATE").order("title");
     if (!error && data) setTasks(data as RecurringTask[]);
   };
 
@@ -132,13 +118,14 @@ export default function RecurringTasksPanel() {
       day_of_month: ["monthly", "quarterly", "biannual", "annual"].includes(frequency) ? dayOfMonth : null,
       days_before: daysBefore, time_of_day: timeOfDay, priority,
       assignee_id: assigneeId || null, assignee_name: assignee?.name || null, is_active: isActive,
+      status: "TEMPLATE", is_daily: false,
     };
     if (editingTask) {
-      const { error } = await supabase.from("recurring_tasks").update(taskData).eq("id", editingTask.id);
+      const { error } = await supabase.from("tasks").update(taskData).eq("id", editingTask.id);
       if (error) { toast.error("שגיאה בעדכון"); return; }
       toast.success("המשימה עודכנה");
     } else {
-      const { error } = await supabase.from("recurring_tasks").insert(taskData);
+      const { error } = await supabase.from("tasks").insert(taskData);
       if (error) { toast.error("שגיאה ביצירה"); return; }
       toast.success("המשימה נוצרה");
     }
@@ -146,7 +133,7 @@ export default function RecurringTasksPanel() {
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("recurring_tasks").delete().eq("id", id);
+    const { error } = await supabase.from("tasks").delete().eq("id", id);
     if (error) {
       toast.error("שגיאה במחיקה: " + (error.message || "נסה שוב"));
       return;
@@ -156,7 +143,7 @@ export default function RecurringTasksPanel() {
   };
 
   const toggleActive = async (task: RecurringTask) => {
-    await supabase.from("recurring_tasks").update({ is_active: !task.is_active }).eq("id", task.id);
+    await supabase.from("tasks").update({ is_active: !task.is_active }).eq("id", task.id);
     fetchTasks();
   };
 

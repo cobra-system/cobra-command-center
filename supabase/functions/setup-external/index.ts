@@ -187,13 +187,13 @@ Deno.serve(async (req) => {
       ];
       await sb.from("distribution_centers").upsert(centers, { onConflict: "id" });
 
-      const recurringTasks = [
-        { id: "f9f1ce6a-3d6c-4d05-a61b-d39823cf6d04", title: "ישיבת רכש PI - שני", description: "ישיבת רכש PI ביום שני", frequency: "weekly", priority: "גבוה", day_of_week: 1, days_before: 1, time_of_day: "09:00:00", is_active: true },
-        { id: "0bf8ca5b-c81f-4127-8e9a-d7372bcf417f", title: "ישיבת רכש PI - חמישי", description: "ישיבת רכש PI ביום חמישי", frequency: "weekly", priority: "גבוה", day_of_week: 4, days_before: 1, time_of_day: "09:00:00", is_active: true },
-        { id: "400511a2-3c48-4fd9-a515-3bb87143b2fa", title: "יישור קו תשלומים עם קרן", description: "סיכום חודשי של תשלומים ותזרים מזומנים", frequency: "monthly", priority: "גבוה", day_of_month: 1, days_before: 3, time_of_day: "09:00:00", is_active: true },
-        { id: "e149f43e-8adb-45ea-929b-33e786ea84fa", title: "לוז נסיעות מחסן", description: "בניית לוז הנסיעות של המחסן ליום למחרת", frequency: "daily", priority: "גבוה", time_of_day: "16:00:00", is_active: true },
+      const recurringTaskTemplates = [
+        { id: "f9f1ce6a-3d6c-4d05-a61b-d39823cf6d04", title: "ישיבת רכש PI - שני", description: "ישיבת רכש PI ביום שני", frequency: "weekly", priority: "גבוה", day_of_week: 1, days_before: 1, time_of_day: "09:00:00", is_active: true, status: "TEMPLATE", is_daily: false },
+        { id: "0bf8ca5b-c81f-4127-8e9a-d7372bcf417f", title: "ישיבת רכש PI - חמישי", description: "ישיבת רכש PI ביום חמישי", frequency: "weekly", priority: "גבוה", day_of_week: 4, days_before: 1, time_of_day: "09:00:00", is_active: true, status: "TEMPLATE", is_daily: false },
+        { id: "400511a2-3c48-4fd9-a515-3bb87143b2fa", title: "יישור קו תשלומים עם קרן", description: "סיכום חודשי של תשלומים ותזרים מזומנים", frequency: "monthly", priority: "גבוה", day_of_month: 1, days_before: 3, time_of_day: "09:00:00", is_active: true, status: "TEMPLATE", is_daily: false },
+        { id: "e149f43e-8adb-45ea-929b-33e786ea84fa", title: "לוז נסיעות מחסן", description: "בניית לוז הנסיעות של המחסן ליום למחרת", frequency: "daily", priority: "גבוה", time_of_day: "16:00:00", is_active: true, status: "TEMPLATE", is_daily: false },
       ];
-      await sb.from("recurring_tasks").upsert(recurringTasks, { onConflict: "id" });
+      await sb.from("tasks").upsert(recurringTaskTemplates, { onConflict: "id" });
 
       const complianceItems = [
         { id: "57facbfb-b609-4d23-b410-00df982eda29", name: "רישיון יבוא", category: "יבוא", status: "active", expiry_date: "2026-12-31", notes: "חידוש שנתי" },

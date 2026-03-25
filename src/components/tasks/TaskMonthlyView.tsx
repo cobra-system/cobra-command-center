@@ -53,7 +53,7 @@ export default function TaskMonthlyView() {
   const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
 
   const loadRecurring = useCallback(async () => {
-    const { data } = await supabase.from("recurring_tasks").select("*").eq("is_active", true);
+    const { data } = await supabase.from("tasks").select("*").eq("status", "TEMPLATE").eq("is_active", true);
     if (data) setRecurringTasks(data as RecurringTask[]);
   }, []);
 

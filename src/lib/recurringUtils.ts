@@ -2,20 +2,8 @@ import { format, startOfDay, getDay, getDate } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import type { Task } from "@/contexts/AppContext";
 
-export interface RecurringTask {
-  id: string;
-  title: string;
-  description: string | null;
-  frequency: string;
-  day_of_week: number | null;
-  day_of_month: number | null;
-  days_before: number;
-  priority: string;
-  assignee_id: string | null;
-  assignee_name: string | null;
-  is_active: boolean;
-  next_due: string | null;
-}
+// A recurring template is a Task with frequency set and status = "TEMPLATE"
+export type RecurringTask = Task;
 
 export function recurringMatchesDay(rt: RecurringTask, day: Date): boolean {
   const dayOfWeek = getDay(day);
@@ -25,7 +13,6 @@ export function recurringMatchesDay(rt: RecurringTask, day: Date): boolean {
     case "weekly": return rt.day_of_week === dayOfWeek;
     case "biweekly": {
       if (rt.day_of_week !== dayOfWeek) return false;
-      // Use epoch week number to determine odd/even weeks
       const weekNum = Math.floor(day.getTime() / (7 * 24 * 60 * 60 * 1000));
       return weekNum % 2 === 0;
     }

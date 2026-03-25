@@ -5,7 +5,7 @@ import { supabase } from "../supabase.js";
 export function registerTaskTools(server: McpServer) {
   server.tool(
     "list_tasks",
-    "רשימת משימות חוזרות — List recurring tasks",
+    "רשימת משימות חוזרות — List recurring task templates",
     {
       is_active: z.boolean().optional().describe("Filter by active/inactive"),
       frequency: z.string().optional().describe("Filter by frequency (daily, weekly, monthly)"),
@@ -13,9 +13,10 @@ export function registerTaskTools(server: McpServer) {
     },
     async ({ is_active, frequency, limit }) => {
       let query = supabase
-        .from("recurring_tasks")
+        .from("tasks")
         .select("*")
-        .order("next_due", { ascending: true })
+        .eq("status", "TEMPLATE")
+        .order("title")
         .limit(limit);
 
       if (is_active !== undefined) query = query.eq("is_active", is_active);
@@ -29,7 +30,7 @@ export function registerTaskTools(server: McpServer) {
 
   server.tool(
     "create_task",
-    "יצירת משימה חוזרת — Create a new recurring task",
+    "יצירת משימה חוזרת — Create a new recurring task template",
     {
       title: z.string().describe("Task title"),
       description: z.string().optional().describe("Task description"),
@@ -38,21 +39,21 @@ export function registerTaskTools(server: McpServer) {
       assignee_name: z.string().optional().describe("Person assigned to this task"),
       day_of_week: z.number().min(0).max(6).optional().describe("Day of week (0=Sunday) for weekly tasks"),
       day_of_month: z.number().min(1).max(31).optional().describe("Day of month for monthly tasks"),
-      next_due: z.string().optional().describe("Next due date (YYYY-MM-DD)"),
     },
-    async ({ title, description, frequency, priority, assignee_name, day_of_week, day_of_month, next_due }) => {
+    async ({ title, description, frequency, priority, assignee_name, day_of_week, day_of_month }) => {
       const { data, error } = await supabase
-        .from("recurring_tasks")
+        .from("tasks")
         .insert({
           title,
           description: description || null,
           frequency,
-          priority: priority || null,
+          priority: priority || "בינוני",
           assignee_name: assignee_name || null,
           day_of_week: day_of_week ?? null,
           day_of_month: day_of_month ?? null,
-          next_due: next_due || null,
           is_active: true,
+          status: "TEMPLATE",
+          is_daily: false,
         })
         .select()
         .single();
@@ -64,7 +65,7 @@ export function registerTaskTools(server: McpServer) {
 
   server.tool(
     "update_task",
-    "עדכון משימה — Update a recurring task",
+    "עדכון משימה — Update a recurring task template",
     {
       id: z.string().uuid().describe("Task UUID"),
       title: z.string().optional().describe("Updated title"),
@@ -72,7 +73,6 @@ export function registerTaskTools(server: McpServer) {
       is_active: z.boolean().optional().describe("Activate or deactivate"),
       priority: z.string().optional().describe("Updated priority"),
       assignee_name: z.string().optional().describe("Updated assignee"),
-      next_due: z.string().optional().describe("Updated next due date (YYYY-MM-DD)"),
     },
     async ({ id, ...fields }) => {
       const updates: Record<string, unknown> = {};
@@ -85,7 +85,7 @@ export function registerTaskTools(server: McpServer) {
       }
 
       const { data, error } = await supabase
-        .from("recurring_tasks")
+        .from("tasks")
         .update(updates)
         .eq("id", id)
         .select()
@@ -98,13 +98,13 @@ export function registerTaskTools(server: McpServer) {
 
   server.tool(
     "delete_task",
-    "מחיקת משימה — Delete a recurring task",
+    "מחיקת משימה — Delete a recurring task template",
     {
       id: z.string().uuid().describe("Task UUID"),
     },
     async ({ id }) => {
       const { error } = await supabase
-        .from("recurring_tasks")
+        .from("tasks")
         .delete()
         .eq("id", id);
 
@@ -126,6 +126,7 @@ export function registerTaskTools(server: McpServer) {
       let query = supabase
         .from("tasks")
         .select("*")
+        .neq("status", "TEMPLATE")
         .order("due_date", { ascending: true })
         .limit(limit);
 
