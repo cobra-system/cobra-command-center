@@ -53,7 +53,7 @@ function RequirePermission() {
   if (!moduleKey || !canView(currentUserPermissions, moduleKey)) {
     return <Navigate to="/my-tasks" replace />;
   }
-  return <ManagerLayout />;
+  return currentUser.role === "MANAGER" ? <ManagerLayout /> : <EmployeeLayout />;
 }
 
 function RequireAuth() {
@@ -65,12 +65,9 @@ function RequireAuth() {
 
 function RootRedirect() {
   const { currentUser, loading } = useAuth();
-  const { currentUserPermissions } = useData();
   if (loading) return null;
   if (!currentUser) return <Navigate to="/login" replace />;
   if (currentUser.role === "MANAGER") return <Navigate to="/dashboard" replace />;
-  const firstPermitted = MODULES.find((m) => canView(currentUserPermissions, m.key));
-  if (firstPermitted) return <Navigate to={firstPermitted.route} replace />;
   return <Navigate to="/my-tasks" replace />;
 }
 
