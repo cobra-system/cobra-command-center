@@ -9,12 +9,17 @@
 
 ---
 
+## [2026-03-25]
+
+- fix: verify goals table exists before marking migration complete (76fc45e)
+
+<!-- last-commit: 8ed59aad3d6a7f8372fab409de90301ca3fdb4c0 -->
+
 ## [2026-03-23]
 
 - Merge pull request #48 from cobra-system/claude/workflow-management-api-QY3Sn (318a81b)
 - feat: add workflow, payment, and enhanced order/document/product MCP tools (78c3e24)
 
-<!-- last-commit: 318a81b87b4dfe5502e021631112c08e13fc659f -->
 
 ## [2026-03-23]
 
