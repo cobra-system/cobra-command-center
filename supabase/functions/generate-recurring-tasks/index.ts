@@ -33,10 +33,11 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Get all active recurring tasks
+    // Get all active recurring task templates
     const { data: recurringTasks, error: fetchError } = await supabase
-      .from("recurring_tasks")
+      .from("tasks")
       .select("*")
+      .eq("status", "TEMPLATE")
       .eq("is_active", true);
 
     if (fetchError) {
@@ -86,10 +87,12 @@ Deno.serve(async (req) => {
           break;
 
         case "biweekly":
-          // For biweekly (twice a week), we check if day_of_week matches
-          // This handles single day, for multiple days user creates multiple tasks
+          // Every other week: check day_of_week matches and use epoch week parity
           if (task.day_of_week !== null && targetDay === task.day_of_week) {
-            shouldGenerate = true;
+            const weekNum = Math.floor(targetDate.getTime() / (7 * 24 * 60 * 60 * 1000));
+            if (weekNum % 2 === 0) {
+              shouldGenerate = true;
+            }
           }
           break;
 
@@ -143,7 +146,7 @@ Deno.serve(async (req) => {
 
         // Update last_generated
         await supabase
-          .from("recurring_tasks")
+          .from("tasks")
           .update({ last_generated: now.toISOString() })
           .eq("id", task.id);
       }

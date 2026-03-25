@@ -14,22 +14,8 @@ import { Plus, Pencil, Trash2, CalendarClock, Play } from "lucide-react";
 import { toast } from "sonner";
 import { useData, type Priority } from "@/contexts/AppContext";
 
-interface RecurringTask {
-  id: string;
-  title: string;
-  description: string | null;
-  frequency: string;
-  day_of_week: number | null;
-  day_of_month: number | null;
-  days_before: number;
-  time_of_day: string;
-  priority: string;
-  assignee_id: string | null;
-  assignee_name: string | null;
-  is_active: boolean;
-  next_due: string | null;
-  last_generated: string | null;
-}
+import type { Task } from "@/contexts/AppContext";
+type RecurringTask = Task;
 
 const frequencyOptions = [
   { value: "daily", label: "יומי" },
@@ -79,10 +65,11 @@ export default function RecurringTasksPage() {
 
   const fetchTasks = async () => {
     const { data, error } = await supabase
-      .from("recurring_tasks")
+      .from("tasks")
       .select("*")
+      .eq("status", "TEMPLATE")
       .order("title");
-    
+
     if (error) {
       toast.error("שגיאה בטעינת משימות חוזרות");
       return;
@@ -144,11 +131,13 @@ export default function RecurringTasksPage() {
       assignee_id: assigneeId || null,
       assignee_name: assignee?.name || null,
       is_active: isActive,
+      status: "TEMPLATE",
+      is_daily: false,
     };
 
     if (editingTask) {
       const { error } = await supabase
-        .from("recurring_tasks")
+        .from("tasks")
         .update(taskData)
         .eq("id", editingTask.id);
 
@@ -159,7 +148,7 @@ export default function RecurringTasksPage() {
       toast.success("המשימה עודכנה");
     } else {
       const { error } = await supabase
-        .from("recurring_tasks")
+        .from("tasks")
         .insert(taskData);
 
       if (error) {
@@ -175,7 +164,7 @@ export default function RecurringTasksPage() {
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("recurring_tasks").delete().eq("id", id);
+    const { error } = await supabase.from("tasks").delete().eq("id", id);
     if (error) {
       toast.error("שגיאה במחיקת המשימה");
       return;
@@ -186,7 +175,7 @@ export default function RecurringTasksPage() {
 
   const toggleActive = async (task: RecurringTask) => {
     const { error } = await supabase
-      .from("recurring_tasks")
+      .from("tasks")
       .update({ is_active: !task.is_active })
       .eq("id", task.id);
 

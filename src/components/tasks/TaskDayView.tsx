@@ -38,7 +38,7 @@ export default function TaskDayView() {
   const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
 
   const loadRecurring = useCallback(async () => {
-    const { data } = await supabase.from("recurring_tasks").select("*").eq("is_active", true);
+    const { data } = await supabase.from("tasks").select("*").eq("status", "TEMPLATE").eq("is_active", true);
     if (data) setRecurringTasks(data as RecurringTask[]);
   }, []);
 
@@ -50,14 +50,6 @@ export default function TaskDayView() {
     tasks.filter(t => assigneeFilter === "all" || t.assignee_id === assigneeFilter),
     [tasks, assigneeFilter]
   );
-
-  const recurringForDay = useMemo(() => {
-    const filtered = recurringTasks.filter(rt =>
-      (assigneeFilter === "all" || rt.assignee_id === assigneeFilter) &&
-      recurringMatchesDay(rt, selectedDay)
-    );
-    return filtered;
-  }, [recurringTasks, selectedDay, assigneeFilter]);
 
   const handleRecurringClick = useCallback(async (rt: RecurringTask) => {
     const task = await findOrCreateRecurringInstance(rt, selectedDay);
@@ -82,6 +74,18 @@ export default function TaskDayView() {
     });
     return dayFiltered;
   }, [filteredTasks, selectedDay]);
+
+  const recurringForDay = useMemo(() => {
+    const existingRecurringIds = new Set(
+      dayTasks.filter(t => t.recurring_task_id).map(t => t.recurring_task_id)
+    );
+    const filtered = recurringTasks.filter(rt =>
+      (assigneeFilter === "all" || rt.assignee_id === assigneeFilter) &&
+      recurringMatchesDay(rt, selectedDay) &&
+      !existingRecurringIds.has(rt.id)
+    );
+    return filtered;
+  }, [recurringTasks, selectedDay, assigneeFilter, dayTasks]);
 
   const done = dayTasks.filter(t => t.status === "DONE").length;
   const total = dayTasks.length;

@@ -136,6 +136,14 @@ export interface Task {
   is_daily: boolean;
   recurring_task_id?: string | null;
   depends_on?: string[] | null;
+  // Recurring template fields (non-null when this task IS a recurring template)
+  frequency?: string | null;
+  day_of_week?: number | null;
+  day_of_month?: number | null;
+  days_before?: number | null;
+  time_of_day?: string | null;
+  is_active?: boolean | null;
+  last_generated?: string | null;
 }
 
 interface AuthState {
@@ -329,7 +337,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshTasks = useCallback(async () => {
-    const { data } = await supabase.from("tasks").select("*").order("created_at", { ascending: false });
+    const { data } = await supabase.from("tasks").select("*").neq("status", "TEMPLATE").order("created_at", { ascending: false });
     if (data) setTasks(data as Task[]);
   }, []);
 

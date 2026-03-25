@@ -53,7 +53,7 @@ export default function TaskMonthlyView() {
   const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
 
   const loadRecurring = useCallback(async () => {
-    const { data } = await supabase.from("recurring_tasks").select("*").eq("is_active", true);
+    const { data } = await supabase.from("tasks").select("*").eq("status", "TEMPLATE").eq("is_active", true);
     if (data) setRecurringTasks(data as RecurringTask[]);
   }, []);
 
@@ -92,10 +92,16 @@ export default function TaskMonthlyView() {
     const map = new Map<string, RecurringTask[]>();
     calendarDays.forEach(day => {
       const key = format(startOfDay(day), "yyyy-MM-dd");
-      map.set(key, filteredRecurring.filter(rt => recurringMatchesDay(rt, day)));
+      const dayTasks = tasksByDay.get(key) || [];
+      const existingRecurringIds = new Set(
+        dayTasks.filter(t => t.recurring_task_id).map(t => t.recurring_task_id)
+      );
+      map.set(key, filteredRecurring.filter(rt =>
+        recurringMatchesDay(rt, day) && !existingRecurringIds.has(rt.id)
+      ));
     });
     return map;
-  }, [filteredRecurring, calendarDays]);
+  }, [filteredRecurring, calendarDays, tasksByDay]);
 
   const selectedDayKey = selectedDay ? format(selectedDay, "yyyy-MM-dd") : null;
   const selectedDayTasks = selectedDayKey ? tasksByDay.get(selectedDayKey) || [] : [];
