@@ -2,6 +2,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { useAuth, useData } from "@/contexts/AppContext";
 import { LogOut } from "lucide-react";
 import cobraLogo from "@/assets/cobra-logo.png";
+import EmployeeBottomNav from "@/components/EmployeeBottomNav";
 
 export default function EmployeeLayout() {
   const { currentUser, logout } = useAuth();
@@ -18,7 +19,7 @@ export default function EmployeeLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto shadow-xl">
+    <div className="min-h-screen bg-background flex flex-col max-w-2xl mx-auto shadow-xl">
       {/* Header with gradient */}
       <header className="relative bg-gradient-to-bl from-[hsl(var(--employee-header))] via-[hsl(150_55%_28%)] to-[hsl(160_45%_20%)] text-[hsl(var(--employee-header-foreground))] px-5 py-4 flex items-center justify-between overflow-hidden">
         {/* Subtle pattern overlay */}
@@ -45,9 +46,11 @@ export default function EmployeeLayout() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto overflow-x-auto pb-16">
         <Outlet />
       </div>
+
+      <EmployeeBottomNav />
     </div>
   );
 }
