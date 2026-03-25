@@ -11,10 +11,16 @@
 
 ## [2026-03-25]
 
+- Merge pull request #56 from cobra-system/claude/daily-reports-dashboard (15dc9cd)
+- fix: daily_report -> daily_reports table name in widget (04a0d84)
+
+<!-- last-commit: 15dc9cd8e1daf83b8370362f641947945f02bbf1 -->
+
+## [2026-03-25]
+
 - Merge pull request #55 from cobra-system/claude/user-type-views-JRVnZ (41c59d9)
 - feat: add employee bottom navigation for permitted modules (b0f3e9f)
 
-<!-- last-commit: 41c59d9bf4fef0b2fc9b5875fe6ed4042da3deaa -->
 
 ## [2026-03-25]
 
