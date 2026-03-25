@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth, useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
+import DailyReportWidget from "@/components/DailyReportWidget";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { Package, Truck, ClipboardList, Users, AlertTriangle, ScrollText, Wrench, ChevronLeft, Zap, TrendingUp, DollarSign } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -120,6 +121,9 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* Morning Report Widget */}
+      <DailyReportWidget />
 
       {/* Alert Banners - compact row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
