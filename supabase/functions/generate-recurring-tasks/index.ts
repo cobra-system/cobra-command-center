@@ -86,10 +86,12 @@ Deno.serve(async (req) => {
           break;
 
         case "biweekly":
-          // For biweekly (twice a week), we check if day_of_week matches
-          // This handles single day, for multiple days user creates multiple tasks
+          // Every other week: check day_of_week matches and use epoch week parity
           if (task.day_of_week !== null && targetDay === task.day_of_week) {
-            shouldGenerate = true;
+            const weekNum = Math.floor(targetDate.getTime() / (7 * 24 * 60 * 60 * 1000));
+            if (weekNum % 2 === 0) {
+              shouldGenerate = true;
+            }
           }
           break;
 

@@ -165,10 +165,16 @@ export default function TaskWeeklyView() {
     const map = new Map<string, RecurringTask[]>();
     days.forEach(day => {
       const key = format(day, "yyyy-MM-dd");
-      map.set(key, recurringTasks.filter(rt => recurringMatchesDay(rt, day)));
+      const dayTasks = tasksByDay.get(key) || [];
+      const existingRecurringIds = new Set(
+        dayTasks.filter(t => t.recurring_task_id).map(t => t.recurring_task_id)
+      );
+      map.set(key, recurringTasks.filter(rt =>
+        recurringMatchesDay(rt, day) && !existingRecurringIds.has(rt.id)
+      ));
     });
     return map;
-  }, [recurringTasks, days]);
+  }, [recurringTasks, days, tasksByDay]);
 
   const todayKey = format(isToday(days[0]) ? days[0] : days.find(d => isToday(d)) ?? days[0], "yyyy-MM-dd");
   const workflowsForToday = workflowInstances;

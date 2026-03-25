@@ -23,11 +23,19 @@ export function recurringMatchesDay(rt: RecurringTask, day: Date): boolean {
   switch (rt.frequency) {
     case "daily": return true;
     case "weekly": return rt.day_of_week === dayOfWeek;
-    case "biweekly": return rt.day_of_week === dayOfWeek;
+    case "biweekly": {
+      if (rt.day_of_week !== dayOfWeek) return false;
+      // Use epoch week number to determine odd/even weeks
+      const weekNum = Math.floor(day.getTime() / (7 * 24 * 60 * 60 * 1000));
+      return weekNum % 2 === 0;
+    }
     case "monthly": return rt.day_of_month === dayOfMonth;
     case "quarterly":
+      return rt.day_of_month === dayOfMonth && day.getMonth() % 3 === 0;
     case "biannual":
-    case "annual": return rt.day_of_month === dayOfMonth;
+      return rt.day_of_month === dayOfMonth && (day.getMonth() === 0 || day.getMonth() === 6);
+    case "annual":
+      return rt.day_of_month === dayOfMonth && day.getMonth() === 0;
     default: return false;
   }
 }

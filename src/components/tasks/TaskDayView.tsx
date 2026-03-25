@@ -51,14 +51,6 @@ export default function TaskDayView() {
     [tasks, assigneeFilter]
   );
 
-  const recurringForDay = useMemo(() => {
-    const filtered = recurringTasks.filter(rt =>
-      (assigneeFilter === "all" || rt.assignee_id === assigneeFilter) &&
-      recurringMatchesDay(rt, selectedDay)
-    );
-    return filtered;
-  }, [recurringTasks, selectedDay, assigneeFilter]);
-
   const handleRecurringClick = useCallback(async (rt: RecurringTask) => {
     const task = await findOrCreateRecurringInstance(rt, selectedDay);
     if (task) {
@@ -82,6 +74,18 @@ export default function TaskDayView() {
     });
     return dayFiltered;
   }, [filteredTasks, selectedDay]);
+
+  const recurringForDay = useMemo(() => {
+    const existingRecurringIds = new Set(
+      dayTasks.filter(t => t.recurring_task_id).map(t => t.recurring_task_id)
+    );
+    const filtered = recurringTasks.filter(rt =>
+      (assigneeFilter === "all" || rt.assignee_id === assigneeFilter) &&
+      recurringMatchesDay(rt, selectedDay) &&
+      !existingRecurringIds.has(rt.id)
+    );
+    return filtered;
+  }, [recurringTasks, selectedDay, assigneeFilter, dayTasks]);
 
   const done = dayTasks.filter(t => t.status === "DONE").length;
   const total = dayTasks.length;
