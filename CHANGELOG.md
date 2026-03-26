@@ -11,9 +11,15 @@
 
 ## [2026-03-26]
 
+- Merge pull request #65 from cobra-system/claude/add-order-status-tracking-XtTlO (9ec3c3c)
+- Replace 4 summary cards with Israel/abroad in-process order cards (073668f)
+
+<!-- last-commit: 9ec3c3c80fab405466397654bb37d78cf2b17155 -->
+
+## [2026-03-26]
+
 - fix: enable custom roles to be assigned to workers and configured with permissions (d8febcf)
 
-<!-- last-commit: 3981cfb0ad5dd71da6d03d0921230a580a9b6e39 -->
 
 ## [2026-03-26]
 
