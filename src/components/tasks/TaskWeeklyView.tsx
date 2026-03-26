@@ -46,7 +46,7 @@ function ProgressRing({ done, total }: { done: number; total: number }) {
 }
 
 export default function TaskWeeklyView() {
-  const { tasks, updateTaskStatus, updateTask, profiles, refreshTasks } = useData();
+  const { tasks, updateTaskStatus, updateTask, deleteTask, profiles, refreshTasks } = useData();
   const { currentUser } = useAuth();
   const [searchParams] = useSearchParams();
   const [weekOffset, setWeekOffset] = useState(0);
@@ -443,6 +443,7 @@ export default function TaskWeeklyView() {
         currentUser={currentUser}
         onUpdate={updateTask}
         onStatusChange={updateTaskStatus}
+        onDelete={deleteTask}
       />
     </div>
   );

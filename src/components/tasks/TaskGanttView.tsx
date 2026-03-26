@@ -121,7 +121,7 @@ function goalColorFromHex(hex: string): GoalColor {
 }
 
 export default function TaskGanttView() {
-  const { tasks, updateTask, updateTaskStatus, profiles, refreshTasks, goals, addGoal } = useData();
+  const { tasks, updateTask, updateTaskStatus, deleteTask, profiles, refreshTasks, goals, addGoal } = useData();
   const { currentUser } = useAuth();
 
   // State
@@ -233,17 +233,15 @@ export default function TaskGanttView() {
     const result: GoalGroup[] = [];
     const used = new Set<string>();
 
-    // 1. DB goals in order
+    // 1. DB goals in order (always show, even with 0 tasks)
     for (const dbGoal of goals) {
-      if (groupMap.has(dbGoal.name)) {
-        result.push({
-          goalName: dbGoal.name,
-          color: goalColorFromHex(dbGoal.color),
-          colorIndex: result.length,
-          tasks: groupMap.get(dbGoal.name)!,
-        });
-        used.add(dbGoal.name);
-      }
+      result.push({
+        goalName: dbGoal.name,
+        color: goalColorFromHex(dbGoal.color),
+        colorIndex: result.length,
+        tasks: groupMap.get(dbGoal.name) ?? [],
+      });
+      used.add(dbGoal.name);
     }
 
     // 2. Milestones not in DB goals
@@ -1018,6 +1016,7 @@ export default function TaskGanttView() {
         currentUser={currentUser}
         onUpdate={updateTask}
         onStatusChange={updateTaskStatus}
+        onDelete={deleteTask}
       />
 
       {/* Task create dialog */}
