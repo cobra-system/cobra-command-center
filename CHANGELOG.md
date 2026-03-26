@@ -11,10 +11,15 @@
 
 ## [2026-03-26]
 
+- fix: prevent null dereference in TaskDetailDialog (7176189)
+
+<!-- last-commit: 151ecbc9405fc2f04a5ae24c400d3584ac0304f5 -->
+
+## [2026-03-26]
+
 - feat: add weekly scale mode to Gantt chart (0d3525c)
 - fix: show updated field values immediately after inline edit in task dialog (2459cb4)
 
-<!-- last-commit: 2131ef51d6460bca1b8ec8afc2aaa572be6ece6d -->
 
 ## [2026-03-26]
 
