@@ -9,12 +9,17 @@
 
 ---
 
+## [2026-03-26]
+
+- Remove Lovable branding and tagger plugin (75154e4)
+
+<!-- last-commit: 0f4d13f234e2d8c0a6f3b65cd1c9e8b81da65556 -->
+
 ## [2026-03-25]
 
 - refactor: merge recurring_tasks table into tasks table (dd10fdb)
 - fix: recurring tasks showing duplicates and incorrect frequency matching (a6efaa6)
 
-<!-- last-commit: bd5b524b39c18d770684eef64fc6669f362c06d3 -->
 
 ## [2026-03-25]
 
