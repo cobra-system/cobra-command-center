@@ -205,7 +205,7 @@ interface DataState {
   updateProfile: (id: string, updates: Partial<Profile>) => Promise<void>;
   resetDailyTasks: () => Promise<void>;
   advanceOverdueTasks: () => Promise<void>;
-  createEmployee: (data: { name: string; role: Role; pin: string; role_definition_id?: string }) => Promise<string | null>;
+  createEmployee: (data: { name: string; role: Role; email: string; password: string; role_definition_id?: string }) => Promise<string | null>;
   addSupplier: (supplier: Omit<Supplier, "id">) => Promise<void>;
   updateSupplier: (id: string, updates: Partial<Supplier>) => Promise<void>;
   deleteSupplier: (id: string) => Promise<void>;
@@ -797,7 +797,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [tasks]);
 
-  const createEmployee = useCallback(async (data: { name: string; role: Role; pin: string; role_definition_id?: string }): Promise<string | null> => {
+  const createEmployee = useCallback(async (data: { name: string; role: Role; email: string; password: string; role_definition_id?: string }): Promise<string | null> => {
     try {
       const cloudUrl = import.meta.env.VITE_SUPABASE_URL || "https://ljpdwezgahrrffnwajho.supabase.co";
       const cloudKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";

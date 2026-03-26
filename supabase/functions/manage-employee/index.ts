@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { action, employee_id, name, role, pin, role_definition_id } = await req.json();
+    const { action, employee_id, name, role, password, role_definition_id } = await req.json();
 
     if (action === "update") {
       if (!employee_id) {
@@ -53,21 +53,9 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Check PIN uniqueness if changed
-      if (pin) {
-        const { data: existingPin } = await supabaseAdmin
-          .from("profiles").select("id").eq("pin", pin).neq("id", employee_id).maybeSingle();
-        if (existingPin) {
-          return new Response(JSON.stringify({ error: "קוד PIN כבר בשימוש" }), {
-            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-      }
-
       const updates: Record<string, any> = {};
       if (name) updates.name = name;
       if (role) updates.role = role;
-      if (pin) updates.pin = pin;
       if (role_definition_id !== undefined) updates.role_definition_id = role_definition_id;
 
       await supabaseAdmin.from("profiles").update(updates).eq("id", employee_id);
@@ -76,6 +64,24 @@ Deno.serve(async (req) => {
       if (role) {
         await supabaseAdmin.from("user_roles").delete().eq("user_id", employee_id);
         await supabaseAdmin.from("user_roles").insert({ user_id: employee_id, role });
+      }
+
+      // Optional password reset
+      if (password) {
+        if (password.length < 6) {
+          return new Response(JSON.stringify({ error: "הסיסמה חייבת להכיל לפחות 6 תווים" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const { error: pwError } = await supabaseAdmin.auth.admin.updateUserById(
+          employee_id,
+          { password }
+        );
+        if (pwError) {
+          return new Response(JSON.stringify({ error: `שגיאה בעדכון סיסמה: ${pwError.message}` }), {
+            status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
       }
 
       return new Response(JSON.stringify({ success: true }), {

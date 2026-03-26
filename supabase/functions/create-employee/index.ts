@@ -46,12 +46,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { name, role, pin, role_definition_id } = await req.json();
+    const { name, role, email, password, role_definition_id } = await req.json();
     const validRoles = ["MANAGER", "WAREHOUSE_MANAGER", "LOGISTICS", "DRIVER"] as const;
 
-    if (!name || !role || !pin || !/^\d{4}$/.test(pin)) {
+    if (!name || !role || !email || !password || password.length < 6) {
       return new Response(
-        JSON.stringify({ error: "שם, תפקיד וקוד PIN (4 ספרות) נדרשים" }),
+        JSON.stringify({ error: "שם, תפקיד, אימייל וסיסמה (לפחות 6 תווים) נדרשים" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -62,24 +62,6 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-
-    // Check PIN uniqueness
-    const { data: existingPin } = await supabaseAdmin
-      .from("profiles")
-      .select("id")
-      .eq("pin", pin)
-      .maybeSingle();
-    if (existingPin) {
-      return new Response(
-        JSON.stringify({ error: "קוד PIN כבר בשימוש" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Use unique generated email to avoid collisions with previously deleted users
-    const email = `emp-${pin}-${crypto.randomUUID()}@employee.cobra.io`;
-    const password = `pin-${pin}-${Date.now()}`;
 
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -96,7 +78,7 @@ Deno.serve(async (req) => {
     }
 
     // Ensure profile exists גם אם ה-trigger לא יצר אותו
-    const profileData: Record<string, unknown> = { id: newUser.user.id, name, role, pin };
+    const profileData: Record<string, unknown> = { id: newUser.user.id, name, role };
     if (role_definition_id) profileData.role_definition_id = role_definition_id;
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
@@ -123,7 +105,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, profile: { id: newUser.user.id, name, role, pin } }),
+      JSON.stringify({ success: true, profile: { id: newUser.user.id, name, role } }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
