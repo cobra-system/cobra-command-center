@@ -19,7 +19,7 @@ export default function EmployeeLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col max-w-2xl mx-auto shadow-xl">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header with gradient */}
       <header className="relative bg-gradient-to-bl from-[hsl(var(--employee-header))] via-[hsl(150_55%_28%)] to-[hsl(160_45%_20%)] text-[hsl(var(--employee-header-foreground))] px-5 py-4 flex items-center justify-between overflow-hidden">
         {/* Subtle pattern overlay */}
