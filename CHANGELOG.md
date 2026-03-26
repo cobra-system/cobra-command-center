@@ -11,10 +11,15 @@
 
 ## [2026-03-26]
 
+- feat: redesign DailyReportWidget as compact accordion (cb90cf6)
+
+<!-- last-commit: cb90cf6da180aee52d6a17485aa67a5d607f0f2a -->
+
+## [2026-03-26]
+
 - Merge pull request #66 from cobra-system/claude/remove-process-visibility-5ndpy (15f13ff)
 - Remove process (תהליכים) visibility from task views (367226c)
 
-<!-- last-commit: 15f13ff204f90eab08cff638f7f4267ba57187a5 -->
 
 ## [2026-03-26]
 
