@@ -60,7 +60,13 @@ export default function DailyReportWidget() {
             console.error("Supabase error:", err);
           }
         } else if (data) {
-          setReport(data as DailyReport);
+          setReport({
+            ...data,
+            action_items: Array.isArray(data.action_items) ? data.action_items : [],
+            cobra_updates: Array.isArray(data.cobra_updates) ? data.cobra_updates : [],
+            pending_clarifications: Array.isArray(data.pending_clarifications) ? data.pending_clarifications : [],
+            mail_drafts: Array.isArray(data.mail_drafts) ? data.mail_drafts : [],
+          } as DailyReport);
         }
       } catch (err) {
         setError("Failed to fetch daily report");
