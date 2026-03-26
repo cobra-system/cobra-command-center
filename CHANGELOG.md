@@ -11,10 +11,16 @@
 
 ## [2026-03-26]
 
+- Merge pull request #70 from cobra-system/claude/delete-tasks-fix-goals-OyGHQ (ca861c8)
+- feat: add task delete button and fix goals display in Gantt (13061f9)
+
+<!-- last-commit: ca861c819fcdc0dd84622c9546d7b0c0e0e31fcf -->
+
+## [2026-03-26]
+
 - Merge pull request #69 from cobra-system/claude/user-management-settings-ueJ8F (ed98721)
 - Replace PIN-based team management with email+password user management (560419b)
 
-<!-- last-commit: ed9872191946b2fcfafaeaa646620db0d9c1c811 -->
 
 ## [2026-03-26]
 
