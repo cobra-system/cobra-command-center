@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useMemo } from "react";
 import { type Order, type Supplier } from "@/contexts/AppContext";
 import { cn } from "@/lib/utils";
-import { Package, Calendar, DollarSign, AlertCircle, Truck, TrendingUp, Clock } from "lucide-react";
+import { Globe, MapPin, DollarSign, AlertCircle, Truck, TrendingUp, Clock } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 
 interface WorkflowInfo {
@@ -49,6 +49,25 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
     const totalQuantity = orders.reduce((sum, o) => sum + o.items.reduce((s, i) => s + i.qty, 0), 0);
     const overdue = orders.filter(o => o.eta && new Date(o.eta) < new Date()).length;
 
+    const supplierCountryMap = suppliers.reduce((acc, s) => {
+      acc[s.id] = s.country ?? null;
+      return acc;
+    }, {} as Record<string, string | null>);
+
+    const inProcessOrders = orders.filter(
+      o => o.status !== "ARRIVED" && o.status !== "CANCELLED"
+    );
+
+    const ordersInProcessIsrael = inProcessOrders.filter(o => {
+      const country = o.supplier_id ? supplierCountryMap[o.supplier_id] : null;
+      return country === "ישראל";
+    }).length;
+
+    const ordersInProcessAbroad = inProcessOrders.filter(o => {
+      const country = o.supplier_id ? supplierCountryMap[o.supplier_id] : null;
+      return country === "חול";
+    }).length;
+
     const statusCounts = orders.reduce((acc, o) => {
       acc[o.status] = (acc[o.status] || 0) + 1;
       return acc;
@@ -73,8 +92,10 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
       statusCounts,
       priorityCounts,
       paymentStatus,
+      ordersInProcessIsrael,
+      ordersInProcessAbroad,
     };
-  }, [orders]);
+  }, [orders, suppliers]);
 
   const statusChartData = useMemo(() => {
     return Object.entries(stats.statusCounts).map(([status, count]) => ({
@@ -135,30 +156,18 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
   return (
     <div className="space-y-6">
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <StatCard
-          icon={Package}
-          label="סך הזמנות"
-          value={stats.totalOrders}
+          icon={MapPin}
+          label="הזמנות בתהליך מישראל"
+          value={stats.ordersInProcessIsrael}
           bgColor="bg-blue-50 border-blue-200"
         />
         <StatCard
-          icon={DollarSign}
-          label="ערך כולל"
-          value={`$${stats.totalValue.toLocaleString()}`}
-          bgColor="bg-green-50 border-green-200"
-        />
-        <StatCard
-          icon={Truck}
-          label="כמות בעיבוד"
-          value={stats.totalQuantity}
+          icon={Globe}
+          label="הזמנות בתהליך מחול"
+          value={stats.ordersInProcessAbroad}
           bgColor="bg-purple-50 border-purple-200"
-        />
-        <StatCard
-          icon={AlertCircle}
-          label="מעוברת"
-          value={stats.overdue}
-          bgColor={stats.overdue > 0 ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200"}
         />
       </div>
 
