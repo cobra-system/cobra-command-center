@@ -11,9 +11,14 @@
 
 ## [2026-03-26]
 
+- Add create_one_time_task MCP tool and category column migration (67481a8)
+
+<!-- last-commit: c65129ca79d9f19897816878ef7e7aa641c40423 -->
+
+## [2026-03-26]
+
 - Fix action_items.filter crash by normalizing JSONB array fields (22a883d)
 
-<!-- last-commit: 9cd8df0443cab1b0f1645812600d0324357769a4 -->
 
 ## [2026-03-26]
 
