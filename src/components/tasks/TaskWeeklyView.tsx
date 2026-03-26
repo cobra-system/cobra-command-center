@@ -6,29 +6,16 @@ import { PriorityBadge } from "@/components/PriorityBadge";
 import { type RecurringTask, recurringMatchesDay, findOrCreateRecurringInstance } from "@/lib/recurringUtils";
 import { format, startOfWeek, addDays, isSameDay, isToday, isPast, addWeeks, subWeeks, getDay } from "date-fns";
 import { he } from "date-fns/locale";
-import { ChevronRight, ChevronLeft, CalendarDays, AlertTriangle, Users, Repeat, Zap, Settings, X, Plus, ClipboardList } from "lucide-react";
+import { ChevronRight, ChevronLeft, CalendarDays, AlertTriangle, Users, Repeat, Settings, X, Plus, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import RecurringTasksPanel from "@/components/tasks/RecurringTasksPanel";
-import WorkflowsPanel from "@/components/tasks/WorkflowsPanel";
 import TaskCreateDialog from "@/components/tasks/TaskCreateDialog";
 import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
 
 const dayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
-
-interface WorkflowStep {
-  index: number; name: string; description: string; action: string;
-}
-interface WorkflowTemplate {
-  id: string; name: string; steps: WorkflowStep[];
-}
-interface WorkflowInstance {
-  id: string; template_id: string; current_step: number; status: string;
-  template?: WorkflowTemplate;
-}
 
 
 function ProgressRing({ done, total }: { done: number; total: number }) {
@@ -74,39 +61,18 @@ export default function TaskWeeklyView() {
   const [highlightTaskId, setHighlightTaskId] = useState<string | null>(null);
   const [showTasks, setShowTasks] = useState(true);
   const [showRecurring, setShowRecurring] = useState(true);
-  const [showWorkflows, setShowWorkflows] = useState(true);
 
   // Recurring tasks
   const [recurringTasks, setRecurringTasks] = useState<RecurringTask[]>([]);
-  const [workflowInstances, setWorkflowInstances] = useState<WorkflowInstance[]>([]);
 
   const loadRecurring = useCallback(async () => {
     const { data } = await supabase.from("tasks").select("*").eq("status", "TEMPLATE").eq("is_active", true);
     if (data) setRecurringTasks(data as RecurringTask[]);
   }, []);
 
-  const loadWorkflows = useCallback(async () => {
-    const { data: instances } = await supabase
-      .from("workflow_instances")
-      .select("id, template_id, current_step, status")
-      .eq("status", "active");
-    if (!instances) return;
-    const { data: templates } = await supabase.from("workflow_templates").select("id, name, steps");
-    if (templates) {
-      const enriched = instances.map(inst => ({
-        ...inst,
-        template: templates.find(t => t.id === inst.template_id) as unknown as WorkflowTemplate | undefined,
-      }));
-      setWorkflowInstances(enriched as WorkflowInstance[]);
-    } else {
-      setWorkflowInstances(instances as WorkflowInstance[]);
-    }
-  }, []);
-
   useEffect(() => {
     loadRecurring();
-    loadWorkflows();
-  }, [loadRecurring, loadWorkflows]);
+  }, [loadRecurring]);
 
   const handleRecurringClick = useCallback(async (rt: RecurringTask, day: Date) => {
     const task = await findOrCreateRecurringInstance(rt, day);
@@ -175,9 +141,6 @@ export default function TaskWeeklyView() {
     });
     return map;
   }, [recurringTasks, days, tasksByDay]);
-
-  const todayKey = format(isToday(days[0]) ? days[0] : days.find(d => isToday(d)) ?? days[0], "yyyy-MM-dd");
-  const workflowsForToday = workflowInstances;
 
   const unscheduled = useMemo(() =>
     filteredTasks.filter(t => !t.due_date && t.status !== "DONE"),
@@ -294,18 +257,6 @@ export default function TaskWeeklyView() {
           <span className={cn("h-2 w-2 rounded-full transition-colors", showRecurring ? "bg-violet-500" : "bg-muted-foreground/30")} />
           חוזרות
         </button>
-        <button
-          onClick={() => setShowWorkflows(v => !v)}
-          className={cn(
-            "flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all",
-            showWorkflows
-              ? "bg-warning/10 border-warning/30 text-warning font-medium"
-              : "bg-muted/30 border-border/50 text-muted-foreground/50 line-through"
-          )}
-        >
-          <span className={cn("h-2 w-2 rounded-full transition-colors", showWorkflows ? "bg-warning" : "bg-muted-foreground/30")} />
-          תהליכים
-        </button>
       </div>
 
       {/* Weekly grid */}
@@ -314,9 +265,8 @@ export default function TaskWeeklyView() {
           const key = format(day, "yyyy-MM-dd");
           const dayTasks = tasksByDay.get(key) || [];
           const dayRecurring = recurringByDay.get(key) || [];
-          const dayWorkflows = key === todayKey ? workflowsForToday : [];
           const doneTasks = dayTasks.filter(t => t.status === "DONE").length;
-          const totalItems = dayTasks.length + dayRecurring.length + dayWorkflows.length;
+          const totalItems = dayTasks.length + dayRecurring.length;
           const today = isToday(day);
           const isDropTarget = dragOverDay === key;
 
@@ -384,10 +334,6 @@ export default function TaskWeeklyView() {
                   <RecurringTaskCard key={`r-${rt.id}`} rt={rt} showAssignee={assigneeFilter === "all"} onClick={() => handleRecurringClick(rt, day)} />
                 ))}
 
-                {/* Workflow step cards */}
-                {showWorkflows && dayWorkflows.map(wf => (
-                  <WorkflowCard key={`wf-${wf.id}`} instance={wf} onRefresh={loadWorkflows} />
-                ))}
               </div>
             </div>
           );
@@ -483,24 +429,9 @@ export default function TaskWeeklyView() {
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogContent className="max-w-[92vw] w-full max-h-[85vh] overflow-y-auto">
           <DialogHeader className="mb-4">
-            <DialogTitle>ניהול חוזרות ותהליכים</DialogTitle>
+            <DialogTitle>ניהול חוזרות</DialogTitle>
           </DialogHeader>
-          <Tabs value={settingsTab} onValueChange={setSettingsTab}>
-            <TabsList className="w-full mb-4">
-              <TabsTrigger value="recurring" className="flex-1 gap-1.5">
-                <Repeat className="h-3.5 w-3.5" />חוזרות
-              </TabsTrigger>
-              <TabsTrigger value="workflows" className="flex-1 gap-1.5">
-                <Zap className="h-3.5 w-3.5" />תהליכים
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="recurring">
-              <RecurringTasksPanel />
-            </TabsContent>
-            <TabsContent value="workflows">
-              <WorkflowsPanel />
-            </TabsContent>
-          </Tabs>
+          <RecurringTasksPanel />
         </DialogContent>
       </Dialog>
 
@@ -599,43 +530,3 @@ function RecurringTaskCard({ rt, showAssignee, onClick }: { rt: RecurringTask; s
   );
 }
 
-// ─── Workflow step card ───────────────────────────────────────────────────────
-
-function WorkflowCard({ instance, onRefresh }: { instance: WorkflowInstance; onRefresh: () => void }) {
-  const currentStep = instance.template?.steps?.[instance.current_step];
-  const [completing, setCompleting] = useState(false);
-
-  const completeStep = async () => {
-    setCompleting(true);
-    const nextStep = instance.current_step + 1;
-    const totalSteps = instance.template?.steps?.length ?? 0;
-    if (nextStep >= totalSteps) {
-      await supabase.from("workflow_instances").update({ status: "completed", current_step: nextStep }).eq("id", instance.id);
-    } else {
-      await supabase.from("workflow_instances").update({ current_step: nextStep }).eq("id", instance.id);
-    }
-    setCompleting(false);
-    onRefresh();
-  };
-
-  if (!currentStep) return null;
-
-  return (
-    <div
-      className="rounded-lg px-2 py-2 text-[11px] border border-amber-500/30 bg-amber-500/10 select-none cursor-pointer hover:bg-amber-500/20 transition-colors"
-      onClick={completing ? undefined : completeStep}
-    >
-      <div className="flex items-start gap-1">
-        <Zap className="h-3 w-3 text-amber-500 shrink-0 mt-0.5" />
-        <div className="min-w-0">
-          <p className="font-medium leading-tight line-clamp-1 text-amber-900 dark:text-amber-200">
-            {instance.template?.name}
-          </p>
-          <p className="text-[10px] text-amber-700/70 dark:text-amber-300/60 line-clamp-1 mt-0.5">
-            שלב {instance.current_step + 1}: {currentStep.name}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
