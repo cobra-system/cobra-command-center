@@ -11,9 +11,14 @@
 
 ## [2026-03-26]
 
+- fix: restore correct UTF-8 encoding in DailyReportWidget (de9b0ec)
+
+<!-- last-commit: de9b0eca8d2f6d6ef40991661fa724b8aaa21fdd -->
+
+## [2026-03-26]
+
 - fix: correct DailyReportWidget interfaces to match JSONB data structure (cbfa5e8)
 
-<!-- last-commit: cbfa5e8d03be0d30f650302848bbf225f3b97e1a -->
 
 ## [2026-03-26]
 
