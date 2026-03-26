@@ -11,10 +11,15 @@
 
 ## [2026-03-26]
 
+- fix: count all non-Israel suppliers as abroad in orders dashboard (b53be14)
+
+<!-- last-commit: 73baae6926e5d06c22293a487b799d22a027a5b3 -->
+
+## [2026-03-26]
+
 - Merge pull request #70 from cobra-system/claude/delete-tasks-fix-goals-OyGHQ (ca861c8)
 - feat: add task delete button and fix goals display in Gantt (13061f9)
 
-<!-- last-commit: ca861c819fcdc0dd84622c9546d7b0c0e0e31fcf -->
 
 ## [2026-03-26]
 
