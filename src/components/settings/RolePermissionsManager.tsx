@@ -1,10 +1,8 @@
-import { useData, roleLabel, type Role } from "@/contexts/AppContext";
+import { useData } from "@/contexts/AppContext";
 import { MODULES, type PermissionLevel } from "@/lib/permissions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield } from "lucide-react";
-
-const NON_MANAGER_ROLES: Role[] = ["WAREHOUSE_MANAGER", "LOGISTICS", "DRIVER"];
 
 const permissionLabels: Record<PermissionLevel, string> = {
   none: "ללא",
@@ -15,20 +13,24 @@ const permissionLabels: Record<PermissionLevel, string> = {
 export default function RolePermissionsManager() {
   const { rolePermissions, upsertRolePermission, roleDefinitions } = useData();
 
-  const getRoleDisplayName = (role: Role): string => {
-    const def = roleDefinitions.find((rd) => rd.system_key === role);
-    return def?.name || roleLabel[role] || role;
+  // Show all non-manager roles (system and custom)
+  const displayRoles = roleDefinitions.filter((rd) => rd.system_key !== "MANAGER");
+
+  // Role key: system_key for system roles, id for custom roles
+  const getRoleKey = (rdId: string): string => {
+    const rd = roleDefinitions.find((r) => r.id === rdId);
+    return rd ? (rd.system_key ?? rd.id) : rdId;
   };
 
-  const getPermission = (role: Role, moduleKey: string): PermissionLevel => {
+  const getPermission = (roleKey: string, moduleKey: string): PermissionLevel => {
     const record = rolePermissions.find(
-      (rp) => rp.role === role && rp.module_key === moduleKey
+      (rp) => rp.role === roleKey && rp.module_key === moduleKey
     );
     return (record?.permission_level as PermissionLevel) ?? "none";
   };
 
-  const handleChange = (role: Role, moduleKey: string, level: PermissionLevel) => {
-    upsertRolePermission(role, moduleKey, level);
+  const handleChange = (roleKey: string, moduleKey: string, level: PermissionLevel) => {
+    upsertRolePermission(roleKey, moduleKey, level);
   };
 
   return (
@@ -61,28 +63,31 @@ export default function RolePermissionsManager() {
               </tr>
             </thead>
             <tbody>
-              {NON_MANAGER_ROLES.map((role) => (
-                <tr key={role} className="border-b last:border-0">
-                  <td className="py-3 px-2 font-medium">{getRoleDisplayName(role)}</td>
-                  {MODULES.map((mod) => (
-                    <td key={mod.key} className="py-2 px-1 text-center">
-                      <Select
-                        value={getPermission(role, mod.key)}
-                        onValueChange={(val) => handleChange(role, mod.key, val as PermissionLevel)}
-                      >
-                        <SelectTrigger className="h-8 text-xs w-[80px] mx-auto">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">{permissionLabels.none}</SelectItem>
-                          <SelectItem value="view">{permissionLabels.view}</SelectItem>
-                          <SelectItem value="edit">{permissionLabels.edit}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </td>
-                  ))}
-                </tr>
-              ))}
+              {displayRoles.map((rd) => {
+                const roleKey = getRoleKey(rd.id);
+                return (
+                  <tr key={rd.id} className="border-b last:border-0">
+                    <td className="py-3 px-2 font-medium">{rd.name}</td>
+                    {MODULES.map((mod) => (
+                      <td key={mod.key} className="py-2 px-1 text-center">
+                        <Select
+                          value={getPermission(roleKey, mod.key)}
+                          onValueChange={(val) => handleChange(roleKey, mod.key, val as PermissionLevel)}
+                        >
+                          <SelectTrigger className="h-8 text-xs w-[80px] mx-auto">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">{permissionLabels.none}</SelectItem>
+                            <SelectItem value="view">{permissionLabels.view}</SelectItem>
+                            <SelectItem value="edit">{permissionLabels.edit}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

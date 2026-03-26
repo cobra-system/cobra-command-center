@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { name, role, pin } = await req.json();
+    const { name, role, pin, role_definition_id } = await req.json();
     const validRoles = ["MANAGER", "WAREHOUSE_MANAGER", "LOGISTICS", "DRIVER"] as const;
 
     if (!name || !role || !pin || !/^\d{4}$/.test(pin)) {
@@ -62,6 +62,7 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
 
     // Check PIN uniqueness
     const { data: existingPin } = await supabaseAdmin
@@ -95,9 +96,11 @@ Deno.serve(async (req) => {
     }
 
     // Ensure profile exists גם אם ה-trigger לא יצר אותו
+    const profileData: Record<string, unknown> = { id: newUser.user.id, name, role, pin };
+    if (role_definition_id) profileData.role_definition_id = role_definition_id;
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
-      .upsert({ id: newUser.user.id, name, role, pin }, { onConflict: "id" });
+      .upsert(profileData, { onConflict: "id" });
 
     if (profileError) {
       await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);

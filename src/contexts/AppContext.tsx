@@ -17,6 +17,7 @@ export interface Profile {
   name: string;
   role: Role;
   pin?: string | null;
+  role_definition_id?: string | null;
 }
 
 export interface Product {
@@ -162,7 +163,7 @@ export interface RoleDefinition {
 
 export interface RolePermissionRecord {
   id: string;
-  role: Role;
+  role: string;
   module_key: string;
   permission_level: PermissionLevel;
 }
@@ -204,7 +205,7 @@ interface DataState {
   updateProfile: (id: string, updates: Partial<Profile>) => Promise<void>;
   resetDailyTasks: () => Promise<void>;
   advanceOverdueTasks: () => Promise<void>;
-  createEmployee: (data: { name: string; role: Role; pin: string }) => Promise<string | null>;
+  createEmployee: (data: { name: string; role: Role; pin: string; role_definition_id?: string }) => Promise<string | null>;
   addSupplier: (supplier: Omit<Supplier, "id">) => Promise<void>;
   updateSupplier: (id: string, updates: Partial<Supplier>) => Promise<void>;
   deleteSupplier: (id: string) => Promise<void>;
@@ -215,7 +216,7 @@ interface DataState {
   rolePermissions: RolePermissionRecord[];
   currentUserPermissions: RolePermissions;
   refreshRolePermissions: () => Promise<void>;
-  upsertRolePermission: (role: Role, moduleKey: string, level: PermissionLevel) => Promise<void>;
+  upsertRolePermission: (role: string, moduleKey: string, level: PermissionLevel) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -383,7 +384,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (data) setRolePermissions(data as RolePermissionRecord[]);
   }, []);
 
-  const upsertRolePermission = useCallback(async (role: Role, moduleKey: string, level: PermissionLevel) => {
+  const upsertRolePermission = useCallback(async (role: string, moduleKey: string, level: PermissionLevel) => {
     try {
       const { error } = await supabase.from("role_permissions").upsert(
         { role, module_key: moduleKey, permission_level: level } as any,
@@ -796,7 +797,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [tasks]);
 
-  const createEmployee = useCallback(async (data: { name: string; role: Role; pin: string }): Promise<string | null> => {
+  const createEmployee = useCallback(async (data: { name: string; role: Role; pin: string; role_definition_id?: string }): Promise<string | null> => {
     try {
       const cloudUrl = import.meta.env.VITE_SUPABASE_URL || "https://ljpdwezgahrrffnwajho.supabase.co";
       const cloudKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
@@ -890,15 +891,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!currentUser || currentUser.role === "MANAGER") {
       return getFullPermissionsForManager();
     }
+    // Determine the permission lookup key:
+    // - If the user has a role_definition_id, find that definition and use system_key (for system roles)
+    //   or the UUID (for custom roles) as the key stored in role_permissions.role
+    // - Otherwise fall back to the profile's app_role value
+    let effectiveRoleKey: string = currentUser.role;
+    if (currentUser.role_definition_id) {
+      const rd = roleDefinitions.find((r) => r.id === currentUser.role_definition_id);
+      if (rd) effectiveRoleKey = rd.system_key ?? rd.id;
+    }
     const perms: RolePermissions = {};
     for (const mod of MODULES) {
       const record = rolePermissions.find(
-        (rp) => rp.role === currentUser.role && rp.module_key === mod.key
+        (rp) => rp.role === effectiveRoleKey && rp.module_key === mod.key
       );
       perms[mod.key] = record?.permission_level ?? "none";
     }
     return perms;
-  }, [currentUser, rolePermissions]);
+  }, [currentUser, rolePermissions, roleDefinitions]);
 
   return (
     <AuthContext.Provider value={{ currentUser, session, loading: authLoading, loginWithEmail, logout }}>
