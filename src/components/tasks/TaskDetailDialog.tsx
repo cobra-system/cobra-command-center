@@ -1,11 +1,14 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { type Task, type Priority, useData } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { InlineEditField } from "@/components/InlineEditField";
 import { DateInput } from "@/components/ui/date-input";
+import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 const priorityOptions: { value: Priority; label: string }[] = [
@@ -22,15 +25,17 @@ const statusOptions = [
   { value: "BLOCKED", label: "חסום" },
 ];
 
-export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdate, onStatusChange }: {
+export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdate, onStatusChange, onDelete }: {
   task: Task | null;
   onClose: () => void;
   profiles: { id: string; name: string; role: string }[];
   currentUser: { id: string; role: string; name: string } | null;
   onUpdate: (id: string, updates: Partial<Task>) => Promise<void>;
   onStatusChange: (id: string, status: any) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
 }) {
   const { tasks: allTasks, goals } = useData();
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const existingMilestones = useMemo(() => {
     const fromGoals = goals.map(g => g.name);
@@ -70,11 +75,29 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
     toast.success("עודכן");
   };
 
+  const handleDeleteConfirm = async () => {
+    if (!task || !onDelete) return;
+    await onDelete(task.id);
+    setConfirmDelete(false);
+    onClose();
+  };
+
   return (
+    <>
     <Dialog open={!!task} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
+        <DialogHeader className="flex flex-row items-center justify-between gap-2">
           <DialogTitle>פירוט משימה</DialogTitle>
+          {onDelete && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
@@ -168,5 +191,23 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
         </div>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>מחיקת משימה</AlertDialogTitle>
+          <AlertDialogDescription>
+            האם אתה בטוח שברצונך למחוק את המשימה "{liveTask?.title}"? לא ניתן לשחזר.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>ביטול</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            מחק
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

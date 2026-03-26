@@ -18,7 +18,7 @@ const dayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמיש�
 const monthNames = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
 
 export default function TaskMonthlyView() {
-  const { tasks, updateTaskStatus, updateTask, profiles, refreshTasks } = useData();
+  const { tasks, updateTaskStatus, updateTask, deleteTask, profiles, refreshTasks } = useData();
   const { currentUser } = useAuth();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
@@ -378,6 +378,7 @@ export default function TaskMonthlyView() {
         currentUser={currentUser}
         onUpdate={updateTask}
         onStatusChange={updateTaskStatus}
+        onDelete={deleteTask}
       />
 
       {/* Settings popup */}
