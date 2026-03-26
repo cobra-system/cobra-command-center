@@ -5,18 +5,16 @@ import { type RecurringTask, recurringMatchesDay, findOrCreateRecurringInstance 
 import { supabase } from "@/lib/supabase";
 import { format, addDays, subDays, isToday, isSameDay, startOfDay } from "date-fns";
 import { he } from "date-fns/locale";
-import { ChevronRight, ChevronLeft, Calendar, Users, CheckCircle2, Circle, Flame, Settings, Plus, Repeat, Zap } from "lucide-react";
+import { ChevronRight, ChevronLeft, Calendar, Users, CheckCircle2, Circle, Flame, Settings, Plus, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import confetti from "canvas-confetti";
 import RecurringTasksPanel from "@/components/tasks/RecurringTasksPanel";
-import WorkflowsPanel from "@/components/tasks/WorkflowsPanel";
 import TaskCreateDialog from "@/components/tasks/TaskCreateDialog";
 
 const dayNames = ["יום ראשון", "יום שני", "יום שלישי", "יום רביעי", "יום חמישי", "יום שישי", "שבת"];
@@ -31,7 +29,6 @@ export default function TaskDayView() {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState("recurring");
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [recurringTasks, setRecurringTasks] = useState<RecurringTask[]>([]);
 
@@ -408,24 +405,9 @@ export default function TaskDayView() {
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogContent className="max-w-[92vw] w-full max-h-[85vh] overflow-y-auto">
           <DialogHeader className="mb-4">
-            <DialogTitle>ניהול חוזרות ותהליכים</DialogTitle>
+            <DialogTitle>ניהול חוזרות</DialogTitle>
           </DialogHeader>
-          <Tabs value={settingsTab} onValueChange={setSettingsTab}>
-            <TabsList className="w-full mb-4">
-              <TabsTrigger value="recurring" className="flex-1 gap-1.5">
-                <Repeat className="h-3.5 w-3.5" />חוזרות
-              </TabsTrigger>
-              <TabsTrigger value="workflows" className="flex-1 gap-1.5">
-                <Zap className="h-3.5 w-3.5" />תהליכים
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="recurring">
-              <RecurringTasksPanel />
-            </TabsContent>
-            <TabsContent value="workflows">
-              <WorkflowsPanel />
-            </TabsContent>
-          </Tabs>
+          <RecurringTasksPanel />
         </DialogContent>
       </Dialog>
 
