@@ -11,10 +11,15 @@
 
 ## [2026-03-26]
 
+- fix: add missing Zap import in TaskWeeklyView (8293ce2)
+
+<!-- last-commit: 8656838278e9ef42743750f582c25843662274ae -->
+
+## [2026-03-26]
+
 - Merge pull request #67 from cobra-system/claude/add-mcp-tools-9lC5C (f4ed1cb)
 - feat: add MCP tools for compliance, team management, and meetings (2811035)
 
-<!-- last-commit: f4ed1cbbfff12df13bf5285f91d33a959713c096 -->
 
 ## [2026-03-26]
 
