@@ -11,9 +11,15 @@
 
 ## [2026-03-26]
 
+- Merge pull request #69 from cobra-system/claude/user-management-settings-ueJ8F (ed98721)
+- Replace PIN-based team management with email+password user management (560419b)
+
+<!-- last-commit: ed9872191946b2fcfafaeaa646620db0d9c1c811 -->
+
+## [2026-03-26]
+
 - fix: add missing Zap import in TaskWeeklyView (8293ce2)
 
-<!-- last-commit: 8656838278e9ef42743750f582c25843662274ae -->
 
 ## [2026-03-26]
 
