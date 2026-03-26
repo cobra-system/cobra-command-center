@@ -11,9 +11,15 @@
 
 ## [2026-03-26]
 
+- Merge pull request #72 from cobra-system/claude/fullscreen-user-display-Nnjw4 (39afb2f)
+- Make employee layout fullscreen by removing max-width constraint (443d7f0)
+
+<!-- last-commit: 39afb2f817d52fa4a2cf1ed844599a42292e283b -->
+
+## [2026-03-26]
+
 - fix: count all non-Israel suppliers as abroad in orders dashboard (b53be14)
 
-<!-- last-commit: 73baae6926e5d06c22293a487b799d22a027a5b3 -->
 
 ## [2026-03-26]
 
