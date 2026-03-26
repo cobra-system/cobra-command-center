@@ -11,9 +11,14 @@
 
 ## [2026-03-26]
 
+- fix: enable custom roles to be assigned to workers and configured with permissions (d8febcf)
+
+<!-- last-commit: 3981cfb0ad5dd71da6d03d0921230a580a9b6e39 -->
+
+## [2026-03-26]
+
 - fix: prevent null dereference in TaskDetailDialog (7176189)
 
-<!-- last-commit: 151ecbc9405fc2f04a5ae24c400d3584ac0304f5 -->
 
 ## [2026-03-26]
 
