@@ -11,9 +11,15 @@
 
 ## [2026-03-26]
 
+- Merge pull request #67 from cobra-system/claude/add-mcp-tools-9lC5C (f4ed1cb)
+- feat: add MCP tools for compliance, team management, and meetings (2811035)
+
+<!-- last-commit: f4ed1cbbfff12df13bf5285f91d33a959713c096 -->
+
+## [2026-03-26]
+
 - feat: redesign DailyReportWidget as compact accordion (cb90cf6)
 
-<!-- last-commit: cb90cf6da180aee52d6a17485aa67a5d607f0f2a -->
 
 ## [2026-03-26]
 
