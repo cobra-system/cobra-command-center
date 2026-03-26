@@ -64,6 +64,39 @@ export function registerTaskTools(server: McpServer) {
   );
 
   server.tool(
+    "create_one_time_task",
+    "יצירת משימה חד-פעמית — Create a one-time (non-recurring) task",
+    {
+      title: z.string().describe("Task title"),
+      description: z.string().optional().describe("Task description"),
+      assignee: z.string().optional().describe("Person assigned (e.g. זיו, ג'ורג', נועם)"),
+      category: z.string().optional().describe("Category (e.g. לוגיסטיקה, רכש, כללי)"),
+      due_date: z.string().optional().describe("Due date in ISO 8601 format (e.g. 2026-04-15)"),
+      priority: z.enum(["P0", "P1", "P2", "P3"]).optional().describe("Priority level"),
+      status: z.enum(["TODO", "IN_PROGRESS", "DONE"]).optional().describe("Initial status"),
+    },
+    async ({ title, description, assignee, category, due_date, priority, status }) => {
+      const { data, error } = await supabase
+        .from("tasks")
+        .insert({
+          title,
+          description: description || null,
+          assignee_name: assignee || null,
+          category: category || null,
+          due_date: due_date || null,
+          priority: priority || "P2",
+          status: status || "TODO",
+          is_daily: false,
+        })
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `One-time task created:\n${JSON.stringify(data, null, 2)}` }] };
+    }
+  );
+
+  server.tool(
     "update_task",
     "עדכון משימה — Update a recurring task template",
     {
