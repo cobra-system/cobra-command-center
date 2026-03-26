@@ -1,37 +1,52 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sun, CheckCircle2, Circle, Mail, AlertTriangle, Clock } from "lucide-react";
 
+interface CobraUpdate {
+  order_name: string;
+  description: string;
+}
+
+interface ActionItem {
+  text: string;
+  priority: "red" | "orange" | "yellow";
+  done: boolean;
+}
+
+interface PendingClarification {
+  supplier: string;
+  issue: string;
+  resolved: boolean;
+}
+
+interface MailDraft {
+  recipient: string;
+  subject: string;
+  body: string;
+  status: "pending" | "approved" | "sent";
+}
+
+interface Meeting {
+  time: string;
+  title: string;
+  topics: string;
+}
+
 interface DailyReport {
   id: string;
   report_date: string;
   day_name: string;
-  cobra_updates: string[];
-  action_items: Array<{
-    id: string;
-    title: string;
-    priority: string;
-    done: boolean;
-  }>;
-  pending_clarifications: string[];
-  mail_drafts: Array<{
-    id: string;
-    subject: string;
-    status: string;
-  }>;
+  cobra_updates: CobraUpdate[];
+  action_items: ActionItem[];
+  pending_clarifications: PendingClarification[];
+  mail_drafts: MailDraft[];
+  meetings: Meeting[];
+  total_action_items: number;
+  total_mail_drafts: number;
+  total_cobra_updates: number;
 }
-
-const DAY_NAMES: Record<number, string> = {
-  0: "ראשון",
-  1: "שני",
-  2: "שלישי",
-  3: "רביעי",
-  4: "חמישי",
-  5: "שישי",
-  6: "שבת",
-};
 
 export default function DailyReportWidget() {
   const [report, setReport] = useState<DailyReport | null>(null);
@@ -66,6 +81,7 @@ export default function DailyReportWidget() {
             cobra_updates: Array.isArray(data.cobra_updates) ? data.cobra_updates : [],
             pending_clarifications: Array.isArray(data.pending_clarifications) ? data.pending_clarifications : [],
             mail_drafts: Array.isArray(data.mail_drafts) ? data.mail_drafts : [],
+            meetings: Array.isArray(data.meetings) ? data.meetings : [],
           } as DailyReport);
         }
       } catch (err) {
@@ -79,12 +95,12 @@ export default function DailyReportWidget() {
     fetchDailyReport();
   }, []);
 
-  const handleCheckActionItem = async (itemId: string, done: boolean) => {
+  const handleCheckActionItem = async (idx: number, currentDone: boolean) => {
     if (!report) return;
 
     try {
-      const updatedItems = report.action_items.map((item) =>
-        item.id === itemId ? { ...item, done: !item.done } : item
+      const updatedItems = report.action_items.map((item, i) =>
+        i === idx ? { ...item, done: !currentDone } : item
       );
 
       const { error: err } = await supabase
@@ -102,12 +118,12 @@ export default function DailyReportWidget() {
     }
   };
 
-  const handleApproveDraft = async (draftId: string) => {
+  const handleApproveDraft = async (idx: number) => {
     if (!report) return;
 
     try {
-      const updatedDrafts = report.mail_drafts.map((draft) =>
-        draft.id === draftId ? { ...draft, status: "approved" } : draft
+      const updatedDrafts = report.mail_drafts.map((draft, i) =>
+        i === idx ? { ...draft, status: "approved" as const } : draft
       );
 
       const { error: err } = await supabase
@@ -130,7 +146,7 @@ export default function DailyReportWidget() {
       <div className="bg-card rounded-xl border shadow-sm p-8 flex items-center justify-center">
         <div className="text-center">
           <Clock className="h-8 w-8 text-muted-foreground mx-auto mb-2 animate-spin" />
-          <p className="text-sm text-muted-foreground">טוען סקירה...</p>
+          <p className="text-sm text-muted-foreground">׳˜׳•׳¢׳ ׳¡׳§׳™׳¨׳”...</p>
         </div>
       </div>
     );
@@ -148,7 +164,7 @@ export default function DailyReportWidget() {
     return (
       <div className="bg-card rounded-xl border shadow-sm p-8 text-center">
         <Sun className="h-12 w-12 text-primary mx-auto mb-3 opacity-50" />
-        <p className="text-sm text-muted-foreground">אין סקירה להיום</p>
+        <p className="text-sm text-muted-foreground">׳׳™׳ ׳¡׳§׳™׳¨׳” ׳׳”׳™׳•׳</p>
       </div>
     );
   }
@@ -162,10 +178,12 @@ export default function DailyReportWidget() {
     });
   };
 
-  const redItems = report.action_items.filter((item) => item.priority === "red");
-  const orangeItems = report.action_items.filter(
-    (item) => item.priority === "orange" || item.priority === "yellow"
-  );
+  const redItems = report.action_items
+    .map((item, idx) => ({ ...item, idx }))
+    .filter((item) => item.priority === "red");
+  const orangeItems = report.action_items
+    .map((item, idx) => ({ ...item, idx }))
+    .filter((item) => item.priority === "orange" || item.priority === "yellow");
 
   return (
     <div className="space-y-3">
@@ -174,7 +192,7 @@ export default function DailyReportWidget() {
         <Sun className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
         <div className="flex-1 min-w-0">
           <h2 className="font-semibold text-foreground text-right">
-            סקירת בוקר — {report.day_name} {formatDate(report.report_date)}
+            ׳¡׳§׳™׳¨׳× ׳‘׳•׳§׳¨ ג€” {report.day_name} {formatDate(report.report_date)}
           </h2>
         </div>
       </div>
@@ -185,7 +203,7 @@ export default function DailyReportWidget() {
           <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
             <div className="bg-blue-50 border-b border-blue-100 px-4 py-3">
               <h3 className="text-sm font-semibold text-blue-900 text-right flex items-center gap-2 justify-end">
-                <span>עדכוני Cobra</span>
+                <span>׳¢׳“׳›׳•׳ ׳™ Cobra ({report.cobra_updates.length})</span>
                 <CheckCircle2 className="h-4 w-4" />
               </h3>
             </div>
@@ -193,7 +211,10 @@ export default function DailyReportWidget() {
               {report.cobra_updates.map((update, idx) => (
                 <div key={idx} className="flex items-start gap-3 text-right">
                   <div className="h-1.5 w-1.5 rounded-full bg-blue-500 flex-shrink-0 mt-1.5" />
-                  <p className="text-sm text-foreground">{update}</p>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-foreground">{update.order_name}</p>
+                    <p className="text-xs text-muted-foreground">{update.description}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -205,21 +226,21 @@ export default function DailyReportWidget() {
           <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
             <div className="bg-red-50 border-b border-red-100 px-4 py-3">
               <h3 className="text-sm font-semibold text-red-900 text-right flex items-center gap-2 justify-end">
-                <span>דחוף - פעולות נדרשות</span>
+                <span>׳“׳—׳•׳£ - ׳₪׳¢׳•׳׳•׳× ׳ ׳“׳¨׳©׳•׳×</span>
                 <AlertTriangle className="h-4 w-4" />
               </h3>
             </div>
             <div className="p-4 space-y-2">
               {redItems.map((item) => (
                 <div
-                  key={item.id}
+                  key={item.idx}
                   className="flex items-center justify-end gap-3 py-2 px-2 hover:bg-muted/40 rounded-lg transition-colors"
                 >
                   <label className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={item.done}
-                      onChange={() => handleCheckActionItem(item.id, item.done)}
+                      onChange={() => handleCheckActionItem(item.idx, item.done)}
                       className="rounded w-4 h-4"
                     />
                     <span
@@ -228,7 +249,7 @@ export default function DailyReportWidget() {
                         item.done && "line-through text-muted-foreground"
                       )}
                     >
-                      {item.title}
+                      {item.text}
                     </span>
                   </label>
                   {item.done ? (
@@ -247,21 +268,21 @@ export default function DailyReportWidget() {
           <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
             <div className="bg-yellow-50 border-b border-yellow-100 px-4 py-3">
               <h3 className="text-sm font-semibold text-yellow-900 text-right flex items-center gap-2 justify-end">
-                <span>פעולות - עדיפות בינוני</span>
+                <span>׳₪׳¢׳•׳׳•׳× - ׳¢׳“׳™׳₪׳•׳× ׳‘׳™׳ ׳•׳ ׳™</span>
                 <Clock className="h-4 w-4" />
               </h3>
             </div>
             <div className="p-4 space-y-2">
               {orangeItems.map((item) => (
                 <div
-                  key={item.id}
+                  key={item.idx}
                   className="flex items-center justify-end gap-3 py-2 px-2 hover:bg-muted/40 rounded-lg transition-colors"
                 >
                   <label className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={item.done}
-                      onChange={() => handleCheckActionItem(item.id, item.done)}
+                      onChange={() => handleCheckActionItem(item.idx, item.done)}
                       className="rounded w-4 h-4"
                     />
                     <span
@@ -270,7 +291,7 @@ export default function DailyReportWidget() {
                         item.done && "line-through text-muted-foreground"
                       )}
                     >
-                      {item.title}
+                      {item.text}
                     </span>
                   </label>
                   {item.done ? (
@@ -289,15 +310,21 @@ export default function DailyReportWidget() {
           <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
             <div className="bg-orange-50 border-b border-orange-100 px-4 py-3">
               <h3 className="text-sm font-semibold text-orange-900 text-right flex items-center gap-2 justify-end">
-                <span>הבהרות ממתינות</span>
+                <span>׳”׳‘׳”׳¨׳•׳× ׳׳׳×׳™׳ ׳•׳× ({report.pending_clarifications.filter(c => !c.resolved).length})</span>
                 <AlertTriangle className="h-4 w-4" />
               </h3>
             </div>
             <div className="p-4 space-y-2">
-              {report.pending_clarifications.map((clarification, idx) => (
+              {report.pending_clarifications.map((c, idx) => (
                 <div key={idx} className="flex items-start gap-3 text-right">
-                  <div className="h-1.5 w-1.5 rounded-full bg-orange-500 flex-shrink-0 mt-1.5" />
-                  <p className="text-sm text-foreground">{clarification}</p>
+                  <div className={cn(
+                    "h-1.5 w-1.5 rounded-full flex-shrink-0 mt-1.5",
+                    c.resolved ? "bg-green-500" : "bg-orange-500"
+                  )} />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-foreground">{c.supplier}</p>
+                    <p className="text-xs text-muted-foreground">{c.issue}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -309,31 +336,55 @@ export default function DailyReportWidget() {
           <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
             <div className="bg-blue-50 border-b border-blue-100 px-4 py-3">
               <h3 className="text-sm font-semibold text-blue-900 text-right flex items-center gap-2 justify-end">
-                <span>טיוטות דוא"ל ({report.mail_drafts.length})</span>
+                <span>׳˜׳™׳•׳˜׳•׳× ׳“׳•׳"׳ ({report.mail_drafts.length})</span>
                 <Mail className="h-4 w-4" />
               </h3>
             </div>
             <div className="p-4 space-y-2">
-              {report.mail_drafts.map((draft) => (
+              {report.mail_drafts.map((draft, idx) => (
                 <div
-                  key={draft.id}
+                  key={idx}
                   className="flex items-center justify-between p-2 hover:bg-muted/40 rounded-lg transition-colors"
                 >
                   <Button
                     variant="default"
                     size="sm"
-                    onClick={() => handleApproveDraft(draft.id)}
-                    disabled={draft.status === "approved"}
+                    onClick={() => handleApproveDraft(idx)}
+                    disabled={draft.status === "approved" || draft.status === "sent"}
                     className={cn(
                       "text-xs",
-                      draft.status === "approved" && "opacity-60 cursor-not-allowed"
+                      (draft.status === "approved" || draft.status === "sent") && "opacity-60 cursor-not-allowed"
                     )}
                   >
-                    {draft.status === "approved" ? "אושר" : "אשר"}
+                    {draft.status === "approved" ? "׳׳•׳©׳¨" : draft.status === "sent" ? "׳ ׳©׳׳—" : "׳׳©׳¨"}
                   </Button>
-                  <span className="text-sm text-foreground text-right flex-1 min-w-0 truncate">
-                    {draft.subject}
-                  </span>
+                  <div className="text-right flex-1 min-w-0 px-2">
+                    <p className="text-sm font-medium text-foreground truncate">{draft.subject}</p>
+                    <p className="text-xs text-muted-foreground truncate">׳׳: {draft.recipient}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Meetings Section */}
+        {report.meetings && report.meetings.length > 0 && (
+          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+            <div className="bg-purple-50 border-b border-purple-100 px-4 py-3">
+              <h3 className="text-sm font-semibold text-purple-900 text-right flex items-center gap-2 justify-end">
+                <span>׳₪׳’׳™׳©׳•׳× ׳”׳™׳•׳ ({report.meetings.length})</span>
+                <Clock className="h-4 w-4" />
+              </h3>
+            </div>
+            <div className="p-4 space-y-2">
+              {report.meetings.map((meeting, idx) => (
+                <div key={idx} className="flex items-start gap-3 text-right">
+                  <div className="h-1.5 w-1.5 rounded-full bg-purple-500 flex-shrink-0 mt-1.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-foreground">{meeting.time} ג€” {meeting.title}</p>
+                    {meeting.topics && <p className="text-xs text-muted-foreground">{meeting.topics}</p>}
+                  </div>
                 </div>
               ))}
             </div>
@@ -343,3 +394,4 @@ export default function DailyReportWidget() {
     </div>
   );
 }
+
