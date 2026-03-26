@@ -32,6 +32,9 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
 }) {
   const { tasks: allTasks, goals } = useData();
 
+  // Derive live task from AppContext so inline-edit updates are reflected immediately
+  const liveTask = allTasks.find(t => t.id === task.id) ?? task;
+
   const existingMilestones = useMemo(() => {
     const fromGoals = goals.map(g => g.name);
     const fromTasks = new Set<string>();
@@ -76,14 +79,14 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
 
         <div className="space-y-4 pt-2">
           <InlineEditField
-            value={task.title}
+            value={liveTask.title}
             onSave={v => handleInlineSave("title", v)}
             label="כותרת"
             className="bg-muted/30 rounded-lg p-3"
           />
 
           <InlineEditField
-            value={task.description}
+            value={liveTask.description}
             onSave={v => handleInlineSave("description", v)}
             label="תיאור"
             type="textarea"
@@ -92,17 +95,17 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
 
           <div className="grid grid-cols-2 gap-3">
             <InlineEditField
-              value={task.priority}
+              value={liveTask.priority}
               onSave={v => handleInlineSave("priority", v)}
               label="עדיפות"
-              displayValue={<PriorityBadge priority={task.priority as Priority} />}
+              displayValue={<PriorityBadge priority={liveTask.priority as Priority} />}
               options={priorityOptions}
               className="bg-muted/30 rounded-lg p-3"
             />
 
             <div className="bg-muted/30 rounded-lg p-3 space-y-1">
               <p className="text-xs text-muted-foreground">סטטוס</p>
-              <Select value={task.status} onValueChange={v => onStatusChange(task.id, v)}>
+              <Select value={liveTask.status} onValueChange={v => onStatusChange(task.id, v)}>
                 <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {statusOptions.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
@@ -111,10 +114,10 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
             </div>
 
             <InlineEditField
-              value={task.assignee_id || "__none__"}
+              value={liveTask.assignee_id || "__none__"}
               onSave={v => handleInlineSave("assignee_id", v)}
               label="משויך ל"
-              displayValue={task.assignee_name || "לא משויך"}
+              displayValue={liveTask.assignee_name || "לא משויך"}
               options={[
                 { value: "__none__", label: "ללא" },
                 ...assignableUsers.map(u => ({ value: u.id, label: u.name })),
@@ -125,7 +128,7 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
             <div className="bg-muted/30 rounded-lg p-3 space-y-1">
               <p className="text-xs text-muted-foreground">תאריך יעד</p>
               <DateInput
-                value={task.due_date ? new Date(task.due_date) : undefined}
+                value={liveTask.due_date ? new Date(liveTask.due_date) : undefined}
                 onChange={dt => handleDateSave("due_date", dt)}
                 clearable
               />
@@ -133,19 +136,19 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
           </div>
 
           <InlineEditField
-            value={task.milestone || ""}
+            value={liveTask.milestone || ""}
             onSave={v => handleInlineSave("milestone", v)}
             label="מטרת-על"
             options={[
               { value: "__none__", label: "ללא" },
               ...existingMilestones.map(m => ({ value: m, label: m })),
             ]}
-            displayValue={task.milestone || "—"}
+            displayValue={liveTask.milestone || "—"}
             className="bg-muted/30 rounded-lg p-3"
           />
 
           <InlineEditField
-            value={task.notes}
+            value={liveTask.notes}
             onSave={v => handleInlineSave("notes", v)}
             label="הערות"
             type="textarea"
@@ -153,13 +156,13 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
           />
 
           <InlineEditField
-            value={task.deliverable}
+            value={liveTask.deliverable}
             onSave={v => handleInlineSave("deliverable", v)}
             label="תוצר"
             className="bg-muted/30 rounded-lg p-3"
           />
 
-          {task.is_daily && (
+          {liveTask.is_daily && (
             <span className="inline-block text-xs bg-warning/15 text-warning px-2 py-0.5 rounded-full">משימה יומית</span>
           )}
         </div>
