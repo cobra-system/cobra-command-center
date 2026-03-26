@@ -11,9 +11,15 @@
 
 ## [2026-03-26]
 
+- Merge pull request #66 from cobra-system/claude/remove-process-visibility-5ndpy (15f13ff)
+- Remove process (תהליכים) visibility from task views (367226c)
+
+<!-- last-commit: 15f13ff204f90eab08cff638f7f4267ba57187a5 -->
+
+## [2026-03-26]
+
 - fix: restore correct UTF-8 encoding in DailyReportWidget (de9b0ec)
 
-<!-- last-commit: de9b0eca8d2f6d6ef40991661fa724b8aaa21fdd -->
 
 ## [2026-03-26]
 
