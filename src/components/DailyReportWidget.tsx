@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -68,7 +68,6 @@ export default function DailyReportWidget() {
 
         if (err) {
           if (err.code === "PGRST116") {
-            // No rows found - this is expected for no report today
             setReport(null);
           } else {
             setError("Failed to fetch daily report");
@@ -97,22 +96,15 @@ export default function DailyReportWidget() {
 
   const handleCheckActionItem = async (idx: number, currentDone: boolean) => {
     if (!report) return;
-
     try {
       const updatedItems = report.action_items.map((item, i) =>
         i === idx ? { ...item, done: !currentDone } : item
       );
-
       const { error: err } = await supabase
         .from("daily_reports")
         .update({ action_items: updatedItems })
         .eq("id", report.id);
-
-      if (err) {
-        console.error("Failed to update action item:", err);
-      } else {
-        setReport({ ...report, action_items: updatedItems });
-      }
+      if (!err) setReport({ ...report, action_items: updatedItems });
     } catch (err) {
       console.error("Error updating action item:", err);
     }
@@ -120,22 +112,15 @@ export default function DailyReportWidget() {
 
   const handleApproveDraft = async (idx: number) => {
     if (!report) return;
-
     try {
       const updatedDrafts = report.mail_drafts.map((draft, i) =>
         i === idx ? { ...draft, status: "approved" as const } : draft
       );
-
       const { error: err } = await supabase
         .from("daily_reports")
         .update({ mail_drafts: updatedDrafts })
         .eq("id", report.id);
-
-      if (err) {
-        console.error("Failed to approve draft:", err);
-      } else {
-        setReport({ ...report, mail_drafts: updatedDrafts });
-      }
+      if (!err) setReport({ ...report, mail_drafts: updatedDrafts });
     } catch (err) {
       console.error("Error approving draft:", err);
     }
@@ -146,7 +131,7 @@ export default function DailyReportWidget() {
       <div className="bg-card rounded-xl border shadow-sm p-8 flex items-center justify-center">
         <div className="text-center">
           <Clock className="h-8 w-8 text-muted-foreground mx-auto mb-2 animate-spin" />
-          <p className="text-sm text-muted-foreground">׳˜׳•׳¢׳ ׳¡׳§׳™׳¨׳”...</p>
+          <p className="text-sm text-muted-foreground">{"טוען סקירה..."}</p>
         </div>
       </div>
     );
@@ -164,7 +149,7 @@ export default function DailyReportWidget() {
     return (
       <div className="bg-card rounded-xl border shadow-sm p-8 text-center">
         <Sun className="h-12 w-12 text-primary mx-auto mb-3 opacity-50" />
-        <p className="text-sm text-muted-foreground">׳׳™׳ ׳¡׳§׳™׳¨׳” ׳׳”׳™׳•׳</p>
+        <p className="text-sm text-muted-foreground">{"אין סקירה להיום"}</p>
       </div>
     );
   }
@@ -192,18 +177,18 @@ export default function DailyReportWidget() {
         <Sun className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
         <div className="flex-1 min-w-0">
           <h2 className="font-semibold text-foreground text-right">
-            ׳¡׳§׳™׳¨׳× ׳‘׳•׳§׳¨ ג€” {report.day_name} {formatDate(report.report_date)}
+            {"\u05E1\u05E7\u05D9\u05E8\u05EA \u05D1\u05D5\u05E7\u05E8 \u2014"} {report.day_name} {formatDate(report.report_date)}
           </h2>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3">
-        {/* Cobra Updates Section */}
+        {/* Cobra Updates */}
         {report.cobra_updates && report.cobra_updates.length > 0 && (
           <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
             <div className="bg-blue-50 border-b border-blue-100 px-4 py-3">
               <h3 className="text-sm font-semibold text-blue-900 text-right flex items-center gap-2 justify-end">
-                <span>׳¢׳“׳›׳•׳ ׳™ Cobra ({report.cobra_updates.length})</span>
+                <span>{"\u05E2\u05D3\u05DB\u05D5\u05E0\u05D9 Cobra"} ({report.cobra_updates.length})</span>
                 <CheckCircle2 className="h-4 w-4" />
               </h3>
             </div>
@@ -221,21 +206,18 @@ export default function DailyReportWidget() {
           </div>
         )}
 
-        {/* Red Priority Action Items */}
+        {/* Red Priority */}
         {redItems.length > 0 && (
           <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
             <div className="bg-red-50 border-b border-red-100 px-4 py-3">
               <h3 className="text-sm font-semibold text-red-900 text-right flex items-center gap-2 justify-end">
-                <span>׳“׳—׳•׳£ - ׳₪׳¢׳•׳׳•׳× ׳ ׳“׳¨׳©׳•׳×</span>
+                <span>{"\u05D3\u05D7\u05D5\u05E3 - \u05E4\u05E2\u05D5\u05DC\u05D5\u05EA \u05E0\u05D3\u05E8\u05E9\u05D5\u05EA"}</span>
                 <AlertTriangle className="h-4 w-4" />
               </h3>
             </div>
             <div className="p-4 space-y-2">
               {redItems.map((item) => (
-                <div
-                  key={item.idx}
-                  className="flex items-center justify-end gap-3 py-2 px-2 hover:bg-muted/40 rounded-lg transition-colors"
-                >
+                <div key={item.idx} className="flex items-center justify-end gap-3 py-2 px-2 hover:bg-muted/40 rounded-lg transition-colors">
                   <label className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
                     <input
                       type="checkbox"
@@ -243,41 +225,31 @@ export default function DailyReportWidget() {
                       onChange={() => handleCheckActionItem(item.idx, item.done)}
                       className="rounded w-4 h-4"
                     />
-                    <span
-                      className={cn(
-                        "text-sm flex-1 text-right",
-                        item.done && "line-through text-muted-foreground"
-                      )}
-                    >
+                    <span className={cn("text-sm flex-1 text-right", item.done && "line-through text-muted-foreground")}>
                       {item.text}
                     </span>
                   </label>
-                  {item.done ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
-                  ) : (
-                    <Circle className="h-4 w-4 text-red-500 flex-shrink-0" />
-                  )}
+                  {item.done
+                    ? <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                    : <Circle className="h-4 w-4 text-red-500 flex-shrink-0" />}
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Orange/Yellow Priority Action Items */}
+        {/* Orange/Yellow Priority */}
         {orangeItems.length > 0 && (
           <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
             <div className="bg-yellow-50 border-b border-yellow-100 px-4 py-3">
               <h3 className="text-sm font-semibold text-yellow-900 text-right flex items-center gap-2 justify-end">
-                <span>׳₪׳¢׳•׳׳•׳× - ׳¢׳“׳™׳₪׳•׳× ׳‘׳™׳ ׳•׳ ׳™</span>
+                <span>{"\u05E4\u05E2\u05D5\u05DC\u05D5\u05EA - \u05E2\u05D3\u05D9\u05E4\u05D5\u05EA \u05D1\u05D9\u05E0\u05D5\u05E0\u05D9"}</span>
                 <Clock className="h-4 w-4" />
               </h3>
             </div>
             <div className="p-4 space-y-2">
               {orangeItems.map((item) => (
-                <div
-                  key={item.idx}
-                  className="flex items-center justify-end gap-3 py-2 px-2 hover:bg-muted/40 rounded-lg transition-colors"
-                >
+                <div key={item.idx} className="flex items-center justify-end gap-3 py-2 px-2 hover:bg-muted/40 rounded-lg transition-colors">
                   <label className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
                     <input
                       type="checkbox"
@@ -285,20 +257,13 @@ export default function DailyReportWidget() {
                       onChange={() => handleCheckActionItem(item.idx, item.done)}
                       className="rounded w-4 h-4"
                     />
-                    <span
-                      className={cn(
-                        "text-sm flex-1 text-right",
-                        item.done && "line-through text-muted-foreground"
-                      )}
-                    >
+                    <span className={cn("text-sm flex-1 text-right", item.done && "line-through text-muted-foreground")}>
                       {item.text}
                     </span>
                   </label>
-                  {item.done ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
-                  ) : (
-                    <Circle className="h-4 w-4 text-yellow-500 flex-shrink-0" />
-                  )}
+                  {item.done
+                    ? <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                    : <Circle className="h-4 w-4 text-yellow-500 flex-shrink-0" />}
                 </div>
               ))}
             </div>
@@ -310,17 +275,14 @@ export default function DailyReportWidget() {
           <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
             <div className="bg-orange-50 border-b border-orange-100 px-4 py-3">
               <h3 className="text-sm font-semibold text-orange-900 text-right flex items-center gap-2 justify-end">
-                <span>׳”׳‘׳”׳¨׳•׳× ׳׳׳×׳™׳ ׳•׳× ({report.pending_clarifications.filter(c => !c.resolved).length})</span>
+                <span>{"\u05D4\u05D1\u05D4\u05E8\u05D5\u05EA \u05DE\u05DE\u05EA\u05D9\u05E0\u05D5\u05EA"} ({report.pending_clarifications.filter(c => !c.resolved).length})</span>
                 <AlertTriangle className="h-4 w-4" />
               </h3>
             </div>
             <div className="p-4 space-y-2">
               {report.pending_clarifications.map((c, idx) => (
                 <div key={idx} className="flex items-start gap-3 text-right">
-                  <div className={cn(
-                    "h-1.5 w-1.5 rounded-full flex-shrink-0 mt-1.5",
-                    c.resolved ? "bg-green-500" : "bg-orange-500"
-                  )} />
+                  <div className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0 mt-1.5", c.resolved ? "bg-green-500" : "bg-orange-500")} />
                   <div className="flex-1">
                     <p className="text-sm font-medium text-foreground">{c.supplier}</p>
                     <p className="text-xs text-muted-foreground">{c.issue}</p>
@@ -331,36 +293,30 @@ export default function DailyReportWidget() {
           </div>
         )}
 
-        {/* Mail Drafts Section */}
+        {/* Mail Drafts */}
         {report.mail_drafts && report.mail_drafts.length > 0 && (
           <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
             <div className="bg-blue-50 border-b border-blue-100 px-4 py-3">
               <h3 className="text-sm font-semibold text-blue-900 text-right flex items-center gap-2 justify-end">
-                <span>׳˜׳™׳•׳˜׳•׳× ׳“׳•׳"׳ ({report.mail_drafts.length})</span>
+                <span>{"\u05D8\u05D9\u05D5\u05D8\u05D5\u05EA \u05D3\u05D5\u05D0\"\u05DC"} ({report.mail_drafts.length})</span>
                 <Mail className="h-4 w-4" />
               </h3>
             </div>
             <div className="p-4 space-y-2">
               {report.mail_drafts.map((draft, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-2 hover:bg-muted/40 rounded-lg transition-colors"
-                >
+                <div key={idx} className="flex items-center justify-between p-2 hover:bg-muted/40 rounded-lg transition-colors">
                   <Button
                     variant="default"
                     size="sm"
                     onClick={() => handleApproveDraft(idx)}
                     disabled={draft.status === "approved" || draft.status === "sent"}
-                    className={cn(
-                      "text-xs",
-                      (draft.status === "approved" || draft.status === "sent") && "opacity-60 cursor-not-allowed"
-                    )}
+                    className={cn("text-xs", (draft.status === "approved" || draft.status === "sent") && "opacity-60 cursor-not-allowed")}
                   >
-                    {draft.status === "approved" ? "׳׳•׳©׳¨" : draft.status === "sent" ? "׳ ׳©׳׳—" : "׳׳©׳¨"}
+                    {draft.status === "approved" ? "\u05D0\u05D5\u05E9\u05E8" : draft.status === "sent" ? "\u05E0\u05E9\u05DC\u05D7" : "\u05D0\u05E9\u05E8"}
                   </Button>
                   <div className="text-right flex-1 min-w-0 px-2">
                     <p className="text-sm font-medium text-foreground truncate">{draft.subject}</p>
-                    <p className="text-xs text-muted-foreground truncate">׳׳: {draft.recipient}</p>
+                    <p className="text-xs text-muted-foreground truncate">{"\u05D0\u05DC:"} {draft.recipient}</p>
                   </div>
                 </div>
               ))}
@@ -368,12 +324,12 @@ export default function DailyReportWidget() {
           </div>
         )}
 
-        {/* Meetings Section */}
+        {/* Meetings */}
         {report.meetings && report.meetings.length > 0 && (
           <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
             <div className="bg-purple-50 border-b border-purple-100 px-4 py-3">
               <h3 className="text-sm font-semibold text-purple-900 text-right flex items-center gap-2 justify-end">
-                <span>׳₪׳’׳™׳©׳•׳× ׳”׳™׳•׳ ({report.meetings.length})</span>
+                <span>{"\u05E4\u05D2\u05D9\u05E9\u05D5\u05EA \u05D4\u05D9\u05D5\u05DD"} ({report.meetings.length})</span>
                 <Clock className="h-4 w-4" />
               </h3>
             </div>
@@ -382,7 +338,7 @@ export default function DailyReportWidget() {
                 <div key={idx} className="flex items-start gap-3 text-right">
                   <div className="h-1.5 w-1.5 rounded-full bg-purple-500 flex-shrink-0 mt-1.5" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">{meeting.time} ג€” {meeting.title}</p>
+                    <p className="text-sm font-medium text-foreground">{meeting.time} {"\u2014"} {meeting.title}</p>
                     {meeting.topics && <p className="text-xs text-muted-foreground">{meeting.topics}</p>}
                   </div>
                 </div>
@@ -394,4 +350,3 @@ export default function DailyReportWidget() {
     </div>
   );
 }
-
