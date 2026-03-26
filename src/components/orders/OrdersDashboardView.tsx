@@ -65,7 +65,7 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
 
     const ordersInProcessAbroad = inProcessOrders.filter(o => {
       const country = o.supplier_id ? supplierCountryMap[o.supplier_id] : null;
-      return country === "חול";
+      return country !== "ישראל";
     }).length;
 
     const statusCounts = orders.reduce((acc, o) => {
