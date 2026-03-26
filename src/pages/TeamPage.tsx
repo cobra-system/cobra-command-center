@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useAuth, useData, roleLabel, type Role, type RoleDefinition } from "@/contexts/AppContext";
+import { useAuth, useData, roleLabel, type Role } from "@/contexts/AppContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,21 +24,19 @@ export default function TeamPage() {
   const sortKey = prefs.sortField as SortKey | null;
   const sortDir = prefs.sortDir;
 
-  // Build dynamic role label map
+  // Build dynamic role label map (for display of existing profiles)
   const dynamicRoleLabel: Record<string, string> = { MANAGER: "מנהל" };
   roleDefinitions.forEach(rd => { if (rd.system_key) dynamicRoleLabel[rd.system_key] = rd.name; });
   const getRoleLabel = (role: string) => dynamicRoleLabel[role] || roleLabel[role] || role;
 
-  // Employee roles חייבים להיות system roles בלבד כדי למנוע שגיאות ביצירת משתמש auth
-  const employeeSystemRoles: Role[] = ["WAREHOUSE_MANAGER", "LOGISTICS", "DRIVER"];
-  const roleOptions: Array<{ value: Role; label: string }> = employeeSystemRoles.map((systemRole) => ({
-    value: systemRole,
-    label: getRoleLabel(systemRole),
-  }));
+  // All non-manager role definitions (system + custom) for the dropdown
+  const employeeRoleOptions = roleDefinitions.filter(rd => rd.system_key !== "MANAGER");
+  const defaultRoleDefId = employeeRoleOptions[0]?.id ?? "";
+
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
-  const [role, setRole] = useState<Role>("DRIVER");
+  const [roleDefId, setRoleDefId] = useState<string>(defaultRoleDefId);
   const [pin, setPin] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -72,11 +70,15 @@ export default function TeamPage() {
     return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   };
 
-  const resetForm = () => { setName(""); setRole("DRIVER"); setPin(""); setEditingId(null); };
+  const resetForm = () => { setName(""); setRoleDefId(defaultRoleDefId); setPin(""); setEditingId(null); };
 
   const handleSubmit = async () => {
     if (!name.trim() || (!editingId && (!pin || pin.length !== 4))) return;
     setSubmitting(true);
+
+    // Derive base app_role from selected role definition's system_key (or fallback to DRIVER)
+    const selectedRoleDef = roleDefinitions.find(rd => rd.id === roleDefId);
+    const baseRole: Role = (selectedRoleDef?.system_key as Role) ?? "DRIVER";
 
     if (editingId) {
       // Update via edge function
@@ -93,7 +95,8 @@ export default function TeamPage() {
             action: "update",
             employee_id: editingId,
             name: name.trim(),
-            role,
+            role: baseRole,
+            role_definition_id: roleDefId || null,
             pin: pin.length === 4 ? pin : undefined,
           }),
         });
@@ -108,7 +111,7 @@ export default function TeamPage() {
         toast.error("שגיאה בחיבור לשרת");
       }
     } else {
-      const error = await createEmployee({ name: name.trim(), role, pin });
+      const error = await createEmployee({ name: name.trim(), role: baseRole, pin, role_definition_id: roleDefId || undefined });
       if (error) {
         toast.error(error);
       } else {
@@ -121,10 +124,14 @@ export default function TeamPage() {
     setOpen(false);
   };
 
-  const handleEdit = (profile: { id: string; name: string; role: Role; pin?: string | null }) => {
+  const handleEdit = (profile: { id: string; name: string; role: Role; pin?: string | null; role_definition_id?: string | null }) => {
     setEditingId(profile.id);
     setName(profile.name);
-    setRole(profile.role);
+    // Use role_definition_id if available, otherwise find the matching definition by system_key
+    const defId = profile.role_definition_id
+      || roleDefinitions.find(rd => rd.system_key === profile.role)?.id
+      || defaultRoleDefId;
+    setRoleDefId(defId);
     setPin("");
     setOpen(true);
   };
@@ -174,10 +181,10 @@ export default function TeamPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>תפקיד</Label>
-                  <Select value={role} onValueChange={v => setRole(v as Role)}>
+                  <Select value={roleDefId} onValueChange={setRoleDefId}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {roleOptions.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                      {employeeRoleOptions.map(rd => <SelectItem key={rd.id} value={rd.id}>{rd.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -209,7 +216,11 @@ export default function TeamPage() {
             {sortedProfiles.map(u => (
               <tr key={u.id}>
                 <td className="p-3 font-medium text-foreground">{u.name}</td>
-                <td className="p-3 text-muted-foreground">{getRoleLabel(u.role)}</td>
+                <td className="p-3 text-muted-foreground">
+                  {u.role_definition_id
+                    ? (roleDefinitions.find(rd => rd.id === u.role_definition_id)?.name ?? getRoleLabel(u.role))
+                    : getRoleLabel(u.role)}
+                </td>
                 <td className="p-3 font-mono text-muted-foreground" dir="ltr">{isManager ? (u.pin || "—") : "••••"}</td>
                 {isManager && (
                   <td className="p-3">
