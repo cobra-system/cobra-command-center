@@ -11,9 +11,15 @@
 
 ## [2026-03-26]
 
+- feat: add weekly scale mode to Gantt chart (0d3525c)
+- fix: show updated field values immediately after inline edit in task dialog (2459cb4)
+
+<!-- last-commit: 2131ef51d6460bca1b8ec8afc2aaa572be6ece6d -->
+
+## [2026-03-26]
+
 - Add create_one_time_task MCP tool and category column migration (67481a8)
 
-<!-- last-commit: c65129ca79d9f19897816878ef7e7aa641c40423 -->
 
 ## [2026-03-26]
 
