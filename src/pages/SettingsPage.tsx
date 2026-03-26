@@ -43,8 +43,9 @@ export default function SettingsPage() {
   const [employeeOpen, setEmployeeOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [empName, setEmpName] = useState("");
-  const [empRole, setEmpRole] = useState<Role>("DRIVER");
-  const [empPin, setEmpPin] = useState("");
+  const [empEmail, setEmpEmail] = useState("");
+  const [empPassword, setEmpPassword] = useState("");
+  const [empRoleDefId, setEmpRoleDefId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
@@ -78,11 +79,7 @@ export default function SettingsPage() {
   });
   const getRoleLabel = (role: string) => dynamicRoleLabel[role] || roleLabel[role] || role;
 
-  const employeeSystemRoles: Role[] = ["WAREHOUSE_MANAGER", "LOGISTICS", "DRIVER"];
-  const employeeRoleOptions: Array<{ value: Role; label: string }> = employeeSystemRoles.map((systemRole) => ({
-    value: systemRole,
-    label: getRoleLabel(systemRole),
-  }));
+  const nonManagerRoleDefinitions = roleDefinitions.filter(rd => rd.system_key !== "MANAGER");
 
   // SAP helpers
   const callSapProxy = async (action: string, body?: any) => {
@@ -222,14 +219,27 @@ export default function SettingsPage() {
     if (error) { toast.error(error.message); } else { toast.success("הסיסמה שונתה בהצלחה"); setNewPassword(""); setConfirmPassword(""); }
   };
 
-  const resetEmpForm = () => { setEmpName(""); setEmpRole("DRIVER"); setEmpPin(""); setEditingId(null); };
+  const resetEmpForm = () => { setEmpName(""); setEmpEmail(""); setEmpPassword(""); setEmpRoleDefId(""); setEditingId(null); };
 
   const handleEmpSubmit = async () => {
-    if (!empName.trim() || (!editingId && empPin.length !== 4)) return;
+    if (!empName.trim()) return;
+    if (!editingId && (!empEmail.trim() || empPassword.length < 6)) return;
+
+    const selectedRd = nonManagerRoleDefinitions.find(rd => rd.id === empRoleDefId);
+    const resolvedRole: Role = (selectedRd?.system_key as Role) || "DRIVER";
+
     setSubmitting(true);
     if (editingId) {
       try {
         const sess = await supabase.auth.getSession();
+        const body: Record<string, any> = {
+          action: "update",
+          employee_id: editingId,
+          name: empName.trim(),
+          role: resolvedRole,
+          role_definition_id: selectedRd?.id ?? null,
+        };
+        if (empPassword.trim().length >= 6) body.password = empPassword.trim();
         const res = await fetch(`${SUPABASE_URL}/functions/v1/manage-employee`, {
           method: "POST",
           headers: {
@@ -237,14 +247,20 @@ export default function SettingsPage() {
             "apikey": SUPABASE_ANON_KEY,
             "Authorization": `Bearer ${sess.data.session?.access_token}`,
           },
-          body: JSON.stringify({ action: "update", employee_id: editingId, name: empName.trim(), role: empRole, pin: empPin.length === 4 ? empPin : undefined }),
+          body: JSON.stringify(body),
         });
         const result = await res.json();
         if (!res.ok) toast.error(result.error || "שגיאה בעדכון");
-        else { toast.success("העובד עודכן"); await refreshProfiles(); }
+        else { toast.success("המשתמש עודכן"); await refreshProfiles(); }
       } catch { toast.error("שגיאה בחיבור לשרת"); }
     } else {
-      const error = await createEmployee({ name: empName.trim(), role: empRole, pin: empPin });
+      const error = await createEmployee({
+        name: empName.trim(),
+        role: resolvedRole,
+        email: empEmail.trim(),
+        password: empPassword,
+        role_definition_id: selectedRd?.id,
+      });
       if (error) toast.error(error);
       else toast.success(`${empName} נוסף בהצלחה`);
     }
@@ -253,11 +269,14 @@ export default function SettingsPage() {
     setEmployeeOpen(false);
   };
 
-  const handleEmpEdit = (profile: { id: string; name: string; role: Role }) => {
+  const handleEmpEdit = (profile: { id: string; name: string; role: Role; role_definition_id?: string | null }) => {
     setEditingId(profile.id);
     setEmpName(profile.name);
-    setEmpRole(profile.role);
-    setEmpPin("");
+    const matchingRd = nonManagerRoleDefinitions.find(rd => rd.id === profile.role_definition_id)
+      ?? nonManagerRoleDefinitions.find(rd => rd.system_key === profile.role);
+    setEmpRoleDefId(matchingRd?.id ?? "");
+    setEmpPassword("");
+    setEmpEmail("");
     setEmployeeOpen(true);
   };
 
@@ -327,11 +346,13 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Settings className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold text-foreground">הגדרות</h1>
       </div>
+
+      <div className="space-y-6 max-w-4xl">
 
       {/* Manager Profile */}
       {managerProfile && (
@@ -538,89 +559,107 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Team Management */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-lg"><Users className="h-5 w-5" />ניהול צוות</div>
-            {isManager && (
+      </div>{/* end max-w-4xl */}
+
+      {/* Users Management */}
+      {isManager && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-lg"><Users className="h-5 w-5" />ניהול משתמשים</div>
               <Dialog open={employeeOpen} onOpenChange={(v) => { setEmployeeOpen(v); if (!v) resetEmpForm(); }}>
                 <DialogTrigger asChild>
-                  <Button size="sm"><Plus className="h-4 w-4 ml-1" />עובד חדש</Button>
+                  <Button size="sm"><Plus className="h-4 w-4 ml-1" />משתמש חדש</Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
-                  <DialogHeader><DialogTitle>{editingId ? "עריכת עובד" : "הוספת עובד חדש"}</DialogTitle></DialogHeader>
+                  <DialogHeader><DialogTitle>{editingId ? "עריכת משתמש" : "הוספת משתמש חדש"}</DialogTitle></DialogHeader>
                   <div className="space-y-4 pt-2">
-                    <div className="space-y-2"><Label>שם *</Label><Input value={empName} onChange={e => setEmpName(e.target.value)} placeholder="שם העובד" /></div>
+                    <div className="space-y-2">
+                      <Label>שם *</Label>
+                      <Input value={empName} onChange={e => setEmpName(e.target.value)} placeholder="שם המשתמש" />
+                    </div>
+                    {!editingId && (
+                      <div className="space-y-2">
+                        <Label>אימייל *</Label>
+                        <Input type="email" value={empEmail} onChange={e => setEmpEmail(e.target.value)} placeholder="user@example.com" dir="ltr" />
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <Label>תפקיד</Label>
-                      <Select value={empRole} onValueChange={v => setEmpRole(v as Role)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                      <Select value={empRoleDefId} onValueChange={v => setEmpRoleDefId(v)}>
+                        <SelectTrigger><SelectValue placeholder="בחר תפקיד" /></SelectTrigger>
                         <SelectContent>
-                          {employeeRoleOptions.map(r => (
-                            <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                          {nonManagerRoleDefinitions.map(rd => (
+                            <SelectItem key={rd.id} value={rd.id}>{rd.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>{editingId ? "קוד PIN חדש (אופציונלי)" : "קוד PIN (4 ספרות) *"}</Label>
-                      <Input value={empPin} onChange={e => setEmpPin(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="1234" dir="ltr" maxLength={4} />
+                      <Label>{editingId ? "סיסמה חדשה (אופציונלי)" : "סיסמה ראשונית *"}</Label>
+                      <Input type="password" value={empPassword} onChange={e => setEmpPassword(e.target.value)} placeholder={editingId ? "השאר ריק לאי-שינוי" : "לפחות 6 תווים"} dir="ltr" />
                     </div>
-                    <Button onClick={handleEmpSubmit} disabled={!empName.trim() || (!editingId && empPin.length !== 4) || submitting} className="w-full">
-                      {submitting ? "שומר..." : editingId ? "עדכן עובד" : "הוסף עובד"}
+                    <Button
+                      onClick={handleEmpSubmit}
+                      disabled={!empName.trim() || (!editingId && (!empEmail.trim() || empPassword.length < 6)) || submitting}
+                      className="w-full"
+                    >
+                      {submitting ? "שומר..." : editingId ? "עדכן משתמש" : "הוסף משתמש"}
                     </Button>
                   </div>
                 </DialogContent>
               </Dialog>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="border-b bg-muted/50">
-                <th className="text-right p-3 font-semibold text-foreground">שם</th>
-                <th className="text-right p-3 font-semibold text-foreground">תפקיד</th>
-                <th className="text-right p-3 font-semibold text-foreground">PIN</th>
-                {isManager && <th className="text-right p-3 font-semibold text-foreground">פעולות</th>}
-              </tr></thead>
-              <tbody className="divide-y">
-                {employees.length === 0 ? (
-                  <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">אין עובדים</td></tr>
-                ) : employees.map(u => (
-                  <tr key={u.id}>
-                    <td className="p-3 font-medium text-foreground">{u.name}</td>
-                    <td className="p-3 text-muted-foreground">{getRoleLabel(u.role)}</td>
-                    <td className="p-3 font-mono text-muted-foreground" dir="ltr">{isManager ? (u.pin || "—") : "••••"}</td>
-                    {isManager && (
-                      <td className="p-3">
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => handleEmpEdit(u)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          {deleteConfirm === u.id ? (
-                            <div className="flex items-center gap-1">
-                              <Button variant="destructive" size="sm" onClick={() => handleEmpDelete(u.id)} disabled={submitting}>
-                                {submitting ? "מוחק..." : "אישור"}
-                              </Button>
-                              <Button variant="ghost" size="sm" onClick={() => setDeleteConfirm(null)}>ביטול</Button>
-                            </div>
-                          ) : (
-                            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteConfirm(u.id)}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="text-right p-3 font-semibold text-foreground">שם</th>
+                    <th className="text-right p-3 font-semibold text-foreground">תפקיד</th>
+                    <th className="text-right p-3 font-semibold text-foreground">פעולות</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+                </thead>
+                <tbody className="divide-y">
+                  {employees.length === 0 ? (
+                    <tr><td colSpan={3} className="p-6 text-center text-muted-foreground">אין משתמשים</td></tr>
+                  ) : employees.map(u => {
+                    const rd = nonManagerRoleDefinitions.find(r => r.id === u.role_definition_id)
+                      ?? nonManagerRoleDefinitions.find(r => r.system_key === u.role);
+                    const roleName = rd?.name ?? getRoleLabel(u.role);
+                    return (
+                      <tr key={u.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="p-3 font-medium text-foreground">{u.name}</td>
+                        <td className="p-3 text-muted-foreground">{roleName}</td>
+                        <td className="p-3">
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => handleEmpEdit(u)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            {deleteConfirm === u.id ? (
+                              <div className="flex items-center gap-1">
+                                <Button variant="destructive" size="sm" onClick={() => handleEmpDelete(u.id)} disabled={submitting}>
+                                  {submitting ? "מוחק..." : "אישור"}
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => setDeleteConfirm(null)}>ביטול</Button>
+                              </div>
+                            ) : (
+                              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteConfirm(u.id)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Manager Edit Dialog */}
       <Dialog open={managerEditOpen} onOpenChange={setManagerEditOpen}>
