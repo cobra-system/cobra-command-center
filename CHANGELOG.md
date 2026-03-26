@@ -11,10 +11,15 @@
 
 ## [2026-03-26]
 
+- fix: correct DailyReportWidget interfaces to match JSONB data structure (cbfa5e8)
+
+<!-- last-commit: cbfa5e8d03be0d30f650302848bbf225f3b97e1a -->
+
+## [2026-03-26]
+
 - Merge pull request #65 from cobra-system/claude/add-order-status-tracking-XtTlO (9ec3c3c)
 - Replace 4 summary cards with Israel/abroad in-process order cards (073668f)
 
-<!-- last-commit: 9ec3c3c80fab405466397654bb37d78cf2b17155 -->
 
 ## [2026-03-26]
 
