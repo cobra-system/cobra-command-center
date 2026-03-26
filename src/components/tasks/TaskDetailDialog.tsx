@@ -32,9 +32,6 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
 }) {
   const { tasks: allTasks, goals } = useData();
 
-  // Derive live task from AppContext so inline-edit updates are reflected immediately
-  const liveTask = allTasks.find(t => t.id === task.id) ?? task;
-
   const existingMilestones = useMemo(() => {
     const fromGoals = goals.map(g => g.name);
     const fromTasks = new Set<string>();
@@ -47,6 +44,9 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
   }, [allTasks, goals]);
 
   if (!task) return null;
+
+  // Derive live task from AppContext so inline-edit updates are reflected immediately
+  const liveTask = allTasks.find(t => t.id === task.id) ?? task;
 
   const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
 
