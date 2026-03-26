@@ -9,6 +9,7 @@ import {
   startOfDay,
   isWeekend,
   isSameDay,
+  isSameWeek,
   addWeeks,
   subWeeks,
   startOfWeek,
@@ -51,6 +52,7 @@ const MAX_DAY_WIDTH = 80;
 const DEFAULT_DAY_WIDTH = 36;
 const BAR_HEIGHT = 26;
 const BAR_TOP_OFFSET = (ROW_HEIGHT - BAR_HEIGHT) / 2;
+const WEEK_COL_WIDTH = 100;
 
 const STATUS_ICONS: Record<string, string> = {
   TODO: "○",
@@ -124,6 +126,7 @@ export default function TaskGanttView() {
 
   // State
   const [dayWidth, setDayWidth] = useState(DEFAULT_DAY_WIDTH);
+  const [ganttScale, setGanttScale] = useState<"day" | "week">("day");
   const [viewStart, setViewStart] = useState(() => startOfWeek(new Date(), { locale: he }));
   const [selectedAssignee, setSelectedAssignee] = useState("all");
   const [selectedGoal, setSelectedGoal] = useState("all");
@@ -138,13 +141,24 @@ export default function TaskGanttView() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
 
-  // Number of visible days
-  const totalDays = Math.max(42, Math.ceil(1100 / dayWidth));
+  // Number of visible days & effective pixel-per-day (changes with scale)
+  const totalDays = ganttScale === "week" ? 26 * 7 : Math.max(42, Math.ceil(1100 / dayWidth));
+  const effectiveDayWidth = ganttScale === "week" ? WEEK_COL_WIDTH / 7 : dayWidth;
+  const totalWidth = ganttScale === "week" ? 26 * WEEK_COL_WIDTH : totalDays * dayWidth;
 
   // Generate day columns
   const days = useMemo(() => {
     return Array.from({ length: totalDays }, (_, i) => addDays(viewStart, i));
   }, [viewStart, totalDays]);
+
+  // Week columns for week-scale header/grid
+  const weekColumns = useMemo(() => {
+    if (ganttScale !== "week") return [];
+    return Array.from({ length: 26 }, (_, w) => ({
+      weekStart: addDays(viewStart, w * 7),
+      weekIndex: w,
+    }));
+  }, [ganttScale, viewStart]);
 
   // Month headers
   const monthHeaders = useMemo(() => {
@@ -300,8 +314,8 @@ export default function TaskGanttView() {
   const zoomOut = () => setDayWidth((w) => clamp(w - 6, MIN_DAY_WIDTH, MAX_DAY_WIDTH));
 
   // Navigate
-  const goBack = () => setViewStart((d) => subWeeks(d, 1));
-  const goForward = () => setViewStart((d) => addWeeks(d, 1));
+  const goBack = () => setViewStart((d) => ganttScale === "week" ? subWeeks(d, 4) : subWeeks(d, 1));
+  const goForward = () => setViewStart((d) => ganttScale === "week" ? addWeeks(d, 4) : addWeeks(d, 1));
   const goToday = () => setViewStart(startOfWeek(new Date(), { locale: he }));
 
   // Toggle collapse
@@ -336,7 +350,7 @@ export default function TaskGanttView() {
     const handleMouseUp = async () => {
       if (!dragState) return;
 
-      const daysDelta = Math.round(dragDelta / dayWidth);
+      const daysDelta = Math.round(dragDelta / effectiveDayWidth);
       if (daysDelta !== 0) {
         let newStart = dragState.origStart;
         let newEnd = dragState.origEnd;
@@ -368,7 +382,7 @@ export default function TaskGanttView() {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [dragState, dragDelta, dayWidth, updateTask]);
+  }, [dragState, dragDelta, effectiveDayWidth, updateTask]);
 
   // --- Linking handler ---
   const handleLinkClick = useCallback(
@@ -443,8 +457,8 @@ export default function TaskGanttView() {
         const startDay = differenceInDays(startOfDay(barStart), startOfDay(viewStart));
         const duration = Math.max(1, differenceInDays(startOfDay(barEnd), startOfDay(barStart)) + 1);
 
-        let left = startDay * dayWidth;
-        let width = duration * dayWidth;
+        let left = startDay * effectiveDayWidth;
+        let width = duration * effectiveDayWidth;
 
         // Apply drag delta
         if (dragState && dragState.taskId === task.id) {
@@ -456,7 +470,7 @@ export default function TaskGanttView() {
           } else if (dragState.type === "resize-end") {
             width += dragDelta;
           }
-          width = Math.max(dayWidth, width);
+          width = Math.max(effectiveDayWidth, width);
         }
 
         return { task, rowIndex, visible: true, left, width, start: barStart, end: barEnd, top, goalColor };
@@ -466,7 +480,7 @@ export default function TaskGanttView() {
         left: number; width: number; start: Date | null; end: Date | null;
         top: number; goalColor: GoalColor;
       }[];
-  }, [rows, rowPositions, viewStart, dayWidth, dragState, dragDelta]);
+  }, [rows, rowPositions, viewStart, effectiveDayWidth, dragState, dragDelta]);
 
   // --- Dependency arrows ---
   const dependencyArrows = useMemo(() => {
@@ -491,10 +505,8 @@ export default function TaskGanttView() {
   }, [taskBars]);
 
   const todayOffset = useMemo(() => {
-    return differenceInDays(startOfDay(new Date()), startOfDay(viewStart)) * dayWidth;
-  }, [viewStart, dayWidth]);
-
-  const totalWidth = totalDays * dayWidth;
+    return differenceInDays(startOfDay(new Date()), startOfDay(viewStart)) * effectiveDayWidth;
+  }, [viewStart, effectiveDayWidth]);
 
   // Sync sidebar scroll with timeline scroll
   const handleTimelineScroll = useCallback(() => {
@@ -518,14 +530,24 @@ export default function TaskGanttView() {
           <ChevronLeft className="h-4 w-4" />
         </Button>
 
-        <div className="flex items-center gap-1 mr-2">
-          <Button variant="outline" size="sm" onClick={zoomOut}>
-            <ZoomOut className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={zoomIn}>
-            <ZoomIn className="h-4 w-4" />
-          </Button>
-        </div>
+        <Button
+          variant={ganttScale === "week" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setGanttScale(s => s === "day" ? "week" : "day")}
+        >
+          {ganttScale === "week" ? "יומי" : "שבועי"}
+        </Button>
+
+        {ganttScale === "day" && (
+          <div className="flex items-center gap-1 mr-2">
+            <Button variant="outline" size="sm" onClick={zoomOut}>
+              <ZoomOut className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={zoomIn}>
+              <ZoomIn className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
 
         <Select value={selectedAssignee} onValueChange={setSelectedAssignee}>
           <SelectTrigger className="w-[140px] h-8 text-sm">
@@ -674,8 +696,8 @@ export default function TaskGanttView() {
                     key={i}
                     className="absolute top-0 text-center text-xs font-semibold text-gray-700 bg-gray-50 border-r flex items-center justify-center"
                     style={{
-                      left: mh.startCol * dayWidth,
-                      width: mh.span * dayWidth,
+                      left: mh.startCol * effectiveDayWidth,
+                      width: mh.span * effectiveDayWidth,
                       height: MONTH_HEADER_HEIGHT,
                     }}
                   >
@@ -683,55 +705,96 @@ export default function TaskGanttView() {
                   </div>
                 ))}
               </div>
-              {/* Day row */}
+              {/* Day / Week row */}
               <div className="relative" style={{ height: HEADER_HEIGHT }}>
-                {days.map((day, i) => {
-                  const isToday = isSameDay(day, new Date());
-                  const isWkend = isWeekend(day);
-                  return (
-                    <div
-                      key={i}
-                      className={`absolute top-0 border-r text-center select-none ${
-                        isToday
-                          ? "bg-blue-50 font-bold text-blue-600"
-                          : isWkend
-                          ? "bg-gray-50 text-gray-400"
-                          : "text-gray-500"
-                      }`}
-                      style={{
-                        left: i * dayWidth,
-                        width: dayWidth,
-                        height: HEADER_HEIGHT,
-                      }}
-                    >
-                      <div className="text-[9px] mt-0.5">{format(day, "EEE", { locale: he })}</div>
-                      <div className="text-[11px]">{format(day, "d")}</div>
-                    </div>
-                  );
-                })}
+                {ganttScale === "day" ? (
+                  days.map((day, i) => {
+                    const isToday = isSameDay(day, new Date());
+                    const isWkend = isWeekend(day);
+                    return (
+                      <div
+                        key={i}
+                        className={`absolute top-0 border-r text-center select-none ${
+                          isToday
+                            ? "bg-blue-50 font-bold text-blue-600"
+                            : isWkend
+                            ? "bg-gray-50 text-gray-400"
+                            : "text-gray-500"
+                        }`}
+                        style={{
+                          left: i * dayWidth,
+                          width: dayWidth,
+                          height: HEADER_HEIGHT,
+                        }}
+                      >
+                        <div className="text-[9px] mt-0.5">{format(day, "EEE", { locale: he })}</div>
+                        <div className="text-[11px]">{format(day, "d")}</div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  weekColumns.map((wc, i) => {
+                    const isCurrentWeek = isSameWeek(new Date(), wc.weekStart, { locale: he });
+                    const weekEnd = addDays(wc.weekStart, 6);
+                    const label = `${format(wc.weekStart, "d/M")} – ${format(weekEnd, "d/M")}`;
+                    return (
+                      <div
+                        key={i}
+                        className={`absolute top-0 border-r text-center select-none ${
+                          isCurrentWeek ? "bg-blue-50 font-bold text-blue-600" : "text-gray-500"
+                        }`}
+                        style={{
+                          left: i * WEEK_COL_WIDTH,
+                          width: WEEK_COL_WIDTH,
+                          height: HEADER_HEIGHT,
+                        }}
+                      >
+                        <div className="text-[9px] mt-1 text-gray-400">שבוע {wc.weekIndex + 1}</div>
+                        <div className="text-[10px] mt-0.5">{label}</div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
 
             {/* Grid + Bars area */}
             <div className="relative" style={{ height: totalHeight }}>
               {/* Grid lines */}
-              {days.map((day, i) => {
-                const isWkend = isWeekend(day);
-                const isToday = isSameDay(day, new Date());
-                return (
-                  <div
-                    key={i}
-                    className={`absolute top-0 border-r ${
-                      isToday ? "bg-blue-50/40" : isWkend ? "bg-gray-50/60" : ""
-                    }`}
-                    style={{
-                      left: i * dayWidth,
-                      width: dayWidth,
-                      height: totalHeight,
-                    }}
-                  />
-                );
-              })}
+              {ganttScale === "day" ? (
+                days.map((day, i) => {
+                  const isWkend = isWeekend(day);
+                  const isToday = isSameDay(day, new Date());
+                  return (
+                    <div
+                      key={i}
+                      className={`absolute top-0 border-r ${
+                        isToday ? "bg-blue-50/40" : isWkend ? "bg-gray-50/60" : ""
+                      }`}
+                      style={{
+                        left: i * dayWidth,
+                        width: dayWidth,
+                        height: totalHeight,
+                      }}
+                    />
+                  );
+                })
+              ) : (
+                weekColumns.map((wc, i) => {
+                  const isCurrentWeek = isSameWeek(new Date(), wc.weekStart, { locale: he });
+                  return (
+                    <div
+                      key={i}
+                      className={`absolute top-0 border-r ${isCurrentWeek ? "bg-blue-50/30" : ""}`}
+                      style={{
+                        left: i * WEEK_COL_WIDTH,
+                        width: WEEK_COL_WIDTH,
+                        height: totalHeight,
+                      }}
+                    />
+                  );
+                })
+              )}
 
               {/* Group header backgrounds + row separators */}
               {rows.map((row, i) => {
@@ -763,7 +826,7 @@ export default function TaskGanttView() {
               {todayOffset >= 0 && todayOffset <= totalWidth && (
                 <div
                   className="absolute top-0 w-0.5 bg-red-400 z-10"
-                  style={{ left: todayOffset + dayWidth / 2, height: totalHeight }}
+                  style={{ left: todayOffset + effectiveDayWidth / 2, height: totalHeight }}
                 />
               )}
 
@@ -840,7 +903,7 @@ export default function TaskGanttView() {
                           style={{
                             top: bar.top + BAR_TOP_OFFSET,
                             left: bar.left,
-                            width: Math.max(dayWidth, bar.width),
+                            width: Math.max(effectiveDayWidth, bar.width),
                             height: BAR_HEIGHT,
                             backgroundColor: bar.goalColor.bg,
                             borderColor: bar.goalColor.border,
@@ -870,7 +933,7 @@ export default function TaskGanttView() {
                             }
                           >
                             <span className="text-[11px] font-medium truncate drop-shadow-sm">
-                              {bar.width > dayWidth * 2 ? bar.task.title : ""}
+                              {bar.width > effectiveDayWidth * 2 ? bar.task.title : ""}
                             </span>
                             {hasDeps && (
                               <Link2 className="h-3 w-3 flex-shrink-0 opacity-60 mr-auto" />
