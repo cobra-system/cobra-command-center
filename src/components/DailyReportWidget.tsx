@@ -2,37 +2,15 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Sun, CheckCircle2, Circle, Mail, AlertTriangle, Clock } from "lucide-react";
+import {
+  Sun, CheckCircle2, Circle, Mail, AlertTriangle, Clock, ChevronDown, ChevronRight
+} from "lucide-react";
 
-interface CobraUpdate {
-  order_name: string;
-  description: string;
-}
-
-interface ActionItem {
-  text: string;
-  priority: "red" | "orange" | "yellow";
-  done: boolean;
-}
-
-interface PendingClarification {
-  supplier: string;
-  issue: string;
-  resolved: boolean;
-}
-
-interface MailDraft {
-  recipient: string;
-  subject: string;
-  body: string;
-  status: "pending" | "approved" | "sent";
-}
-
-interface Meeting {
-  time: string;
-  title: string;
-  topics: string;
-}
+interface CobraUpdate { order_name: string; description: string; }
+interface ActionItem { text: string; priority: "red" | "orange" | "yellow"; done: boolean; }
+interface PendingClarification { supplier: string; issue: string; resolved: boolean; }
+interface MailDraft { recipient: string; subject: string; body: string; status: "pending" | "approved" | "sent"; }
+interface Meeting { time: string; title: string; topics: string; }
 
 interface DailyReport {
   id: string;
@@ -43,22 +21,29 @@ interface DailyReport {
   pending_clarifications: PendingClarification[];
   mail_drafts: MailDraft[];
   meetings: Meeting[];
-  total_action_items: number;
-  total_mail_drafts: number;
-  total_cobra_updates: number;
 }
+
+type SectionKey = "actions" | "updates" | "clarifications" | "drafts" | "meetings";
 
 export default function DailyReportWidget() {
   const [report, setReport] = useState<DailyReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState<Record<SectionKey, boolean>>({
+    actions: true,
+    updates: false,
+    clarifications: false,
+    drafts: false,
+    meetings: false,
+  });
+
+  const toggle = (key: SectionKey) =>
+    setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
 
   useEffect(() => {
     const fetchDailyReport = async () => {
       try {
         setLoading(true);
-        setError(null);
-
         const { data, error: err } = await supabase
           .from("daily_reports")
           .select("*")
@@ -67,11 +52,9 @@ export default function DailyReportWidget() {
           .single();
 
         if (err) {
-          if (err.code === "PGRST116") {
-            setReport(null);
-          } else {
-            setError("Failed to fetch daily report");
-            console.error("Supabase error:", err);
+          if (err.code !== "PGRST116") {
+            setError("שגיאה בטעינת הסקירה");
+            console.error(err);
           }
         } else if (data) {
           setReport({
@@ -84,269 +67,277 @@ export default function DailyReportWidget() {
           } as DailyReport);
         }
       } catch (err) {
-        setError("Failed to fetch daily report");
-        console.error("Error:", err);
+        setError("שגיאה בטעינת הסקירה");
       } finally {
         setLoading(false);
       }
     };
-
     fetchDailyReport();
   }, []);
 
   const handleCheckActionItem = async (idx: number, currentDone: boolean) => {
     if (!report) return;
-    try {
-      const updatedItems = report.action_items.map((item, i) =>
-        i === idx ? { ...item, done: !currentDone } : item
-      );
-      const { error: err } = await supabase
-        .from("daily_reports")
-        .update({ action_items: updatedItems })
-        .eq("id", report.id);
-      if (!err) setReport({ ...report, action_items: updatedItems });
-    } catch (err) {
-      console.error("Error updating action item:", err);
-    }
+    const updatedItems = report.action_items.map((item, i) =>
+      i === idx ? { ...item, done: !currentDone } : item
+    );
+    const { error: err } = await supabase
+      .from("daily_reports").update({ action_items: updatedItems }).eq("id", report.id);
+    if (!err) setReport({ ...report, action_items: updatedItems });
   };
 
   const handleApproveDraft = async (idx: number) => {
     if (!report) return;
-    try {
-      const updatedDrafts = report.mail_drafts.map((draft, i) =>
-        i === idx ? { ...draft, status: "approved" as const } : draft
-      );
-      const { error: err } = await supabase
-        .from("daily_reports")
-        .update({ mail_drafts: updatedDrafts })
-        .eq("id", report.id);
-      if (!err) setReport({ ...report, mail_drafts: updatedDrafts });
-    } catch (err) {
-      console.error("Error approving draft:", err);
-    }
+    const updatedDrafts = report.mail_drafts.map((draft, i) =>
+      i === idx ? { ...draft, status: "approved" as const } : draft
+    );
+    const { error: err } = await supabase
+      .from("daily_reports").update({ mail_drafts: updatedDrafts }).eq("id", report.id);
+    if (!err) setReport({ ...report, mail_drafts: updatedDrafts });
   };
 
-  if (loading) {
-    return (
-      <div className="bg-card rounded-xl border shadow-sm p-8 flex items-center justify-center">
-        <div className="text-center">
-          <Clock className="h-8 w-8 text-muted-foreground mx-auto mb-2 animate-spin" />
-          <p className="text-sm text-muted-foreground">{"טוען סקירה..."}</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="bg-card rounded-xl border p-6 flex items-center justify-center gap-2 text-muted-foreground">
+      <Clock className="h-4 w-4 animate-spin" />
+      <span className="text-sm">{"טוען סקירה..."}</span>
+    </div>
+  );
 
-  if (error) {
-    return (
-      <div className="bg-card rounded-xl border shadow-sm p-6">
-        <p className="text-sm text-destructive">{error}</p>
-      </div>
-    );
-  }
+  if (error) return (
+    <div className="bg-card rounded-xl border p-4 text-sm text-destructive text-right">{error}</div>
+  );
 
-  if (!report) {
-    return (
-      <div className="bg-card rounded-xl border shadow-sm p-8 text-center">
-        <Sun className="h-12 w-12 text-primary mx-auto mb-3 opacity-50" />
-        <p className="text-sm text-muted-foreground">{"אין סקירה להיום"}</p>
-      </div>
-    );
-  }
+  if (!report) return (
+    <div className="bg-card rounded-xl border p-8 text-center">
+      <Sun className="h-10 w-10 text-muted-foreground/40 mx-auto mb-2" />
+      <p className="text-sm text-muted-foreground">{"אין סקירה להיום"}</p>
+    </div>
+  );
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("he-IL", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-  };
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric" });
 
-  const redItems = report.action_items
-    .map((item, idx) => ({ ...item, idx }))
-    .filter((item) => item.priority === "red");
-  const orangeItems = report.action_items
-    .map((item, idx) => ({ ...item, idx }))
-    .filter((item) => item.priority === "orange" || item.priority === "yellow");
+  const redItems   = report.action_items.map((x, i) => ({ ...x, i })).filter(x => x.priority === "red");
+  const otherItems = report.action_items.map((x, i) => ({ ...x, i })).filter(x => x.priority !== "red");
+  const pendingDrafts = report.mail_drafts.filter(d => d.status === "pending").length;
+  const unresolvedClarifications = report.pending_clarifications.filter(c => !c.resolved).length;
+  const doneCount = report.action_items.filter(x => x.done).length;
+  const totalActions = report.action_items.length;
+
+  // Summary pills for header
+  const pills = [
+    redItems.length > 0 && { label: `${redItems.length} דחוף`, color: "bg-red-100 text-red-700" },
+    otherItems.length > 0 && { label: `${otherItems.length} בינוני`, color: "bg-yellow-100 text-yellow-700" },
+    unresolvedClarifications > 0 && { label: `${unresolvedClarifications} הבהרות`, color: "bg-orange-100 text-orange-700" },
+    pendingDrafts > 0 && { label: `${pendingDrafts} מיילים`, color: "bg-blue-100 text-blue-700" },
+    report.meetings.length > 0 && { label: `${report.meetings.length} פגישות`, color: "bg-purple-100 text-purple-700" },
+  ].filter(Boolean) as { label: string; color: string }[];
 
   return (
-    <div className="space-y-3">
-      {/* Header */}
-      <div className="bg-gradient-to-l from-primary/20 to-primary/10 border border-primary/20 rounded-xl p-4 flex items-start gap-3">
-        <Sun className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-        <div className="flex-1 min-w-0">
-          <h2 className="font-semibold text-foreground text-right">
-            {"\u05E1\u05E7\u05D9\u05E8\u05EA \u05D1\u05D5\u05E7\u05E8 \u2014"} {report.day_name} {formatDate(report.report_date)}
-          </h2>
+    <div className="bg-card rounded-xl border shadow-sm overflow-hidden" dir="rtl">
+
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-l from-primary/10 to-transparent">
+        <div className="flex items-center gap-2 flex-wrap">
+          {pills.map((p) => (
+            <span key={p.label} className={cn("text-xs font-medium px-2 py-0.5 rounded-full", p.color)}>
+              {p.label}
+            </span>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="text-xs text-muted-foreground">{formatDate(report.report_date)}</span>
+          <Sun className="h-4 w-4 text-primary" />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3">
+      {/* ── Sections ── */}
+      <div className="divide-y">
+
+        {/* Action Items */}
+        {totalActions > 0 && (
+          <Section
+            sectionKey="actions"
+            open={open.actions}
+            onToggle={() => toggle("actions")}
+            label={"פעולות"}
+            badge={`${doneCount}/${totalActions}`}
+            badgeColor={doneCount === totalActions ? "text-green-600" : "text-foreground"}
+          >
+            {redItems.length > 0 && (
+              <div className="mb-1">
+                {redItems.map((item) => (
+                  <ActionRow
+                    key={item.i}
+                    text={item.text}
+                    done={item.done}
+                    dotColor="bg-red-500"
+                    onChange={() => handleCheckActionItem(item.i, item.done)}
+                  />
+                ))}
+              </div>
+            )}
+            {otherItems.length > 0 && (
+              <div>
+                {otherItems.map((item) => (
+                  <ActionRow
+                    key={item.i}
+                    text={item.text}
+                    done={item.done}
+                    dotColor={item.priority === "orange" ? "bg-orange-400" : "bg-yellow-400"}
+                    onChange={() => handleCheckActionItem(item.i, item.done)}
+                  />
+                ))}
+              </div>
+            )}
+          </Section>
+        )}
+
         {/* Cobra Updates */}
-        {report.cobra_updates && report.cobra_updates.length > 0 && (
-          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-            <div className="bg-blue-50 border-b border-blue-100 px-4 py-3">
-              <h3 className="text-sm font-semibold text-blue-900 text-right flex items-center gap-2 justify-end">
-                <span>{"\u05E2\u05D3\u05DB\u05D5\u05E0\u05D9 Cobra"} ({report.cobra_updates.length})</span>
-                <CheckCircle2 className="h-4 w-4" />
-              </h3>
-            </div>
-            <div className="p-4 space-y-2">
-              {report.cobra_updates.map((update, idx) => (
-                <div key={idx} className="flex items-start gap-3 text-right">
-                  <div className="h-1.5 w-1.5 rounded-full bg-blue-500 flex-shrink-0 mt-1.5" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">{update.order_name}</p>
-                    <p className="text-xs text-muted-foreground">{update.description}</p>
-                  </div>
+        {report.cobra_updates.length > 0 && (
+          <Section
+            sectionKey="updates"
+            open={open.updates}
+            onToggle={() => toggle("updates")}
+            label={"עדכוני Cobra"}
+            badge={`${report.cobra_updates.length}`}
+          >
+            {report.cobra_updates.map((u, idx) => (
+              <div key={idx} className="flex gap-2 py-1.5 px-1 text-sm">
+                <div className="h-1.5 w-1.5 rounded-full bg-blue-500 flex-shrink-0 mt-1.5" />
+                <div className="min-w-0">
+                  <span className="font-medium">{u.order_name}</span>
+                  {u.description && <span className="text-muted-foreground"> — {u.description}</span>}
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            ))}
+          </Section>
         )}
 
-        {/* Red Priority */}
-        {redItems.length > 0 && (
-          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-            <div className="bg-red-50 border-b border-red-100 px-4 py-3">
-              <h3 className="text-sm font-semibold text-red-900 text-right flex items-center gap-2 justify-end">
-                <span>{"\u05D3\u05D7\u05D5\u05E3 - \u05E4\u05E2\u05D5\u05DC\u05D5\u05EA \u05E0\u05D3\u05E8\u05E9\u05D5\u05EA"}</span>
-                <AlertTriangle className="h-4 w-4" />
-              </h3>
-            </div>
-            <div className="p-4 space-y-2">
-              {redItems.map((item) => (
-                <div key={item.idx} className="flex items-center justify-end gap-3 py-2 px-2 hover:bg-muted/40 rounded-lg transition-colors">
-                  <label className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={item.done}
-                      onChange={() => handleCheckActionItem(item.idx, item.done)}
-                      className="rounded w-4 h-4"
-                    />
-                    <span className={cn("text-sm flex-1 text-right", item.done && "line-through text-muted-foreground")}>
-                      {item.text}
-                    </span>
-                  </label>
-                  {item.done
-                    ? <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
-                    : <Circle className="h-4 w-4 text-red-500 flex-shrink-0" />}
+        {/* Clarifications */}
+        {report.pending_clarifications.length > 0 && (
+          <Section
+            sectionKey="clarifications"
+            open={open.clarifications}
+            onToggle={() => toggle("clarifications")}
+            label={"הבהרות ממתינות"}
+            badge={unresolvedClarifications > 0 ? `${unresolvedClarifications}` : undefined}
+            badgeColor="text-orange-600"
+          >
+            {report.pending_clarifications.map((c, idx) => (
+              <div key={idx} className="flex gap-2 py-1.5 px-1 text-sm items-start">
+                <div className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0 mt-1.5", c.resolved ? "bg-green-500" : "bg-orange-500")} />
+                <div className="min-w-0">
+                  <span className="font-medium">{c.supplier}</span>
+                  {c.issue && <span className="text-muted-foreground"> — {c.issue}</span>}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Orange/Yellow Priority */}
-        {orangeItems.length > 0 && (
-          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-            <div className="bg-yellow-50 border-b border-yellow-100 px-4 py-3">
-              <h3 className="text-sm font-semibold text-yellow-900 text-right flex items-center gap-2 justify-end">
-                <span>{"\u05E4\u05E2\u05D5\u05DC\u05D5\u05EA - \u05E2\u05D3\u05D9\u05E4\u05D5\u05EA \u05D1\u05D9\u05E0\u05D5\u05E0\u05D9"}</span>
-                <Clock className="h-4 w-4" />
-              </h3>
-            </div>
-            <div className="p-4 space-y-2">
-              {orangeItems.map((item) => (
-                <div key={item.idx} className="flex items-center justify-end gap-3 py-2 px-2 hover:bg-muted/40 rounded-lg transition-colors">
-                  <label className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={item.done}
-                      onChange={() => handleCheckActionItem(item.idx, item.done)}
-                      className="rounded w-4 h-4"
-                    />
-                    <span className={cn("text-sm flex-1 text-right", item.done && "line-through text-muted-foreground")}>
-                      {item.text}
-                    </span>
-                  </label>
-                  {item.done
-                    ? <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
-                    : <Circle className="h-4 w-4 text-yellow-500 flex-shrink-0" />}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Pending Clarifications */}
-        {report.pending_clarifications && report.pending_clarifications.length > 0 && (
-          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-            <div className="bg-orange-50 border-b border-orange-100 px-4 py-3">
-              <h3 className="text-sm font-semibold text-orange-900 text-right flex items-center gap-2 justify-end">
-                <span>{"\u05D4\u05D1\u05D4\u05E8\u05D5\u05EA \u05DE\u05DE\u05EA\u05D9\u05E0\u05D5\u05EA"} ({report.pending_clarifications.filter(c => !c.resolved).length})</span>
-                <AlertTriangle className="h-4 w-4" />
-              </h3>
-            </div>
-            <div className="p-4 space-y-2">
-              {report.pending_clarifications.map((c, idx) => (
-                <div key={idx} className="flex items-start gap-3 text-right">
-                  <div className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0 mt-1.5", c.resolved ? "bg-green-500" : "bg-orange-500")} />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">{c.supplier}</p>
-                    <p className="text-xs text-muted-foreground">{c.issue}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            ))}
+          </Section>
         )}
 
         {/* Mail Drafts */}
-        {report.mail_drafts && report.mail_drafts.length > 0 && (
-          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-            <div className="bg-blue-50 border-b border-blue-100 px-4 py-3">
-              <h3 className="text-sm font-semibold text-blue-900 text-right flex items-center gap-2 justify-end">
-                <span>{"\u05D8\u05D9\u05D5\u05D8\u05D5\u05EA \u05D3\u05D5\u05D0\"\u05DC"} ({report.mail_drafts.length})</span>
-                <Mail className="h-4 w-4" />
-              </h3>
-            </div>
-            <div className="p-4 space-y-2">
-              {report.mail_drafts.map((draft, idx) => (
-                <div key={idx} className="flex items-center justify-between p-2 hover:bg-muted/40 rounded-lg transition-colors">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => handleApproveDraft(idx)}
-                    disabled={draft.status === "approved" || draft.status === "sent"}
-                    className={cn("text-xs", (draft.status === "approved" || draft.status === "sent") && "opacity-60 cursor-not-allowed")}
-                  >
-                    {draft.status === "approved" ? "\u05D0\u05D5\u05E9\u05E8" : draft.status === "sent" ? "\u05E0\u05E9\u05DC\u05D7" : "\u05D0\u05E9\u05E8"}
-                  </Button>
-                  <div className="text-right flex-1 min-w-0 px-2">
-                    <p className="text-sm font-medium text-foreground truncate">{draft.subject}</p>
-                    <p className="text-xs text-muted-foreground truncate">{"\u05D0\u05DC:"} {draft.recipient}</p>
-                  </div>
+        {report.mail_drafts.length > 0 && (
+          <Section
+            sectionKey="drafts"
+            open={open.drafts}
+            onToggle={() => toggle("drafts")}
+            label={"טיוטות דוא\"ל"}
+            badge={pendingDrafts > 0 ? `${pendingDrafts} ממתינות` : "הכל אושר"}
+            badgeColor={pendingDrafts > 0 ? "text-blue-600" : "text-green-600"}
+          >
+            {report.mail_drafts.map((draft, idx) => (
+              <div key={idx} className="flex items-center gap-2 py-1.5 px-1">
+                <Button
+                  variant={draft.status === "pending" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => handleApproveDraft(idx)}
+                  disabled={draft.status !== "pending"}
+                  className="h-6 text-xs px-2 flex-shrink-0"
+                >
+                  {draft.status === "pending" ? "אשר" : draft.status === "approved" ? "✓" : "נשלח"}
+                </Button>
+                <div className="min-w-0 flex-1 text-sm">
+                  <span className="font-medium truncate block">{draft.subject}</span>
+                  <span className="text-xs text-muted-foreground">{draft.recipient}</span>
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            ))}
+          </Section>
         )}
 
         {/* Meetings */}
-        {report.meetings && report.meetings.length > 0 && (
-          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-            <div className="bg-purple-50 border-b border-purple-100 px-4 py-3">
-              <h3 className="text-sm font-semibold text-purple-900 text-right flex items-center gap-2 justify-end">
-                <span>{"\u05E4\u05D2\u05D9\u05E9\u05D5\u05EA \u05D4\u05D9\u05D5\u05DD"} ({report.meetings.length})</span>
-                <Clock className="h-4 w-4" />
-              </h3>
-            </div>
-            <div className="p-4 space-y-2">
-              {report.meetings.map((meeting, idx) => (
-                <div key={idx} className="flex items-start gap-3 text-right">
-                  <div className="h-1.5 w-1.5 rounded-full bg-purple-500 flex-shrink-0 mt-1.5" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">{meeting.time} {"\u2014"} {meeting.title}</p>
-                    {meeting.topics && <p className="text-xs text-muted-foreground">{meeting.topics}</p>}
-                  </div>
+        {report.meetings.length > 0 && (
+          <Section
+            sectionKey="meetings"
+            open={open.meetings}
+            onToggle={() => toggle("meetings")}
+            label={"פגישות"}
+            badge={`${report.meetings.length}`}
+            badgeColor="text-purple-600"
+          >
+            {report.meetings.map((m, idx) => (
+              <div key={idx} className="flex gap-2 py-1.5 px-1 text-sm items-start">
+                <div className="h-1.5 w-1.5 rounded-full bg-purple-500 flex-shrink-0 mt-1.5" />
+                <div className="min-w-0">
+                  <span className="font-medium">{m.time}</span>
+                  <span> — {m.title}</span>
+                  {m.topics && <p className="text-xs text-muted-foreground mt-0.5">{m.topics}</p>}
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            ))}
+          </Section>
         )}
+
       </div>
     </div>
+  );
+}
+
+/* ── Reusable Section Accordion ── */
+function Section({
+  open, onToggle, label, badge, badgeColor = "text-muted-foreground", children,
+}: {
+  sectionKey: SectionKey;
+  open: boolean;
+  onToggle: () => void;
+  label: string;
+  badge?: string;
+  badgeColor?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-muted/40 transition-colors text-right"
+      >
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+        </div>
+        <div className="flex items-center gap-2">
+          {badge && <span className={cn("text-xs font-medium", badgeColor)}>{badge}</span>}
+          <span className="text-sm font-medium text-foreground">{label}</span>
+        </div>
+      </button>
+      {open && <div className="px-4 pb-3">{children}</div>}
+    </div>
+  );
+}
+
+/* ── Compact Action Row ── */
+function ActionRow({ text, done, dotColor, onChange }: {
+  text: string; done: boolean; dotColor: string; onChange: () => void;
+}) {
+  return (
+    <label className="flex items-center gap-2.5 py-1.5 px-1 cursor-pointer hover:bg-muted/30 rounded-lg group">
+      <input type="checkbox" checked={done} onChange={onChange} className="rounded w-3.5 h-3.5 flex-shrink-0" />
+      <div className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0", dotColor)} />
+      <span className={cn("text-sm flex-1", done && "line-through text-muted-foreground")}>
+        {text}
+      </span>
+      {done
+        ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500 flex-shrink-0 opacity-70" />
+        : <Circle className="h-3.5 w-3.5 text-muted-foreground/30 flex-shrink-0 group-hover:opacity-100" />}
+    </label>
   );
 }
