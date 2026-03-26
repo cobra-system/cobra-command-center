@@ -11,9 +11,14 @@
 
 ## [2026-03-26]
 
+- Fix action_items.filter crash by normalizing JSONB array fields (22a883d)
+
+<!-- last-commit: 9cd8df0443cab1b0f1645812600d0324357769a4 -->
+
+## [2026-03-26]
+
 - Remove Lovable branding and tagger plugin (75154e4)
 
-<!-- last-commit: 0f4d13f234e2d8c0a6f3b65cd1c9e8b81da65556 -->
 
 ## [2026-03-25]
 
