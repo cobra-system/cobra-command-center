@@ -9,12 +9,18 @@
 
 ---
 
+## [2026-03-27]
+
+- Merge pull request #73 from cobra-system/claude/remove-lovable-edit-Zzm9P (1107c5b)
+- Remove Lovable integration and all references (22abb05)
+
+<!-- last-commit: 1107c5b94be661ede8c1b974fc3bb60004067563 -->
+
 ## [2026-03-26]
 
 - Merge pull request #72 from cobra-system/claude/fullscreen-user-display-Nnjw4 (39afb2f)
 - Make employee layout fullscreen by removing max-width constraint (443d7f0)
 
-<!-- last-commit: 39afb2f817d52fa4a2cf1ed844599a42292e283b -->
 
 ## [2026-03-26]
 
