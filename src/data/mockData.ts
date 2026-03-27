@@ -1,5 +1,5 @@
 // Mock data for COBRA.IO management system
-// Will be replaced with Lovable Cloud (Supabase) later
+// Will be replaced with Supabase later
 
 export type Role = "MANAGER" | "WAREHOUSE_MANAGER" | "LOGISTICS" | "DRIVER";
 export type OrderStatus = "PENDING" | "ORDERED" | "SHIPPED" | "ARRIVED" | "CANCELLED";
