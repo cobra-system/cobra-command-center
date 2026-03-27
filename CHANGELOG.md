@@ -11,10 +11,16 @@
 
 ## [2026-03-27]
 
+- Merge pull request #74 from cobra-system/claude/system-improvements-list-9I5m8 (cf53b2d)
+- docs: add comprehensive system improvements TODO list (285ab7f)
+
+<!-- last-commit: cf53b2d3e141e1e4135c7969752b3b2f884d67e1 -->
+
+## [2026-03-27]
+
 - Merge pull request #73 from cobra-system/claude/remove-lovable-edit-Zzm9P (1107c5b)
 - Remove Lovable integration and all references (22abb05)
 
-<!-- last-commit: 1107c5b94be661ede8c1b974fc3bb60004067563 -->
 
 ## [2026-03-26]
 
