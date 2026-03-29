@@ -4,7 +4,6 @@ import { applyMigrations } from "@/lib/applyMigrations";
 import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { MODULES, getFullPermissionsForManager, type PermissionLevel, type RolePermissions } from "@/lib/permissions";
-import { getOverdueTasksToAdvance, advanceTaskToToday, formatAdvancementSummary } from "@/lib/advanceOverdueTasksUtils";
 
 // Re-export types for compatibility
 export type Role = "MANAGER" | "WAREHOUSE_MANAGER" | "LOGISTICS" | "DRIVER";
@@ -205,7 +204,6 @@ interface DataState {
   addProfile: (profile: { email: string; name: string; role: Role }) => Promise<void>;
   updateProfile: (id: string, updates: Partial<Profile>) => Promise<void>;
   resetDailyTasks: () => Promise<void>;
-  advanceOverdueTasks: () => Promise<void>;
   createEmployee: (data: { name: string; role: Role; email: string; password: string; role_definition_id?: string }) => Promise<string | null>;
   addSupplier: (supplier: Omit<Supplier, "id">) => Promise<void>;
   updateSupplier: (id: string, updates: Partial<Supplier>) => Promise<void>;
@@ -464,44 +462,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       supabase.removeChannel(channel);
     };
   }, [session]);
-
-  const advanceOverdueTasks = useCallback(async () => {
-    const overdueTasks = getOverdueTasksToAdvance(tasks);
-    if (overdueTasks.length === 0) return;
-
-    // Optimistic update
-    setTasks(prev => prev.map(t =>
-      overdueTasks.some(ot => ot.id === t.id)
-        ? { ...t, ...advanceTaskToToday(t) }
-        : t
-    ));
-
-    // Update in database
-    for (const task of overdueTasks) {
-      ownMutationIds.current.add(task.id);
-      const updates = advanceTaskToToday(task);
-      await supabase.from("tasks").update(updates).eq("id", task.id);
-    }
-
-    // Show notification
-    toast.success(formatAdvancementSummary(overdueTasks.length));
-  }, [tasks]);
-
-  // Track if we've already advanced overdue tasks on app load
-  const hasAdvancedOverdueOnLoad = useRef(false);
-
-  // Auto-advance overdue tasks on app load (once per session)
-  useEffect(() => {
-    if (!session || dataLoading || hasAdvancedOverdueOnLoad.current) return;
-
-    // Run advancement only once after initial data load
-    if (tasks.length > 0) {
-      hasAdvancedOverdueOnLoad.current = true;
-      advanceOverdueTasks().catch(error => {
-        console.error("Error advancing overdue tasks:", error);
-      });
-    }
-  }, [session, tasks.length, dataLoading, advanceOverdueTasks]);
 
   // Mutations
   const updateTaskStatus = useCallback(async (taskId: string, status: TaskStatus) => {
@@ -947,7 +907,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addProfile,
         updateProfile,
         resetDailyTasks,
-        advanceOverdueTasks,
         createEmployee,
         addSupplier,
         updateSupplier,

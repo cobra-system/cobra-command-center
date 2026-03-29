@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import confetti from "canvas-confetti";
 import RecurringTasksPanel from "@/components/tasks/RecurringTasksPanel";
 import TaskCreateDialog from "@/components/tasks/TaskCreateDialog";
+import { OverdueTasksPanel } from "@/components/tasks/OverdueTasksPanel";
 
 const dayNames = ["יום ראשון", "יום שני", "יום שלישי", "יום רביעי", "יום חמישי", "יום שישי", "שבת"];
 
@@ -179,6 +180,17 @@ export default function TaskDayView() {
           </Button>
         </div>
       </div>
+
+      {/* Overdue Tasks Panel — only on today's view */}
+      {isToday(selectedDay) && (
+        <OverdueTasksPanel
+          tasks={tasks}
+          profiles={profiles}
+          currentUser={currentUser}
+          onUpdate={updateTask}
+          onStatusChange={updateTaskStatus}
+        />
+      )}
 
       {/* Main content - two columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
