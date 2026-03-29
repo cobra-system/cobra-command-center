@@ -46,12 +46,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { name, role, email, password, role_definition_id } = await req.json();
+    const { name, role, email, password, pin, role_definition_id } = await req.json();
     const validRoles = ["MANAGER", "WAREHOUSE_MANAGER", "LOGISTICS", "DRIVER"] as const;
 
-    if (!name || !role || !email || !password || password.length < 6) {
+    if (!name || !role) {
       return new Response(
-        JSON.stringify({ error: "שם, תפקיד, אימייל וסיסמה (לפחות 6 תווים) נדרשים" }),
+        JSON.stringify({ error: "שם ותפקיד נדרשים" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Must provide either email+password or a PIN
+    const hasCreds = email && password && password.length >= 6;
+    const hasPin = pin && String(pin).length === 4;
+    if (!hasCreds && !hasPin) {
+      return new Response(
+        JSON.stringify({ error: "נדרש אימייל וסיסמה (לפחות 6 תווים) או קוד PIN בן 4 ספרות" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -63,9 +73,13 @@ Deno.serve(async (req) => {
       );
     }
 
+    // For PIN-only employees, generate a synthetic email + random password
+    const authEmail = email || `pin-${crypto.randomUUID()}@pin.internal`;
+    const authPassword = (hasCreds ? password : crypto.randomUUID() + crypto.randomUUID());
+
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
+      email: authEmail,
+      password: authPassword,
       email_confirm: true,
       user_metadata: { name, role },
     });
@@ -80,6 +94,7 @@ Deno.serve(async (req) => {
     // Ensure profile exists גם אם ה-trigger לא יצר אותו
     const profileData: Record<string, unknown> = { id: newUser.user.id, name, role };
     if (role_definition_id) profileData.role_definition_id = role_definition_id;
+    if (pin) profileData.pin = String(pin);
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
       .upsert(profileData, { onConflict: "id" });
