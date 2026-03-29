@@ -11,9 +11,14 @@
 
 ## [2026-03-29]
 
+- Disable process option in task creation dialog (f400476)
+
+<!-- last-commit: 87ff13965674fd573b645246547bc4e8011274e2 -->
+
+## [2026-03-29]
+
 - fix: show orphan milestones in GoalsManageDialog when goals table is empty (97aad2f)
 
-<!-- last-commit: 97aad2f10a7e0a0539bf57e3d8754f55629ea529 -->
 
 ## [2026-03-29]
 
