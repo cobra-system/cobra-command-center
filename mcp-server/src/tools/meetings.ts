@@ -56,7 +56,7 @@ export function registerMeetingTools(server: McpServer) {
 
   server.tool(
     "get_meeting",
-    "פרטי פגישה — Get a single meeting with its action items and participants",
+    "פרטי פגישה — Get a single meeting with its action items",
     {
       id: z.string().uuid().describe("Meeting UUID"),
     },

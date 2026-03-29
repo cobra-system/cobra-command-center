@@ -62,8 +62,17 @@ export function registerProductTools(server: McpServer) {
       sale_price: z.number().optional().describe("Sale price"),
       purchase_price: z.number().optional().describe("Purchase price"),
       notes: z.string().optional().describe("Product notes"),
+      description: z.string().optional().describe("Product description"),
       reorder_point: z.number().optional().describe("Reorder point threshold"),
       monthly_sales: z.number().optional().describe("Monthly sales figure"),
+      monthly_order: z.number().optional().describe("Monthly order quantity"),
+      monthly_sales_avg: z.number().optional().describe("Monthly sales average"),
+      lead_time_days: z.number().optional().describe("Lead time in days"),
+      sap_code: z.string().optional().describe("SAP code"),
+      supplier_origin: z.string().optional().describe("Supplier origin country"),
+      shipping: z.string().optional().describe("Shipping method/info"),
+      end_product_image: z.string().optional().describe("End product image URL"),
+      end_product_url: z.string().optional().describe("End product URL"),
     },
     async ({ id, ...fields }) => {
       const updates: Record<string, unknown> = {};
@@ -102,8 +111,14 @@ export function registerProductTools(server: McpServer) {
       stock_qty: z.number().default(0).describe("Current stock quantity"),
       incoming_qty: z.number().default(0).describe("Incoming quantity"),
       notes: z.string().optional().describe("Product notes"),
+      description: z.string().optional().describe("Product description"),
+      sap_code: z.string().optional().describe("SAP code"),
+      lead_time_days: z.number().optional().describe("Lead time in days"),
+      supplier_origin: z.string().optional().describe("Supplier origin country"),
+      shipping: z.string().optional().describe("Shipping method/info"),
+      reorder_point: z.number().optional().describe("Reorder point threshold"),
     },
-    async ({ name, sku, category, division, product_type, supplier, purchase_price, sale_price, stock_qty, incoming_qty, notes }) => {
+    async ({ name, sku, category, division, product_type, supplier, purchase_price, sale_price, stock_qty, incoming_qty, notes, description, sap_code, lead_time_days, supplier_origin, shipping, reorder_point }) => {
       const { data, error } = await supabase
         .from("products")
         .insert({
@@ -118,6 +133,12 @@ export function registerProductTools(server: McpServer) {
           stock_qty,
           incoming_qty,
           notes: notes || null,
+          description: description || null,
+          sap_code: sap_code || null,
+          lead_time_days: lead_time_days ?? null,
+          supplier_origin: supplier_origin || null,
+          shipping: shipping || null,
+          reorder_point: reorder_point ?? null,
         })
         .select()
         .single();
@@ -196,6 +217,112 @@ export function registerProductTools(server: McpServer) {
       };
 
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+    }
+  );
+
+  // --- Product Components ---
+
+  server.tool(
+    "list_product_components",
+    "רכיבי מוצר — List all components of a product",
+    {
+      product_id: z.string().uuid().describe("Product UUID"),
+    },
+    async ({ product_id }) => {
+      const { data, error } = await supabase
+        .from("product_components")
+        .select("*")
+        .eq("product_id", product_id)
+        .order("name");
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "create_product_component",
+    "הוספת רכיב למוצר — Add a component to a product",
+    {
+      product_id: z.string().uuid().describe("Product UUID"),
+      name: z.string().describe("Component name"),
+      sku: z.string().optional().describe("Component SKU"),
+      supplier: z.string().optional().describe("Component supplier"),
+      origin: z.string().optional().describe("Origin country"),
+      price: z.number().optional().describe("Component price"),
+      stock_qty: z.number().optional().describe("Stock quantity"),
+      notes: z.string().optional().describe("Notes"),
+    },
+    async ({ product_id, name, sku, supplier, origin, price, stock_qty, notes }) => {
+      const { data, error } = await supabase
+        .from("product_components")
+        .insert({
+          product_id,
+          name,
+          sku: sku ?? null,
+          supplier: supplier ?? null,
+          origin: origin ?? null,
+          price: price ?? null,
+          stock_qty: stock_qty ?? null,
+          notes: notes ?? null,
+        })
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Component created:\n${JSON.stringify(data, null, 2)}` }] };
+    }
+  );
+
+  server.tool(
+    "update_product_component",
+    "עדכון רכיב מוצר — Update a product component",
+    {
+      id: z.string().uuid().describe("Component UUID"),
+      name: z.string().optional().describe("Component name"),
+      sku: z.string().optional().describe("Component SKU"),
+      supplier: z.string().optional().describe("Supplier"),
+      origin: z.string().optional().describe("Origin country"),
+      price: z.number().optional().describe("Price"),
+      stock_qty: z.number().optional().describe("Stock quantity"),
+      notes: z.string().optional().describe("Notes"),
+    },
+    async ({ id, ...fields }) => {
+      const updates: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(fields)) {
+        if (value !== undefined) updates[key] = value;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return { content: [{ type: "text" as const, text: "No fields to update" }] };
+      }
+
+      const { data, error } = await supabase
+        .from("product_components")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Component updated:\n${JSON.stringify(data, null, 2)}` }] };
+    }
+  );
+
+  server.tool(
+    "delete_product_component",
+    "מחיקת רכיב מוצר — Delete a product component",
+    {
+      id: z.string().uuid().describe("Component UUID"),
+    },
+    async ({ id }) => {
+      const { error } = await supabase
+        .from("product_components")
+        .delete()
+        .eq("id", id);
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: "Component deleted successfully" }] };
     }
   );
 }
