@@ -10,7 +10,6 @@ export interface User {
   id: string;
   name: string;
   email?: string;
-  pin?: string;
   role: Role;
 }
 
@@ -103,8 +102,8 @@ export interface Task {
 // ─── Users ───
 export const users: User[] = [
   { id: "u1", name: "מנהל", email: "admin@cobra.io", role: "MANAGER" },
-  { id: "u2", name: "ג'ורג'", pin: "1111", role: "WAREHOUSE_MANAGER" },
-  { id: "u3", name: "זיו", pin: "2222", role: "LOGISTICS" },
+  { id: "u2", name: "ג'ורג'", role: "WAREHOUSE_MANAGER" },
+  { id: "u3", name: "זיו", role: "LOGISTICS" },
 ];
 
 // ─── Products ───

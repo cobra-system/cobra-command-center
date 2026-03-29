@@ -16,7 +16,6 @@ export interface Profile {
   id: string;
   name: string;
   role: Role;
-  pin?: string | null;
   role_definition_id?: string | null;
 }
 
@@ -203,7 +202,7 @@ interface DataState {
   addComponent: (component: Omit<ProductComponent, "id">) => Promise<void>;
   updateComponent: (id: string, updates: Partial<ProductComponent>) => Promise<void>;
   deleteComponent: (id: string) => Promise<void>;
-  addProfile: (profile: { email: string; name: string; role: Role; pin?: string }) => Promise<void>;
+  addProfile: (profile: { email: string; name: string; role: Role }) => Promise<void>;
   updateProfile: (id: string, updates: Partial<Profile>) => Promise<void>;
   resetDailyTasks: () => Promise<void>;
   advanceOverdueTasks: () => Promise<void>;
@@ -767,10 +766,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshProducts]);
 
-  const addProfile = useCallback(async (profile: { email: string; name: string; role: Role; pin?: string }) => {
+  const addProfile = useCallback(async (profile: { email: string; name: string; role: Role }) => {
     try {
       const res = await supabase.functions.invoke("create-employee", {
-        body: { email: profile.email, name: profile.name, role: profile.role, pin: profile.pin },
+        body: { email: profile.email, name: profile.name, role: profile.role },
       });
       if (res.error) throw new Error(res.error.message);
       await refreshProfiles();
