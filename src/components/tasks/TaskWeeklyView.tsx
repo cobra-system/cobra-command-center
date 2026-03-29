@@ -6,7 +6,7 @@ import { PriorityBadge } from "@/components/PriorityBadge";
 import { type RecurringTask, recurringMatchesDay, findOrCreateRecurringInstance } from "@/lib/recurringUtils";
 import { format, startOfWeek, addDays, isSameDay, isToday, isPast, addWeeks, subWeeks, getDay } from "date-fns";
 import { he } from "date-fns/locale";
-import { ChevronRight, ChevronLeft, CalendarDays, AlertTriangle, Users, Repeat, Settings, X, Plus, ClipboardList, Zap } from "lucide-react";
+import { ChevronRight, ChevronLeft, CalendarDays, AlertTriangle, Users, Repeat, Settings, X, Plus, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -387,31 +387,21 @@ export default function TaskWeeklyView() {
         )}
       </div>
 
-      {/* Create type picker dialog */}
+      {/* Create type picker dialog - Direct task creation without process option */}
       <Dialog open={createPickerOpen} onOpenChange={setCreatePickerOpen}>
         <DialogContent className="sm:max-w-xs">
           <DialogHeader>
-            <DialogTitle>מה ברצונך ליצור?</DialogTitle>
+            <DialogTitle>משימה חדשה</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-3 pt-2">
+          <div className="pt-2">
             <button
-              className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all text-center"
+              className="w-full flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all text-center"
               onClick={() => { setCreatePickerOpen(false); setTaskCreateOpen(true); }}
             >
               <ClipboardList className="h-8 w-8 text-primary" />
               <div>
                 <p className="font-semibold text-foreground text-sm">משימה</p>
                 <p className="text-xs text-muted-foreground mt-0.5">חד פעמית או חוזרת</p>
-              </div>
-            </button>
-            <button
-              className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-border hover:border-amber-500 hover:bg-amber-500/5 transition-all text-center"
-              onClick={() => { setCreatePickerOpen(false); setSettingsTab("workflows"); setSettingsOpen(true); }}
-            >
-              <Zap className="h-8 w-8 text-amber-500" />
-              <div>
-                <p className="font-semibold text-foreground text-sm">תהליך</p>
-                <p className="text-xs text-muted-foreground mt-0.5">התחל workflow</p>
               </div>
             </button>
           </div>
