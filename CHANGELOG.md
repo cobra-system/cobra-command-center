@@ -11,9 +11,16 @@
 
 ## [2026-03-29]
 
+- Merge pull request #79 from cobra-system/claude/fix-user-status-creation-i5hut (89c8cf6)
+- feat: remove PIN auth — all employees use email + password (1871dc6)
+- fix: support PIN-only employee creation and save PIN to profile (3ede3c9)
+
+<!-- last-commit: 89c8cf6141b65dbfcdf4b2423622926d72504ac6 -->
+
+## [2026-03-29]
+
 - ci: add Edge Functions auto-deploy and PostgREST schema cache reload (5af0c5f)
 
-<!-- last-commit: 5af0c5fad48c8dfab8439e4156290fc93f9c8fe7 -->
 
 ## [2026-03-29]
 
