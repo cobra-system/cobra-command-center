@@ -32,7 +32,6 @@ export function registerReminderTools(server: McpServer) {
           priority,
           status: "TODO",
           is_daily: false,
-          category: "מעקב",
         })
         .select()
         .single();
@@ -55,7 +54,7 @@ export function registerReminderTools(server: McpServer) {
 
       let query = supabase
         .from("tasks")
-        .select("id, title, description, due_date, assignee_name, priority, status, category")
+        .select("id, title, description, due_date, assignee_name, priority, status")
         .neq("status", "TEMPLATE")
         .neq("status", "DONE")
         .order("priority")
@@ -113,7 +112,7 @@ export function registerReminderTools(server: McpServer) {
           .in("status", ["ממתין", "pending"]).lte("due_date", sevenDays).order("due_date"),
         // Open critical issues
         supabase.from("product_issues").select("id, description, severity, product_id")
-          .neq("status", "closed").in("severity", ["critical", "high"]),
+          .neq("status", "נסגר").in("severity", ["קריטי", "גבוה"]),
       ]);
 
       const orders = ordersRes.data || [];

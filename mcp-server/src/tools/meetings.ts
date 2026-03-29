@@ -61,17 +61,13 @@ export function registerMeetingTools(server: McpServer) {
       id: z.string().uuid().describe("Meeting UUID"),
     },
     async ({ id }) => {
-      const [meetingRes, actionItemsRes, participantsRes] = await Promise.all([
+      const [meetingRes, actionItemsRes] = await Promise.all([
         supabase.from("meetings").select("*").eq("id", id).single(),
         supabase
           .from("meeting_action_items")
           .select("*")
           .eq("meeting_id", id)
           .order("created_at", { ascending: true }),
-        supabase
-          .from("meeting_participants")
-          .select("*")
-          .eq("meeting_id", id),
       ]);
 
       if (meetingRes.error) return { content: [{ type: "text" as const, text: `Error: ${meetingRes.error.message}` }] };
@@ -79,7 +75,6 @@ export function registerMeetingTools(server: McpServer) {
       const result = {
         ...meetingRes.data,
         action_items: actionItemsRes.data || [],
-        participants: participantsRes.data || [],
       };
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
     }

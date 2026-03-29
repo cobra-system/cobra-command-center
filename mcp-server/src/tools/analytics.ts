@@ -197,7 +197,7 @@ export function registerAnalyticsTools(server: McpServer) {
           risk_level: s.risk_level,
           total_orders: supplierOrders.length,
           total_order_value: orderTotal,
-          open_issues: supplierIssues.filter((i: Record<string, unknown>) => i.status !== "closed").length,
+          open_issues: supplierIssues.filter((i: Record<string, unknown>) => i.status !== "נסגר").length,
           total_issues: supplierIssues.length,
         };
       });

@@ -174,25 +174,17 @@ export function registerFinanceTools(server: McpServer) {
     "חשיפה מטבעית — Breakdown of payments and orders by currency",
     {},
     async () => {
-      const [paymentsRes, ordersRes] = await Promise.all([
-        supabase.from("supplier_payments").select("amount, currency, status, paid_date"),
-        supabase.from("orders").select("total_price, currency"),
-      ]);
+      const { data: payments, error } = await supabase
+        .from("supplier_payments")
+        .select("amount, currency, status, paid_date");
 
-      const payments = paymentsRes.data || [];
-      const orders = ordersRes.data || [];
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
 
-      const exposure: Record<string, { total_ordered: number; total_paid: number; pending: number }> = {};
+      const exposure: Record<string, { total_paid: number; pending: number }> = {};
 
-      for (const order of orders) {
-        const currency = (order.currency as string) || "USD";
-        if (!exposure[currency]) exposure[currency] = { total_ordered: 0, total_paid: 0, pending: 0 };
-        exposure[currency].total_ordered += Number(order.total_price) || 0;
-      }
-
-      for (const payment of payments) {
+      for (const payment of payments || []) {
         const currency = (payment.currency as string) || "USD";
-        if (!exposure[currency]) exposure[currency] = { total_ordered: 0, total_paid: 0, pending: 0 };
+        if (!exposure[currency]) exposure[currency] = { total_paid: 0, pending: 0 };
         const amount = Number(payment.amount) || 0;
         if (payment.status === "שולם" || payment.paid_date) {
           exposure[currency].total_paid += amount;

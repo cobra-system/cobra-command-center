@@ -90,7 +90,7 @@ export function registerNotificationTools(server: McpServer) {
           .not("status", "in", '("הושלמה","בוטלה")').lt("eta", today).eq("priority", "דחוף"),
         // Critical open issues
         supabase.from("product_issues").select("id, description, severity, status, product_id")
-          .eq("severity", "critical").neq("status", "closed"),
+          .eq("severity", "קריטי").neq("status", "נסגר"),
       ]);
 
       const critical = {

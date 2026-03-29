@@ -51,8 +51,8 @@ export function registerSearchTools(server: McpServer) {
       if (searchModules.includes("documents")) {
         promises.push(
           supabase.from("purchase_documents")
-            .select("id, document_name, type, status, supplier_name")
-            .or(`document_name.ilike.%${query}%,supplier_name.ilike.%${query}%`)
+            .select("id, document_name, type, status, supplier_id")
+            .ilike("document_name", `%${query}%`)
             .limit(limit)
             .then(({ data }) => { results.documents = data || []; })
         );
@@ -136,7 +136,7 @@ export function registerSearchTools(server: McpServer) {
       if (productRes.error) return { content: [{ type: "text" as const, text: `Error: ${productRes.error.message}` }] };
 
       const issues = issuesRes.data || [];
-      const openIssues = issues.filter((i: Record<string, unknown>) => i.status !== "closed");
+      const openIssues = issues.filter((i: Record<string, unknown>) => i.status !== "נסגר");
 
       const result = {
         product: productRes.data,
