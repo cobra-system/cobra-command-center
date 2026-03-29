@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useData, type Goal } from "@/contexts/AppContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -15,11 +15,25 @@ interface Props {
 const PRESET_COLORS = GOAL_PALETTE.map(p => p.bg);
 
 export default function GoalsManageDialog({ open, onOpenChange }: Props) {
-  const { goals, addGoal, updateGoal, deleteGoal } = useData();
+  const { goals, addGoal, updateGoal, deleteGoal, tasks, updateTask } = useData();
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+
+  // Milestones that exist in tasks but have no matching DB goal
+  const orphanMilestones = useMemo(() => {
+    const goalNames = new Set(goals.map(g => g.name));
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const t of tasks) {
+      if (t.milestone && !goalNames.has(t.milestone) && !seen.has(t.milestone)) {
+        seen.add(t.milestone);
+        result.push(t.milestone);
+      }
+    }
+    return result;
+  }, [goals, tasks]);
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
@@ -32,18 +46,25 @@ export default function GoalsManageDialog({ open, onOpenChange }: Props) {
     setNewColor(PRESET_COLORS[(goals.length + 1) % PRESET_COLORS.length]);
   };
 
-  const handleDelete = async (id: string) => {
-    await deleteGoal(id);
+  const handleDelete = async (goal: Goal) => {
+    await deleteGoal(goal.id);
+    // Clear milestone on all tasks that referenced this goal
+    const affected = tasks.filter(t => t.milestone === goal.name);
+    await Promise.all(affected.map(t => updateTask(t.id, { milestone: null })));
   };
 
-  const handleStartEdit = (goal: Goal) => {
-    setEditingId(goal.id);
-    setEditName(goal.name);
+  const handleStartEdit = (id: string, name: string) => {
+    setEditingId(id);
+    setEditName(name);
   };
 
   const handleSaveEdit = async (goal: Goal) => {
-    if (editName.trim() && editName.trim() !== goal.name) {
-      await updateGoal(goal.id, { name: editName.trim() });
+    const trimmed = editName.trim();
+    if (trimmed && trimmed !== goal.name) {
+      await updateGoal(goal.id, { name: trimmed });
+      // Update all tasks that had the old milestone name
+      const affected = tasks.filter(t => t.milestone === goal.name);
+      await Promise.all(affected.map(t => updateTask(t.id, { milestone: trimmed })));
     }
     setEditingId(null);
   };
@@ -51,6 +72,28 @@ export default function GoalsManageDialog({ open, onOpenChange }: Props) {
   const handleColorChange = async (goalId: string, color: string) => {
     await updateGoal(goalId, { color });
   };
+
+  // Orphan milestone: promote to DB goal by assigning a color
+  const handleOrphanColorPick = async (name: string, color: string) => {
+    await addGoal({ name, color, sort_order: goals.length });
+  };
+
+  const handleOrphanSaveEdit = async (oldName: string) => {
+    const trimmed = editName.trim();
+    if (trimmed && trimmed !== oldName) {
+      // Rename milestone across all tasks
+      const affected = tasks.filter(t => t.milestone === oldName);
+      await Promise.all(affected.map(t => updateTask(t.id, { milestone: trimmed })));
+    }
+    setEditingId(null);
+  };
+
+  const handleOrphanDelete = async (name: string) => {
+    const affected = tasks.filter(t => t.milestone === name);
+    await Promise.all(affected.map(t => updateTask(t.id, { milestone: null })));
+  };
+
+  const totalCount = goals.length + orphanMilestones.length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -60,7 +103,7 @@ export default function GoalsManageDialog({ open, onOpenChange }: Props) {
         </DialogHeader>
 
         <div className="space-y-3 pt-2">
-          {/* Existing goals */}
+          {/* DB goals */}
           {goals.map((goal) => (
             <div
               key={goal.id}
@@ -99,7 +142,7 @@ export default function GoalsManageDialog({ open, onOpenChange }: Props) {
               ) : (
                 <span
                   className="text-sm font-medium flex-1 cursor-pointer hover:underline truncate"
-                  onClick={() => handleStartEdit(goal)}
+                  onClick={() => handleStartEdit(goal.id, goal.name)}
                 >
                   {goal.name}
                 </span>
@@ -109,14 +152,68 @@ export default function GoalsManageDialog({ open, onOpenChange }: Props) {
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-muted-foreground hover:text-red-600 flex-shrink-0"
-                onClick={() => handleDelete(goal.id)}
+                onClick={() => handleDelete(goal)}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
           ))}
 
-          {goals.length === 0 && (
+          {/* Orphan milestones (exist in tasks but not in DB goals) */}
+          {orphanMilestones.map((name) => (
+            <div
+              key={`orphan-${name}`}
+              className="flex items-center gap-2 p-2 rounded-lg border border-dashed bg-muted/10"
+            >
+              <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+
+              {/* Color picker – clicking promotes orphan to DB goal */}
+              <div className="flex gap-1 flex-shrink-0 items-center">
+                {PRESET_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    title="בחר צבע כדי לשמור כמטרה"
+                    className="w-5 h-5 rounded-full border-2 border-transparent transition-transform hover:scale-110 opacity-60 hover:opacity-100"
+                    style={{ backgroundColor: c }}
+                    onClick={() => handleOrphanColorPick(name, c)}
+                  />
+                ))}
+              </div>
+
+              {/* Name */}
+              {editingId === `orphan-${name}` ? (
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onBlur={() => handleOrphanSaveEdit(name)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleOrphanSaveEdit(name);
+                    if (e.key === "Escape") setEditingId(null);
+                  }}
+                  className="h-7 text-sm flex-1"
+                  autoFocus
+                />
+              ) : (
+                <span
+                  className="text-sm font-medium flex-1 cursor-pointer hover:underline truncate text-muted-foreground"
+                  onClick={() => handleStartEdit(`orphan-${name}`, name)}
+                >
+                  {name}
+                </span>
+              )}
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-red-600 flex-shrink-0"
+                onClick={() => handleOrphanDelete(name)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ))}
+
+          {totalCount === 0 && (
             <p className="text-sm text-muted-foreground text-center py-4">
               אין מטרות-על. הוסף מטרה ראשונה למטה.
             </p>
