@@ -145,6 +145,8 @@ export interface Task {
   time_of_day?: string | null;
   is_active?: boolean | null;
   last_generated?: string | null;
+  completed_at?: string | null;
+  created_by?: string | null;
 }
 
 interface AuthState {
@@ -506,8 +508,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateTaskStatus = useCallback(async (taskId: string, status: TaskStatus) => {
     ownMutationIds.current.add(taskId);
     const prevTasks = tasks;
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status } : t));
-    const { error } = await supabase.from("tasks").update({ status }).eq("id", taskId);
+    const completedAt = status === "DONE" ? new Date().toISOString() : null;
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status, completed_at: completedAt } : t));
+    const { error } = await supabase.from("tasks").update({ status, completed_at: completedAt }).eq("id", taskId);
     if (error) {
       setTasks(prevTasks);
       toast.error("שגיאה בעדכון משימה: " + (error.message || "נסה שוב"));
