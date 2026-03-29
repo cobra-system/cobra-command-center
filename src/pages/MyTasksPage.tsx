@@ -1,7 +1,7 @@
 import { useAuth, useData, type Priority } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { useNavigate } from "react-router-dom";
-import { CheckCircle2, Circle, Flame, Trophy, Star, ChevronLeft, Plus } from "lucide-react";
+import { CheckCircle2, Circle, Flame, Trophy, Star, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import confetti from "canvas-confetti";
 import EmployeeTaskCreateDialog from "@/components/tasks/EmployeeTaskCreateDialog";
@@ -44,22 +44,38 @@ export default function MyTasksPage() {
   const prevPctRef = useRef(0);
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+  const touchStartXRef = useRef<number | null>(null);
 
-  // Helper: check if a date string is today
-  const isToday = (dateStr?: string | null) => {
+  // Helper: check if a date string falls on the given target date
+  const isOnDate = (dateStr: string | null | undefined, targetDate: Date): boolean => {
     if (!dateStr) return false;
     const d = new Date(dateStr);
-    const now = new Date();
-    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+    return (
+      d.getFullYear() === targetDate.getFullYear() &&
+      d.getMonth() === targetDate.getMonth() &&
+      d.getDate() === targetDate.getDate()
+    );
   };
 
+  const todayMidnight = new Date();
+  todayMidnight.setHours(0, 0, 0, 0);
+  const isViewingToday = selectedDate.getTime() === todayMidnight.getTime();
+
   const allMyTasks = tasks.filter(t => t.assignee_id === currentUser?.id);
-  // Filter out tasks completed on previous days - only show today's completions
   const myTasks = allMyTasks.filter(t => {
     if (t.status === "DONE") {
-      return isToday(t.completed_at);
+      return isOnDate(t.completed_at, selectedDate);
     }
-    return true;
+    if (t.due_date) {
+      return isOnDate(t.due_date, selectedDate);
+    }
+    // Tasks with no due_date appear only on today's view
+    return isViewingToday;
   });
   const done = myTasks.filter(t => t.status === "DONE");
   const blocked = myTasks.filter(t => t.status === "BLOCKED");
@@ -67,9 +83,24 @@ export default function MyTasksPage() {
   const notDone = myTasks.filter(t => t.status !== "DONE");
   const pct = myTasks.length > 0 ? Math.round((done.length / myTasks.length) * 100) : 0;
 
-  const now = new Date();
   const dayNames = ["יום ראשון", "יום שני", "יום שלישי", "יום רביעי", "יום חמישי", "יום שישי", "שבת"];
-  const dayName = dayNames[now.getDay()];
+  const dayName = dayNames[selectedDate.getDay()];
+  const dateDisplay = `${String(selectedDate.getDate()).padStart(2, "0")}/${String(selectedDate.getMonth() + 1).padStart(2, "0")}/${selectedDate.getFullYear()}`;
+
+  const goToPrevDay = () => setSelectedDate(d => { const n = new Date(d); n.setDate(n.getDate() - 1); return n; });
+  const goToNextDay = () => setSelectedDate(d => { const n = new Date(d); n.setDate(n.getDate() + 1); return n; });
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartXRef.current = e.touches[0].clientX;
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartXRef.current === null) return;
+    const delta = e.changedTouches[0].clientX - touchStartXRef.current;
+    touchStartXRef.current = null;
+    if (Math.abs(delta) < 50) return;
+    // RTL: swipe right (positive delta) = previous day, swipe left (negative delta) = next day
+    if (delta > 0) goToPrevDay(); else goToNextDay();
+  };
 
   const p0Tasks = todo.filter(t => t.priority === "דחוף");
   const otherTasks = todo.filter(t => t.priority !== "דחוף");
@@ -109,13 +140,31 @@ export default function MyTasksPage() {
   const offset = circumference - (pct / 100) * circumference;
 
   return (
-    <div className="pb-8">
+    <div className="pb-8" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       {/* Hero section with greeting + progress */}
       <div className="bg-gradient-to-b from-[hsl(var(--employee-header)_/_0.06)] to-transparent px-5 pt-6 pb-2">
         <div className="flex items-start justify-between mb-5">
           <div>
             <p className="text-lg font-bold text-foreground">{getGreeting()}, {currentUser?.name?.split(" ")[0]} 👋</p>
-            <p className="text-sm text-muted-foreground mt-0.5">{dayName}</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <button
+                onClick={goToNextDay}
+                className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="יום הבא"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+              <p className="text-sm text-muted-foreground">
+                {isViewingToday ? "היום" : dateDisplay} · {dayName}
+              </p>
+              <button
+                onClick={goToPrevDay}
+                className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="יום קודם"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {done.length > 0 && (
