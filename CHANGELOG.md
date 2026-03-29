@@ -11,10 +11,16 @@
 
 ## [2026-03-29]
 
+- Merge pull request #77 from cobra-system/claude/fix-task-counter-screenshots-ODP6F (902d0ae)
+- fix: sync header task counter to match daily task page filtering (ced25cc)
+
+<!-- last-commit: 902d0aec39d5300316eaba7caf44d9ee44aec61b -->
+
+## [2026-03-29]
+
 - Merge remote-tracking branch 'origin/main' (15d6093)
 - feat: add date history navigation to DailyReportWidget (b6569ae)
 
-<!-- last-commit: 15d60939ca259d86df56374727e38cd4723db764 -->
 
 ## [2026-03-29]
 
