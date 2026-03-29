@@ -11,11 +11,16 @@
 
 ## [2026-03-29]
 
+- fix: use supabase/setup-cli action instead of npm install -g (d512172)
+
+<!-- last-commit: d51217297b9f357732d588320ac2cdcbd61b9455 -->
+
+## [2026-03-29]
+
 - Merge pull request #79 from cobra-system/claude/fix-user-status-creation-i5hut (89c8cf6)
 - feat: remove PIN auth — all employees use email + password (1871dc6)
 - fix: support PIN-only employee creation and save PIN to profile (3ede3c9)
 
-<!-- last-commit: 89c8cf6141b65dbfcdf4b2423622926d72504ac6 -->
 
 ## [2026-03-29]
 
