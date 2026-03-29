@@ -1,9 +1,10 @@
 import { useAuth, useData, type Priority } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { useNavigate } from "react-router-dom";
-import { CheckCircle2, Circle, Flame, Trophy, Star, ChevronLeft } from "lucide-react";
+import { CheckCircle2, Circle, Flame, Trophy, Star, ChevronLeft, Plus } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import confetti from "canvas-confetti";
+import EmployeeTaskCreateDialog from "@/components/tasks/EmployeeTaskCreateDialog";
 
 const motivationalMessages = [
   "בוא נסגור את היום! 💪",
@@ -42,7 +43,24 @@ export default function MyTasksPage() {
   const [justCompleted, setJustCompleted] = useState<string | null>(null);
   const prevPctRef = useRef(0);
 
-  const myTasks = tasks.filter(t => t.assignee_id === currentUser?.id);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+
+  // Helper: check if a date string is today
+  const isToday = (dateStr?: string | null) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    const now = new Date();
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  };
+
+  const allMyTasks = tasks.filter(t => t.assignee_id === currentUser?.id);
+  // Filter out tasks completed on previous days - only show today's completions
+  const myTasks = allMyTasks.filter(t => {
+    if (t.status === "DONE") {
+      return isToday(t.completed_at);
+    }
+    return true;
+  });
   const done = myTasks.filter(t => t.status === "DONE");
   const blocked = myTasks.filter(t => t.status === "BLOCKED");
   const todo = myTasks.filter(t => t.status !== "DONE" && t.status !== "BLOCKED");
@@ -99,12 +117,21 @@ export default function MyTasksPage() {
             <p className="text-lg font-bold text-foreground">{getGreeting()}, {currentUser?.name?.split(" ")[0]} 👋</p>
             <p className="text-sm text-muted-foreground mt-0.5">{dayName}</p>
           </div>
-          {done.length > 0 && (
-            <div className="flex items-center gap-1.5 bg-gradient-to-r from-[hsl(var(--warning)_/_0.12)] to-[hsl(var(--warning)_/_0.05)] px-3 py-1.5 rounded-full animate-streak-bounce">
-              <Flame className="h-4 w-4 text-warning" />
-              <span className="text-xs font-bold text-warning">{done.length}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {done.length > 0 && (
+              <div className="flex items-center gap-1.5 bg-gradient-to-r from-[hsl(var(--warning)_/_0.12)] to-[hsl(var(--warning)_/_0.05)] px-3 py-1.5 rounded-full animate-streak-bounce">
+                <Flame className="h-4 w-4 text-warning" />
+                <span className="text-xs font-bold text-warning">{done.length}</span>
+              </div>
+            )}
+            <button
+              onClick={() => setShowCreateDialog(true)}
+              className="flex items-center gap-1.5 bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded-full transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              <span className="text-xs font-bold">משימה</span>
+            </button>
+          </div>
         </div>
 
         {/* Progress ring */}
@@ -225,9 +252,21 @@ export default function MyTasksPage() {
             <div className="text-5xl mb-4">🎉</div>
             <p className="text-lg font-bold text-foreground">אין משימות כרגע</p>
             <p className="text-sm text-muted-foreground mt-1">נהדר! תהנה מהיום</p>
+            <button
+              onClick={() => setShowCreateDialog(true)}
+              className="mt-4 inline-flex items-center gap-1.5 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              צור משימה חדשה
+            </button>
           </div>
         )}
       </div>
+
+      <EmployeeTaskCreateDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+      />
     </div>
   );
 }

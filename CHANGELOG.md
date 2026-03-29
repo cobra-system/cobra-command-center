@@ -9,12 +9,47 @@
 
 ---
 
+## [2026-03-29]
+
+- Merge pull request #77 from cobra-system/claude/fix-task-counter-screenshots-ODP6F (902d0ae)
+- fix: sync header task counter to match daily task page filtering (ced25cc)
+
+<!-- last-commit: 902d0aec39d5300316eaba7caf44d9ee44aec61b -->
+
+## [2026-03-29]
+
+- Merge remote-tracking branch 'origin/main' (15d6093)
+- feat: add date history navigation to DailyReportWidget (b6569ae)
+
+
+## [2026-03-29]
+
+- fix: correct Supabase URL usage in user creation and manage-employee (18c6788)
+
+
+## [2026-03-29]
+
+- fix: update RLS policy to allow employees to create self-assigned tasks (db32067)
+- feat: employee self-task creation and smart completed task filtering (9e1d69e)
+
+
+## [2026-03-27]
+
+- Merge pull request #74 from cobra-system/claude/system-improvements-list-9I5m8 (cf53b2d)
+- docs: add comprehensive system improvements TODO list (285ab7f)
+
+
+## [2026-03-27]
+
+- Merge pull request #73 from cobra-system/claude/remove-lovable-edit-Zzm9P (1107c5b)
+- Remove Lovable integration and all references (22abb05)
+
+
 ## [2026-03-26]
 
 - Merge pull request #72 from cobra-system/claude/fullscreen-user-display-Nnjw4 (39afb2f)
 - Make employee layout fullscreen by removing max-width constraint (443d7f0)
 
-<!-- last-commit: 39afb2f817d52fa4a2cf1ed844599a42292e283b -->
 
 ## [2026-03-26]
 
