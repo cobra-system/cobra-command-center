@@ -542,19 +542,22 @@ function OrderWorkflowTimeline({ orderId, hasEdit }: { orderId: string; hasEdit:
   const advanceStep = async () => {
     if (workflow.current_step >= totalSteps - 1) {
       // Complete workflow
-      await supabase.from("workflow_instances").update({ status: "completed", current_step: totalSteps }).eq("id", workflow.id);
+      const { error: updErr } = await supabase.from("workflow_instances").update({ status: "completed", current_step: totalSteps }).eq("id", workflow.id);
+      if (updErr) { toast.error("שגיאה בסיום התהליך: " + updErr.message); return; }
       await supabase.from("workflow_step_logs").insert({
         instance_id: workflow.id,
         step_index: workflow.current_step,
         completed_by: "מנהל",
       });
     } else {
-      await supabase.from("workflow_step_logs").insert({
+      const { error: logErr } = await supabase.from("workflow_step_logs").insert({
         instance_id: workflow.id,
         step_index: workflow.current_step,
         completed_by: "מנהל",
       });
-      await supabase.from("workflow_instances").update({ current_step: workflow.current_step + 1 }).eq("id", workflow.id);
+      if (logErr) { toast.error("שגיאה בתיעוד השלב: " + logErr.message); return; }
+      const { error: updErr } = await supabase.from("workflow_instances").update({ current_step: workflow.current_step + 1 }).eq("id", workflow.id);
+      if (updErr) { toast.error("שגיאה בקידום השלב: " + updErr.message); return; }
     }
     toast.success(workflow.current_step >= totalSteps - 1 ? "תהליך הושלם" : "שלב קודם הושלם");
     await fetchWorkflow();
@@ -563,7 +566,8 @@ function OrderWorkflowTimeline({ orderId, hasEdit }: { orderId: string; hasEdit:
   const goToStep = async (stepIdx: number) => {
     if (stepIdx === workflow.current_step) return;
     const newStatus = stepIdx >= totalSteps ? "completed" : "active";
-    await supabase.from("workflow_instances").update({ current_step: stepIdx, status: newStatus }).eq("id", workflow.id);
+    const { error } = await supabase.from("workflow_instances").update({ current_step: stepIdx, status: newStatus }).eq("id", workflow.id);
+    if (error) { toast.error("שגיאה בעדכון שלב: " + error.message); return; }
     // Remove logs for steps after the new current step
     if (stepIdx < workflow.current_step) {
       await supabase.from("workflow_step_logs").delete().eq("instance_id", workflow.id).gte("step_index", stepIdx);

@@ -87,15 +87,23 @@ export default function MeetingDetailDialog({ meeting, onClose, onRefresh }: Pro
     }
 
     // Update participants
-    await supabase.from("meeting_participants").delete().eq("meeting_id", meeting.id);
+    const { error: delErr } = await supabase.from("meeting_participants").delete().eq("meeting_id", meeting.id);
+    if (delErr) {
+      toast({ title: "שגיאה בעדכון משתתפים", description: delErr.message, variant: "destructive" });
+      return;
+    }
     if (editParticipants.length > 0) {
-      await supabase.from("meeting_participants").insert(
+      const { error: insErr } = await supabase.from("meeting_participants").insert(
         editParticipants.map(p => ({
           meeting_id: meeting.id,
           participant_type: p.type,
           participant_id: p.id,
         }))
       );
+      if (insErr) {
+        toast({ title: "שגיאה בהוספת משתתפים", description: insErr.message, variant: "destructive" });
+        return;
+      }
     }
 
     toast({ title: "הפגישה עודכנה" });

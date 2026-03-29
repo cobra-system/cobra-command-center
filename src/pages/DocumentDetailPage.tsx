@@ -396,7 +396,8 @@ export default function DocumentDetailPage() {
       updates[field] = rawValue || null;
     }
 
-    await supabase.from("purchase_documents").update(updates).eq("id", doc.id);
+    const { error: updErr } = await supabase.from("purchase_documents").update(updates).eq("id", doc.id);
+    if (updErr) { toast.error("שגיאה בעדכון: " + updErr.message); return; }
     toast.success("עודכן");
     fetchDoc();
   };
@@ -408,7 +409,8 @@ export default function DocumentDetailPage() {
       updates.approval_date = new Date().toISOString();
       updates.approved_by = currentUser?.id;
     }
-    await supabase.from("purchase_documents").update(updates).eq("id", doc.id);
+    const { error: updErr } = await supabase.from("purchase_documents").update(updates).eq("id", doc.id);
+    if (updErr) { toast.error("שגיאה בעדכון סטטוס: " + updErr.message); return; }
     toast.success(`סטטוס → ${newStatus}`);
     fetchDoc();
   };
@@ -427,7 +429,8 @@ export default function DocumentDetailPage() {
     const { error } = await supabase.storage.from("documents").upload(path, file);
     if (error) { toast.error("שגיאה בהעלאה"); setUploading(false); return; }
     const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
-    await supabase.from("purchase_documents").update({ file_url: urlData.publicUrl }).eq("id", doc.id);
+    const { error: dbErr } = await supabase.from("purchase_documents").update({ file_url: urlData.publicUrl }).eq("id", doc.id);
+    if (dbErr) { toast.error("שגיאה בשמירת הקובץ: " + dbErr.message); setUploading(false); return; }
     toast.success("קובץ הועלה");
     setUploading(false);
     fetchDoc();
@@ -435,7 +438,8 @@ export default function DocumentDetailPage() {
 
   const handleRemoveFile = async () => {
     if (!doc) return;
-    await supabase.from("purchase_documents").update({ file_url: null }).eq("id", doc.id);
+    const { error } = await supabase.from("purchase_documents").update({ file_url: null }).eq("id", doc.id);
+    if (error) { toast.error("שגיאה בהסרת קובץ: " + error.message); return; }
     toast.success("קובץ הוסר");
     fetchDoc();
   };
@@ -468,7 +472,8 @@ export default function DocumentDetailPage() {
       return;
     }
     const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
-    await supabase.from("purchase_documents").update({ file_url: urlData.publicUrl }).eq("id", doc.id);
+    const { error: dbErr } = await supabase.from("purchase_documents").update({ file_url: urlData.publicUrl }).eq("id", doc.id);
+    if (dbErr) { toast.error("שגיאה בשמירת הקובץ: " + dbErr.message); setUploading(false); return; }
     toast.success("קובץ הועלה");
     setUploading(false);
     fetchDoc();
@@ -837,7 +842,8 @@ export default function DocumentDetailPage() {
                       <td className="p-3">
                         {hasEdit && p.status !== "שולם" && (
                           <Button variant="outline" size="sm" onClick={async () => {
-                            await supabase.from("supplier_payments").update({ status: "שולם", paid_date: new Date().toISOString().split("T")[0] }).eq("id", p.id);
+                            const { error } = await supabase.from("supplier_payments").update({ status: "שולם", paid_date: new Date().toISOString().split("T")[0] }).eq("id", p.id);
+                            if (error) { toast.error("שגיאה בעדכון תשלום: " + error.message); return; }
                             toast.success("סומן כשולם");
                             fetchDoc();
                           }}>סמן כשולם</Button>

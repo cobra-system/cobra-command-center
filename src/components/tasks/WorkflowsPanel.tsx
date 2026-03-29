@@ -95,19 +95,21 @@ export default function WorkflowsPanel() {
     setCompleting(true);
     const idx = selectedInstance.current_step;
     const step = selectedInstance.template.steps[idx];
-    await supabase.from("workflow_step_logs").insert({
+    const { error: logError } = await supabase.from("workflow_step_logs").insert({
       instance_id: selectedInstance.id, step_index: idx,
       completed_by: currentUser?.name || "Unknown", notes: stepNotes || null,
       action_data: step.action === "input_eta" && etaDate ? { eta: etaDate.toISOString() } : null,
     });
+    if (logError) { toast.error("שגיאה בתיעוד השלב: " + logError.message); setCompleting(false); return; }
     if (step.action === "input_eta" && etaDate && selectedInstance.order_id) {
       await supabase.from("orders").update({ eta: etaDate.toISOString() }).eq("id", selectedInstance.order_id);
       updateOrder(selectedInstance.order_id, { eta: etaDate.toISOString() });
     }
     const isLast = idx >= selectedInstance.template.steps.length - 1;
-    await supabase.from("workflow_instances").update({
+    const { error: updateError } = await supabase.from("workflow_instances").update({
       current_step: isLast ? idx : idx + 1, status: isLast ? "completed" : "active",
     }).eq("id", selectedInstance.id);
+    if (updateError) { toast.error("שגיאה בעדכון התהליך: " + updateError.message); setCompleting(false); return; }
     toast.success(`שלב הושלם: ${step.name}`);
     setStepNotes(""); setEtaDate(undefined); setCompleting(false); setSelectedInstance(null); fetchData();
   };
@@ -115,25 +117,29 @@ export default function WorkflowsPanel() {
   const cancelWorkflow = async (id: string) => {
     if (!cancelReason.trim()) return;
     setCancellingId(id);
-    await supabase.from("workflow_step_logs").insert({ instance_id: id, step_index: -1, completed_by: currentUser?.name || "Unknown", notes: `ביטול: ${cancelReason}` });
-    await supabase.from("workflow_instances").update({ status: "cancelled" }).eq("id", id);
+    const { error: logErr } = await supabase.from("workflow_step_logs").insert({ instance_id: id, step_index: -1, completed_by: currentUser?.name || "Unknown", notes: `ביטול: ${cancelReason}` });
+    if (logErr) { toast.error("שגיאה: " + logErr.message); setCancellingId(null); return; }
+    const { error } = await supabase.from("workflow_instances").update({ status: "cancelled" }).eq("id", id);
+    if (error) { toast.error("שגיאה בביטול: " + error.message); setCancellingId(null); return; }
     toast.success("התהליך בוטל");
     setCancellingId(null); setCancelReason(""); setSelectedInstance(null); fetchData();
   };
 
   const deleteTemplate = async (id: string) => {
-    await supabase.from("workflow_templates").delete().eq("id", id);
+    const { error } = await supabase.from("workflow_templates").delete().eq("id", id);
+    if (error) { toast.error("שגיאה במחיקה: " + error.message); return; }
     toast.success("תבנית נמחקה");
     fetchData();
   };
 
   const duplicateTemplate = async (tpl: WorkflowTemplate) => {
-    await supabase.from("workflow_templates").insert({
+    const { error } = await supabase.from("workflow_templates").insert({
       name: `${tpl.name} (עותק)`,
       description: tpl.description || null,
       category: tpl.category,
       steps: tpl.steps as any,
     });
+    if (error) { toast.error("שגיאה בשכפול: " + error.message); return; }
     toast.success("תבנית שוכפלה");
     fetchData();
   };
@@ -354,9 +360,11 @@ function TemplateFormDialog({ open, onOpenChange, template, onSaved }: { open: b
     setSaving(true);
     const stepsJson = steps.map((s, i) => ({ index: i, name: s.name, description: s.description, action: s.action, ...(s.email_to ? { email_to: s.email_to } : {}), ...(s.note ? { note: s.note } : {}), required: true }));
     if (template) {
-      await supabase.from("workflow_templates").update({ name, description: description || null, category, steps: stepsJson }).eq("id", template.id);
+      const { error } = await supabase.from("workflow_templates").update({ name, description: description || null, category, steps: stepsJson }).eq("id", template.id);
+      if (error) { toast.error("שגיאה בשמירה: " + error.message); setSaving(false); return; }
     } else {
-      await supabase.from("workflow_templates").insert({ name, description: description || null, category, steps: stepsJson });
+      const { error } = await supabase.from("workflow_templates").insert({ name, description: description || null, category, steps: stepsJson });
+      if (error) { toast.error("שגיאה ביצירה: " + error.message); setSaving(false); return; }
     }
     setSaving(false); onSaved();
   };
