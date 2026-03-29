@@ -11,6 +11,12 @@
 
 ## [2026-03-29]
 
+- ci: add Edge Functions auto-deploy and PostgREST schema cache reload (5af0c5f)
+
+<!-- last-commit: 5af0c5fad48c8dfab8439e4156290fc93f9c8fe7 -->
+
+## [2026-03-29]
+
 - Merge main and resolve TODO.md conflict (keep both MCP status + system improvements) (bba008e)
 - Update TODO.md with completed status for all MCP improvements (b97c14b)
 - Register missing tools and add coverage for uncovered DB tables (22e265d)
@@ -18,7 +24,6 @@
 - Add 6 new MCP tool modules: analytics, notifications, bulk-ops, search, finance, reminders (3331344)
 - Add MCP new capabilities TODO list (083d2f0)
 
-<!-- last-commit: 02ce1821194718d22f65102a3b94569b7f2f3256 -->
 
 ## [2026-03-29]
 
