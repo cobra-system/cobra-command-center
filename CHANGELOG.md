@@ -11,12 +11,17 @@
 
 ## [2026-03-29]
 
+- Add rewrites configuration in vercel.json (8f75387)
+
+<!-- last-commit: 8f75387d2b337f8d56b714d142993c2cef593716 -->
+
+## [2026-03-29]
+
 - fix: add error handling to all major silent mutation operations (dfcc6ad)
 - feat: set daily view as default and reorder tasks page tabs (193991f)
 - fix: also guard completed_at and created_by columns in schema cache migration (b16a2f3)
 - fix: resolve PostgREST schema cache error for recurring task creation (15558dc)
 
-<!-- last-commit: e4e13e9ace2b6383b797b9915e798330307918d4 -->
 
 ## [2026-03-29]
 
