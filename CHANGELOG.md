@@ -11,10 +11,18 @@
 
 ## [2026-03-29]
 
+- fix: add error handling to all major silent mutation operations (dfcc6ad)
+- feat: set daily view as default and reorder tasks page tabs (193991f)
+- fix: also guard completed_at and created_by columns in schema cache migration (b16a2f3)
+- fix: resolve PostgREST schema cache error for recurring task creation (15558dc)
+
+<!-- last-commit: e4e13e9ace2b6383b797b9915e798330307918d4 -->
+
+## [2026-03-29]
+
 - Merge pull request #83 from cobra-system/claude/task-calendar-display-t3jlh (aa92f6b)
 - Show date-range tasks on every day between start_date and due_date (7901d8f)
 
-<!-- last-commit: aa92f6b430cf9846ea2904291dc20051a8026c43 -->
 
 ## [2026-03-29]
 
