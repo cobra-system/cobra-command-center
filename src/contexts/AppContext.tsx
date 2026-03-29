@@ -802,15 +802,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const createEmployee = useCallback(async (data: { name: string; role: Role; email: string; password: string; role_definition_id?: string }): Promise<string | null> => {
     try {
-      const cloudUrl = import.meta.env.VITE_SUPABASE_URL || "https://ljpdwezgahrrffnwajho.supabase.co";
-      const cloudKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
-      const url = `${cloudUrl}/functions/v1/create-employee`;
+      const url = `${SUPABASE_URL}/functions/v1/create-employee`;
       const sess = await supabase.auth.getSession();
       const response = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "apikey": cloudKey,
+          "apikey": SUPABASE_ANON_KEY,
           "Authorization": `Bearer ${sess.data.session?.access_token}`,
         },
         body: JSON.stringify(data),
