@@ -11,9 +11,15 @@
 
 ## [2026-03-29]
 
+- Merge remote-tracking branch 'origin/main' (15d6093)
+- feat: add date history navigation to DailyReportWidget (b6569ae)
+
+<!-- last-commit: 15d60939ca259d86df56374727e38cd4723db764 -->
+
+## [2026-03-29]
+
 - fix: correct Supabase URL usage in user creation and manage-employee (18c6788)
 
-<!-- last-commit: 6f8a1562ba5c83ca9722a9cef4f329cda92edda0 -->
 
 ## [2026-03-29]
 
