@@ -11,9 +11,17 @@
 
 ## [2026-03-29]
 
+- Merge pull request #81 from cobra-system/claude/overdue-tasks-update-C9tjL (0886858)
+- Merge pull request #80 from cobra-system/claude/fix-goals-panel-wSBut (8ef8b46)
+- Replace auto-advance overdue tasks with interactive daily review panel (915ce3a)
+- Fix goals panel: show task milestones and support edit/delete (34f4c59)
+
+<!-- last-commit: 0886858a153aa0c80095d7792515938530289cf9 -->
+
+## [2026-03-29]
+
 - fix: use supabase/setup-cli action instead of npm install -g (d512172)
 
-<!-- last-commit: d51217297b9f357732d588320ac2cdcbd61b9455 -->
 
 ## [2026-03-29]
 
