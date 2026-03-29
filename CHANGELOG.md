@@ -11,9 +11,15 @@
 
 ## [2026-03-29]
 
+- Merge pull request #85 from cobra-system/claude/fix-task-creation-swipe-6x9ll (c2caf37)
+- fix: employee task creation RLS + add swipe day navigation (53506ba)
+
+<!-- last-commit: c2caf37c6eb017d17a0b6f41671d3070da46bad5 -->
+
+## [2026-03-29]
+
 - Add rewrites configuration in vercel.json (8f75387)
 
-<!-- last-commit: 8f75387d2b337f8d56b714d142993c2cef593716 -->
 
 ## [2026-03-29]
 
