@@ -16,7 +16,6 @@ export interface Profile {
   id: string;
   name: string;
   role: Role;
-  pin?: string | null;
   role_definition_id?: string | null;
 }
 
@@ -203,11 +202,11 @@ interface DataState {
   addComponent: (component: Omit<ProductComponent, "id">) => Promise<void>;
   updateComponent: (id: string, updates: Partial<ProductComponent>) => Promise<void>;
   deleteComponent: (id: string) => Promise<void>;
-  addProfile: (profile: { email: string; name: string; role: Role; pin?: string }) => Promise<void>;
+  addProfile: (profile: { email: string; name: string; role: Role }) => Promise<void>;
   updateProfile: (id: string, updates: Partial<Profile>) => Promise<void>;
   resetDailyTasks: () => Promise<void>;
   advanceOverdueTasks: () => Promise<void>;
-  createEmployee: (data: { name: string; role: Role; email?: string; password?: string; pin?: string; role_definition_id?: string }) => Promise<string | null>;
+  createEmployee: (data: { name: string; role: Role; email: string; password: string; role_definition_id?: string }) => Promise<string | null>;
   addSupplier: (supplier: Omit<Supplier, "id">) => Promise<void>;
   updateSupplier: (id: string, updates: Partial<Supplier>) => Promise<void>;
   deleteSupplier: (id: string) => Promise<void>;
@@ -767,10 +766,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshProducts]);
 
-  const addProfile = useCallback(async (profile: { email: string; name: string; role: Role; pin?: string }) => {
+  const addProfile = useCallback(async (profile: { email: string; name: string; role: Role }) => {
     try {
       const res = await supabase.functions.invoke("create-employee", {
-        body: { email: profile.email, name: profile.name, role: profile.role, pin: profile.pin },
+        body: { email: profile.email, name: profile.name, role: profile.role },
       });
       if (res.error) throw new Error(res.error.message);
       await refreshProfiles();
@@ -800,7 +799,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [tasks]);
 
-  const createEmployee = useCallback(async (data: { name: string; role: Role; email?: string; password?: string; pin?: string; role_definition_id?: string }): Promise<string | null> => {
+  const createEmployee = useCallback(async (data: { name: string; role: Role; email: string; password: string; role_definition_id?: string }): Promise<string | null> => {
     try {
       const url = `${SUPABASE_URL}/functions/v1/create-employee`;
       const sess = await supabase.auth.getSession();

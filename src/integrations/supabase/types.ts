@@ -684,7 +684,6 @@ export type Database = {
           created_at: string
           id: string
           name: string
-          pin: string | null
           role: Database["public"]["Enums"]["app_role"]
           updated_at: string
         }
@@ -692,7 +691,6 @@ export type Database = {
           created_at?: string
           id: string
           name: string
-          pin?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
         }
@@ -700,7 +698,6 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
-          pin?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
         }
@@ -1304,20 +1301,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      hash_pin: { Args: { raw_pin: string }; Returns: string }
       is_manager: { Args: never; Returns: boolean }
-      login_by_pin: {
-        Args: { input_pin: string }
-        Returns: {
-          id: string
-          name: string
-          role: Database["public"]["Enums"]["app_role"]
-        }[]
-      }
-      verify_pin: {
-        Args: { hashed_pin: string; raw_pin: string }
-        Returns: boolean
-      }
     }
     Enums: {
       app_role: "MANAGER" | "WAREHOUSE_MANAGER" | "LOGISTICS" | "DRIVER"

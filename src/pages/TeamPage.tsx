@@ -37,7 +37,8 @@ export default function TeamPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [roleDefId, setRoleDefId] = useState<string>(defaultRoleDefId);
-  const [pin, setPin] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
@@ -70,10 +71,11 @@ export default function TeamPage() {
     return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   };
 
-  const resetForm = () => { setName(""); setRoleDefId(defaultRoleDefId); setPin(""); setEditingId(null); };
+  const resetForm = () => { setName(""); setRoleDefId(defaultRoleDefId); setEmail(""); setPassword(""); setEditingId(null); };
 
   const handleSubmit = async () => {
-    if (!name.trim() || (!editingId && (!pin || pin.length !== 4))) return;
+    if (!name.trim()) return;
+    if (!editingId && (!email.trim() || password.length < 6)) return;
     setSubmitting(true);
 
     // Derive base app_role from selected role definition's system_key (or fallback to DRIVER)
@@ -84,6 +86,14 @@ export default function TeamPage() {
       // Update via edge function
       try {
         const sess = await supabase.auth.getSession();
+        const body: Record<string, any> = {
+          action: "update",
+          employee_id: editingId,
+          name: name.trim(),
+          role: baseRole,
+          role_definition_id: roleDefId || null,
+        };
+        if (password.length >= 6) body.password = password;
         const res = await fetch(`${SUPABASE_URL}/functions/v1/manage-employee`, {
           method: "POST",
           headers: {
@@ -91,14 +101,7 @@ export default function TeamPage() {
             "apikey": SUPABASE_ANON_KEY,
             "Authorization": `Bearer ${sess.data.session?.access_token}`,
           },
-          body: JSON.stringify({
-            action: "update",
-            employee_id: editingId,
-            name: name.trim(),
-            role: baseRole,
-            role_definition_id: roleDefId || null,
-            pin: pin.length === 4 ? pin : undefined,
-          }),
+          body: JSON.stringify(body),
         });
         const result = await res.json();
         if (!res.ok) {
@@ -111,7 +114,13 @@ export default function TeamPage() {
         toast.error("שגיאה בחיבור לשרת");
       }
     } else {
-      const error = await createEmployee({ name: name.trim(), role: baseRole, pin, role_definition_id: roleDefId || undefined });
+      const error = await createEmployee({
+        name: name.trim(),
+        role: baseRole,
+        email: email.trim(),
+        password,
+        role_definition_id: roleDefId || undefined,
+      });
       if (error) {
         toast.error(error);
       } else {
@@ -124,7 +133,7 @@ export default function TeamPage() {
     setOpen(false);
   };
 
-  const handleEdit = (profile: { id: string; name: string; role: Role; pin?: string | null; role_definition_id?: string | null }) => {
+  const handleEdit = (profile: { id: string; name: string; role: Role; role_definition_id?: string | null }) => {
     setEditingId(profile.id);
     setName(profile.name);
     // Use role_definition_id if available, otherwise find the matching definition by system_key
@@ -132,7 +141,8 @@ export default function TeamPage() {
       || roleDefinitions.find(rd => rd.system_key === profile.role)?.id
       || defaultRoleDefId;
     setRoleDefId(defId);
-    setPin("");
+    setEmail("");
+    setPassword("");
     setOpen(true);
   };
 
@@ -188,11 +198,21 @@ export default function TeamPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                {!editingId && (
+                  <div className="space-y-2">
+                    <Label>אימייל *</Label>
+                    <Input value={email} onChange={e => setEmail(e.target.value)} placeholder="employee@example.com" type="email" dir="ltr" />
+                  </div>
+                )}
                 <div className="space-y-2">
-                  <Label>{editingId ? "קוד PIN חדש (אופציונלי)" : "קוד PIN (4 ספרות) *"}</Label>
-                  <Input value={pin} onChange={e => { const v = e.target.value.replace(/\D/g, "").slice(0, 4); setPin(v); }} placeholder="1234" dir="ltr" maxLength={4} />
+                  <Label>{editingId ? "סיסמה חדשה (אופציונלי)" : "סיסמה (לפחות 6 תווים) *"}</Label>
+                  <Input value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••" type="password" dir="ltr" />
                 </div>
-                <Button onClick={handleSubmit} disabled={!name.trim() || (!editingId && pin.length !== 4) || submitting} className="w-full">
+                <Button
+                  onClick={handleSubmit}
+                  disabled={!name.trim() || (!editingId && (!email.trim() || password.length < 6)) || submitting}
+                  className="w-full"
+                >
                   {submitting ? "שומר..." : editingId ? "עדכן עובד" : "הוסף עובד"}
                 </Button>
               </div>
@@ -209,7 +229,6 @@ export default function TeamPage() {
             <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("role")}>
               <span className="flex items-center gap-1">תפקיד <SortIcon col="role" /></span>
             </th>
-            <th className="text-right p-3 font-semibold text-foreground">PIN</th>
             {isManager && <th className="text-right p-3 font-semibold text-foreground">פעולות</th>}
           </tr></thead>
           <tbody className="divide-y">
@@ -221,7 +240,6 @@ export default function TeamPage() {
                     ? (roleDefinitions.find(rd => rd.id === u.role_definition_id)?.name ?? getRoleLabel(u.role))
                     : getRoleLabel(u.role)}
                 </td>
-                <td className="p-3 font-mono text-muted-foreground" dir="ltr">{isManager ? (u.pin || "—") : "••••"}</td>
                 {isManager && (
                   <td className="p-3">
                     <div className="flex gap-1">

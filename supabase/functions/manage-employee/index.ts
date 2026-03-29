@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { action, employee_id, name, role, password, pin, role_definition_id } = await req.json();
+    const { action, employee_id, name, role, password, role_definition_id } = await req.json();
 
     if (action === "update") {
       if (!employee_id) {
@@ -51,7 +51,6 @@ Deno.serve(async (req) => {
       if (name) updates.name = name;
       if (role) updates.role = role;
       if (role_definition_id !== undefined) updates.role_definition_id = role_definition_id;
-      if (pin && String(pin).length === 4) updates.pin = String(pin);
 
       await supabaseAdmin.from("profiles").update(updates).eq("id", employee_id);
 
