@@ -7,7 +7,7 @@
 import { supabase } from "@/lib/supabase";
 
 const MIGRATION_KEY = "cobra_migrations_applied"
-const CURRENT_VERSION = "20260324_create_goals_table"
+const CURRENT_VERSION = "20260329_allow_employee_task_creation"
 
 const INTERNATIONAL_TEMPLATE_ID = "b5a990c9-579d-4d9f-8e9a-90a8856ad00b";
 const ISRAEL_TEMPLATE_ID = "c7b881d0-68ae-4e0a-9f1b-a1b9967be11c";
@@ -217,6 +217,23 @@ export async function applyMigrations() {
       );
       // Do NOT set localStorage — migration will retry on next load
       return false;
+    }
+
+    // Migration 5: Allow employees to create tasks assigned to themselves
+    const taskPolicySqls = [
+      `DROP POLICY IF EXISTS "Managers can insert tasks" ON public.tasks;`,
+      `DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='tasks' AND policyname='Authenticated users can insert tasks') THEN
+          CREATE POLICY "Authenticated users can insert tasks" ON public.tasks FOR INSERT TO authenticated WITH CHECK (public.is_manager() OR (assignee_id = auth.uid()));
+        END IF;
+      END $$;`,
+    ];
+    for (const sql of taskPolicySqls) {
+      try {
+        await supabase.rpc("exec_sql" as any, { sql });
+      } catch {
+        console.warn("tasks insert policy migration step may need to be applied via Supabase dashboard");
+      }
     }
 
     localStorage.setItem(MIGRATION_KEY, CURRENT_VERSION)
