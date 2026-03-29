@@ -122,7 +122,7 @@ export function DiagnosticWizard({ productId, onClose, onSaved }: { productId: s
     const status = source === "device" && resolved === true ? "נסגר" : "פתוח";
     const resolvedDate = resolved === true ? new Date().toISOString().split("T")[0] : null;
 
-    await supabase.from("product_issues").insert({
+    const { error } = await supabase.from("product_issues").insert({
       product_id: productId,
       reporter: reporter.trim() || "לא צוין",
       description: description.trim(),
@@ -136,6 +136,11 @@ export function DiagnosticWizard({ productId, onClose, onSaved }: { productId: s
       image_url: imageUrl,
     } as any);
 
+    if (error) {
+      toast.error("שגיאה בדיווח התקלה: " + error.message);
+      setSaving(false);
+      return;
+    }
     toast.success("תקלה דווחה בהצלחה");
     setSaving(false);
     onSaved();

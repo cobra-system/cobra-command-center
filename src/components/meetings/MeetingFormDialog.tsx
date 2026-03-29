@@ -18,17 +18,19 @@ interface Props {
   editingMeeting?: Meeting | null;
 }
 
-async function saveParticipants(meetingId: string, participants: SelectedParticipant[]) {
+async function saveParticipants(meetingId: string, participants: SelectedParticipant[]): Promise<string | null> {
   // Delete existing and re-insert
-  await supabase.from("meeting_participants").delete().eq("meeting_id", meetingId);
-  if (participants.length === 0) return;
-  await supabase.from("meeting_participants").insert(
+  const { error: delError } = await supabase.from("meeting_participants").delete().eq("meeting_id", meetingId);
+  if (delError) return delError.message;
+  if (participants.length === 0) return null;
+  const { error: insError } = await supabase.from("meeting_participants").insert(
     participants.map(p => ({
       meeting_id: meetingId,
       participant_type: p.type,
       participant_id: p.id,
     }))
   );
+  return insError?.message ?? null;
 }
 
 export default function MeetingFormDialog({ open, onOpenChange, onSaved, editingMeeting }: Props) {
@@ -91,20 +93,28 @@ export default function MeetingFormDialog({ open, onOpenChange, onSaved, editing
       if (error) {
         toast({ title: "שגיאה בעדכון פגישה", description: error.message, variant: "destructive" });
       } else {
-        await saveParticipants(editingMeeting.id, participants);
-        toast({ title: "הפגישה עודכנה" });
-        onSaved?.();
-        onOpenChange(false);
+        const participantsError = await saveParticipants(editingMeeting.id, participants);
+        if (participantsError) {
+          toast({ title: "שגיאה בעדכון משתתפים", description: participantsError, variant: "destructive" });
+        } else {
+          toast({ title: "הפגישה עודכנה" });
+          onSaved?.();
+          onOpenChange(false);
+        }
       }
     } else {
       const { data, error } = await supabase.from("meetings").insert(payload).select("id").single();
       if (error || !data) {
         toast({ title: "שגיאה ביצירת פגישה", description: error?.message, variant: "destructive" });
       } else {
-        await saveParticipants(data.id, participants);
-        toast({ title: "פגישה חדשה נוצרה" });
-        onSaved?.();
-        onOpenChange(false);
+        const participantsError = await saveParticipants(data.id, participants);
+        if (participantsError) {
+          toast({ title: "שגיאה בהוספת משתתפים", description: participantsError, variant: "destructive" });
+        } else {
+          toast({ title: "פגישה חדשה נוצרה" });
+          onSaved?.();
+          onOpenChange(false);
+        }
       }
     }
 

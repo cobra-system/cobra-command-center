@@ -252,10 +252,11 @@ export default function OrdersPage() {
   const handleWorkflowStepChange = async (orderId: string, wf: WorkflowInfo, newStep: number) => {
     const totalSteps = wf.steps.length;
     const newStatus = newStep >= totalSteps ? "completed" : "active";
-    await supabase.from("workflow_instances").update({
+    const { error: updErr } = await supabase.from("workflow_instances").update({
       current_step: Math.min(newStep, totalSteps),
       status: newStatus
     }).eq("id", wf.id);
+    if (updErr) { toast.error("שגיאה בעדכון שלב: " + updErr.message); return; }
     if (newStep > wf.current_step) {
       for (let i = wf.current_step; i < newStep && i < totalSteps; i++) {
         await supabase.from("workflow_step_logs").insert({

@@ -143,7 +143,8 @@ export default function RecurringTasksPanel() {
   };
 
   const toggleActive = async (task: RecurringTask) => {
-    await supabase.from("tasks").update({ is_active: !task.is_active }).eq("id", task.id);
+    const { error } = await supabase.from("tasks").update({ is_active: !task.is_active }).eq("id", task.id);
+    if (error) toast.error("שגיאה בעדכון: " + error.message);
     fetchTasks();
   };
 

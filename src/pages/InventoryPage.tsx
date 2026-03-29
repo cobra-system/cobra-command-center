@@ -176,19 +176,22 @@ export default function InventoryPage() {
 
   const handleAddCenter = async () => {
     if (!newCenterName.trim()) return;
-    await supabase.from("distribution_centers").insert({ name: newCenterName, type: "custom", city: newCenterCity || null, is_main: false } as any);
+    const { error } = await supabase.from("distribution_centers").insert({ name: newCenterName, type: "custom", city: newCenterCity || null, is_main: false } as any);
+    if (error) { toast.error("שגיאה בהוספת מרכז: " + error.message); return; }
     setNewCenterName(""); setNewCenterCity(""); setShowAddCenter(false);
     toast.success("מרכז הפצה נוסף"); fetchData();
   };
 
   const handleDeleteCenter = async (id: string) => {
-    await supabase.from("distribution_centers").delete().eq("id", id);
+    const { error } = await supabase.from("distribution_centers").delete().eq("id", id);
+    if (error) { toast.error("שגיאה במחיקת מרכז: " + error.message); return; }
     toast.success("מרכז הפצה נמחק"); fetchData();
   };
 
   const handleAddContact = async () => {
     if (!newContactName.trim() || !addContactCenterId) return;
-    await supabase.from("center_contacts").insert({ center_id: addContactCenterId, name: newContactName, role: newContactRole || null, phone: newContactPhone || null } as any);
+    const { error } = await supabase.from("center_contacts").insert({ center_id: addContactCenterId, name: newContactName, role: newContactRole || null, phone: newContactPhone || null } as any);
+    if (error) { toast.error("שגיאה בהוספת איש קשר: " + error.message); return; }
     setNewContactName(""); setNewContactRole(""); setNewContactPhone(""); setShowAddContact(false);
     toast.success("איש קשר נוסף"); fetchData();
   };
@@ -196,11 +199,13 @@ export default function InventoryPage() {
   const handleUpdateInventory = async (centerId: string, productId: string, qty: number) => {
     const existing = inventory.find(i => i.center_id === centerId && i.product_id === productId);
     const oldQty = existing?.quantity ?? 0;
-    
+
     if (existing) {
-      await supabase.from("center_inventory").update({ quantity: qty } as any).eq("id", existing.id);
+      const { error } = await supabase.from("center_inventory").update({ quantity: qty } as any).eq("id", existing.id);
+      if (error) { toast.error("שגיאה בעדכון מלאי: " + error.message); return; }
     } else {
-      await supabase.from("center_inventory").insert({ center_id: centerId, product_id: productId, quantity: qty } as any);
+      const { error } = await supabase.from("center_inventory").insert({ center_id: centerId, product_id: productId, quantity: qty } as any);
+      if (error) { toast.error("שגיאה בעדכון מלאי: " + error.message); return; }
     }
     // Log the change
     await supabase.from("inventory_change_log").insert({
@@ -219,9 +224,11 @@ export default function InventoryPage() {
   const handleUpdateMinStock = async (centerId: string, productId: string, minStock: number) => {
     const existing = inventory.find(i => i.center_id === centerId && i.product_id === productId);
     if (existing) {
-      await supabase.from("center_inventory").update({ min_stock: minStock } as any).eq("id", existing.id);
+      const { error } = await supabase.from("center_inventory").update({ min_stock: minStock } as any).eq("id", existing.id);
+      if (error) { toast.error("שגיאה בעדכון מינימום: " + error.message); return; }
     } else {
-      await supabase.from("center_inventory").insert({ center_id: centerId, product_id: productId, quantity: 0, min_stock: minStock } as any);
+      const { error } = await supabase.from("center_inventory").insert({ center_id: centerId, product_id: productId, quantity: 0, min_stock: minStock } as any);
+      if (error) { toast.error("שגיאה בעדכון מינימום: " + error.message); return; }
     }
     fetchData();
   };
@@ -237,16 +244,19 @@ export default function InventoryPage() {
       return;
     }
 
-    await supabase.from("center_inventory").update({ quantity: sourceInv.quantity - qty } as any).eq("id", sourceInv.id);
+    const { error: srcErr } = await supabase.from("center_inventory").update({ quantity: sourceInv.quantity - qty } as any).eq("id", sourceInv.id);
+    if (srcErr) { toast.error("שגיאה בעדכון מלאי מקור: " + srcErr.message); return; }
 
     const destInv = inventory.find(i => i.center_id === transferTo && i.product_id === transferProduct);
     if (destInv) {
-      await supabase.from("center_inventory").update({ quantity: destInv.quantity + qty } as any).eq("id", destInv.id);
+      const { error: dstErr } = await supabase.from("center_inventory").update({ quantity: destInv.quantity + qty } as any).eq("id", destInv.id);
+      if (dstErr) { toast.error("שגיאה בעדכון מלאי יעד: " + dstErr.message); return; }
     } else {
-      await supabase.from("center_inventory").insert({ center_id: transferTo, product_id: transferProduct, quantity: qty } as any);
+      const { error: dstErr } = await supabase.from("center_inventory").insert({ center_id: transferTo, product_id: transferProduct, quantity: qty } as any);
+      if (dstErr) { toast.error("שגיאה בעדכון מלאי יעד: " + dstErr.message); return; }
     }
 
-    await supabase.from("inventory_transfers").insert({
+    const { error: transferErr } = await supabase.from("inventory_transfers").insert({
       from_center_id: transferFrom,
       to_center_id: transferTo,
       product_id: transferProduct,
@@ -254,6 +264,7 @@ export default function InventoryPage() {
       notes: transferNotes || null,
       transferred_by: currentUser?.name || null,
     } as any);
+    if (transferErr) { toast.error("שגיאה בתיעוד ההעברה: " + transferErr.message); return; }
 
     // Log transfer changes
     await supabase.from("inventory_change_log").insert([
