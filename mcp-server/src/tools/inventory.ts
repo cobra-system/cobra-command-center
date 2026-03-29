@@ -88,4 +88,125 @@ export function registerInventoryTools(server: McpServer) {
       }
     }
   );
+
+  // --- Inventory Transfers ---
+
+  server.tool(
+    "create_inventory_transfer",
+    "העברת מלאי בין מרכזים — Transfer stock from one distribution center to another",
+    {
+      product_id: z.string().uuid().describe("Product UUID"),
+      from_center_id: z.string().uuid().describe("Source distribution center UUID"),
+      to_center_id: z.string().uuid().describe("Destination distribution center UUID"),
+      quantity: z.number().min(1).describe("Quantity to transfer"),
+      transferred_by: z.string().uuid().optional().describe("User UUID performing the transfer"),
+      notes: z.string().optional().describe("Transfer notes"),
+    },
+    async ({ product_id, from_center_id, to_center_id, quantity, transferred_by, notes }) => {
+      const { data, error } = await supabase
+        .from("inventory_transfers")
+        .insert({
+          product_id,
+          from_center_id,
+          to_center_id,
+          quantity,
+          transferred_by: transferred_by ?? null,
+          notes: notes ?? null,
+        })
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Transfer created:\n${JSON.stringify(data, null, 2)}` }] };
+    }
+  );
+
+  server.tool(
+    "list_inventory_transfers",
+    "רשימת העברות מלאי — List inventory transfers between centers",
+    {
+      product_id: z.string().uuid().optional().describe("Filter by product UUID"),
+      from_center_id: z.string().uuid().optional().describe("Filter by source center UUID"),
+      to_center_id: z.string().uuid().optional().describe("Filter by destination center UUID"),
+      limit: z.number().default(50).describe("Max results"),
+    },
+    async ({ product_id, from_center_id, to_center_id, limit }) => {
+      let query = supabase
+        .from("inventory_transfers")
+        .select("*, products(name, sku), from_center:distribution_centers!inventory_transfers_from_center_id_fkey(name), to_center:distribution_centers!inventory_transfers_to_center_id_fkey(name)")
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+      if (product_id) query = query.eq("product_id", product_id);
+      if (from_center_id) query = query.eq("from_center_id", from_center_id);
+      if (to_center_id) query = query.eq("to_center_id", to_center_id);
+
+      const { data, error } = await query;
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  // --- Center Contacts ---
+
+  server.tool(
+    "list_center_contacts",
+    "אנשי קשר במרכז הפצה — List contacts for a distribution center",
+    {
+      center_id: z.string().uuid().describe("Distribution center UUID"),
+    },
+    async ({ center_id }) => {
+      const { data, error } = await supabase
+        .from("center_contacts")
+        .select("*")
+        .eq("center_id", center_id)
+        .order("name");
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "create_center_contact",
+    "יצירת איש קשר במרכז הפצה — Add a contact to a distribution center",
+    {
+      center_id: z.string().uuid().describe("Distribution center UUID"),
+      name: z.string().describe("Contact name"),
+      phone: z.string().optional().describe("Phone number"),
+      role: z.string().optional().describe("Contact role"),
+    },
+    async ({ center_id, name, phone, role }) => {
+      const { data, error } = await supabase
+        .from("center_contacts")
+        .insert({
+          center_id,
+          name,
+          phone: phone ?? null,
+          role: role ?? null,
+        })
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Contact created:\n${JSON.stringify(data, null, 2)}` }] };
+    }
+  );
+
+  server.tool(
+    "delete_center_contact",
+    "מחיקת איש קשר במרכז הפצה — Remove a contact from a distribution center",
+    {
+      id: z.string().uuid().describe("Contact UUID"),
+    },
+    async ({ id }) => {
+      const { error } = await supabase
+        .from("center_contacts")
+        .delete()
+        .eq("id", id);
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: "Contact deleted successfully" }] };
+    }
+  );
 }
