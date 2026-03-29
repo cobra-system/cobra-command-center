@@ -1,10 +1,10 @@
-import { useState, useMemo } from "react";
+﻿import { useState, useMemo } from "react";
 import { useData, type Goal } from "@/contexts/AppContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, GripVertical } from "lucide-react";
+import { Plus, Trash2, GripVertical, ArrowUpCircle } from "lucide-react";
 import { GOAL_PALETTE } from "./goalColors";
 
 interface Props {
@@ -15,13 +15,16 @@ interface Props {
 const PRESET_COLORS = GOAL_PALETTE.map(p => p.bg);
 
 export default function GoalsManageDialog({ open, onOpenChange }: Props) {
-  const { goals, addGoal, updateGoal, deleteGoal, tasks, updateTask } = useData();
+  const { goals, tasks, addGoal, updateGoal, deleteGoal, updateTask } = useData();
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [promotingOrphan, setPromotingOrphan] = useState<string | null>(null);
+  const [orphanEditName, setOrphanEditName] = useState("");
+  const [orphanColor, setOrphanColor] = useState(PRESET_COLORS[0]);
 
-  // Milestones that exist in tasks but have no matching DB goal
+  // Compute orphan milestones: milestone strings in tasks not in goals table
   const orphanMilestones = useMemo(() => {
     const goalNames = new Set(goals.map(g => g.name));
     const seen = new Set<string>();
@@ -73,24 +76,17 @@ export default function GoalsManageDialog({ open, onOpenChange }: Props) {
     await updateGoal(goalId, { color });
   };
 
-  // Orphan milestone: promote to DB goal by assigning a color
-  const handleOrphanColorPick = async (name: string, color: string) => {
-    await addGoal({ name, color, sort_order: goals.length });
-  };
-
-  const handleOrphanSaveEdit = async (oldName: string) => {
-    const trimmed = editName.trim();
-    if (trimmed && trimmed !== oldName) {
-      // Rename milestone across all tasks
-      const affected = tasks.filter(t => t.milestone === oldName);
-      await Promise.all(affected.map(t => updateTask(t.id, { milestone: trimmed })));
+  // Promote orphan milestone to DB goal (optionally rename)
+  const handlePromoteOrphan = async (originalName: string) => {
+    const nameToUse = orphanEditName.trim() || originalName;
+    await addGoal({ name: nameToUse, color: orphanColor, sort_order: goals.length });
+    // If renamed, update all tasks with the old milestone string
+    if (nameToUse !== originalName) {
+      const affected = tasks.filter(t => t.milestone === originalName);
+      await Promise.all(affected.map(t => updateTask(t.id, { milestone: nameToUse })));
     }
-    setEditingId(null);
-  };
-
-  const handleOrphanDelete = async (name: string) => {
-    const affected = tasks.filter(t => t.milestone === name);
-    await Promise.all(affected.map(t => updateTask(t.id, { milestone: null })));
+    setPromotingOrphan(null);
+    setOrphanEditName("");
   };
 
   const totalCount = goals.length + orphanMilestones.length;
@@ -159,59 +155,71 @@ export default function GoalsManageDialog({ open, onOpenChange }: Props) {
             </div>
           ))}
 
-          {/* Orphan milestones (exist in tasks but not in DB goals) */}
-          {orphanMilestones.map((name) => (
-            <div
-              key={`orphan-${name}`}
-              className="flex items-center gap-2 p-2 rounded-lg border border-dashed bg-muted/10"
-            >
-              <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-
-              {/* Color picker – clicking promotes orphan to DB goal */}
-              <div className="flex gap-1 flex-shrink-0 items-center">
-                {PRESET_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    title="בחר צבע כדי לשמור כמטרה"
-                    className="w-5 h-5 rounded-full border-2 border-transparent transition-transform hover:scale-110 opacity-60 hover:opacity-100"
-                    style={{ backgroundColor: c }}
-                    onClick={() => handleOrphanColorPick(name, c)}
-                  />
-                ))}
-              </div>
-
-              {/* Name */}
-              {editingId === `orphan-${name}` ? (
-                <Input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  onBlur={() => handleOrphanSaveEdit(name)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleOrphanSaveEdit(name);
-                    if (e.key === "Escape") setEditingId(null);
-                  }}
-                  className="h-7 text-sm flex-1"
-                  autoFocus
-                />
-              ) : (
-                <span
-                  className="text-sm font-medium flex-1 cursor-pointer hover:underline truncate text-muted-foreground"
-                  onClick={() => handleStartEdit(`orphan-${name}`, name)}
+          {/* Orphan milestones: milestone strings from tasks not yet in DB */}
+          {orphanMilestones.length > 0 && (
+            <div className="mt-2">
+              <p className="text-xs text-muted-foreground mb-2 font-medium">
+                מטרות-על שקיימות במשימות (טרם הוגדרו):
+              </p>
+              {orphanMilestones.map((name) => (
+                <div
+                  key={name}
+                  className="flex items-center gap-2 p-2 rounded-lg border border-dashed bg-muted/10 mb-2"
                 >
-                  {name}
-                </span>
-              )}
-
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-red-600 flex-shrink-0"
-                onClick={() => handleOrphanDelete(name)}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
+                  {promotingOrphan === name ? (
+                    <>
+                      <div className="flex gap-1 flex-shrink-0">
+                        {PRESET_COLORS.map((c) => (
+                          <button
+                            key={c}
+                            className="w-5 h-5 rounded-full border-2 transition-transform hover:scale-110"
+                            style={{
+                              backgroundColor: c,
+                              borderColor: orphanColor === c ? "#000" : "transparent",
+                            }}
+                            onClick={() => setOrphanColor(c)}
+                          />
+                        ))}
+                      </div>
+                      <Input
+                        value={orphanEditName}
+                        onChange={(e) => setOrphanEditName(e.target.value)}
+                        className="h-7 text-sm flex-1"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handlePromoteOrphan(name);
+                          if (e.key === "Escape") { setPromotingOrphan(null); setOrphanEditName(""); }
+                        }}
+                      />
+                      <Button size="sm" className="h-7 text-xs" onClick={() => handlePromoteOrphan(name)}>
+                        אשר
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setPromotingOrphan(null); setOrphanEditName(""); }}>
+                        ביטול
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm text-muted-foreground flex-1 truncate">{name}</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1 flex-shrink-0"
+                        onClick={() => {
+                          setPromotingOrphan(name);
+                          setOrphanEditName(name);
+                          setOrphanColor(PRESET_COLORS[goals.length % PRESET_COLORS.length]);
+                        }}
+                      >
+                        <ArrowUpCircle className="h-3.5 w-3.5" />
+                        הוסף לDB
+                      </Button>
+                    </>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
+          )}
 
           {totalCount === 0 && (
             <p className="text-sm text-muted-foreground text-center py-4">
@@ -223,7 +231,6 @@ export default function GoalsManageDialog({ open, onOpenChange }: Props) {
           <div className="border-t pt-3">
             <Label className="text-xs font-medium text-muted-foreground mb-2 block">הוסף מטרה חדשה</Label>
             <div className="flex items-center gap-2">
-              {/* Color preview */}
               <div
                 className="w-6 h-6 rounded-full flex-shrink-0 border"
                 style={{ backgroundColor: newColor }}
@@ -240,7 +247,6 @@ export default function GoalsManageDialog({ open, onOpenChange }: Props) {
                 הוסף
               </Button>
             </div>
-            {/* Color selection for new goal */}
             <div className="flex gap-1.5 mt-2">
               {PRESET_COLORS.map((c) => (
                 <button
