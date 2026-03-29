@@ -3,7 +3,7 @@ import { useData, useAuth, type Task, type Priority } from "@/contexts/AppContex
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { type RecurringTask, recurringMatchesDay, findOrCreateRecurringInstance } from "@/lib/recurringUtils";
 import { supabase } from "@/lib/supabase";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths, startOfDay, isSameDay, getDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths, startOfDay, isSameDay, getDay, isWithinInterval } from "date-fns";
 import { he } from "date-fns/locale";
 import { ChevronRight, ChevronLeft, Calendar, Users, Settings, Plus, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -72,8 +72,15 @@ export default function TaskMonthlyView() {
     const map = new Map<string, Task[]>();
     calendarDays.forEach(day => {
       const key = format(startOfDay(day), "yyyy-MM-dd");
+      const dayStart = startOfDay(day);
       const dayTasks = filteredTasks.filter(t => {
         if (!t.due_date) return false;
+        if (t.start_date) {
+          const start = startOfDay(new Date(t.start_date));
+          const end = startOfDay(new Date(t.due_date));
+          if (start > end) return isSameDay(new Date(t.due_date), day);
+          return isWithinInterval(dayStart, { start, end });
+        }
         return isSameDay(new Date(t.due_date), day);
       });
       dayTasks.sort((a, b) => {
