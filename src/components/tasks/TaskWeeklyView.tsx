@@ -4,7 +4,7 @@ import { useData, useAuth, type Task, type Priority } from "@/contexts/AppContex
 import { supabase } from "@/lib/supabase";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { type RecurringTask, recurringMatchesDay, findOrCreateRecurringInstance } from "@/lib/recurringUtils";
-import { format, startOfWeek, addDays, isSameDay, isToday, isPast, addWeeks, subWeeks, getDay } from "date-fns";
+import { format, startOfWeek, addDays, isSameDay, isToday, isPast, addWeeks, subWeeks, getDay, startOfDay, isWithinInterval } from "date-fns";
 import { he } from "date-fns/locale";
 import { ChevronRight, ChevronLeft, CalendarDays, AlertTriangle, Users, Repeat, Settings, X, Plus, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -114,8 +114,15 @@ export default function TaskWeeklyView() {
     const map = new Map<string, Task[]>();
     days.forEach(day => {
       const key = format(day, "yyyy-MM-dd");
+      const dayStart = startOfDay(day);
       const dayTasks = filteredTasks.filter(t => {
         if (!t.due_date) return false;
+        if (t.start_date) {
+          const start = startOfDay(new Date(t.start_date));
+          const end = startOfDay(new Date(t.due_date));
+          if (start > end) return isSameDay(new Date(t.due_date), day);
+          return isWithinInterval(dayStart, { start, end });
+        }
         return isSameDay(new Date(t.due_date), day);
       });
       dayTasks.sort((a, b) => {
