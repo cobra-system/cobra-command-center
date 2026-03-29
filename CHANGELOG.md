@@ -9,12 +9,18 @@
 
 ---
 
+## [2026-03-29]
+
+- fix: update RLS policy to allow employees to create self-assigned tasks (db32067)
+- feat: employee self-task creation and smart completed task filtering (9e1d69e)
+
+<!-- last-commit: 79522992da2ee1e381ac9e4e0a2f967cc38ece54 -->
+
 ## [2026-03-27]
 
 - Merge pull request #74 from cobra-system/claude/system-improvements-list-9I5m8 (cf53b2d)
 - docs: add comprehensive system improvements TODO list (285ab7f)
 
-<!-- last-commit: cf53b2d3e141e1e4135c7969752b3b2f884d67e1 -->
 
 ## [2026-03-27]
 
