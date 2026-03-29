@@ -9,7 +9,15 @@ export default function EmployeeLayout() {
   const { tasks } = useData();
   const navigate = useNavigate();
 
-  const myTasks = tasks.filter(t => t.assignee_id === currentUser?.id);
+  const isToday = (dateStr?: string | null) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    const now = new Date();
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  };
+  const myTasks = tasks
+    .filter(t => t.assignee_id === currentUser?.id)
+    .filter(t => t.status !== "DONE" || isToday(t.completed_at));
   const done = myTasks.filter(t => t.status === "DONE").length;
   const total = myTasks.length;
 
