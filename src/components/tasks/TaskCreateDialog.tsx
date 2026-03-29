@@ -144,7 +144,6 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
         assignee_id: assigneeId || null,
         assignee_name: assignee?.name || null,
         is_active: true,
-        next_due: dueDate?.toISOString() || null,
       };
 
       // Attach end_date if the DB column exists (graceful fallback)
