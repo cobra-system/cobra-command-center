@@ -8,5 +8,10 @@ ALTER TABLE public.tasks
   ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true,
   ADD COLUMN IF NOT EXISTS last_generated TIMESTAMPTZ;
 
--- Tell PostgREST to reload its schema cache so the new columns are visible
+-- Re-assert completion tracking columns
+ALTER TABLE public.tasks
+  ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES auth.users(id);
+
+-- Tell PostgREST to reload its schema cache so all new columns are visible
 NOTIFY pgrst, 'reload schema';
