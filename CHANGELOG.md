@@ -11,9 +11,15 @@
 
 ## [2026-03-29]
 
+- Merge pull request #83 from cobra-system/claude/task-calendar-display-t3jlh (aa92f6b)
+- Show date-range tasks on every day between start_date and due_date (7901d8f)
+
+<!-- last-commit: aa92f6b430cf9846ea2904291dc20051a8026c43 -->
+
+## [2026-03-29]
+
 - Disable process option in task creation dialog (f400476)
 
-<!-- last-commit: 87ff13965674fd573b645246547bc4e8011274e2 -->
 
 ## [2026-03-29]
 
