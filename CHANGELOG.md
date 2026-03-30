@@ -11,9 +11,14 @@
 
 ## [2026-03-30]
 
+- fix: enable full task creation for all users and fix created_by column error (e85a38d)
+
+<!-- last-commit: c390cae93f20eed2ab3b170258c1975bf4b9a0f1 -->
+
+## [2026-03-30]
+
 - Reverse swipe and navigation button directions in MyTasksPage (9d15367)
 
-<!-- last-commit: 4a5467b6e253a93ddf009f002e669fa2b646e706 -->
 
 ## [2026-03-29]
 
