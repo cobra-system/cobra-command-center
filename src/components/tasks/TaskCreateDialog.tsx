@@ -122,6 +122,16 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
     return urlData.publicUrl;
   };
 
+  /** Insert a task, gracefully dropping `created_by` if the column doesn't exist yet. */
+  const insertTask = async (payload: Record<string, unknown>) => {
+    const { data, error } = await supabase.from("tasks").insert(payload).select("id").single();
+    if (error?.message?.includes("created_by") && "created_by" in payload) {
+      const { created_by: _, ...rest } = payload;
+      return supabase.from("tasks").insert(rest).select("id").single();
+    }
+    return { data, error };
+  };
+
   const handleSave = async () => {
     if (!title.trim()) {
       toast({ title: "נא להזין כותרת", variant: "destructive" });
@@ -154,7 +164,7 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
 
       payload.status = "TEMPLATE";
       payload.is_daily = false;
-      const { data, error } = await supabase.from("tasks").insert(payload).select("id").single();
+      const { data, error } = await insertTask(payload);
       if (error) {
         toast({ title: "שגיאה ביצירת משימה חוזרת", description: error.message, variant: "destructive" });
       } else {
@@ -183,7 +193,7 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
         created_by: currentUser?.id || null,
       };
 
-      const { data, error } = await supabase.from("tasks").insert(taskData).select("id").single();
+      const { data, error } = await insertTask(taskData);
       if (error) {
         toast({ title: "שגיאה ביצירת משימה", description: error.message, variant: "destructive" });
       } else {
