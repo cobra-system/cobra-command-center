@@ -7,7 +7,7 @@
 import { supabase } from "@/lib/supabase";
 
 const MIGRATION_KEY = "cobra_migrations_applied"
-const CURRENT_VERSION = "20260329_allow_employee_task_creation"
+const CURRENT_VERSION = "20260330_allow_any_user_task_assignment"
 
 const INTERNATIONAL_TEMPLATE_ID = "b5a990c9-579d-4d9f-8e9a-90a8856ad00b";
 const ISRAEL_TEMPLATE_ID = "c7b881d0-68ae-4e0a-9f1b-a1b9967be11c";
@@ -219,21 +219,37 @@ export async function applyMigrations() {
       return false;
     }
 
-    // Migration 5: Allow employees to create tasks assigned to themselves
+    // Migration 5: Allow any authenticated user to create tasks
+    // Drop both old policy variants and create a permissive one
+    let taskPolicyApplied = false;
     const taskPolicySqls = [
       `DROP POLICY IF EXISTS "Managers can insert tasks" ON public.tasks;`,
-      `DO $$ BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='tasks' AND policyname='Authenticated users can insert tasks') THEN
-          CREATE POLICY "Authenticated users can insert tasks" ON public.tasks FOR INSERT TO authenticated WITH CHECK (public.is_manager() OR (assignee_id = auth.uid()));
-        END IF;
-      END $$;`,
+      `DROP POLICY IF EXISTS "Authenticated users can insert tasks" ON public.tasks;`,
+      `CREATE POLICY "Authenticated users can insert tasks" ON public.tasks FOR INSERT TO authenticated WITH CHECK (true);`,
     ];
     for (const sql of taskPolicySqls) {
       try {
-        await supabase.rpc("exec_sql" as any, { sql });
+        const { error } = await supabase.rpc("exec_sql" as any, { sql });
+        if (error) {
+          console.warn("Task policy migration failed:", error.message);
+          break;
+        }
+        taskPolicyApplied = true;
       } catch {
-        console.warn("tasks insert policy migration step may need to be applied via Supabase dashboard");
+        console.warn(
+          "⚠️ tasks insert policy migration failed. Please run this SQL in Supabase SQL Editor:\n\n" +
+          'DROP POLICY IF EXISTS "Managers can insert tasks" ON public.tasks;\n' +
+          'DROP POLICY IF EXISTS "Authenticated users can insert tasks" ON public.tasks;\n' +
+          'CREATE POLICY "Authenticated users can insert tasks" ON public.tasks FOR INSERT TO authenticated WITH CHECK (true);'
+        );
+        break;
       }
+    }
+
+    if (!taskPolicyApplied) {
+      console.error("❌ Task insert policy was not updated. Non-manager users may not be able to create tasks.");
+      // Do NOT set localStorage — migration will retry on next load
+      return false;
     }
 
     localStorage.setItem(MIGRATION_KEY, CURRENT_VERSION)
