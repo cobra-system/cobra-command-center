@@ -99,7 +99,7 @@ export default function MyTasksPage() {
     touchStartXRef.current = null;
     if (Math.abs(delta) < 50) return;
     // RTL: swipe right (positive delta) = previous day, swipe left (negative delta) = next day
-    if (delta > 0) goToPrevDay(); else goToNextDay();
+    if (delta > 0) goToNextDay(); else goToPrevDay();
   };
 
   const p0Tasks = todo.filter(t => t.priority === "דחוף");
@@ -148,9 +148,9 @@ export default function MyTasksPage() {
             <p className="text-lg font-bold text-foreground">{getGreeting()}, {currentUser?.name?.split(" ")[0]} 👋</p>
             <div className="flex items-center gap-2 mt-0.5">
               <button
-                onClick={goToNextDay}
+                onClick={goToPrevDay}
                 className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="יום הבא"
+                aria-label="יום קודם"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -158,9 +158,9 @@ export default function MyTasksPage() {
                 {isViewingToday ? "היום" : dateDisplay} · {dayName}
               </p>
               <button
-                onClick={goToPrevDay}
+                onClick={goToNextDay}
                 className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="יום קודם"
+                aria-label="יום הבא"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
