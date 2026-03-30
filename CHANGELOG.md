@@ -9,12 +9,17 @@
 
 ---
 
+## [2026-03-30]
+
+- Reverse swipe and navigation button directions in MyTasksPage (9d15367)
+
+<!-- last-commit: 4a5467b6e253a93ddf009f002e669fa2b646e706 -->
+
 ## [2026-03-29]
 
 - Merge pull request #85 from cobra-system/claude/fix-task-creation-swipe-6x9ll (c2caf37)
 - fix: employee task creation RLS + add swipe day navigation (53506ba)
 
-<!-- last-commit: c2caf37c6eb017d17a0b6f41671d3070da46bad5 -->
 
 ## [2026-03-29]
 
