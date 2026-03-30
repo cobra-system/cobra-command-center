@@ -1076,7 +1076,9 @@ export type Database = {
         Row: {
           assignee_id: string | null
           assignee_name: string | null
+          completed_at: string | null
           created_at: string
+          created_by: string | null
           day_of_month: number | null
           day_of_week: number | null
           days_before: number | null
@@ -1101,7 +1103,9 @@ export type Database = {
         Insert: {
           assignee_id?: string | null
           assignee_name?: string | null
+          completed_at?: string | null
           created_at?: string
+          created_by?: string | null
           day_of_month?: number | null
           day_of_week?: number | null
           days_before?: number | null
@@ -1126,7 +1130,9 @@ export type Database = {
         Update: {
           assignee_id?: string | null
           assignee_name?: string | null
+          completed_at?: string | null
           created_at?: string
+          created_by?: string | null
           day_of_month?: number | null
           day_of_week?: number | null
           days_before?: number | null

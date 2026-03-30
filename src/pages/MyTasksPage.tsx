@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { CheckCircle2, Circle, Flame, Trophy, Star, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import confetti from "canvas-confetti";
-import EmployeeTaskCreateDialog from "@/components/tasks/EmployeeTaskCreateDialog";
+import TaskCreateDialog from "@/components/tasks/TaskCreateDialog";
 
 const motivationalMessages = [
   "בוא נסגור את היום! 💪",
@@ -312,7 +312,7 @@ export default function MyTasksPage() {
         )}
       </div>
 
-      <EmployeeTaskCreateDialog
+      <TaskCreateDialog
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
       />

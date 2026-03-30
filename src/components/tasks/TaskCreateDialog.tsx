@@ -47,7 +47,7 @@ interface Props {
 export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props) {
   const { refreshTasks, profiles, tasks, goals } = useData();
   const { currentUser } = useAuth();
-  const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
+  const assignableUsers = profiles;
 
   // Derive milestone options from DB goals + existing task milestones
   const existingMilestones = useMemo(() => {
@@ -144,6 +144,7 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
         assignee_id: assigneeId || null,
         assignee_name: assignee?.name || null,
         is_active: true,
+        created_by: currentUser?.id || null,
       };
 
       // Attach end_date if the DB column exists (graceful fallback)
@@ -179,6 +180,7 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
         start_date: startDate?.toISOString() || null,
         due_date: dueDate?.toISOString() || null,
         is_daily: false,
+        created_by: currentUser?.id || null,
       };
 
       const { data, error } = await supabase.from("tasks").insert(taskData).select("id").single();
