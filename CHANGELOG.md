@@ -11,9 +11,14 @@
 
 ## [2026-03-30]
 
+- fix: gracefully handle missing created_by column in task creation (39547ff)
+
+<!-- last-commit: 5fd136c0a599e245002c5ebe21d9a2f6e7adde12 -->
+
+## [2026-03-30]
+
 - fix: enable full task creation for all users and fix created_by column error (e85a38d)
 
-<!-- last-commit: c390cae93f20eed2ab3b170258c1975bf4b9a0f1 -->
 
 ## [2026-03-30]
 
