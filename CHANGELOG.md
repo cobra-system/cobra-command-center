@@ -11,9 +11,14 @@
 
 ## [2026-03-30]
 
+- fix: resolve RLS policy violation blocking non-manager task creation (b771506)
+
+<!-- last-commit: ab122c5e0142e92742e871378a3376a29164be37 -->
+
+## [2026-03-30]
+
 - fix: gracefully handle missing created_by column in task creation (39547ff)
 
-<!-- last-commit: 5fd136c0a599e245002c5ebe21d9a2f6e7adde12 -->
 
 ## [2026-03-30]
 
