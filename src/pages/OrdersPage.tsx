@@ -154,11 +154,14 @@ export default function OrdersPage() {
       if (statusFilter !== "all" && o.status !== statusFilter) return false;
       if (priorityFilter !== "all" && o.priority !== priorityFilter) return false;
       if (paymentFilter !== "all" && (o as any).payment_status !== paymentFilter) return false;
-      if (workflowFilter !== "all") {
+      {
         const wf = orderWorkflows[o.id];
-        if (workflowFilter === "active" && (!wf || wf.status !== "active")) return false;
-        if (workflowFilter === "completed" && (!wf || wf.status !== "completed")) return false;
-        if (workflowFilter === "none" && wf) return false;
+        if (workflowFilter === "all") {
+          // By default, hide completed workflow orders (archive)
+          if (wf && wf.status === "completed") return false;
+        } else if (workflowFilter === "active" && (!wf || wf.status !== "active")) return false;
+        else if (workflowFilter === "completed" && (!wf || wf.status !== "completed")) return false;
+        else if (workflowFilter === "none" && wf) return false;
       }
       if (search) {
         const q = search.toLowerCase();
@@ -345,7 +348,7 @@ export default function OrdersPage() {
           <SelectContent>
             <SelectItem value="all">כל התהליכים</SelectItem>
             <SelectItem value="active">תהליך פעיל</SelectItem>
-            <SelectItem value="completed">תהליך הושלם</SelectItem>
+            <SelectItem value="completed">ארכיון (הושלמו)</SelectItem>
             <SelectItem value="none">ללא תהליך</SelectItem>
           </SelectContent>
         </Select>
