@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -235,14 +235,14 @@ export default function WasteManagementPage() {
       in_use: item.in_use,
       recommendations: item.recommendations,
     });
-    if (isMobile && !isManager) {
+    if (isMobile) {
       setDrawerOpen(true);
     }
   };
 
   const openNewItemDrawer = () => {
     setEditingRow({ ...emptyRow });
-    if (isMobile && !isManager) {
+    if (isMobile) {
       setDrawerOpen(true);
     }
   };
@@ -265,7 +265,7 @@ export default function WasteManagementPage() {
   // ──────────────────────────────────────
   // MOBILE EMPLOYEE VIEW
   // ──────────────────────────────────────
-  if (isMobile && !isManager) {
+  if (isMobile) {
     return (
       <div className="flex flex-col min-h-[calc(100dvh-8rem)] pb-24">
         {/* Header */}
@@ -315,6 +315,22 @@ export default function WasteManagementPage() {
               {summaryStats.notInUse} לא בשימוש
             </span>
           </div>
+
+          {/* Manager employee filter */}
+          {isManager && employees.length > 0 && (
+            <select
+              value={filterEmployee}
+              onChange={(e) => setFilterEmployee(e.target.value)}
+              className="mt-3 w-full h-10 rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="all">כל העובדים</option>
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.name}
+                </option>
+              ))}
+            </select>
+          )}
 
           {/* Search bar - expandable */}
           {showSearch && (
@@ -382,6 +398,11 @@ export default function WasteManagementPage() {
                           <Pencil className="h-3.5 w-3.5 text-muted-foreground/40 flex-shrink-0" />
                         )}
                       </div>
+                      {isManager && item.created_by_name && (
+                        <p className="text-xs text-muted-foreground">
+                          {item.created_by_name}
+                        </p>
+                      )}
                       {item.sku && (
                         <p className="text-xs text-muted-foreground font-mono flex items-center gap-1">
                           <Hash className="h-3 w-3" />
@@ -424,11 +445,15 @@ export default function WasteManagementPage() {
                     {/* Quick toggle + delete */}
                     {hasEdit && (
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <Switch
-                          checked={item.in_use}
-                          onCheckedChange={() => handleInlineToggle(item)}
-                          className="scale-90"
-                        />
+                        <div className="flex items-center gap-1.5">
+                          <Checkbox
+                            checked={item.in_use}
+                            onCheckedChange={() => handleInlineToggle(item)}
+                          />
+                          <span className="text-xs text-muted-foreground">
+                            {item.in_use ? "כן" : "לא"}
+                          </span>
+                        </div>
                         <Button
                           size="icon"
                           variant="ghost"
@@ -546,7 +571,14 @@ export default function WasteManagementPage() {
                 </div>
 
                 {/* In use toggle */}
-                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl">
+                <div className="flex items-center gap-3 p-4 bg-muted/30 rounded-xl">
+                  <Checkbox
+                    id="mobile-inuse"
+                    checked={editingRow.in_use}
+                    onCheckedChange={(checked) =>
+                      setEditingRow({ ...editingRow, in_use: !!checked })
+                    }
+                  />
                   <Label
                     htmlFor="mobile-inuse"
                     className="text-sm font-medium flex items-center gap-2 cursor-pointer"
@@ -554,13 +586,6 @@ export default function WasteManagementPage() {
                     <ToggleRight className="h-4 w-4 text-primary" />
                     בשימוש
                   </Label>
-                  <Switch
-                    id="mobile-inuse"
-                    checked={editingRow.in_use}
-                    onCheckedChange={(checked) =>
-                      setEditingRow({ ...editingRow, in_use: checked })
-                    }
-                  />
                 </div>
 
                 {/* Recommendations */}
@@ -798,12 +823,15 @@ export default function WasteManagementPage() {
                   />
                 </TableCell>
                 <TableCell className="text-center">
-                  <Switch
-                    checked={editingRow.in_use}
-                    onCheckedChange={(checked) =>
-                      setEditingRow({ ...editingRow, in_use: checked })
-                    }
-                  />
+                  <div className="flex items-center justify-center gap-1.5">
+                    <Checkbox
+                      checked={editingRow.in_use}
+                      onCheckedChange={(checked) =>
+                        setEditingRow({ ...editingRow, in_use: !!checked })
+                      }
+                    />
+                    <span className="text-sm">{editingRow.in_use ? "כן" : "לא"}</span>
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Input
@@ -892,12 +920,15 @@ export default function WasteManagementPage() {
                     />
                   </TableCell>
                   <TableCell className="text-center">
-                    <Switch
-                      checked={editingRow.in_use}
-                      onCheckedChange={(checked) =>
-                        setEditingRow({ ...editingRow, in_use: checked })
-                      }
-                    />
+                    <div className="flex items-center justify-center gap-1.5">
+                      <Checkbox
+                        checked={editingRow.in_use}
+                        onCheckedChange={(checked) =>
+                          setEditingRow({ ...editingRow, in_use: !!checked })
+                        }
+                      />
+                      <span className="text-sm">{editingRow.in_use ? "כן" : "לא"}</span>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Input
@@ -955,10 +986,13 @@ export default function WasteManagementPage() {
                   </TableCell>
                   <TableCell className="text-center">
                     {hasEdit ? (
-                      <Switch
-                        checked={item.in_use}
-                        onCheckedChange={() => handleInlineToggle(item)}
-                      />
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Checkbox
+                          checked={item.in_use}
+                          onCheckedChange={() => handleInlineToggle(item)}
+                        />
+                        <span className="text-sm">{item.in_use ? "כן" : "לא"}</span>
+                      </div>
                     ) : (
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
