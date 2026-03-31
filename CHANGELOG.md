@@ -9,11 +9,16 @@
 
 ---
 
+## [2026-03-31]
+
+- הסתרת הזמנות שהושלמו מטבלת ההזמנות ומהדשבורד (f79964b)
+
+<!-- last-commit: 3e60b1241268d16bbf57c913f931a9b850f94427 -->
+
 ## [2026-03-30]
 
 - fix: resolve RLS policy violation blocking non-manager task creation (b771506)
 
-<!-- last-commit: ab122c5e0142e92742e871378a3376a29164be37 -->
 
 ## [2026-03-30]
 
