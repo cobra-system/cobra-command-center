@@ -14,6 +14,7 @@ import {
   Wrench,
   CalendarClock,
   BarChart3,
+  Recycle,
   MoreHorizontal,
   type LucideIcon,
 } from "lucide-react";
@@ -35,6 +36,7 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
   issues: Wrench,
   reorder: CalendarClock,
   reports: BarChart3,
+  waste: Recycle,
 };
 
 interface NavItem {

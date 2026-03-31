@@ -23,6 +23,7 @@ import {
   Wrench,
   ChevronLeft,
   Users,
+  Recycle,
 } from "lucide-react";
 import { useState } from "react";
 import cobraLogo from "@/assets/cobra-logo.png";
@@ -38,6 +39,7 @@ const defaultNavItems = [
   { to: "/documents", icon: "FileText", label: "מסמכים" },
   { to: "/suppliers", icon: "Truck", label: "ספקים" },
   { to: "/issues", icon: "Wrench", label: "תקלות" },
+  { to: "/waste-management", icon: "Recycle", label: "ניהול בלאי" },
   { to: "/reorder", icon: "CalendarClock", label: "תכנון רכש" },
   { to: "/reports", icon: "BarChart3", label: "דוחות" },
   { to: "/settings", icon: "Settings", label: "הגדרות" },
@@ -45,7 +47,7 @@ const defaultNavItems = [
 
 const iconMap: Record<string, any> = {
   LayoutDashboard, Package, ShoppingCart, Truck, ListTodo,
-  Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Users,
+  Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Users, Recycle,
 };
 
 const NAV_ORDER_KEY = "cobra-nav-order";

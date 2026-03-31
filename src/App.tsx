@@ -32,6 +32,7 @@ import InventoryPage from "@/pages/InventoryPage";
 import NotFound from "@/pages/NotFound";
 import IssuesPage from "@/pages/IssuesPage";
 import MeetingsPage from "@/pages/MeetingsPage";
+import WasteManagementPage from "@/pages/WasteManagementPage";
 const queryClient = new QueryClient();
 
 function RequireManager() {
@@ -100,6 +101,7 @@ function AppRoutes() {
         <Route path="/documents/:id" element={<DocumentDetailPage />} />
         <Route path="/reorder" element={<ReorderPage />} />
         <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/waste-management" element={<WasteManagementPage />} />
         <Route path="/compliance" element={<Navigate to="/documents" replace />} />
       </Route>
 

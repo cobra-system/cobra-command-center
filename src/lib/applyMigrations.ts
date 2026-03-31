@@ -7,7 +7,7 @@
 import { supabase } from "@/lib/supabase";
 
 const MIGRATION_KEY = "cobra_migrations_applied"
-const CURRENT_VERSION = "20260330_allow_any_user_task_assignment"
+const CURRENT_VERSION = "20260331_add_waste_items_table"
 
 const INTERNATIONAL_TEMPLATE_ID = "b5a990c9-579d-4d9f-8e9a-90a8856ad00b";
 const ISRAEL_TEMPLATE_ID = "c7b881d0-68ae-4e0a-9f1b-a1b9967be11c";
@@ -250,6 +250,50 @@ export async function applyMigrations() {
       console.error("❌ Task insert policy was not updated. Non-manager users may not be able to create tasks.");
       // Do NOT set localStorage — migration will retry on next load
       return false;
+    }
+
+    // Migration 6: Create waste_items table
+    const wasteItemsSqls = [
+      `CREATE TABLE IF NOT EXISTS public.waste_items (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        product_name TEXT NOT NULL,
+        sku TEXT NOT NULL DEFAULT '',
+        quantity INTEGER NOT NULL DEFAULT 0,
+        in_use BOOLEAN NOT NULL DEFAULT false,
+        recommendations TEXT DEFAULT '',
+        created_by UUID,
+        created_by_name TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );`,
+      `ALTER TABLE public.waste_items ENABLE ROW LEVEL SECURITY;`,
+      `DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='waste_items' AND policyname='Authenticated users can read waste_items') THEN
+          CREATE POLICY "Authenticated users can read waste_items" ON public.waste_items FOR SELECT TO authenticated USING (true);
+        END IF;
+      END $$;`,
+      `DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='waste_items' AND policyname='Authenticated users can insert waste_items') THEN
+          CREATE POLICY "Authenticated users can insert waste_items" ON public.waste_items FOR INSERT TO authenticated WITH CHECK (true);
+        END IF;
+      END $$;`,
+      `DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='waste_items' AND policyname='Authenticated users can update waste_items') THEN
+          CREATE POLICY "Authenticated users can update waste_items" ON public.waste_items FOR UPDATE TO authenticated USING (true);
+        END IF;
+      END $$;`,
+      `DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='waste_items' AND policyname='Authenticated users can delete waste_items') THEN
+          CREATE POLICY "Authenticated users can delete waste_items" ON public.waste_items FOR DELETE TO authenticated USING (true);
+        END IF;
+      END $$;`,
+    ];
+    for (const sql of wasteItemsSqls) {
+      try {
+        await supabase.rpc("exec_sql" as any, { sql });
+      } catch {
+        console.warn("waste_items migration step may need to be applied via Supabase dashboard");
+      }
     }
 
     localStorage.setItem(MIGRATION_KEY, CURRENT_VERSION)

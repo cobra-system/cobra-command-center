@@ -18,6 +18,7 @@ export const MODULES: ModuleDefinition[] = [
   { key: "issues", label: "תקלות", route: "/issues" },
   { key: "reorder", label: "תכנון רכש", route: "/reorder" },
   { key: "reports", label: "דוחות", route: "/reports" },
+  { key: "waste", label: "ניהול בלאי", route: "/waste-management" },
 ];
 
 export function canView(permissions: RolePermissions, moduleKey: string): boolean {
