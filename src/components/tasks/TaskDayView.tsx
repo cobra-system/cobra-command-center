@@ -10,12 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import confetti from "canvas-confetti";
 import RecurringTasksPanel from "@/components/tasks/RecurringTasksPanel";
 import TaskCreateDialog from "@/components/tasks/TaskCreateDialog";
+import TaskEditDialog from "@/components/tasks/TaskEditDialog";
 import { OverdueTasksPanel } from "@/components/tasks/OverdueTasksPanel";
 
 const dayNames = ["יום ראשון", "יום שני", "יום שלישי", "יום רביעי", "יום חמישי", "יום שישי", "שבת"];
@@ -26,9 +24,7 @@ export default function TaskDayView() {
   const [selectedDay, setSelectedDay] = useState(new Date());
   const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [editing, setEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState("");
-  const [editDescription, setEditDescription] = useState("");
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [recurringTasks, setRecurringTasks] = useState<RecurringTask[]>([]);
@@ -54,9 +50,6 @@ export default function TaskDayView() {
     if (task) {
       await refreshTasks();
       setSelectedTask(task);
-      setEditTitle(task.title);
-      setEditDescription(task.description || "");
-      setEditing(false);
     }
   }, [selectedDay, refreshTasks]);
 
@@ -122,21 +115,8 @@ export default function TaskDayView() {
     await updateTaskStatus(taskId, newStatus);
   }, [updateTaskStatus]);
 
-  const handleSaveTask = async () => {
-    if (!selectedTask) return;
-    await updateTask(selectedTask.id, {
-      title: editTitle.trim(),
-      description: editDescription.trim() || null,
-    });
-    setSelectedTask({ ...selectedTask, title: editTitle, description: editDescription });
-    setEditing(false);
-  };
-
   const handleSelectTask = (task: Task) => {
     setSelectedTask(task);
-    setEditTitle(task.title);
-    setEditDescription(task.description || "");
-    setEditing(false);
   };
 
   // SVG progress ring
@@ -344,80 +324,69 @@ export default function TaskDayView() {
       </div>
 
       {/* Task Detail Modal */}
-      <Dialog open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTask(null)}>
+      <Dialog open={!!selectedTask && !editingTask} onOpenChange={(open) => !open && setSelectedTask(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
-              <span>{editing ? "עריכת משימה" : "פירוט משימה"}</span>
-              {!editing && (
-                <Button variant="ghost" size="sm" onClick={() => setEditing(true)} className="text-xs">
-                  ✏️ עריכה
-                </Button>
-              )}
+              <span>פירוט משימה</span>
+              <Button variant="ghost" size="sm" onClick={() => { setEditingTask(selectedTask); setSelectedTask(null); }} className="text-xs">
+                ✏️ עריכה
+              </Button>
             </DialogTitle>
           </DialogHeader>
 
           {selectedTask && (
-            editing ? (
-              <div className="space-y-3 pt-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">כותרת</Label>
-                  <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">תיאור</Label>
-                  <Textarea value={editDescription} onChange={e => setEditDescription(e.target.value)} rows={3} />
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={handleSaveTask} className="flex-1">שמור</Button>
-                  <Button variant="outline" onClick={() => setEditing(false)} className="flex-1">ביטול</Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4 pt-2">
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground">{selectedTask.title}</h3>
-                  {selectedTask.description && (
-                    <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{selectedTask.description}</p>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-muted/30 rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground mb-1">עדיפות</p>
-                    <PriorityBadge priority={selectedTask.priority as Priority} />
-                  </div>
-                  <div className="bg-muted/30 rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground mb-1">סטטוס</p>
-                    <p className="text-sm font-medium text-foreground">
-                      {selectedTask.status === "DONE" ? "הושלם" : "לביצוע"}
-                    </p>
-                  </div>
-                  <div className="bg-muted/30 rounded-lg p-3 col-span-2">
-                    <p className="text-xs text-muted-foreground mb-1">משויך ל</p>
-                    <p className="text-sm font-medium text-foreground">{selectedTask.assignee_name || "לא משויך"}</p>
-                  </div>
-                </div>
-
-                {selectedTask.notes && (
-                  <div className="bg-muted/30 rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground mb-1">הערות</p>
-                    <p className="text-sm text-foreground whitespace-pre-wrap">{selectedTask.notes}</p>
-                  </div>
+            <div className="space-y-4 pt-2">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">{selectedTask.title}</h3>
+                {selectedTask.description && (
+                  <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{selectedTask.description}</p>
                 )}
-
-                <Button
-                  onClick={() => handleToggle(selectedTask.id, selectedTask.status)}
-                  className="w-full"
-                  variant={selectedTask.status === "DONE" ? "outline" : "default"}
-                >
-                  {selectedTask.status === "DONE" ? "סמן כלא הושלם" : "סמן כהושלם"}
-                </Button>
               </div>
-            )
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-muted/30 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground mb-1">עדיפות</p>
+                  <PriorityBadge priority={selectedTask.priority as Priority} />
+                </div>
+                <div className="bg-muted/30 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground mb-1">סטטוס</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {selectedTask.status === "DONE" ? "הושלם" : selectedTask.status === "IN_PROGRESS" ? "בביצוע" : selectedTask.status === "BLOCKED" ? "חסום" : "לביצוע"}
+                  </p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-3 col-span-2">
+                  <p className="text-xs text-muted-foreground mb-1">משויך ל</p>
+                  <p className="text-sm font-medium text-foreground">{selectedTask.assignee_name || "לא משויך"}</p>
+                </div>
+              </div>
+
+              {selectedTask.notes && (
+                <div className="bg-muted/30 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground mb-1">הערות</p>
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{selectedTask.notes}</p>
+                </div>
+              )}
+
+              <Button
+                onClick={() => handleToggle(selectedTask.id, selectedTask.status)}
+                className="w-full"
+                variant={selectedTask.status === "DONE" ? "outline" : "default"}
+              >
+                {selectedTask.status === "DONE" ? "סמן כלא הושלם" : "סמן כהושלם"}
+              </Button>
+            </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Task Edit Dialog */}
+      <TaskEditDialog
+        open={!!editingTask}
+        onOpenChange={(open) => !open && setEditingTask(null)}
+        task={editingTask}
+        onSaved={() => setEditingTask(null)}
+      />
 
       {/* Settings popup */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>

@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { cn } from "@/lib/utils";
 import RecurringTasksPanel from "@/components/tasks/RecurringTasksPanel";
 import TaskCreateDialog from "@/components/tasks/TaskCreateDialog";
-import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
+import TaskEditDialog from "@/components/tasks/TaskEditDialog";
 
 const dayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 
@@ -432,15 +432,12 @@ export default function TaskWeeklyView() {
         </DialogContent>
       </Dialog>
 
-      {/* Task Detail Dialog */}
-      <TaskDetailDialog
+      {/* Task Edit Dialog */}
+      <TaskEditDialog
+        open={!!selectedTask}
+        onOpenChange={(open) => !open && setSelectedTask(null)}
         task={selectedTask}
-        onClose={() => setSelectedTask(null)}
-        profiles={profiles}
-        currentUser={currentUser}
-        onUpdate={updateTask}
-        onStatusChange={updateTaskStatus}
-        onDelete={deleteTask}
+        onSaved={() => setSelectedTask(null)}
       />
     </div>
   );
