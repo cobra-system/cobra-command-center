@@ -11,9 +11,14 @@
 
 ## [2026-03-31]
 
+- feat: redesign mobile employee waste management with card-based UI (27de66c)
+
+<!-- last-commit: f1c0dce0f121472ef7f3982dc441848c8baffe11 -->
+
+## [2026-03-31]
+
 - feat: add waste management page (ניהול בלאי) (73b1698)
 
-<!-- last-commit: 285ca208fc87a7f1936bfbe41236796c5965421e -->
 
 ## [2026-03-31]
 
