@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
+import TaskEditDialog from "@/components/tasks/TaskEditDialog";
 import RecurringTasksPanel from "@/components/tasks/RecurringTasksPanel";
 import TaskCreateDialog from "@/components/tasks/TaskCreateDialog";
 
@@ -377,15 +377,12 @@ export default function TaskMonthlyView() {
         </DialogContent>
       </Dialog>
 
-      {/* Task Detail Dialog */}
-      <TaskDetailDialog
+      {/* Task Edit Dialog */}
+      <TaskEditDialog
+        open={!!selectedTask}
+        onOpenChange={(open) => !open && setSelectedTask(null)}
         task={selectedTask}
-        onClose={() => setSelectedTask(null)}
-        profiles={profiles}
-        currentUser={currentUser}
-        onUpdate={updateTask}
-        onStatusChange={updateTaskStatus}
-        onDelete={deleteTask}
+        onSaved={() => setSelectedTask(null)}
       />
 
       {/* Settings popup */}

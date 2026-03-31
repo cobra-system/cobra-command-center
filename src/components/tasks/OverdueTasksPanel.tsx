@@ -9,7 +9,7 @@ import { PriorityBadge } from "@/components/PriorityBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
+import TaskEditDialog from "@/components/tasks/TaskEditDialog";
 import { toast } from "sonner";
 
 const DISMISSAL_KEY = "overdue-panel-dismissed-date";
@@ -214,14 +214,11 @@ export function OverdueTasksPanel({
       </div>
 
       {/* Full edit dialog */}
-      <TaskDetailDialog
+      <TaskEditDialog
+        open={!!detailTask}
+        onOpenChange={(open) => !open && setDetailTask(null)}
         task={detailTask}
-        onClose={() => setDetailTask(null)}
-        profiles={profiles}
-        currentUser={currentUser}
-        onUpdate={onUpdate}
-        onStatusChange={onStatusChange}
-        onDelete={onDelete}
+        onSaved={() => setDetailTask(null)}
       />
     </>
   );

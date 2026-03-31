@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { useData, useAuth, type Task, type TaskStatus, type Goal } from "@/contexts/AppContext";
-import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
+import TaskEditDialog from "@/components/tasks/TaskEditDialog";
 import TaskCreateDialog from "@/components/tasks/TaskCreateDialog";
 import {
   addDays,
@@ -1008,15 +1008,12 @@ export default function TaskGanttView() {
         </div>
       )}
 
-      {/* Task detail dialog */}
-      <TaskDetailDialog
+      {/* Task Edit Dialog */}
+      <TaskEditDialog
+        open={!!selectedTask}
+        onOpenChange={(open) => !open && setSelectedTask(null)}
         task={selectedTask}
-        onClose={() => setSelectedTask(null)}
-        profiles={profiles}
-        currentUser={currentUser}
-        onUpdate={updateTask}
-        onStatusChange={updateTaskStatus}
-        onDelete={deleteTask}
+        onSaved={() => setSelectedTask(null)}
       />
 
       {/* Task create dialog */}
