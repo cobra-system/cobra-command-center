@@ -123,14 +123,15 @@ export async function applyMigrations() {
   try {
     const applied = localStorage.getItem(MIGRATION_KEY)
 
-    // Even if localStorage says current version, verify the goals table actually exists
+    // Even if localStorage says current version, verify critical tables actually exist
     if (applied === CURRENT_VERSION) {
       const goalsExist = await verifyTableExists("goals");
-      if (goalsExist) {
+      const wasteItemsExist = await verifyTableExists("waste_items");
+      if (goalsExist && wasteItemsExist) {
         return true;
       }
       // Table doesn't exist despite localStorage — clear flag and re-run
-      console.warn("⚠️ goals table not found despite migration flag. Re-running migrations...");
+      console.warn("⚠️ Required tables not found despite migration flag. Re-running migrations...");
       localStorage.removeItem(MIGRATION_KEY);
     }
 
@@ -290,10 +291,40 @@ export async function applyMigrations() {
     ];
     for (const sql of wasteItemsSqls) {
       try {
-        await supabase.rpc("exec_sql" as any, { sql });
+        const { error } = await supabase.rpc("exec_sql" as any, { sql });
+        if (error) {
+          console.warn("waste_items migration step failed:", error.message);
+        }
       } catch {
         console.warn("waste_items migration step may need to be applied via Supabase dashboard");
       }
+    }
+
+    // Verify the waste_items table was actually created
+    const wasteItemsCreated = await verifyTableExists("waste_items");
+    if (!wasteItemsCreated) {
+      console.error(
+        "❌ waste_items table was not created. Please run the following SQL in Supabase SQL Editor:\n\n" +
+        "CREATE TABLE IF NOT EXISTS public.waste_items (\n" +
+        "  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n" +
+        "  product_name TEXT NOT NULL,\n" +
+        "  sku TEXT NOT NULL DEFAULT '',\n" +
+        "  quantity INTEGER NOT NULL DEFAULT 0,\n" +
+        "  in_use BOOLEAN NOT NULL DEFAULT false,\n" +
+        "  recommendations TEXT DEFAULT '',\n" +
+        "  created_by UUID,\n" +
+        "  created_by_name TEXT,\n" +
+        "  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n" +
+        "  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()\n" +
+        ");\n\n" +
+        "ALTER TABLE public.waste_items ENABLE ROW LEVEL SECURITY;\n\n" +
+        "CREATE POLICY \"Authenticated users can read waste_items\" ON public.waste_items FOR SELECT TO authenticated USING (true);\n" +
+        "CREATE POLICY \"Authenticated users can insert waste_items\" ON public.waste_items FOR INSERT TO authenticated WITH CHECK (true);\n" +
+        "CREATE POLICY \"Authenticated users can update waste_items\" ON public.waste_items FOR UPDATE TO authenticated USING (true);\n" +
+        "CREATE POLICY \"Authenticated users can delete waste_items\" ON public.waste_items FOR DELETE TO authenticated USING (true);"
+      );
+      // Do NOT set localStorage — migration will retry on next load
+      return false;
     }
 
     localStorage.setItem(MIGRATION_KEY, CURRENT_VERSION)
