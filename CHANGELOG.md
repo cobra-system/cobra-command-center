@@ -9,11 +9,17 @@
 
 ---
 
+## [2026-04-01]
+
+- fix: ensure waste_items table is created and verified before marking migration complete (997466d)
+- fix: enable waste item creation for all users on mobile and replace toggle with checkbox (f7f554c)
+
+<!-- last-commit: 2ec0f17a501feafcb0717b951a59be8cb1a52848 -->
+
 ## [2026-03-31]
 
 - feat: redesign mobile employee waste management with card-based UI (27de66c)
 
-<!-- last-commit: f1c0dce0f121472ef7f3982dc441848c8baffe11 -->
 
 ## [2026-03-31]
 
