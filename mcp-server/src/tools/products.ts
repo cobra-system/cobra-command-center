@@ -68,7 +68,6 @@ export function registerProductTools(server: McpServer) {
       monthly_order: z.number().optional().describe("Monthly order quantity"),
       monthly_sales_avg: z.number().optional().describe("Monthly sales average"),
       lead_time_days: z.number().optional().describe("Lead time in days"),
-      sap_code: z.string().optional().describe("SAP code"),
       supplier_origin: z.string().optional().describe("Supplier origin country"),
       shipping: z.string().optional().describe("Shipping method/info"),
       end_product_image: z.string().optional().describe("End product image URL"),
@@ -112,13 +111,12 @@ export function registerProductTools(server: McpServer) {
       incoming_qty: z.number().default(0).describe("Incoming quantity"),
       notes: z.string().optional().describe("Product notes"),
       description: z.string().optional().describe("Product description"),
-      sap_code: z.string().optional().describe("SAP code"),
       lead_time_days: z.number().optional().describe("Lead time in days"),
       supplier_origin: z.string().optional().describe("Supplier origin country"),
       shipping: z.string().optional().describe("Shipping method/info"),
       reorder_point: z.number().optional().describe("Reorder point threshold"),
     },
-    async ({ name, sku, category, division, product_type, supplier, purchase_price, sale_price, stock_qty, incoming_qty, notes, description, sap_code, lead_time_days, supplier_origin, shipping, reorder_point }) => {
+    async ({ name, sku, category, division, product_type, supplier, purchase_price, sale_price, stock_qty, incoming_qty, notes, description, lead_time_days, supplier_origin, shipping, reorder_point }) => {
       const { data, error } = await supabase
         .from("products")
         .insert({
@@ -134,7 +132,6 @@ export function registerProductTools(server: McpServer) {
           incoming_qty,
           notes: notes || null,
           description: description || null,
-          sap_code: sap_code || null,
           lead_time_days: lead_time_days ?? null,
           supplier_origin: supplier_origin || null,
           shipping: shipping || null,
