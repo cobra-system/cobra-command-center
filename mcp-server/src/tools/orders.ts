@@ -297,7 +297,7 @@ export function registerOrderTools(server: McpServer) {
         return { content: [{ type: "text" as const, text: JSON.stringify({ orders, matched_documents: docs }, null, 2) }] };
       }
 
-      // Strategy 3: partial match in notes
+      // Strategy 2: partial match in notes
       const { data: byNotes } = await supabase
         .from("orders")
         .select("*")
