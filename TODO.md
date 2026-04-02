@@ -104,7 +104,7 @@
 
 - [x] **Add rate limiting on auth endpoints** 🔴
   - Created `supabase/functions/_shared/rate-limit.ts` with in-memory sliding window
-  - Rate limiting added to: `create-employee` (5/min), `manage-employee` (20/min), `sap-proxy` (30/min)
+  - Rate limiting added to: `create-employee` (5/min), `manage-employee` (20/min)
 
 - [x] **Strengthen password requirements** 🟠
   - Created `supabase/functions/_shared/password.ts` with validation utility
@@ -207,40 +207,40 @@
 
 ## 5. Testing & Validation 🟠
 
-- [ ] **Add unit tests for business logic** 🟠
-  - Currently only 1 example test: `src/test/example.test.ts`
-  - Add tests for: `src/lib/permissions.ts`, `src/lib/advanceOverdueTasksUtils.ts`, `src/lib/recurringUtils.ts`, `src/lib/sortUtils.ts`
-  - Add tests for utility functions and data transformations in AppContext
-  - Target: cover all pure functions and business rules
+- [x] **Add unit tests for business logic** 🟠
+  - 71 tests across 5 test files covering all pure utility functions
+  - `permissions.test.ts` (15 tests): canView, canEdit, getModuleKeyFromRoute, getFullPermissionsForManager
+  - `sortUtils.test.ts` (23 tests): compareValues, createComparator, sortArray, filterArray (with Hebrew locale)
+  - `advanceOverdueTasksUtils.test.ts` (10 tests): overdue filtering, date advancement, summary formatting
+  - `errorHandler.test.ts` (8 tests): error extraction from various types, toast integration
+  - `recurringUtils.test.ts` (14 tests): all frequency types (daily, weekly, biweekly, monthly, quarterly, biannual, annual)
 
-- [ ] **Add Zod validation schemas for all forms** 🟠
-  - Zod is installed but barely used
-  - Files to add validation: `src/components/products/ProductFormDialog.tsx`, `src/pages/SettingsPage.tsx` (user creation), `src/components/orders/` (order creation)
-  - Create schemas in `src/lib/schemas/` directory: `productSchema.ts`, `orderSchema.ts`, `supplierSchema.ts`, `taskSchema.ts`
-  - Integrate with React Hook Form using `@hookform/resolvers/zod`
+- [x] **Add Zod validation schemas for all forms** 🟠
+  - Created `src/lib/schemas/`: productSchema, orderSchema, supplierSchema, taskSchema
+  - Schemas enforce: non-negative prices/quantities, required fields, lead_time_days 1-365 range
+  - Matches database CHECK constraints from migration `20260331000001`
+  - Integrated into `ProductFormDialog.tsx` with safeParse + Hebrew error messages
+  - _Remaining:_ Integrate into NewOrderDialog, SettingsPage employee creation forms
 
-- [ ] **Add numeric bounds validation** 🟠
-  - File: `src/components/products/ProductFormDialog.tsx` (line ~93) - `Number()` conversion without bounds
-  - Add min/max validation for: quantities (>= 0), prices (>= 0), lead times (1-365), stock levels (>= 0)
-  - Prevent negative values for all quantity and price fields across all forms
+- [x] **Add numeric bounds validation** 🟠
+  - Merged into Zod schemas: quantities >= 0, prices >= 0, lead_time_days 1-365
+  - ProductFormDialog now validates through schema before submit
+  - Component-level validation rejects negative values with Hebrew error messages
 
 - [ ] **Set up E2E testing framework** 🟡
-  - Install Playwright or Cypress
-  - Create E2E tests for critical flows: login, product CRUD, order creation, task management
-  - Add to CI pipeline
-  - Configure test database for E2E runs
+  - _Deferred to future sprint — requires Playwright/Cypress setup + test database configuration_
 
-- [ ] **Configure test coverage reporting** 🟡
-  - File: `vitest.config.ts`
-  - Add coverage configuration with `@vitest/coverage-v8`
-  - Set minimum coverage thresholds (e.g., 60% for statements)
-  - Add coverage report to CI pipeline
+- [x] **Configure test coverage reporting** 🟡
+  - Installed `@vitest/coverage-v8`
+  - Configured in `vitest.config.ts` with v8 provider, targeting `src/lib/**`
+  - Added `test:coverage` npm script
+  - Reports: text (console) + HTML
 
-- [ ] **Validate environment variables on startup** 🟠
-  - Create `src/lib/envValidation.ts`
-  - Validate all required env vars: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SUPABASE_PROJECT_ID`
-  - Show clear error message if missing instead of runtime crash
-  - Create `.env.example` with all required variables documented
+- [x] **Validate environment variables on startup** 🟠
+  - `src/lib/supabase.ts` now validates: presence of VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY
+  - Added URL format validation (must start with `https://`)
+  - Clear error messages listing which vars are missing, with .env.example reference
+  - `.env.example` created with all required variables documented
 
 ---
 

@@ -9,9 +9,19 @@ import type { Database } from "@/integrations/supabase/types";
 const EXTERNAL_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const EXTERNAL_SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-if (!EXTERNAL_SUPABASE_URL || !EXTERNAL_SUPABASE_ANON_KEY) {
+const missingVars: string[] = [];
+if (!EXTERNAL_SUPABASE_URL) missingVars.push("VITE_SUPABASE_URL");
+if (!EXTERNAL_SUPABASE_ANON_KEY) missingVars.push("VITE_SUPABASE_PUBLISHABLE_KEY");
+if (missingVars.length > 0) {
   throw new Error(
-    "Missing required environment variables: VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY must be set"
+    `Missing required environment variables: ${missingVars.join(", ")}. ` +
+    "Copy .env.example to .env and fill in the values."
+  );
+}
+
+if (!EXTERNAL_SUPABASE_URL.startsWith("https://")) {
+  throw new Error(
+    "VITE_SUPABASE_URL must start with https:// — got: " + EXTERNAL_SUPABASE_URL
   );
 }
 
