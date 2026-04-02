@@ -1,6 +1,6 @@
 /**
- * Simple in-memory rate limiter for Edge Functions.
- * Tracks requests by key (e.g., IP address) with a sliding window.
+ * Simple in-memory fixed-window rate limiter for Edge Functions.
+ * Tracks requests by key (e.g., IP address) within a time window.
  */
 
 interface RateLimitEntry {

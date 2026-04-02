@@ -1,5 +1,5 @@
 import { corsHeaders, handleCors } from "../_shared/cors.ts";
-import { verifyAuth, getSupabaseAdmin } from "../_shared/auth.ts";
+import { verifyAuth } from "../_shared/auth.ts";
 import { checkRateLimit, getClientId } from "../_shared/rate-limit.ts";
 import { validatePassword } from "../_shared/password.ts";
 
@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabaseAdmin = getSupabaseAdmin();
+    const supabaseAdmin = authResult.auth.supabaseAdmin;
 
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,

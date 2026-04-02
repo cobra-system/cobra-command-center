@@ -7,6 +7,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.98.0";
 export interface AuthResult {
   user: { id: string; email?: string };
   profile: { role: string } | null;
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
 }
 
 function getSupabaseAdmin() {
@@ -42,11 +43,15 @@ export async function verifyAuth(
   }
 
   // Fetch user profile for role checking
-  const { data: profile } = await supabaseAdmin
+  const { data: profile, error: profileError } = await supabaseAdmin
     .from("profiles")
     .select("role")
     .eq("id", user.id)
     .single();
+
+  if (profileError) {
+    return { error: "שגיאה בשליפת פרופיל המשתמש", status: 500 };
+  }
 
   // Check required roles if specified
   if (requiredRoles && requiredRoles.length > 0) {
@@ -59,6 +64,7 @@ export async function verifyAuth(
     auth: {
       user: { id: user.id, email: user.email },
       profile,
+      supabaseAdmin,
     },
   };
 }
