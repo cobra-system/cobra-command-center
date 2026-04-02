@@ -4,7 +4,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AppProvider, useAuth, useData } from "@/contexts/AppContext";
-import { OutlookProvider } from "@/contexts/OutlookContext";
 import { useState, useCallback } from "react";
 import SplashScreen from "@/components/SplashScreen";
 import { useMiddleClickNavigation } from "@/hooks/useMiddleClickNavigation";
@@ -80,7 +79,6 @@ function AppRoutes() {
 
       <Route element={<RequireManager />}>
         <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/sap" element={<Navigate to="/settings" replace />} />
       </Route>
 
       <Route element={<RequirePermission />}>
@@ -142,9 +140,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AppProvider>
-        <OutlookProvider>
-          <AppWithSplash />
-        </OutlookProvider>
+        <AppWithSplash />
       </AppProvider>
     </TooltipProvider>
   </QueryClientProvider>

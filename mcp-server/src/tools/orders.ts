@@ -274,22 +274,12 @@ export function registerOrderTools(server: McpServer) {
 
   server.tool(
     "get_order_by_reference",
-    "משיכת הזמנה לפי מספר PI / מספר הזמנה — Find an order by PI number, SAP doc entry, or reference string",
+    "משיכת הזמנה לפי מספר PI / מספר הזמנה — Find an order by PI number or reference string",
     {
-      reference: z.string().describe("PI number, SAP doc entry, or reference string to search for"),
+      reference: z.string().describe("PI number or reference string to search for"),
     },
     async ({ reference }) => {
-      // Strategy 1: exact match on sap_doc_entry
-      const { data: bySap } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("sap_doc_entry", reference);
-
-      if (bySap && bySap.length > 0) {
-        return { content: [{ type: "text" as const, text: JSON.stringify(bySap, null, 2) }] };
-      }
-
-      // Strategy 2: search in purchase_documents by document_name containing the reference
+      // Strategy 1: search in purchase_documents by document_name containing the reference
       const { data: docs } = await supabase
         .from("purchase_documents")
         .select("order_id, document_name, type")
