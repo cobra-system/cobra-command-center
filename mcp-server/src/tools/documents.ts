@@ -268,4 +268,62 @@ export function registerDocumentTools(server: McpServer) {
       return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
     }
   );
+
+  // --- document_products junction tools ---
+
+  server.tool(
+    "list_document_products",
+    "מוצרים מקושרים למסמך — List products linked to a purchase document",
+    {
+      document_id: z.string().uuid().describe("Document UUID"),
+    },
+    async ({ document_id }) => {
+      const { data, error } = await supabase
+        .from("document_products")
+        .select("*, products(name, sku)")
+        .eq("document_id", document_id)
+        .order("created_at", { ascending: true });
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "link_product_to_document",
+    "קישור מוצר למסמך — Link a product to a purchase document",
+    {
+      document_id: z.string().uuid().describe("Document UUID"),
+      product_id: z.string().uuid().describe("Product UUID"),
+    },
+    async ({ document_id, product_id }) => {
+      const { data, error } = await supabase
+        .from("document_products")
+        .insert({ document_id, product_id })
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Product linked to document:\n${JSON.stringify(data, null, 2)}` }] };
+    }
+  );
+
+  server.tool(
+    "unlink_product_from_document",
+    "הסרת קישור מוצר ממסמך — Remove a product-document link",
+    {
+      document_id: z.string().uuid().describe("Document UUID"),
+      product_id: z.string().uuid().describe("Product UUID"),
+    },
+    async ({ document_id, product_id }) => {
+      const { error } = await supabase
+        .from("document_products")
+        .delete()
+        .eq("document_id", document_id)
+        .eq("product_id", product_id);
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: "Product unlinked from document successfully" }] };
+    }
+  );
 }
