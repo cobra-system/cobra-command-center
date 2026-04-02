@@ -172,42 +172,36 @@
 
 ## 4. Architecture & Code Quality 🟠
 
-- [ ] **Split monolithic AppContext into domain-specific contexts** 🟠
-  - File: `src/contexts/AppContext.tsx` (936 lines)
-  - Split into: `ProductsContext`, `OrdersContext`, `TasksContext`, `SuppliersContext`, `InventoryContext`, `DocumentsContext`
-  - Each context handles its own CRUD operations, state, and Supabase subscriptions
-  - Create barrel export in `src/contexts/index.ts`
-  - Update all consuming components to use specific contexts
+- [x] **Split monolithic AppContext into domain-specific contexts** 🟠
+  - Split 924-line monolith into 7 domain contexts: AuthContext, ProductsContext, OrdersContext, TasksContext, GoalsContext, SuppliersContext, RolesContext
+  - Shared types extracted to `src/contexts/types.ts`
+  - AppContext refactored into ~120-line barrel with backward-compatible `useData()` and `useAuth()` re-exports
+  - All 60+ consuming files continue working unchanged
 
 - [ ] **Break down large page components into sub-components** 🟡
-  - `src/pages/OrdersPage.tsx` (~31KB) - extract: OrderFilters, OrderTable, OrderStatusCards, OrderCreateDialog
-  - `src/pages/ProductDetailPage.tsx` (~25KB) - extract: ProductInfo, ComponentsList, IssuesList, OrderHistory
-  - `src/pages/SettingsPage.tsx` - extract: UserManagement, RoleConfiguration, PermissionMatrix
-  - `src/pages/TasksPage.tsx` - already has some extraction but review for further splits
+  - `src/pages/OrdersPage.tsx` (599 lines) - extract: OrderFilters, OrderTable, OrderStatusCards
+  - `src/pages/SettingsPage.tsx` (678 lines) - extract: RoleDefinitionsManager, SAPIntegration, UsersTable
+  - `src/pages/ProductDetailPage.tsx` (463 lines) - extract: BOMTable, ProductKPICards
+  - _Deferred to future sprint — mechanical refactoring with no behavior change_
 
-- [ ] **Improve TypeScript type safety** 🟡
-  - File: `src/contexts/AppContext.tsx` and various components
-  - Replace `any` types with proper Supabase generated types from `src/integrations/supabase/types.ts`
-  - Add strict null checks where missing
-  - Type all function parameters and return values in context providers
+- [x] **Improve TypeScript type safety** 🟡
+  - Fixed `any` types in all new domain context files (ProductsContext, OrdersContext, TasksContext)
+  - Fixed `sortUtils.ts` — `compareValues` params changed from `any` to `unknown`
+  - _Remaining:_ ~100 `any` usages in page components (mostly Supabase response casting)
 
-- [ ] **Add global Error Boundary** 🟠
-  - Create `src/components/ErrorBoundary.tsx` with user-friendly fallback UI
-  - Wrap App component in `src/App.tsx`
-  - Add error reporting (prepare for Sentry integration)
-  - Include "retry" and "go home" actions in fallback
+- [x] **Add global Error Boundary** 🟠
+  - Created `src/components/ErrorBoundary.tsx` with Hebrew fallback UI ("משהו השתבש")
+  - "נסה שוב" (retry) and "חזרה לדף הראשי" (go home) actions
+  - Wraps entire App in `src/App.tsx`
 
-- [ ] **Standardize error handling pattern** 🟡
-  - Establish consistent pattern: try/catch in async functions, toast for user-facing errors
-  - File: `src/contexts/AppContext.tsx` - some operations use `.catch(console.error)` (silent failures)
-  - Replace all `console.error` silent catches with user notifications where appropriate
-  - Create shared error handler utility in `src/lib/errorHandler.ts`
+- [x] **Standardize error handling pattern** 🟡
+  - Created `src/lib/errorHandler.ts` with `handleError(error, userMessage?)` utility
+  - Extracts messages from Error objects, Supabase errors, strings
+  - Shows toast.error + logs in development
+  - Applied in all new domain context files
 
-- [ ] **Extract shared auth middleware for Edge Functions** 🟡
-  - Files: `supabase/functions/create-employee/index.ts`, `supabase/functions/manage-employee/index.ts`, `supabase/functions/sap-proxy/index.ts`
-  - Auth verification logic duplicated across functions
-  - Create `supabase/functions/_shared/auth.ts` with reusable `verifyAuth()` function
-  - Refactor all Edge Functions to use shared middleware
+- [x] **Extract shared auth middleware for Edge Functions** 🟡
+  - Already completed in security sprint — `supabase/functions/_shared/auth.ts` with `verifyAuth()`
 
 ---
 

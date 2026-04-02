@@ -1,0 +1,140 @@
+import React, { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+import { handleError } from "@/lib/errorHandler";
+import type { Product, ProductComponent } from "@/contexts/types";
+
+interface ProductsState {
+  products: Product[];
+  refreshProducts: () => Promise<void>;
+  updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
+  addProduct: (product: Omit<Product, "id" | "components">, components?: Omit<ProductComponent, "id" | "product_id">[]) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
+  addComponent: (component: Omit<ProductComponent, "id">) => Promise<void>;
+  updateComponent: (id: string, updates: Partial<ProductComponent>) => Promise<void>;
+  deleteComponent: (id: string) => Promise<void>;
+}
+
+const ProductsContext = createContext<ProductsState | null>(null);
+
+export function useProducts() {
+  const ctx = useContext(ProductsContext);
+  if (!ctx) throw new Error("useProducts must be within ProductsProvider");
+  return ctx;
+}
+
+export function ProductsProvider({ children }: { children: ReactNode }) {
+  const [products, setProducts] = useState<Product[]>([]);
+
+  const refreshProducts = useCallback(async () => {
+    const { data: prods } = await supabase.from("products").select("*, product_components(*)").order("category").limit(500);
+    if (prods) {
+      setProducts(prods.map(p => ({
+        ...p,
+        components: ((p as Record<string, unknown>).product_components || []) as ProductComponent[],
+      })) as Product[]);
+    }
+  }, []);
+
+  const updateProduct = useCallback(async (id: string, updates: Partial<Product>) => {
+    try {
+      const { components, supplier_id, ...dbUpdates } = updates as any;
+      const { error } = await supabase.from("products").update(dbUpdates).eq("id", id);
+      if (error) throw error;
+      // Sync stock with main center inventory
+      if (dbUpdates.stock_qty !== undefined) {
+        const { data: mainCenter } = await supabase.from("distribution_centers").select("id").eq("is_main", true).maybeSingle();
+        if (mainCenter) {
+          await supabase.from("center_inventory").upsert(
+            { center_id: mainCenter.id, product_id: id, quantity: dbUpdates.stock_qty } as any,
+            { onConflict: "center_id,product_id" }
+          );
+        }
+      }
+      await refreshProducts();
+      toast.success("מוצר עודכן בהצלחה");
+    } catch (err) {
+      handleError(err, "שגיאה בעדכון מוצר: " + (err instanceof Error ? err.message : "נסה שוב"));
+      throw err;
+    }
+  }, [refreshProducts]);
+
+  const addProduct = useCallback(async (product: Omit<Product, "id" | "components">, components?: Omit<ProductComponent, "id" | "product_id">[]) => {
+    try {
+      const { supplier_id, ...productData } = product as any;
+      const { data: newProd, error: prodError } = await supabase.from("products").insert(productData).select("id").single();
+      if (prodError) throw prodError;
+      if (newProd && components && components.length > 0) {
+        const { error: compError } = await supabase.from("product_components").insert(components.map(c => ({ ...c, product_id: newProd.id })));
+        if (compError) throw compError;
+      }
+      await refreshProducts();
+      toast.success("מוצר נוצר בהצלחה");
+    } catch (err) {
+      handleError(err, "שגיאה ביצירת מוצר: " + (err instanceof Error ? err.message : "נסה שוב"));
+      throw err;
+    }
+  }, [refreshProducts]);
+
+  const deleteProduct = useCallback(async (id: string) => {
+    try {
+      const { error: compError } = await supabase.from("product_components").delete().eq("product_id", id);
+      if (compError) throw compError;
+      const { error: prodError } = await supabase.from("products").delete().eq("id", id);
+      if (prodError) throw prodError;
+      await refreshProducts();
+      toast.success("מוצר נמחק בהצלחה");
+    } catch (err) {
+      handleError(err, "שגיאה במחיקת מוצר: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
+  }, [refreshProducts]);
+
+  const addComponent = useCallback(async (component: Omit<ProductComponent, "id">) => {
+    try {
+      const { error } = await supabase.from("product_components").insert(component);
+      if (error) throw error;
+      await refreshProducts();
+      toast.success("רכיב נוסף בהצלחה");
+    } catch (err) {
+      handleError(err, "שגיאה בהוספת רכיב: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
+  }, [refreshProducts]);
+
+  const updateComponent = useCallback(async (id: string, updates: Partial<ProductComponent>) => {
+    try {
+      const { product_id, ...dbUpdates } = updates as any;
+      const { error } = await supabase.from("product_components").update(dbUpdates).eq("id", id);
+      if (error) throw error;
+      await refreshProducts();
+      toast.success("רכיב עודכן בהצלחה");
+    } catch (err) {
+      handleError(err, "שגיאה בעדכון רכיב: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
+  }, [refreshProducts]);
+
+  const deleteComponent = useCallback(async (id: string) => {
+    try {
+      const { error } = await supabase.from("product_components").delete().eq("id", id);
+      if (error) throw error;
+      await refreshProducts();
+      toast.success("רכיב נמחק בהצלחה");
+    } catch (err) {
+      handleError(err, "שגיאה במחיקת רכיב: " + (err instanceof Error ? err.message : "נסה שוב"));
+    }
+  }, [refreshProducts]);
+
+  return (
+    <ProductsContext.Provider value={{
+      products,
+      refreshProducts,
+      updateProduct,
+      addProduct,
+      deleteProduct,
+      addComponent,
+      updateComponent,
+      deleteComponent,
+    }}>
+      {children}
+    </ProductsContext.Provider>
+  );
+}
