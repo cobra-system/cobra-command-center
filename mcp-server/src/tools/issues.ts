@@ -58,8 +58,10 @@ export function registerIssueTools(server: McpServer) {
       status: z.enum(["פתוח", "בטיפול", "נסגר"]).default("פתוח").describe("Issue status"),
       ticket_number: z.string().optional().describe("External ticket number (e.g. iStar)"),
       diagnostic_source: z.enum(["app", "device"]).optional().describe("Source of the issue"),
+      image_url: z.string().optional().describe("URL of an image showing the issue"),
+      diagnostic_steps: z.string().optional().describe("JSON string of diagnostic steps array"),
     },
-    async ({ product_id, description, severity, reporter, status, ticket_number, diagnostic_source }) => {
+    async ({ product_id, description, severity, reporter, status, ticket_number, diagnostic_source, image_url, diagnostic_steps }) => {
       const { data, error } = await supabase
         .from("product_issues")
         .insert({
@@ -70,6 +72,8 @@ export function registerIssueTools(server: McpServer) {
           status,
           ticket_number: ticket_number || null,
           diagnostic_source: diagnostic_source || null,
+          image_url: image_url || null,
+          diagnostic_steps: diagnostic_steps ? JSON.parse(diagnostic_steps) : null,
         })
         .select()
         .single();
@@ -88,13 +92,17 @@ export function registerIssueTools(server: McpServer) {
       severity: z.enum(["נמוך", "בינוני", "גבוה", "קריטי"]).optional().describe("New severity"),
       resolution: z.string().optional().describe("Resolution description (when closing)"),
       ticket_number: z.string().optional().describe("External ticket number"),
+      image_url: z.string().optional().describe("URL of an image showing the issue"),
+      diagnostic_steps: z.string().optional().describe("JSON string of diagnostic steps array"),
     },
-    async ({ id, status, severity, resolution, ticket_number }) => {
+    async ({ id, status, severity, resolution, ticket_number, image_url, diagnostic_steps }) => {
       const updates: Record<string, unknown> = {};
       if (status) updates.status = status;
       if (severity) updates.severity = severity;
       if (resolution) updates.resolution = resolution;
       if (ticket_number) updates.ticket_number = ticket_number;
+      if (image_url) updates.image_url = image_url;
+      if (diagnostic_steps) updates.diagnostic_steps = JSON.parse(diagnostic_steps);
       if (status === "נסגר") updates.resolved_date = new Date().toISOString().split("T")[0];
 
       const { data, error } = await supabase

@@ -68,6 +68,7 @@ export function registerOrderTools(server: McpServer) {
       notes: z.string().optional().describe("Order notes"),
       eta: z.string().optional().describe("Estimated arrival date (YYYY-MM-DD)"),
       etd: z.string().optional().describe("Estimated departure date (YYYY-MM-DD)"),
+      tracking_number: z.string().optional().describe("Shipment tracking number"),
       items: z.array(z.object({
         name: z.string().describe("Item name"),
         qty: z.number().describe("Quantity"),
@@ -75,7 +76,7 @@ export function registerOrderTools(server: McpServer) {
         price: z.number().optional().describe("Unit price"),
       })).optional().describe("Order line items"),
     },
-    async ({ supplier_id, supplier_name, status, priority, order_date, total_price, contact_name, payment_status, notes, eta, etd, items }) => {
+    async ({ supplier_id, supplier_name, status, priority, order_date, total_price, contact_name, payment_status, notes, eta, etd, tracking_number, items }) => {
       let resolvedSupplierName = supplier_name || null;
       if (supplier_id && !supplier_name) {
         const { data: sup } = await supabase.from("suppliers").select("company").eq("id", supplier_id).single();
@@ -96,6 +97,7 @@ export function registerOrderTools(server: McpServer) {
           notes: notes || null,
           eta: eta || null,
           etd: etd || null,
+          tracking_number: tracking_number || null,
         })
         .select()
         .single();
@@ -141,6 +143,7 @@ export function registerOrderTools(server: McpServer) {
       eta: z.string().optional().describe("Updated ETA (YYYY-MM-DD)"),
       etd: z.string().optional().describe("Updated ETD (YYYY-MM-DD)"),
       shipping: z.string().optional().describe("Shipping info"),
+      tracking_number: z.string().optional().describe("Shipment tracking number"),
     },
     async ({ id, ...fields }) => {
       const updates: Record<string, unknown> = {};
