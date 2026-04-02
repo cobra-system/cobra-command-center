@@ -114,6 +114,7 @@ export function registerTaskTools(server: McpServer) {
       due_date: z.string().optional().describe("Due date (YYYY-MM-DD)"),
       status: z.string().optional().describe("Task status"),
       milestone: z.string().optional().describe("Goal/milestone name"),
+      notes: z.string().optional().describe("Task notes"),
     },
     async ({ id, ...fields }) => {
       const updates: Record<string, unknown> = {};

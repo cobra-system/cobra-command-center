@@ -277,12 +277,22 @@ export function registerOrderTools(server: McpServer) {
 
   server.tool(
     "get_order_by_reference",
-    "משיכת הזמנה לפי מספר PI / מספר הזמנה — Find an order by PI number, SAP doc entry, or reference string",
+    "משיכת הזמנה לפי מספר PI או הפניה — Find an order by PI number, tracking number, or reference string",
     {
-      reference: z.string().describe("PI number, SAP doc entry, or reference string to search for"),
+      reference: z.string().describe("PI number, tracking number, or reference string to search for"),
     },
     async ({ reference }) => {
-      // Strategy 1: exact match on sap_doc_entry
+      // Strategy 1: exact match on tracking_number
+      const { data: byTracking } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("tracking_number", reference);
+
+      if (byTracking && byTracking.length > 0) {
+        return { content: [{ type: "text" as const, text: JSON.stringify(byTracking, null, 2) }] };
+      }
+
+      // Strategy 2: legacy match on sap_doc_entry (for historical orders)
       const { data: bySap } = await supabase
         .from("orders")
         .select("*")
@@ -292,7 +302,7 @@ export function registerOrderTools(server: McpServer) {
         return { content: [{ type: "text" as const, text: JSON.stringify(bySap, null, 2) }] };
       }
 
-      // Strategy 2: search in purchase_documents by document_name containing the reference
+      // Strategy 3: search in purchase_documents by document_name containing the reference
       const { data: docs } = await supabase
         .from("purchase_documents")
         .select("order_id, document_name, type")

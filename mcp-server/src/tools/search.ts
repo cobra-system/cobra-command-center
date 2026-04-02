@@ -8,12 +8,12 @@ export function registerSearchTools(server: McpServer) {
     "חיפוש גלובלי — Search across products, orders, suppliers, and documents by keyword",
     {
       query: z.string().describe("Search keyword"),
-      modules: z.array(z.enum(["products", "orders", "suppliers", "documents"])).optional()
+      modules: z.array(z.enum(["products", "orders", "suppliers", "documents", "tasks", "issues", "compliance"])).optional()
         .describe("Limit search to specific modules (omit for all)"),
       limit: z.number().default(10).describe("Max results per module"),
     },
     async ({ query, modules, limit }) => {
-      const searchModules = modules || ["products", "orders", "suppliers", "documents"];
+      const searchModules = modules || ["products", "orders", "suppliers", "documents", "tasks", "issues", "compliance"];
       const results: Record<string, unknown[]> = {};
 
       const promises: Array<PromiseLike<void>> = [];
@@ -55,6 +55,37 @@ export function registerSearchTools(server: McpServer) {
             .ilike("document_name", `%${query}%`)
             .limit(limit)
             .then(({ data }) => { results.documents = data || []; })
+        );
+      }
+
+      if (searchModules.includes("tasks")) {
+        promises.push(
+          supabase.from("tasks")
+            .select("id, title, status, priority, assignee_name, due_date")
+            .neq("status", "TEMPLATE")
+            .or(`title.ilike.%${query}%,description.ilike.%${query}%`)
+            .limit(limit)
+            .then(({ data }) => { results.tasks = data || []; })
+        );
+      }
+
+      if (searchModules.includes("issues")) {
+        promises.push(
+          supabase.from("product_issues")
+            .select("id, description, severity, status, reporter, product_id")
+            .ilike("description", `%${query}%`)
+            .limit(limit)
+            .then(({ data }) => { results.issues = data || []; })
+        );
+      }
+
+      if (searchModules.includes("compliance")) {
+        promises.push(
+          supabase.from("compliance_items")
+            .select("id, name, category, status, expiry_date")
+            .or(`name.ilike.%${query}%,category.ilike.%${query}%`)
+            .limit(limit)
+            .then(({ data }) => { results.compliance = data || []; })
         );
       }
 
