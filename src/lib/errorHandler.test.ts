@@ -1,5 +1,4 @@
 import { describe, it, expect, vi } from "vitest";
-import { handleError } from "./errorHandler";
 
 // Mock sonner toast
 vi.mock("sonner", () => ({
@@ -8,6 +7,22 @@ vi.mock("sonner", () => ({
   },
 }));
 
+// Mock sentry
+vi.mock("./sentry", () => ({
+  getSentry: () => null,
+}));
+
+// Mock logger to suppress console output in tests
+vi.mock("./logger", () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+
+import { handleError } from "./errorHandler";
 import { toast } from "sonner";
 
 describe("handleError", () => {

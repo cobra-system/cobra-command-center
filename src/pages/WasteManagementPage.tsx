@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AppContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 import {
   Table,
   TableHeader,
@@ -104,7 +105,7 @@ export default function WasteManagementPage() {
 
     const { data, error } = await query;
     if (error) {
-      console.error("Error fetching waste items:", error);
+      logger.error("Error fetching waste items", error);
       return;
     }
     setItems((data as WasteItem[]) || []);

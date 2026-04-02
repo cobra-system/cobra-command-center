@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, type ReactNode
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { handleError } from "@/lib/errorHandler";
+import { logActivity } from "@/lib/activityLogger";
 import type { Product, ProductComponent } from "@/contexts/types";
 
 interface ProductsState {
@@ -53,6 +54,7 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
       }
       await refreshProducts();
       toast.success("מוצר עודכן בהצלחה");
+      logActivity({ action: "product.update", entityType: "product", entityId: id });
     } catch (err) {
       handleError(err, "שגיאה בעדכון מוצר: " + (err instanceof Error ? err.message : "נסה שוב"));
       throw err;
@@ -70,6 +72,7 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
       }
       await refreshProducts();
       toast.success("מוצר נוצר בהצלחה");
+      if (newProd) logActivity({ action: "product.create", entityType: "product", entityId: newProd.id });
     } catch (err) {
       handleError(err, "שגיאה ביצירת מוצר: " + (err instanceof Error ? err.message : "נסה שוב"));
       throw err;
@@ -84,6 +87,7 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
       if (prodError) throw prodError;
       await refreshProducts();
       toast.success("מוצר נמחק בהצלחה");
+      logActivity({ action: "product.delete", entityType: "product", entityId: id });
     } catch (err) {
       handleError(err, "שגיאה במחיקת מוצר: " + (err instanceof Error ? err.message : "נסה שוב"));
     }

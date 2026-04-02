@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, type ReactNode
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { handleError } from "@/lib/errorHandler";
+import { logActivity } from "@/lib/activityLogger";
 import type { Supplier, SupplierContact } from "@/contexts/types";
 
 interface SuppliersState {
@@ -41,6 +42,7 @@ export function SuppliersProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       await refreshSuppliers();
       toast.success("ספק נוסף בהצלחה");
+      logActivity({ action: "supplier.create", entityType: "supplier" });
     } catch (err) {
       handleError(err, "שגיאה בהוספת ספק");
     }
@@ -52,6 +54,7 @@ export function SuppliersProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       await refreshSuppliers();
       toast.success("ספק עודכן בהצלחה");
+      logActivity({ action: "supplier.update", entityType: "supplier", entityId: id });
     } catch (err) {
       handleError(err, "שגיאה בעדכון ספק");
     }
@@ -63,6 +66,7 @@ export function SuppliersProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       await refreshSuppliers();
       toast.success("ספק נמחק בהצלחה");
+      logActivity({ action: "supplier.delete", entityType: "supplier", entityId: id });
     } catch (err) {
       handleError(err, "שגיאה במחיקת ספק");
     }

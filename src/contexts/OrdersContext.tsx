@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, type ReactNode
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { handleError } from "@/lib/errorHandler";
+import { logActivity } from "@/lib/activityLogger";
 import type { Order, OrderItem, OrderStatus } from "@/contexts/types";
 
 interface OrdersState {
@@ -81,6 +82,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
         }
         await refreshOrders();
         toast.success("הזמנה נוצרה בהצלחה");
+        logActivity({ action: "order.create", entityType: "order", entityId: newOrder.id });
       }
     } catch (err) {
       handleError(err, "שגיאה בלתי צפויה: " + (err instanceof Error ? err.message : "נסה שוב"));
@@ -97,6 +99,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       }
       await refreshOrders();
       toast.success("הזמנה עודכנה בהצלחה");
+      logActivity({ action: "order.update", entityType: "order", entityId: id });
     } catch (err) {
       handleError(err, "שגיאה בלתי צפויה: " + (err instanceof Error ? err.message : "נסה שוב"));
     }
@@ -117,6 +120,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       if (orderError) throw orderError;
       await refreshOrders();
       toast.success("הזמנה נמחקה בהצלחה");
+      logActivity({ action: "order.delete", entityType: "order", entityId: id });
     } catch (err) {
       handleError(err, "שגיאה במחיקת הזמנה: " + (err instanceof Error ? err.message : "נסה שוב"));
     }

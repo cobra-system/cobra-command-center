@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, type ReactNode
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { handleError } from "@/lib/errorHandler";
+import { logger } from "@/lib/logger";
 import type { Goal } from "@/contexts/types";
 
 interface GoalsState {
@@ -27,7 +28,7 @@ export function GoalsProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.from("goals").select("*").order("sort_order");
     if (error) {
       if (error.message?.includes("schema cache") || error.code === "42P01") {
-        console.error("טבלת goals לא קיימת. יש להריץ את המיגרציה דרך Supabase SQL Editor.");
+        logger.warn("goals table missing — run migration via Supabase SQL Editor");
       }
       return;
     }

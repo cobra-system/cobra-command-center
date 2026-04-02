@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { handleError } from "@/lib/errorHandler";
+import { logActivity } from "@/lib/activityLogger";
 import type { Session } from "@supabase/supabase-js";
 import type { Task, TaskStatus } from "@/contexts/types";
 
@@ -112,6 +113,7 @@ export function TasksProvider({ session, children }: { session: Session | null; 
       if (error) throw error;
       await refreshTasks();
       toast.success("משימה נוצרה בהצלחה");
+      logActivity({ action: "task.create", entityType: "task", details: { title: task.title } });
     } catch (err) {
       handleError(err, "שגיאה ביצירת משימה: " + (err instanceof Error ? err.message : "נסה שוב"));
     }
@@ -125,6 +127,8 @@ export function TasksProvider({ session, children }: { session: Session | null; 
     if (error) {
       setTasks(prevTasks);
       handleError(error, "שגיאה בעדכון משימה: " + (error.message || "נסה שוב"));
+    } else {
+      logActivity({ action: "task.update", entityType: "task", entityId: id });
     }
   }, [tasks]);
 
@@ -138,6 +142,7 @@ export function TasksProvider({ session, children }: { session: Session | null; 
       handleError(error, "שגיאה במחיקת משימה: " + (error.message || "נסה שוב"));
       throw error;
     }
+    logActivity({ action: "task.delete", entityType: "task", entityId: id });
   }, [tasks]);
 
   const resetDailyTasks = useCallback(async () => {

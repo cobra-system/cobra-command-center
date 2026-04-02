@@ -1,4 +1,6 @@
 import { toast } from "sonner";
+import { logger } from "./logger";
+import { getSentry } from "./sentry";
 
 /**
  * Extracts a human-readable error message from various error types.
@@ -25,9 +27,10 @@ function extractMessage(error: unknown): string {
 export function handleError(error: unknown, userMessage?: string): void {
   const message = userMessage || extractMessage(error);
 
-  if (import.meta.env.DEV) {
-    console.error("[handleError]", error);
-  }
+  logger.error("[handleError]", error);
+  getSentry()?.captureException(
+    error instanceof Error ? error : new Error(message),
+  );
 
   toast.error(message);
 }

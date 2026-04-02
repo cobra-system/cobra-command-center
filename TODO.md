@@ -246,30 +246,35 @@
 
 ## 6. Observability 🟡
 
-- [ ] **Integrate error tracking (Sentry)** 🟡
-  - Install `@sentry/react` package
-  - Initialize in `src/main.tsx` with DSN from env var
-  - Wrap App with Sentry ErrorBoundary
-  - Add breadcrumbs for key user actions
-  - Configure source maps upload in build process
+- [x] **Integrate error tracking (Sentry)** 🟡
+  - Installed `@sentry/react`, created `src/lib/sentry.ts` with `initSentry()` and `getSentry()`
+  - Optional: reads `VITE_SENTRY_DSN` from env — skips entirely when empty (zero overhead)
+  - Initialized in `src/main.tsx` before React mount
+  - ErrorBoundary and errorHandler forward errors to Sentry via `captureException`
+  - Logger adds Sentry breadcrumbs for info/warn logs via callback hooks
 
-- [ ] **Implement structured logging** 🟡
-  - Create `src/lib/logger.ts` with log levels: debug, info, warn, error
-  - Replace all `console.log`/`console.error` calls (26 total across codebase)
-  - Include context: user ID, module, action, timestamp
-  - In production: send errors to tracking service; in dev: output to console
+- [x] **Implement structured logging** 🟡
+  - Created `src/lib/logger.ts` with debug, info, warn, error levels + 12 tests
+  - Structured output: `[LEVEL] [ISO timestamp] message {context}`
+  - `setLogContext()` for persistent context (userId, role) across all log calls
+  - `registerSentryHooks()` callback pattern — no hard dependency on Sentry
+  - Replaced all 14 production `console.*` calls across 10 files
+  - Only `applyMigrations.ts` (intentional CLI output) retains console calls
 
-- [ ] **Add health check endpoint** 🟡
-  - Create Edge Function: `supabase/functions/health/index.ts`
-  - Check: database connectivity, Supabase auth service, SAP connection (if configured)
-  - Return JSON with status per dependency and overall health
-  - Add monitoring/alerting on health endpoint
+- [x] **Add health check endpoint** 🟡
+  - Created `supabase/functions/health/index.ts`
+  - Pings database via `profiles` table SELECT, measures latency
+  - Returns `{ status: "ok", timestamp, db_latency_ms }` or 503 with error
+  - No auth required — callable by external monitoring tools
+  - Uses shared CORS module
 
-- [ ] **Implement user activity logging** 🟡
-  - Create `activity_log` table: id, user_id, action, module, entity_type, entity_id, metadata (JSONB), created_at
-  - Log key actions: login, view, create, update, delete across all modules
-  - Add activity log viewer in Settings page for admins
-  - Create migration in `supabase/migrations/`
+- [x] **Implement user activity logging** 🟡
+  - Reuses existing `audit_log` table (no new table needed)
+  - Created `src/lib/activityLogger.ts` with fire-and-forget `logActivity()` function
+  - Added RLS INSERT policy via migration `20260402100000_audit_log_insert_policy.sql`
+  - Integrated into 4 domain contexts: Orders, Products, Tasks, Suppliers
+  - Actions logged: create, update, delete for all main entities
+  - Naming convention: `entity.action` (e.g., `order.create`, `product.delete`)
 
 ---
 

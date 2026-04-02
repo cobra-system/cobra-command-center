@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import { applyMigrations } from "@/lib/applyMigrations";
+import { logger } from "@/lib/logger";
 import type { Session } from "@supabase/supabase-js";
 import type { Profile, AuthState } from "@/contexts/types";
 
@@ -45,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setAuthLoading(false);
 
-      applyMigrations().catch(console.error);
+      applyMigrations().catch((err) => logger.error("Migration failed", err));
     });
 
     return () => subscription.unsubscribe();
