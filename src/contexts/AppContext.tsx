@@ -305,25 +305,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Data fetchers
   const refreshProducts = useCallback(async () => {
-    const { data: prods } = await supabase.from("products").select("*").order("category");
+    const { data: prods } = await supabase.from("products").select("*, product_components(*)").order("category").limit(500);
     if (prods) {
-      const assembledIds = prods.filter(p => p.product_type === "מורכב").map(p => p.id);
-      let compsMap: Record<string, ProductComponent[]> = {};
-      if (assembledIds.length > 0) {
-        const { data: comps } = await supabase.from("product_components").select("*").in("product_id", assembledIds);
-        if (comps) {
-          comps.forEach(c => {
-            if (!compsMap[c.product_id]) compsMap[c.product_id] = [];
-            compsMap[c.product_id].push(c as ProductComponent);
-          });
-        }
-      }
-      setProducts(prods.map(p => ({ ...p, components: compsMap[p.id] || [] })) as Product[]);
+      setProducts(prods.map(p => ({
+        ...p,
+        components: (p as any).product_components || [],
+      })) as Product[]);
     }
   }, []);
 
   const refreshOrders = useCallback(async () => {
-    const { data: ords } = await supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false });
+    const { data: ords } = await supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(500);
     if (ords) {
       setOrders(ords.map(o => {
         const items = o.order_items || [];
@@ -337,7 +329,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshTasks = useCallback(async () => {
-    const { data } = await supabase.from("tasks").select("*").neq("status", "TEMPLATE").order("created_at", { ascending: false });
+    const { data } = await supabase.from("tasks").select("*").neq("status", "TEMPLATE").order("created_at", { ascending: false }).limit(500);
     if (data) setTasks(data as Task[]);
   }, []);
 
@@ -353,18 +345,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshSuppliers = useCallback(async () => {
-    const { data } = await supabase.from("suppliers").select("*").order("company");
+    const { data } = await supabase.from("suppliers").select("*, supplier_contacts(*)").order("company");
     if (data) {
-      // Fetch contacts for all suppliers
-      const { data: contacts } = await supabase.from("supplier_contacts").select("*").order("is_primary", { ascending: false });
-      const contactsMap: Record<string, SupplierContact[]> = {};
-      if (contacts) {
-        contacts.forEach((c: any) => {
-          if (!contactsMap[c.supplier_id]) contactsMap[c.supplier_id] = [];
-          contactsMap[c.supplier_id].push(c as SupplierContact);
-        });
-      }
-      setSuppliers(data.map((s: any) => ({ ...s, contacts: contactsMap[s.id] || [] })) as Supplier[]);
+      setSuppliers(data.map((s: any) => ({
+        ...s,
+        contacts: ((s as any).supplier_contacts || []).sort((a: any, b: any) =>
+          (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0)
+        ),
+      })) as Supplier[]);
     }
   }, []);
 
