@@ -62,7 +62,7 @@ export function registerSupplierTools(server: McpServer) {
       products: z.string().optional().describe("Products supplied (free text)"),
       notes: z.string().optional().describe("Additional notes"),
       payment_terms: z.string().optional().describe("Payment terms (e.g. Net 30)"),
-      risk_level: z.string().optional().describe("Risk level (low/medium/high)"),
+      risk_level: z.enum(["low", "medium", "high"]).optional().describe("Risk level: low, medium, high"),
       lead_time_days: z.number().optional().describe("Lead time in days"),
     },
     async ({ company, contact_name, email, phone, role, country, products, notes, payment_terms, risk_level, lead_time_days }) => {
@@ -103,7 +103,7 @@ export function registerSupplierTools(server: McpServer) {
       products: z.string().optional().describe("Products supplied"),
       notes: z.string().optional().describe("Notes"),
       payment_terms: z.string().optional().describe("Payment terms"),
-      risk_level: z.string().optional().describe("Risk level"),
+      risk_level: z.enum(["low", "medium", "high"]).optional().describe("Risk level: low, medium, high"),
       lead_time_days: z.number().optional().describe("Lead time in days"),
     },
     async ({ id, ...fields }) => {

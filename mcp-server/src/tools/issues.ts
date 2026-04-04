@@ -7,8 +7,8 @@ export function registerIssueTools(server: McpServer) {
     "list_issues",
     "רשימת תקלות — List product issues, optionally filtered by status/severity/product",
     {
-      status: z.enum(["פתוח", "בטיפול", "נסגר"]).optional().describe("Filter by status"),
-      severity: z.enum(["נמוך", "בינוני", "גבוה", "קריטי"]).optional().describe("Filter by severity"),
+      status: z.enum(["פתוח", "בטיפול", "נסגר"]).optional().describe("Filter by status: פתוח (open), בטיפול (in progress), נסגר (closed)"),
+      severity: z.enum(["נמוך", "בינוני", "גבוה", "קריטי"]).optional().describe("Filter by severity: נמוך (low), בינוני (medium), גבוה (high), קריטי (critical)"),
       product_id: z.string().uuid().optional().describe("Filter by product UUID"),
       limit: z.number().default(50).describe("Max results to return"),
     },
@@ -53,15 +53,19 @@ export function registerIssueTools(server: McpServer) {
     {
       product_id: z.string().uuid().describe("UUID of the product"),
       description: z.string().describe("Issue description"),
-      severity: z.enum(["נמוך", "בינוני", "גבוה", "קריטי"]).default("בינוני").describe("Severity level"),
+      severity: z.enum(["נמוך", "בינוני", "גבוה", "קריטי"]).default("בינוני").describe("Severity: נמוך (low), בינוני (medium), גבוה (high), קריטי (critical)"),
       reporter: z.string().default("Claude").describe("Who reported this issue"),
-      status: z.enum(["פתוח", "בטיפול", "נסגר"]).default("פתוח").describe("Issue status"),
+      status: z.enum(["פתוח", "בטיפול", "נסגר"]).default("פתוח").describe("Status: פתוח (open), בטיפול (in progress), נסגר (closed)"),
       ticket_number: z.string().optional().describe("External ticket number (e.g. iStar)"),
       diagnostic_source: z.enum(["app", "device"]).optional().describe("Source of the issue"),
       image_url: z.string().optional().describe("URL of an image showing the issue"),
-      diagnostic_steps: z.string().optional().describe("JSON string of diagnostic steps array"),
+      diagnostic_steps: z.string().optional().describe("JSON string of diagnostic steps array, e.g. '[\"step1\",\"step2\"]'"),
     },
     async ({ product_id, description, severity, reporter, status, ticket_number, diagnostic_source, image_url, diagnostic_steps }) => {
+      let parsedSteps = null;
+      if (diagnostic_steps) {
+        try { parsedSteps = JSON.parse(diagnostic_steps); } catch { parsedSteps = null; }
+      }
       const { data, error } = await supabase
         .from("product_issues")
         .insert({
@@ -73,7 +77,7 @@ export function registerIssueTools(server: McpServer) {
           ticket_number: ticket_number || null,
           diagnostic_source: diagnostic_source || null,
           image_url: image_url || null,
-          diagnostic_steps: diagnostic_steps ? JSON.parse(diagnostic_steps) : null,
+          diagnostic_steps: parsedSteps,
         })
         .select()
         .single();
@@ -88,8 +92,8 @@ export function registerIssueTools(server: McpServer) {
     "עדכון תקלה — Update an existing product issue (status, resolution, severity, etc.)",
     {
       id: z.string().uuid().describe("Issue UUID"),
-      status: z.enum(["פתוח", "בטיפול", "נסגר"]).optional().describe("New status"),
-      severity: z.enum(["נמוך", "בינוני", "גבוה", "קריטי"]).optional().describe("New severity"),
+      status: z.enum(["פתוח", "בטיפול", "נסגר"]).optional().describe("New status: פתוח (open), בטיפול (in progress), נסגר (closed)"),
+      severity: z.enum(["נמוך", "בינוני", "גבוה", "קריטי"]).optional().describe("New severity: נמוך (low), בינוני (medium), גבוה (high), קריטי (critical)"),
       resolution: z.string().optional().describe("Resolution description (when closing)"),
       ticket_number: z.string().optional().describe("External ticket number"),
       image_url: z.string().optional().describe("URL of an image showing the issue"),
@@ -102,7 +106,7 @@ export function registerIssueTools(server: McpServer) {
       if (resolution) updates.resolution = resolution;
       if (ticket_number) updates.ticket_number = ticket_number;
       if (image_url) updates.image_url = image_url;
-      if (diagnostic_steps) updates.diagnostic_steps = JSON.parse(diagnostic_steps);
+      if (diagnostic_steps) { try { updates.diagnostic_steps = JSON.parse(diagnostic_steps); } catch { /* skip invalid JSON */ } }
       if (status === "נסגר") updates.resolved_date = new Date().toISOString().split("T")[0];
 
       const { data, error } = await supabase

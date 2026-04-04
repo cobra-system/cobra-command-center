@@ -32,7 +32,7 @@ export function registerDocumentTools(server: McpServer) {
       unit_price: z.number().optional().describe("Unit price"),
       total_price: z.number().optional().describe("Total price"),
       currency: z.enum(["USD", "EUR", "ILS"]).default("USD").describe("Currency"),
-      status: z.string().default("ממתין לאישור").describe("Document status"),
+      status: z.enum(["ממתין לאישור", "אושר", "נשלח לספק", "בוצע"]).default("ממתין לאישור").describe("Document status: ממתין לאישור (pending), אושר (approved), נשלח לספק (sent to supplier), בוצע (done)"),
       notes: z.string().optional().describe("Additional notes"),
     },
     async ({ file_path, type, document_name, supplier_id, order_id, product_id,
@@ -99,7 +99,7 @@ export function registerDocumentTools(server: McpServer) {
     "רשימת מסמכים — List purchase documents with optional filters",
     {
       type: z.enum(["PI", "PO"]).optional().describe("Filter by document type"),
-      status: z.string().optional().describe("Filter by status"),
+      status: z.enum(["ממתין לאישור", "אושר", "נשלח לספק", "בוצע"]).optional().describe("Filter by status: ממתין לאישור (pending), אושר (approved), נשלח לספק (sent), בוצע (done)"),
       supplier_id: z.string().uuid().optional().describe("Filter by supplier UUID"),
       order_id: z.string().uuid().optional().describe("Filter by order UUID"),
       product_id: z.string().uuid().optional().describe("Filter by product UUID"),
@@ -147,7 +147,7 @@ export function registerDocumentTools(server: McpServer) {
     "עדכון מסמך — Update fields of an existing purchase document",
     {
       id: z.string().uuid().describe("Document UUID"),
-      status: z.string().optional().describe("New status (e.g. אושר, נשלח לספק, בוצע)"),
+      status: z.enum(["ממתין לאישור", "אושר", "נשלח לספק", "בוצע"]).optional().describe("New status: ממתין לאישור (pending), אושר (approved), נשלח לספק (sent to supplier), בוצע (done)"),
       document_name: z.string().optional().describe("Updated display name"),
       notes: z.string().optional().describe("Updated notes"),
       approval_date: z.string().optional().describe("Approval timestamp (ISO 8601, e.g. 2026-03-22T10:00:00Z)"),

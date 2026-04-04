@@ -5,10 +5,10 @@ import { supabase } from "../supabase.js";
 export function registerTaskTools(server: McpServer) {
   server.tool(
     "list_tasks",
-    "רשימת משימות חוזרות — List recurring task templates",
+    "רשימת תבניות משימות חוזרות — List recurring task TEMPLATES (not individual instances). Use list_task_instances for actual to-do items.",
     {
       is_active: z.boolean().optional().describe("Filter by active/inactive"),
-      frequency: z.string().optional().describe("Filter by frequency (daily, weekly, monthly)"),
+      frequency: z.enum(["daily", "weekly", "monthly"]).optional().describe("Filter by frequency: daily, weekly, monthly"),
       limit: z.number().default(50).describe("Max results"),
     },
     async ({ is_active, frequency, limit }) => {
@@ -35,7 +35,7 @@ export function registerTaskTools(server: McpServer) {
       title: z.string().describe("Task title"),
       description: z.string().optional().describe("Task description"),
       frequency: z.enum(["daily", "weekly", "monthly"]).describe("How often the task recurs"),
-      priority: z.string().optional().describe("Task priority"),
+      priority: z.enum(["דחוף", "גבוה", "בינוני", "נמוך"]).optional().describe("Priority: דחוף (urgent), גבוה (high), בינוני (medium), נמוך (low)"),
       assignee_name: z.string().optional().describe("Person assigned to this task"),
       day_of_week: z.number().min(0).max(6).optional().describe("Day of week (0=Sunday) for weekly tasks"),
       day_of_month: z.number().min(1).max(31).optional().describe("Day of month for monthly tasks"),
@@ -157,7 +157,7 @@ export function registerTaskTools(server: McpServer) {
 
   server.tool(
     "list_task_instances",
-    "רשימת משימות — List individual task instances (the actual to-do items)",
+    "רשימת מופעי משימות — List actual task instances (the items people work on). Use list_tasks for recurring templates.",
     {
       status: z.enum(["TODO", "IN_PROGRESS", "DONE", "BLOCKED"]).optional().describe("Filter by status"),
       assignee_name: z.string().optional().describe("Filter by assignee name"),

@@ -50,7 +50,7 @@ export function registerTeamTools(server: McpServer) {
       id: z.string().uuid().describe("Profile UUID"),
       name: z.string().optional().describe("Display name"),
       role: z.string().optional().describe("Role (e.g. 'manager', 'worker', 'driver', or custom role key)"),
-      pin: z.string().optional().describe("4-digit PIN code"),
+      pin: z.string().regex(/^\d{4}$/).optional().describe("4-digit PIN code (numbers only, exactly 4 digits)"),
     },
     async ({ id, name, role, pin }) => {
       const updates: Record<string, unknown> = {};

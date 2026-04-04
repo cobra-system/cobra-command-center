@@ -5,7 +5,7 @@ import { supabase } from "../supabase.js";
 export function registerSearchTools(server: McpServer) {
   server.tool(
     "global_search",
-    "חיפוש גלובלי — Search across products, orders, suppliers, and documents by keyword",
+    "חיפוש גלובלי — Search across all modules: products, orders, suppliers, documents, tasks, issues, compliance",
     {
       query: z.string().describe("Search keyword"),
       modules: z.array(z.enum(["products", "orders", "suppliers", "documents", "tasks", "issues", "compliance"])).optional()

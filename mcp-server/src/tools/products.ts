@@ -5,7 +5,7 @@ import { supabase } from "../supabase.js";
 export function registerProductTools(server: McpServer) {
   server.tool(
     "list_products",
-    "רשימת מוצרים — List/search products by name, category, or SKU",
+    "רשימת מוצרים — List products with optional name/SKU search. Use search_products for precise field-by-field search.",
     {
       search: z.string().optional().describe("Search term for name or SKU"),
       category: z.string().optional().describe("Filter by category"),
@@ -167,7 +167,7 @@ export function registerProductTools(server: McpServer) {
 
   server.tool(
     "search_products",
-    "חיפוש מוצר — Search products by SKU, partial name, or category",
+    "חיפוש מוצר מדויק — Search products by specific SKU, name, or category fields separately. Use list_products for general browsing.",
     {
       sku: z.string().optional().describe("SKU (partial match)"),
       name: z.string().optional().describe("Product name (partial match)"),
