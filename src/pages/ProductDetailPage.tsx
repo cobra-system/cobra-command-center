@@ -50,7 +50,10 @@ export default function ProductDetailPage() {
     );
   }
 
-  const { hasEdit } = usePermissions("products");
+  const { hasEdit: hasProductsEdit } = usePermissions("products");
+  const { hasEdit: hasInventoryEdit } = usePermissions("inventory");
+  const hasEdit = hasProductsEdit;
+  const canEditStock = hasProductsEdit || hasInventoryEdit;
   const relatedOrders = orders.filter(o => o.items.some(item => item.name === product.name || item.product_id === product.id));
 
   const stockStatus = product.stock_qty === 0
@@ -270,10 +273,8 @@ export default function ProductDetailPage() {
                     <th className="text-right p-3 font-semibold text-foreground">רכיב</th>
                     <th className="text-right p-3 font-semibold text-foreground">מק״ט</th>
                     <th className="text-right p-3 font-semibold text-foreground">ספק</th>
-                    
                     <th className="text-right p-3 font-semibold text-foreground">מלאי</th>
-                    <th className="text-right p-3 font-semibold text-foreground">מחיר</th>
-                    <th className="text-right p-3 font-semibold text-foreground">הערות</th>
+                    <th className="text-right p-3 font-semibold text-foreground hidden md:table-cell">מחיר</th>
                     {hasEdit && <th className="text-right p-3 font-semibold text-foreground">פעולות</th>}
                   </tr>
                 </thead>
@@ -281,35 +282,39 @@ export default function ProductDetailPage() {
                   {product.components.map(comp => (
                     editingCompId === comp.id ? (
                       <tr key={comp.id} className="bg-accent/5">
-                        <td className="p-2"><Input value={editCompFields.name} onChange={e => setEditCompFields(p => ({ ...p, name: e.target.value }))} className="h-8 text-sm" /></td>
-                        <td className="p-2"><Input value={editCompFields.sku} onChange={e => setEditCompFields(p => ({ ...p, sku: e.target.value.toUpperCase() }))} className="h-8 text-sm" dir="ltr" /></td>
+                        <td className="p-2">
+                          <Input value={editCompFields.name} onChange={e => setEditCompFields(p => ({ ...p, name: e.target.value }))} className="h-10 text-sm mb-1" />
+                          <Input value={editCompFields.notes} onChange={e => setEditCompFields(p => ({ ...p, notes: e.target.value }))} className="h-8 text-xs text-muted-foreground" placeholder="הערות" />
+                        </td>
+                        <td className="p-2"><Input value={editCompFields.sku} onChange={e => setEditCompFields(p => ({ ...p, sku: e.target.value.toUpperCase() }))} className="h-10 text-sm" dir="ltr" /></td>
                         <td className="p-2">
                           <Select value={editCompFields.supplier || "__none__"} onValueChange={v => setEditCompFields(p => ({ ...p, supplier: v === "__none__" ? "" : v }))}>
-                            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="בחר ספק" /></SelectTrigger>
+                            <SelectTrigger className="h-10 text-sm"><SelectValue placeholder="בחר ספק" /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="__none__">ללא</SelectItem>
                               {suppliers.map(s => <SelectItem key={s.id} value={s.company}>{s.company}</SelectItem>)}
                             </SelectContent>
                           </Select>
                         </td>
-                        
-                        <td className="p-2"><Input type="number" value={editCompFields.stock_qty} onChange={e => setEditCompFields(p => ({ ...p, stock_qty: e.target.value }))} className="h-8 text-sm w-20" /></td>
-                        <td className="p-2"><Input type="number" value={editCompFields.price} onChange={e => setEditCompFields(p => ({ ...p, price: e.target.value }))} className="h-8 text-sm w-20" /></td>
-                        <td className="p-2"><Input value={editCompFields.notes} onChange={e => setEditCompFields(p => ({ ...p, notes: e.target.value }))} className="h-8 text-sm" /></td>
+                        <td className="p-2"><Input type="number" value={editCompFields.stock_qty} onChange={e => setEditCompFields(p => ({ ...p, stock_qty: e.target.value }))} className="h-10 text-sm w-20" /></td>
+                        <td className="p-2 hidden md:table-cell"><Input type="number" value={editCompFields.price} onChange={e => setEditCompFields(p => ({ ...p, price: e.target.value }))} className="h-10 text-sm w-20" /></td>
                         <td className="p-2">
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSaveComp} disabled={savingComp}>
-                              <Save className="h-3.5 w-3.5 text-success" />
+                            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleSaveComp} disabled={savingComp}>
+                              <Save className="h-4 w-4 text-success" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingCompId(null)}>
-                              <X className="h-3.5 w-3.5" />
+                            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setEditingCompId(null)}>
+                              <X className="h-4 w-4" />
                             </Button>
                           </div>
                         </td>
                       </tr>
                     ) : (
                       <tr key={comp.id}>
-                        <td className="p-3 font-medium text-foreground">{comp.name}</td>
+                        <td className="p-3">
+                          <p className="font-medium text-foreground">{comp.name}</p>
+                          {comp.notes && <p className="text-xs text-muted-foreground mt-0.5">{comp.notes}</p>}
+                        </td>
                         <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">{comp.sku || "—"}</td>
                         <td className="p-3 text-muted-foreground">{(() => {
                           const s = suppliers.find(s => s.company === comp.supplier);
@@ -317,18 +322,31 @@ export default function ProductDetailPage() {
                             <button onClick={() => navigate(`/suppliers/${s.id}`)} data-navigate-to={`/suppliers/${s.id}`} className="text-primary hover:underline">{comp.supplier}</button>
                           ) : (comp.supplier || "—");
                         })()}</td>
-                        
-                        <td className="p-3 text-muted-foreground">{comp.stock_qty ?? "—"}</td>
-                        <td className="p-3 text-muted-foreground">{comp.price ? `$${comp.price}` : "—"}</td>
-                        <td className="p-3 text-muted-foreground text-xs">{comp.notes || "—"}</td>
+                        <td className="p-3 text-muted-foreground">
+                          {canEditStock ? (
+                            <InlineEditField
+                              value={comp.stock_qty ?? 0}
+                              type="number"
+                              onSave={async (v) => {
+                                await updateComponent(comp.id, { stock_qty: v !== "" ? Number(v) : null });
+                                toast.success("מלאי רכיב עודכן");
+                              }}
+                              inputClassName="w-16 h-10 text-center text-sm"
+                              displayValue={<span className="text-sm text-muted-foreground">{comp.stock_qty ?? "—"}</span>}
+                            />
+                          ) : (
+                            comp.stock_qty ?? "—"
+                          )}
+                        </td>
+                        <td className="p-3 text-muted-foreground hidden md:table-cell">{comp.price ? `$${comp.price}` : "—"}</td>
                         {hasEdit && (
                           <td className="p-3">
                             <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEditComp(comp)}>
-                                <Pencil className="h-3.5 w-3.5" />
+                              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => startEditComp(comp)}>
+                                <Pencil className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteComp(comp.id)}>
-                                <Trash2 className="h-3.5 w-3.5" />
+                              <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteComp(comp.id)}>
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           </td>
