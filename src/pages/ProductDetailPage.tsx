@@ -50,7 +50,10 @@ export default function ProductDetailPage() {
     );
   }
 
-  const { hasEdit } = usePermissions("products");
+  const { hasEdit: hasProductsEdit } = usePermissions("products");
+  const { hasEdit: hasInventoryEdit } = usePermissions("inventory");
+  const hasEdit = hasProductsEdit;
+  const canEditStock = hasProductsEdit || hasInventoryEdit;
   const relatedOrders = orders.filter(o => o.items.some(item => item.name === product.name || item.product_id === product.id));
 
   const stockStatus = product.stock_qty === 0
@@ -318,7 +321,22 @@ export default function ProductDetailPage() {
                           ) : (comp.supplier || "—");
                         })()}</td>
                         
-                        <td className="p-3 text-muted-foreground">{comp.stock_qty ?? "—"}</td>
+                        <td className="p-3 text-muted-foreground">
+                          {canEditStock ? (
+                            <InlineEditField
+                              value={comp.stock_qty ?? 0}
+                              type="number"
+                              onSave={async (v) => {
+                                await updateComponent(comp.id, { stock_qty: v !== "" ? Number(v) : null });
+                                toast.success("מלאי רכיב עודכן");
+                              }}
+                              inputClassName="w-16 h-7 text-center text-sm"
+                              displayValue={<span className="text-sm text-muted-foreground">{comp.stock_qty ?? "—"}</span>}
+                            />
+                          ) : (
+                            comp.stock_qty ?? "—"
+                          )}
+                        </td>
                         <td className="p-3 text-muted-foreground">{comp.price ? `$${comp.price}` : "—"}</td>
                         <td className="p-3 text-muted-foreground text-xs">{comp.notes || "—"}</td>
                         {hasEdit && (
