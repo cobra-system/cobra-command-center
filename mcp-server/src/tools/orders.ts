@@ -7,10 +7,10 @@ export function registerOrderTools(server: McpServer) {
     "list_orders",
     "רשימת הזמנות — List orders, optionally filtered by status/supplier/priority",
     {
-      status: z.string().optional().describe("Filter by status"),
+      status: z.enum(["PENDING", "ORDERED", "SHIPPED", "ARRIVED", "CANCELLED"]).optional().describe("Filter by status: PENDING, ORDERED, SHIPPED, ARRIVED, CANCELLED"),
       supplier_id: z.string().uuid().optional().describe("Filter by supplier UUID"),
       supplier_name: z.string().optional().describe("Filter by supplier name (partial match)"),
-      priority: z.string().optional().describe("Filter by priority"),
+      priority: z.enum(["דחוף", "גבוה", "בינוני", "נמוך"]).optional().describe("Filter by priority: דחוף (urgent), גבוה (high), בינוני (medium), נמוך (low)"),
       limit: z.number().default(50).describe("Max results"),
     },
     async ({ status, supplier_id, supplier_name, priority, limit }) => {
@@ -59,15 +59,16 @@ export function registerOrderTools(server: McpServer) {
     {
       supplier_id: z.string().uuid().optional().describe("Supplier UUID"),
       supplier_name: z.string().optional().describe("Supplier name (auto-filled from supplier_id if omitted)"),
-      status: z.string().default("חדשה").describe("Order status"),
-      priority: z.string().default("רגיל").describe("Order priority"),
+      status: z.enum(["PENDING", "ORDERED", "SHIPPED", "ARRIVED", "CANCELLED"]).default("PENDING").describe("Order status: PENDING, ORDERED, SHIPPED, ARRIVED, CANCELLED"),
+      priority: z.enum(["דחוף", "גבוה", "בינוני", "נמוך"]).default("בינוני").describe("Order priority: דחוף (urgent), גבוה (high), בינוני (medium), נמוך (low)"),
       order_date: z.string().optional().describe("Order date (YYYY-MM-DD)"),
       total_price: z.number().optional().describe("Total order price"),
       contact_name: z.string().optional().describe("Contact person name"),
-      payment_status: z.string().optional().describe("Payment status (ממתין / שולם פיקדון / שולם)"),
+      payment_status: z.enum(["ממתין", "שולם פיקדון", "שולם"]).optional().describe("Payment status: ממתין (pending), שולם פיקדון (deposit paid), שולם (fully paid)"),
       notes: z.string().optional().describe("Order notes"),
       eta: z.string().optional().describe("Estimated arrival date (YYYY-MM-DD)"),
       etd: z.string().optional().describe("Estimated departure date (YYYY-MM-DD)"),
+      tracking_number: z.string().optional().describe("Shipment tracking number"),
       items: z.array(z.object({
         name: z.string().describe("Item name"),
         qty: z.number().describe("Quantity"),
@@ -75,7 +76,7 @@ export function registerOrderTools(server: McpServer) {
         price: z.number().optional().describe("Unit price"),
       })).optional().describe("Order line items"),
     },
-    async ({ supplier_id, supplier_name, status, priority, order_date, total_price, contact_name, payment_status, notes, eta, etd, items }) => {
+    async ({ supplier_id, supplier_name, status, priority, order_date, total_price, contact_name, payment_status, notes, eta, etd, tracking_number, items }) => {
       let resolvedSupplierName = supplier_name || null;
       if (supplier_id && !supplier_name) {
         const { data: sup } = await supabase.from("suppliers").select("company").eq("id", supplier_id).single();
@@ -96,6 +97,7 @@ export function registerOrderTools(server: McpServer) {
           notes: notes || null,
           eta: eta || null,
           etd: etd || null,
+          tracking_number: tracking_number || null,
         })
         .select()
         .single();
@@ -129,11 +131,11 @@ export function registerOrderTools(server: McpServer) {
     "עדכון הזמנה — Update order status, dates, notes, etc.",
     {
       id: z.string().uuid().describe("Order UUID"),
-      status: z.string().optional().describe("New status"),
-      priority: z.string().optional().describe("New priority"),
+      status: z.enum(["PENDING", "ORDERED", "SHIPPED", "ARRIVED", "CANCELLED"]).optional().describe("New status: PENDING, ORDERED, SHIPPED, ARRIVED, CANCELLED"),
+      priority: z.enum(["דחוף", "גבוה", "בינוני", "נמוך"]).optional().describe("New priority: דחוף (urgent), גבוה (high), בינוני (medium), נמוך (low)"),
       order_date: z.string().optional().describe("Order date (YYYY-MM-DD)"),
       total_price: z.number().optional().describe("Total order price"),
-      payment_status: z.string().optional().describe("Payment status (ממתין / שולם פיקדון / שולם)"),
+      payment_status: z.enum(["ממתין", "שולם פיקדון", "שולם"]).optional().describe("Payment status: ממתין (pending), שולם פיקדון (deposit paid), שולם (fully paid)"),
       payment_date: z.string().optional().describe("Payment date (YYYY-MM-DD)"),
       contact_name: z.string().optional().describe("Contact person name"),
       supplier_name: z.string().optional().describe("Supplier name"),
@@ -141,6 +143,7 @@ export function registerOrderTools(server: McpServer) {
       eta: z.string().optional().describe("Updated ETA (YYYY-MM-DD)"),
       etd: z.string().optional().describe("Updated ETD (YYYY-MM-DD)"),
       shipping: z.string().optional().describe("Shipping info"),
+      tracking_number: z.string().optional().describe("Shipment tracking number"),
     },
     async ({ id, ...fields }) => {
       const updates: Record<string, unknown> = {};
@@ -234,7 +237,7 @@ export function registerOrderTools(server: McpServer) {
     "חיפוש הזמנות — Search orders by supplier, status, date range, or product name",
     {
       supplier_name: z.string().optional().describe("Partial supplier name match"),
-      status: z.string().optional().describe("Filter by order status"),
+      status: z.enum(["PENDING", "ORDERED", "SHIPPED", "ARRIVED", "CANCELLED"]).optional().describe("Filter by order status"),
       date_from: z.string().optional().describe("Start date for order_date range (YYYY-MM-DD)"),
       date_to: z.string().optional().describe("End date for order_date range (YYYY-MM-DD)"),
       product_name: z.string().optional().describe("Search for orders containing a product (partial name match)"),
@@ -274,12 +277,32 @@ export function registerOrderTools(server: McpServer) {
 
   server.tool(
     "get_order_by_reference",
-    "משיכת הזמנה לפי מספר PI / מספר הזמנה — Find an order by PI number or reference string",
+    "משיכת הזמנה לפי מספר PI או הפניה — Find an order by PI number, tracking number, or reference string",
     {
-      reference: z.string().describe("PI number or reference string to search for"),
+      reference: z.string().describe("PI number, tracking number, or reference string to search for"),
     },
     async ({ reference }) => {
-      // Strategy 1: search in purchase_documents by document_name containing the reference
+      // Strategy 1: exact match on tracking_number
+      const { data: byTracking } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("tracking_number", reference);
+
+      if (byTracking && byTracking.length > 0) {
+        return { content: [{ type: "text" as const, text: JSON.stringify(byTracking, null, 2) }] };
+      }
+
+      // Strategy 2: legacy match on sap_doc_entry (for historical orders)
+      const { data: bySap } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("sap_doc_entry", reference);
+
+      if (bySap && bySap.length > 0) {
+        return { content: [{ type: "text" as const, text: JSON.stringify(bySap, null, 2) }] };
+      }
+
+      // Strategy 3: search in purchase_documents by document_name containing the reference
       const { data: docs } = await supabase
         .from("purchase_documents")
         .select("order_id, document_name, type")

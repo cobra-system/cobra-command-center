@@ -51,7 +51,7 @@ export function registerBulkOpsTools(server: McpServer) {
     "עדכון סטטוס הזמנות מרובות — Change status for multiple orders at once",
     {
       order_ids: z.array(z.string().uuid()).describe("Array of order UUIDs"),
-      status: z.string().describe("New status to set"),
+      status: z.enum(["PENDING", "ORDERED", "SHIPPED", "ARRIVED", "CANCELLED"]).describe("New status: PENDING, ORDERED, SHIPPED, ARRIVED, CANCELLED"),
       notes: z.string().optional().describe("Optional notes to append"),
     },
     async ({ order_ids, status, notes }) => {

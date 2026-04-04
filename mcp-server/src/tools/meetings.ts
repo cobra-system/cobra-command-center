@@ -231,4 +231,124 @@ export function registerMeetingTools(server: McpServer) {
       return { content: [{ type: "text" as const, text: "Action item deleted successfully" }] };
     }
   );
+
+  // --- meeting_participants tools ---
+
+  server.tool(
+    "list_meeting_participants",
+    "משתתפי פגישה — List participants of a meeting",
+    {
+      meeting_id: z.string().uuid().describe("Meeting UUID"),
+    },
+    async ({ meeting_id }) => {
+      const { data, error } = await supabase
+        .from("meeting_participants")
+        .select("*")
+        .eq("meeting_id", meeting_id)
+        .order("created_at", { ascending: true });
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "add_meeting_participant",
+    "הוספת משתתף לפגישה — Add a participant to a meeting",
+    {
+      meeting_id: z.string().uuid().describe("Meeting UUID"),
+      participant_type: z.enum(["profile", "supplier", "supplier_contact"]).describe("Participant type"),
+      participant_id: z.string().uuid().describe("Participant UUID (profile, supplier, or supplier_contact ID)"),
+    },
+    async ({ meeting_id, participant_type, participant_id }) => {
+      const { data, error } = await supabase
+        .from("meeting_participants")
+        .insert({ meeting_id, participant_type, participant_id })
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Participant added:\n${JSON.stringify(data, null, 2)}` }] };
+    }
+  );
+
+  server.tool(
+    "remove_meeting_participant",
+    "הסרת משתתף מפגישה — Remove a participant from a meeting",
+    {
+      id: z.string().uuid().describe("Meeting participant record UUID"),
+    },
+    async ({ id }) => {
+      const { error } = await supabase
+        .from("meeting_participants")
+        .delete()
+        .eq("id", id);
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: "Participant removed successfully" }] };
+    }
+  );
+
+  // --- meeting_documents tools ---
+
+  server.tool(
+    "list_meeting_documents",
+    "מסמכי פגישה — List documents attached to a meeting",
+    {
+      meeting_id: z.string().uuid().describe("Meeting UUID"),
+    },
+    async ({ meeting_id }) => {
+      const { data, error } = await supabase
+        .from("meeting_documents")
+        .select("*")
+        .eq("meeting_id", meeting_id)
+        .order("created_at", { ascending: true });
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "add_meeting_document",
+    "הוספת מסמך לפגישה — Attach a document record to a meeting",
+    {
+      meeting_id: z.string().uuid().describe("Meeting UUID"),
+      document_name: z.string().describe("Document display name"),
+      file_url: z.string().describe("URL of the document file"),
+      created_by: z.string().uuid().optional().describe("UUID of the user who added the document"),
+    },
+    async ({ meeting_id, document_name, file_url, created_by }) => {
+      const { data, error } = await supabase
+        .from("meeting_documents")
+        .insert({
+          meeting_id,
+          document_name,
+          file_url,
+          created_by: created_by || null,
+        })
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Document added to meeting:\n${JSON.stringify(data, null, 2)}` }] };
+    }
+  );
+
+  server.tool(
+    "remove_meeting_document",
+    "הסרת מסמך מפגישה — Remove a document from a meeting",
+    {
+      id: z.string().uuid().describe("Meeting document record UUID"),
+    },
+    async ({ id }) => {
+      const { error } = await supabase
+        .from("meeting_documents")
+        .delete()
+        .eq("id", id);
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: "Meeting document removed successfully" }] };
+    }
+  );
 }

@@ -299,7 +299,7 @@ export function registerAnalyticsTools(server: McpServer) {
         supabase.from("compliance_items").select("id, name, category, expiry_date, status, renewal_contact")
           .eq("status", "active").lt("expiry_date", today),
         supabase.from("orders").select("id, supplier_name, status, eta, priority")
-          .not("status", "in", '("הושלמה","בוטלה")').lt("eta", today),
+          .not("status", "in", '("ARRIVED","CANCELLED")').lt("eta", today),
       ]);
 
       const result = {
