@@ -25,7 +25,7 @@ export function validatePassword(password: string): { valid: boolean; error?: st
     return { valid: false, error: "הסיסמה חייבת להכיל לפחות ספרה אחת" };
   }
 
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+  if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
     return { valid: false, error: "הסיסמה חייבת להכיל לפחות תו מיוחד אחד (!@#$%^&*)" };
   }
 
