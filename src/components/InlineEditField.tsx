@@ -182,8 +182,8 @@ export function InlineEditField({
     );
   }
 
-  // Display mode
-  const handleDoubleClick = (e: React.MouseEvent) => {
+  // Display mode — single click/tap activates editing
+  const handleActivate = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (target.tagName === "A" || target.closest("a")) return;
     setEditValue(String(value ?? ""));
@@ -209,8 +209,8 @@ export function InlineEditField({
   return (
     <div
       className={cn("space-y-1 cursor-pointer group", className)}
-      onDoubleClick={handleDoubleClick}
-      title="לחץ פעמיים לעריכה"
+      onClick={handleActivate}
+      title="לחץ לעריכה"
     >
       {label && <p className="text-xs text-muted-foreground">{label}</p>}
       <div className={cn("text-sm font-medium text-foreground group-hover:bg-muted/50 group-hover:rounded px-1 -mx-1 transition-colors", type === "textarea" && "whitespace-pre-wrap")}>
