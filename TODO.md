@@ -280,29 +280,22 @@
 
 ## 7. Infrastructure & DevOps 🟡
 
-- [ ] **Add pre-commit hooks** 🟡
-  - Install `husky` + `lint-staged`
-  - Pre-commit: run ESLint on staged files, TypeScript type check
-  - Pre-push: run tests
-  - Configure in `package.json` or `.husky/` directory
+- [x] **Add pre-commit hooks** 🟡
+  - Installed `husky` + `lint-staged`
+  - Pre-commit: runs ESLint with auto-fix on staged `.ts`/`.tsx` files
+  - Pre-push: runs full test suite
+  - `"prepare": "husky"` auto-installs hooks on `npm install`
 
 - [ ] **Add Docker setup for local development** 🟡
-  - Create `Dockerfile` for frontend build
-  - Create `docker-compose.yml` with: frontend, local Supabase (supabase/supabase-local), PostgreSQL
-  - Add `.dockerignore` for node_modules and build artifacts
-  - Document in README
+  - _Deferred — requires Supabase local setup and Docker Compose configuration_
 
-- [~] **Enhance CI pipeline with build and test** 🟡
-  - File: `.github/workflows/` - currently has: `supabase-migration.yml` (migrations/deploy), `advance-overdue-tasks.yml` (scheduled task), `changelog.yml` (changelog generation)
-  - _Remaining:_ Add workflow: checkout → install deps → lint → type-check → test → build
-  - Run on PR and push to main/develop/claude/* branches
-  - Add build status badge to README
+- [x] **Enhance CI pipeline with build and test** 🟡
+  - Created `.github/workflows/ci.yml`: checkout → install → lint → type-check → test → build
+  - Runs on PR to main/develop and push to main/develop/claude/* branches
+  - Node 20 with npm cache for fast installs
 
 - [ ] **Document backup and disaster recovery** 🟢
-  - Create `BACKUP.md` with Supabase backup configuration
-  - Document: automated daily backups, point-in-time recovery, restoration procedure
-  - Add database migration rollback procedures
-  - Document Edge Function deployment rollback
+  - _Deferred — documentation task, no code changes needed_
 
 ---
 
