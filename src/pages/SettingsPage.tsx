@@ -1,39 +1,22 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useAuth, useData, roleLabel, type Role, type RoleDefinition } from "@/contexts/AppContext";
-import { useOutlook } from "@/contexts/OutlookContext";
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  Lock, Users, Mail, CheckCircle, LogOut, Plus, Pencil, Trash2, User, Settings,
-  Tag, Server, RefreshCw, XCircle, AlertTriangle, Package, Truck, Warehouse,
-  Clock, Loader2, Plug,
+  Lock, Users, Plus, Pencil, Trash2, User, Settings,
+  Tag,
 } from "lucide-react";
-import { format } from "date-fns";
 import RolePermissionsManager from "@/components/settings/RolePermissionsManager";
-
-interface SyncLogEntry {
-  id: string;
-  entity_type: string;
-  entity_id: string | null;
-  sap_code: string | null;
-  direction: string;
-  status: string;
-  details: string | null;
-  error_message: string | null;
-  created_at: string;
-}
 
 export default function SettingsPage() {
   const { currentUser } = useAuth();
   const { profiles, updateProfile, createEmployee, refreshProfiles, roleDefinitions, addRoleDefinition, updateRoleDefinition, deleteRoleDefinition } = useData();
-  const { isConnected, accountName, login, logout: outlookLogout, loading: outlookLoading } = useOutlook();
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -61,14 +44,6 @@ export default function SettingsPage() {
   const [roleSubmitting, setRoleSubmitting] = useState(false);
   const [roleDeleteConfirm, setRoleDeleteConfirm] = useState<string | null>(null);
 
-  // SAP integration state
-  const [sapTesting, setSapTesting] = useState(false);
-  const [sapConnectionStatus, setSapConnectionStatus] = useState<"unknown" | "connected" | "error">("unknown");
-  const [sapConnectionMessage, setSapConnectionMessage] = useState("");
-  const [syncLogs, setSyncLogs] = useState<SyncLogEntry[]>([]);
-  const [syncing, setSyncing] = useState<Record<string, boolean>>({});
-  const [sapLogsOpen, setSapLogsOpen] = useState(false);
-
   const isManager = currentUser?.role === "MANAGER";
   const employees = profiles.filter(p => p.role !== "MANAGER");
   const managerProfile = profiles.find(p => p.role === "MANAGER");
@@ -80,135 +55,6 @@ export default function SettingsPage() {
   const getRoleLabel = (role: string) => dynamicRoleLabel[role] || roleLabel[role] || role;
 
   const nonManagerRoleDefinitions = roleDefinitions.filter(rd => rd.system_key !== "MANAGER");
-
-  // SAP helpers
-  const callSapProxy = async (action: string, body?: any) => {
-    const sess = await supabase.auth.getSession();
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/sap-proxy`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${sess.data.session?.access_token}`,
-      },
-      body: JSON.stringify({ action, ...body }),
-    });
-    return res.json();
-  };
-
-  const fetchSapLogs = useCallback(async () => {
-    const { data } = await supabase
-      .from("sap_sync_log")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(20);
-    if (data) setSyncLogs(data as SyncLogEntry[]);
-  }, []);
-
-  useEffect(() => { fetchSapLogs(); }, [fetchSapLogs]);
-
-  const logSync = async (entityType: string, status: string, details?: string, errorMessage?: string) => {
-    await supabase.from("sap_sync_log").insert({
-      entity_type: entityType,
-      direction: "pull",
-      status,
-      details,
-      error_message: errorMessage,
-    } as any);
-    await fetchSapLogs();
-  };
-
-  const handleTestConnection = async () => {
-    setSapTesting(true);
-    try {
-      const result = await callSapProxy("test");
-      if (result.success) {
-        setSapConnectionStatus("connected");
-        setSapConnectionMessage(result.message);
-        toast.success("חיבור ל-SAP B1 הצליח!");
-      } else {
-        setSapConnectionStatus("error");
-        setSapConnectionMessage(result.message || result.error);
-        toast.error("חיבור ל-SAP B1 נכשל");
-      }
-    } catch (e: any) {
-      setSapConnectionStatus("error");
-      setSapConnectionMessage(e.message);
-      toast.error("שגיאה בבדיקת חיבור");
-    }
-    setSapTesting(false);
-  };
-
-  const handleSyncItems = async () => {
-    setSyncing(prev => ({ ...prev, items: true }));
-    try {
-      const result = await callSapProxy("sync-items");
-      if (result.error) throw new Error(result.error);
-      const items = result.value || [];
-      let synced = 0;
-      for (const item of items) {
-        const { data: existing } = await supabase.from("products").select("id").eq("sap_code", item.ItemCode).maybeSingle();
-        if (existing) {
-          await supabase.from("products").update({ stock_qty: item.QuantityOnStock || 0, purchase_price: item.AvgStdPrice || null } as any).eq("id", existing.id);
-        }
-        synced++;
-      }
-      await logSync("products", "success", `סונכרנו ${synced} פריטים מ-SAP`);
-      toast.success(`סונכרנו ${synced} פריטים`);
-    } catch (e: any) {
-      await logSync("products", "error", undefined, e.message);
-      toast.error(`שגיאה בסנכרון: ${e.message}`);
-    }
-    setSyncing(prev => ({ ...prev, items: false }));
-  };
-
-  const handleSyncSuppliers = async () => {
-    setSyncing(prev => ({ ...prev, suppliers: true }));
-    try {
-      const result = await callSapProxy("sync-suppliers");
-      if (result.error) throw new Error(result.error);
-      const partners = result.value || [];
-      let synced = 0;
-      for (const bp of partners) {
-        const { data: existing } = await supabase.from("suppliers").select("id").eq("sap_code", bp.CardCode).maybeSingle();
-        if (existing) {
-          await supabase.from("suppliers").update({ email: bp.EmailAddress || null, phone: bp.Phone1 || null } as any).eq("id", existing.id);
-        }
-        synced++;
-      }
-      await logSync("suppliers", "success", `סונכרנו ${synced} ספקים מ-SAP`);
-      toast.success(`סונכרנו ${synced} ספקים`);
-    } catch (e: any) {
-      await logSync("suppliers", "error", undefined, e.message);
-      toast.error(`שגיאה בסנכרון: ${e.message}`);
-    }
-    setSyncing(prev => ({ ...prev, suppliers: false }));
-  };
-
-  const handleSyncWarehouses = async () => {
-    setSyncing(prev => ({ ...prev, warehouses: true }));
-    try {
-      const result = await callSapProxy("sync-warehouses");
-      if (result.error) throw new Error(result.error);
-      const warehouses = result.value || [];
-      let synced = 0;
-      for (const wh of warehouses) {
-        const { data: existing } = await supabase.from("distribution_centers").select("id").eq("sap_code", wh.WarehouseCode).maybeSingle();
-        if (existing) {
-          await supabase.from("distribution_centers").update({ city: wh.City || null, address: wh.Street || null } as any).eq("id", existing.id);
-        }
-        synced++;
-      }
-      await logSync("warehouses", "success", `סונכרנו ${synced} מחסנים מ-SAP`);
-      toast.success(`סונכרנו ${synced} מחסנים`);
-    } catch (e: any) {
-      await logSync("warehouses", "error", undefined, e.message);
-      toast.error(`שגיאה בסנכרון: ${e.message}`);
-    }
-    setSyncing(prev => ({ ...prev, warehouses: false }));
-  };
-
-  const entityTypeLabel: Record<string, string> = { products: "מוצרים", suppliers: "ספקים", warehouses: "מחסנים", orders: "הזמנות" };
 
   const handleChangePassword = async () => {
     if (newPassword.length < 6) { toast.error("הסיסמה חייבת להכיל לפחות 6 תווים"); return; }
@@ -433,119 +279,6 @@ export default function SettingsPage() {
 
       {/* Role Permissions Management */}
       {isManager && <RolePermissionsManager />}
-
-      {/* Integrations Section */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Plug className="h-5 w-5 text-muted-foreground" />
-          <h2 className="text-lg font-semibold text-foreground">אינטגרציות</h2>
-        </div>
-
-        {/* Outlook */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base"><Mail className="h-5 w-5" />Outlook</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {outlookLoading ? (
-              <p className="text-sm text-muted-foreground">טוען...</p>
-            ) : isConnected ? (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-success" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">מחובר ל-Outlook</p>
-                    <p className="text-xs text-muted-foreground">{accountName}</p>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm" onClick={outlookLogout}><LogOut className="h-4 w-4 ml-1" />נתק</Button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">חבר את חשבון ה-Outlook שלך כדי לצפות במיילים מספקים.</p>
-                <Button onClick={login}><Mail className="h-4 w-4 ml-1" />התחבר ל-Outlook</Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* SAP B1 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-base"><Server className="h-5 w-5" />SAP Business One</div>
-              <div className="flex items-center gap-2">
-                {sapConnectionStatus === "unknown" && <Badge variant="secondary" className="gap-1"><AlertTriangle className="h-3 w-3" />לא נבדק</Badge>}
-                {sapConnectionStatus === "connected" && <Badge className="gap-1 bg-emerald-600 hover:bg-emerald-700"><CheckCircle className="h-3 w-3" />מחובר</Badge>}
-                {sapConnectionStatus === "error" && <Badge variant="destructive" className="gap-1"><XCircle className="h-3 w-3" />שגיאה</Badge>}
-                <Button onClick={handleTestConnection} disabled={sapTesting} size="sm" variant="outline">
-                  {sapTesting ? <Loader2 className="h-4 w-4 ml-1 animate-spin" /> : <RefreshCw className="h-4 w-4 ml-1" />}
-                  {sapTesting ? "בודק..." : "בדוק חיבור"}
-                </Button>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {sapConnectionMessage && (
-              <p className="text-xs text-muted-foreground">{sapConnectionMessage}</p>
-            )}
-
-            {/* Sync buttons */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <Button variant="outline" className="h-auto py-3 flex flex-col items-center gap-1.5" onClick={handleSyncItems} disabled={syncing.items}>
-                {syncing.items ? <Loader2 className="h-5 w-5 animate-spin" /> : <Package className="h-5 w-5" />}
-                <span className="text-sm">סנכרון מוצרים</span>
-                <span className="text-xs text-muted-foreground">Items ← SAP</span>
-              </Button>
-              <Button variant="outline" className="h-auto py-3 flex flex-col items-center gap-1.5" onClick={handleSyncSuppliers} disabled={syncing.suppliers}>
-                {syncing.suppliers ? <Loader2 className="h-5 w-5 animate-spin" /> : <Truck className="h-5 w-5" />}
-                <span className="text-sm">סנכרון ספקים</span>
-                <span className="text-xs text-muted-foreground">BusinessPartners ← SAP</span>
-              </Button>
-              <Button variant="outline" className="h-auto py-3 flex flex-col items-center gap-1.5" onClick={handleSyncWarehouses} disabled={syncing.warehouses}>
-                {syncing.warehouses ? <Loader2 className="h-5 w-5 animate-spin" /> : <Warehouse className="h-5 w-5" />}
-                <span className="text-sm">סנכרון מחסנים</span>
-                <span className="text-xs text-muted-foreground">Warehouses ← SAP</span>
-              </Button>
-            </div>
-
-            {/* Sync log toggle */}
-            <div>
-              <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground" onClick={() => { setSapLogsOpen(v => !v); fetchSapLogs(); }}>
-                <Clock className="h-3.5 w-3.5" />
-                {sapLogsOpen ? "הסתר לוג סנכרונים" : "הצג לוג סנכרונים"}
-              </Button>
-              {sapLogsOpen && (
-                <div className="mt-3 space-y-1.5 max-h-[280px] overflow-y-auto">
-                  {syncLogs.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">אין סנכרונים עדיין</p>
-                  ) : syncLogs.map(log => (
-                    <div key={log.id} className="flex items-center justify-between p-2.5 rounded-lg border bg-muted/30 text-sm">
-                      <div className="flex items-center gap-2">
-                        {log.status === "success"
-                          ? <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
-                          : <XCircle className="h-4 w-4 text-destructive shrink-0" />}
-                        <div>
-                          <span className="font-medium text-foreground">{entityTypeLabel[log.entity_type] || log.entity_type}</span>
-                          {log.details && <span className="text-muted-foreground mr-2">— {log.details}</span>}
-                          {log.error_message && <span className="text-destructive mr-2">— {log.error_message}</span>}
-                        </div>
-                      </div>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap" dir="ltr">
-                        {format(new Date(log.created_at), "dd/MM HH:mm")}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              ה-credentials של SAP מוגדרים כ-secrets בצד השרת. לעדכון, פנה למנהל המערכת.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Change Password */}
       <Card>

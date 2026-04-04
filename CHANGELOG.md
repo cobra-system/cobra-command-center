@@ -9,12 +9,19 @@
 
 ---
 
+## [2026-04-02]
+
+- Update package-lock.json after removing MSAL dependencies (6679732)
+- Clean up remaining SAP/Outlook artifacts (560e0ff)
+- Remove SAP Business One and Outlook integrations (9e5363d)
+
+<!-- last-commit: a89259516213f7b539cb43d8d102df029289b407 -->
+
 ## [2026-04-01]
 
 - fix: ensure waste_items table is created and verified before marking migration complete (997466d)
 - fix: enable waste item creation for all users on mobile and replace toggle with checkbox (f7f554c)
 
-<!-- last-commit: 2ec0f17a501feafcb0717b951a59be8cb1a52848 -->
 
 ## [2026-03-31]
 

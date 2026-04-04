@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth, type Supplier } from "@/contexts/AppContext";
-import { Search, Plus, Mail, ArrowUpDown, ArrowUp, ArrowDown, Globe, GitMerge, AlertTriangle, ExternalLink } from "lucide-react";
+import { Search, Plus, ArrowUpDown, ArrowUp, ArrowDown, Globe, GitMerge, AlertTriangle, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import SupplierEmailTab from "@/components/SupplierEmailTab";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
@@ -82,7 +81,6 @@ export default function SuppliersPage() {
   const { hasEdit } = usePermissions("suppliers");
   const { suppliers, addSupplier, updateSupplier, deleteSupplier, refreshSuppliers } = useData();
   const [search, setSearch] = useState("");
-  const [emailSupplier, setEmailSupplier] = useState<{ id: string; company: string; email: string | null } | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
 
@@ -177,7 +175,6 @@ export default function SuppliersPage() {
                 </button>
               </th>
             ))}
-            <th className="text-right p-3 font-semibold text-foreground">תקשורת</th>
           </tr></thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
@@ -196,28 +193,11 @@ export default function SuppliersPage() {
                 </td>
                 <td className="p-3">{s.email ? <span className="text-accent text-xs" dir="ltr">{s.email}</span> : "—"}</td>
                 <td className="p-3 text-muted-foreground" dir="ltr">{s.phone || "—"}</td>
-                <td className="p-3">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setEmailSupplier({ id: s.id, company: s.company, email: s.email || null }); }}
-                    className="text-primary hover:text-primary/80 transition-colors"
-                    title="📧 תקשורת"
-                  >
-                    <Mail className="h-4 w-4" />
-                  </button>
-                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-
-      {/* Email Dialog */}
-      <Dialog open={!!emailSupplier} onOpenChange={() => setEmailSupplier(null)}>
-        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>📧 תקשורת — {emailSupplier?.company}</DialogTitle></DialogHeader>
-          {emailSupplier && <SupplierEmailTab supplierEmail={emailSupplier.email || ""} supplierName={emailSupplier.company} />}
-        </DialogContent>
-      </Dialog>
 
       {/* Merge Duplicates Dialog */}
       <MergeDuplicatesDialog

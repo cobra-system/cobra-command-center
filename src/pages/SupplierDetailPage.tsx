@@ -12,7 +12,6 @@ import { ArrowRight, Pencil, Trash2, ExternalLink, Mail, Phone, Globe, TruckIcon
 import DocumentsSection from "@/components/DocumentsSection";
 import ProductFormDialog from "@/components/products/ProductFormDialog";
 import { InlineEditField } from "@/components/InlineEditField";
-import SapSyncBadge from "@/components/SapSyncBadge";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -163,7 +162,6 @@ export default function SupplierDetailPage() {
           <h1 className="text-2xl font-bold text-foreground">{supplier.company}</h1>
           <div className="flex items-center gap-2">
             <p className="text-sm text-muted-foreground">{supplier.country === "ישראל" ? "🇮🇱 ישראל" : "🌍 חו״ל"}</p>
-            <SapSyncBadge sapCode={(supplier as any).sap_code} />
           </div>
         </div>
         {hasEdit && (
