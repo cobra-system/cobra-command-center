@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useAuth } from "@/contexts/AppContext";
+import { useAuth, useData } from "@/contexts/AppContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/lib/supabase";
+import { Combobox } from "@/components/ui/combobox";
 import { toast } from "sonner";
 import {
   Table,
@@ -78,6 +79,7 @@ const emptyRow: EditingRow = {
 
 export default function WasteManagementPage() {
   const { currentUser } = useAuth();
+  const { products } = useData();
   const { hasEdit, isManager } = usePermissions("waste");
   const isMobile = useIsMobile();
 
@@ -91,6 +93,32 @@ export default function WasteManagementPage() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const productOptions = useMemo(
+    () => products.map((p) => ({ value: p.name, label: p.name })),
+    [products]
+  );
+
+  const productByName = useMemo(() => {
+    const map = new Map<string, string>();
+    products.forEach((p) => map.set(p.name, p.sku));
+    return map;
+  }, [products]);
+
+  const handleProductSelect = (val: string) => {
+    if (!editingRow) return;
+    const sku = productByName.get(val);
+    if (sku !== undefined) {
+      setEditingRow({ ...editingRow, product_name: val, sku });
+    } else {
+      setEditingRow({ ...editingRow, product_name: val });
+    }
+  };
+
+  const isProductFromSystem = useMemo(() => {
+    if (!editingRow) return false;
+    return productByName.has(editingRow.product_name);
+  }, [editingRow, productByName]);
 
   const refreshItems = useCallback(async () => {
     let query = supabase
@@ -503,23 +531,19 @@ export default function WasteManagementPage() {
                 {/* Product name */}
                 <div className="space-y-2">
                   <Label
-                    htmlFor="mobile-product"
                     className="text-sm font-medium flex items-center gap-2"
                   >
                     <Package className="h-4 w-4 text-primary" />
                     שם המוצר
                   </Label>
-                  <Input
-                    id="mobile-product"
-                    autoFocus
-                    placeholder="לדוגמה: מקלדת, עכבר, מסך..."
+                  <Combobox
                     value={editingRow.product_name}
-                    onChange={(e) =>
-                      setEditingRow({
-                        ...editingRow,
-                        product_name: e.target.value,
-                      })
-                    }
+                    onValueChange={handleProductSelect}
+                    options={productOptions}
+                    placeholder="בחר או הקלד שם מוצר..."
+                    searchPlaceholder="חיפוש מוצר..."
+                    emptyText="לא נמצא מוצר"
+                    allowCustomValue
                     className="h-12 rounded-xl text-base"
                   />
                 </div>
@@ -541,6 +565,7 @@ export default function WasteManagementPage() {
                       onChange={(e) =>
                         setEditingRow({ ...editingRow, sku: e.target.value })
                       }
+                      disabled={isProductFromSystem}
                       className="h-12 rounded-xl text-base font-mono"
                     />
                   </div>
@@ -784,16 +809,14 @@ export default function WasteManagementPage() {
                   </TableCell>
                 )}
                 <TableCell>
-                  <Input
-                    autoFocus
-                    placeholder="שם המוצר"
+                  <Combobox
                     value={editingRow.product_name}
-                    onChange={(e) =>
-                      setEditingRow({
-                        ...editingRow,
-                        product_name: e.target.value,
-                      })
-                    }
+                    onValueChange={handleProductSelect}
+                    options={productOptions}
+                    placeholder="בחר או הקלד שם מוצר..."
+                    searchPlaceholder="חיפוש מוצר..."
+                    emptyText="לא נמצא מוצר"
+                    allowCustomValue
                     className="h-9"
                   />
                 </TableCell>
@@ -804,6 +827,7 @@ export default function WasteManagementPage() {
                     onChange={(e) =>
                       setEditingRow({ ...editingRow, sku: e.target.value })
                     }
+                    disabled={isProductFromSystem}
                     className="h-9"
                   />
                 </TableCell>
@@ -884,15 +908,14 @@ export default function WasteManagementPage() {
                     </TableCell>
                   )}
                   <TableCell>
-                    <Input
-                      autoFocus
+                    <Combobox
                       value={editingRow.product_name}
-                      onChange={(e) =>
-                        setEditingRow({
-                          ...editingRow,
-                          product_name: e.target.value,
-                        })
-                      }
+                      onValueChange={handleProductSelect}
+                      options={productOptions}
+                      placeholder="בחר או הקלד שם מוצר..."
+                      searchPlaceholder="חיפוש מוצר..."
+                      emptyText="לא נמצא מוצר"
+                      allowCustomValue
                       className="h-9"
                     />
                   </TableCell>
@@ -902,6 +925,7 @@ export default function WasteManagementPage() {
                       onChange={(e) =>
                         setEditingRow({ ...editingRow, sku: e.target.value })
                       }
+                      disabled={isProductFromSystem}
                       className="h-9"
                     />
                   </TableCell>
