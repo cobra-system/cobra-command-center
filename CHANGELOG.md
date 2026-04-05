@@ -9,13 +9,18 @@
 
 ---
 
+## [2026-04-05]
+
+- fix: add start_date range support to MyTasksPage (bef5dc5)
+
+<!-- last-commit: 537bcfa06bce2a1d3604fdb892ca5aa48e3d39a4 -->
+
 ## [2026-04-04]
 
 - feat: mobile-first UI for employee inventory and product pages (121470b)
 - feat: allow inventory editors to update component stock_qty (4833e50)
 - feat: allow employees with inventory edit permission to manage inventory (1feabc9)
 
-<!-- last-commit: c2abb59cb6f8b4e33e2dd6afc14bc6bc28a8e0e9 -->
 
 ## [2026-04-04]
 
