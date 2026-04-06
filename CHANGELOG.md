@@ -9,11 +9,16 @@
 
 ---
 
+## [2026-04-06]
+
+- feat: add last updated column to orders table (cf8b141)
+
+<!-- last-commit: 1f919977215266bccae6077575925b0f4f6a55df -->
+
 ## [2026-04-05]
 
 - fix: add start_date range support to MyTasksPage (bef5dc5)
 
-<!-- last-commit: 537bcfa06bce2a1d3604fdb892ca5aa48e3d39a4 -->
 
 ## [2026-04-04]
 
