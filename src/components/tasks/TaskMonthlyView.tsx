@@ -5,7 +5,8 @@ import { type RecurringTask, recurringMatchesDay, findOrCreateRecurringInstance 
 import { supabase } from "@/lib/supabase";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths, startOfDay, isSameDay, getDay, isWithinInterval } from "date-fns";
 import { he } from "date-fns/locale";
-import { ChevronRight, ChevronLeft, Calendar, Users, Settings, Plus, Repeat } from "lucide-react";
+import { ChevronRight, ChevronLeft, Calendar, Users, Settings, Plus, Repeat, Pencil, CheckCircle2, Trash2 } from "lucide-react";
+import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -334,9 +335,19 @@ export default function TaskMonthlyView() {
                   </div>
                 </div>
               ))}
-              {selectedDayTasks.map(task => (
+              {selectedDayTasks.map(task => {
+                const taskMenuGroups: ContextMenuGroupItem[][] = [
+                  [
+                    { label: "פרטי משימה", icon: Pencil, onClick: () => setSelectedTask(task) },
+                    { label: task.status === "DONE" ? "סמן כלא בוצע" : "סמן כבוצע", icon: CheckCircle2, onClick: () => updateTaskStatus(task.id, task.status === "DONE" ? "TODO" : "DONE") },
+                  ],
+                  [
+                    { label: "מחק משימה", icon: Trash2, onClick: () => deleteTask(task.id), variant: "destructive" as const, confirmTitle: "מחיקת משימה", confirmDescription: `האם אתה בטוח שברצונך למחוק את "${task.title}"?` },
+                  ],
+                ];
+                return (
+                <EntityContextMenu key={task.id} groups={taskMenuGroups}>
                 <div
-                  key={task.id}
                   draggable
                   className={cn(
                     "p-3 rounded-lg border transition-all cursor-grab active:cursor-grabbing hover:shadow-sm",
@@ -370,7 +381,9 @@ export default function TaskMonthlyView() {
                     </div>
                   </div>
                 </div>
-              ))}
+                </EntityContextMenu>
+                );
+              })}
               </>
             )}
           </div>

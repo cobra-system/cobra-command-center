@@ -2,7 +2,9 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Users, Plus, Search, Loader2, CalendarDays, ListChecks } from "lucide-react";
+import { Users, Plus, Search, Loader2, CalendarDays, ListChecks, Eye, Trash2 } from "lucide-react";
+import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
+import { toast } from "sonner";
 import MeetingFormDialog from "@/components/meetings/MeetingFormDialog";
 import MeetingDetailDialog from "@/components/meetings/MeetingDetailDialog";
 import type { Meeting, MeetingActionItem } from "@/components/meetings/types";
@@ -67,6 +69,15 @@ export default function MeetingsPage() {
     }
   }, [meetings]);
 
+  const handleDeleteMeeting = async (meetingId: string) => {
+    await supabase.from("meeting_action_items").delete().eq("meeting_id", meetingId);
+    await supabase.from("meeting_participants").delete().eq("meeting_id", meetingId);
+    const { error } = await supabase.from("meetings").delete().eq("id", meetingId);
+    if (error) { toast.error("שגיאה במחיקת הפגישה"); return; }
+    toast.success("הפגישה נמחקה");
+    refresh();
+  };
+
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   return (
@@ -102,9 +113,17 @@ export default function MeetingsPage() {
         <div className="grid gap-3">
           {filtered.map(meeting => {
             const counts = actionCounts[meeting.id];
+            const meetingMenuGroups: ContextMenuGroupItem[][] = [
+              [
+                { label: "פרטי פגישה", icon: Eye, onClick: () => setSelectedMeeting(meeting) },
+              ],
+              [
+                { label: "מחק פגישה", icon: Trash2, onClick: () => handleDeleteMeeting(meeting.id), variant: "destructive" as const, confirmTitle: "מחיקת פגישה", confirmDescription: `האם למחוק את הפגישה "${meeting.title}"? פעולה זו תמחק גם את כל המשימות והמסמכים המשויכים.` },
+              ],
+            ];
             return (
+              <EntityContextMenu key={meeting.id} groups={meetingMenuGroups}>
               <div
-                key={meeting.id}
                 onClick={() => setSelectedMeeting(meeting)}
                 className="p-4 rounded-xl border bg-card hover:bg-muted/30 transition-colors cursor-pointer shadow-sm"
               >
@@ -134,6 +153,7 @@ export default function MeetingsPage() {
                   </div>
                 </div>
               </div>
+              </EntityContextMenu>
             );
           })}
         </div>

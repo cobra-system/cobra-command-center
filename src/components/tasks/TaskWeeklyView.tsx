@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useData, useAuth, type Task, type Priority } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
@@ -6,7 +6,8 @@ import { PriorityBadge } from "@/components/PriorityBadge";
 import { type RecurringTask, recurringMatchesDay, findOrCreateRecurringInstance } from "@/lib/recurringUtils";
 import { format, startOfWeek, addDays, isSameDay, isToday, isPast, addWeeks, subWeeks, getDay, startOfDay, isWithinInterval } from "date-fns";
 import { he } from "date-fns/locale";
-import { ChevronRight, ChevronLeft, CalendarDays, AlertTriangle, Users, Repeat, Settings, X, Plus, ClipboardList } from "lucide-react";
+import { ChevronRight, ChevronLeft, CalendarDays, AlertTriangle, Users, Repeat, Settings, X, Plus, ClipboardList, Pencil, CheckCircle2, Trash2 } from "lucide-react";
+import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -322,9 +323,19 @@ export default function TaskWeeklyView() {
                 )}
 
                 {/* Regular tasks */}
-                {showTasks && dayTasks.map(task => (
+                {showTasks && dayTasks.map(task => {
+                  const taskMenuGroups: ContextMenuGroupItem[][] = [
+                    [
+                      { label: "פרטי משימה", icon: Pencil, onClick: () => setSelectedTask(task) },
+                      { label: task.status === "DONE" ? "סמן כלא בוצע" : "סמן כבוצע", icon: CheckCircle2, onClick: () => updateTaskStatus(task.id, task.status === "DONE" ? "TODO" : "DONE") },
+                    ],
+                    [
+                      { label: "מחק משימה", icon: Trash2, onClick: () => deleteTask(task.id), variant: "destructive" as const, confirmTitle: "מחיקת משימה", confirmDescription: `האם אתה בטוח שברצונך למחוק את "${task.title}"?` },
+                    ],
+                  ];
+                  return (
+                  <EntityContextMenu key={task.id} groups={taskMenuGroups}>
                   <WeeklyTaskCard
-                    key={task.id}
                     task={task}
                     showAssignee={assigneeFilter === "all"}
                     isDragging={dragTaskId === task.id}
@@ -334,7 +345,9 @@ export default function TaskWeeklyView() {
                     onDragStart={() => setDragTaskId(task.id)}
                     onDragEnd={() => { setDragTaskId(null); setDragOverDay(null); }}
                   />
-                ))}
+                  </EntityContextMenu>
+                  );
+                })}
 
                 {/* Recurring task cards */}
                 {showRecurring && dayRecurring.map(rt => (
@@ -456,13 +469,15 @@ interface WeeklyTaskCardProps {
   onDragEnd: () => void;
 }
 
-function WeeklyTaskCard({ task, showAssignee, isDragging, isHighlighted, onToggle, onClick, onDragStart, onDragEnd }: WeeklyTaskCardProps) {
+const WeeklyTaskCard = React.forwardRef<HTMLDivElement, WeeklyTaskCardProps & React.HTMLAttributes<HTMLDivElement>>(({ task, showAssignee, isDragging, isHighlighted, onToggle, onClick, onDragStart, onDragEnd, ...props }, ref) => {
   const isDone = task.status === "DONE";
   const isUrgent = task.priority === "דחוף";
   const initials = task.assignee_name ? task.assignee_name.trim().charAt(0).toUpperCase() : null;
 
   return (
     <div
+      ref={ref}
+      {...props}
       className={cn(
         "rounded-lg px-2 py-2 text-[11px] cursor-grab active:cursor-grabbing transition-all border select-none",
         isDone ? "bg-success/10 border-success/20 opacity-60" :
@@ -500,7 +515,8 @@ function WeeklyTaskCard({ task, showAssignee, isDragging, isHighlighted, onToggl
       )}
     </div>
   );
-}
+});
+WeeklyTaskCard.displayName = "WeeklyTaskCard";
 
 // ─── Recurring task card ──────────────────────────────────────────────────────
 

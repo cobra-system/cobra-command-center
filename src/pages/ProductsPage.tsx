@@ -1,7 +1,8 @@
 import { useState, useMemo, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, categories, type Product } from "@/contexts/AppContext";
-import { Search, ChevronDown, ChevronUp, Boxes, Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2 } from "lucide-react";
+import { Search, ChevronDown, ChevronUp, Boxes, Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye, Pencil, Truck } from "lucide-react";
+import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -77,8 +78,8 @@ export default function ProductsPage() {
     return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   };
 
-  const handleDelete = async (productId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDelete = async (productId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     await deleteProduct(productId);
     toast.success("המוצר נמחק");
   };
@@ -154,8 +155,22 @@ export default function ProductsPage() {
               const isExpanded = expandedId === p.id;
               const hasComponents = isComposite && p.components && p.components.length > 0;
 
+              const productMenuGroups: ContextMenuGroupItem[][] = [
+                [
+                  { label: "צפה במוצר", icon: Eye, onClick: () => navigate(`/products/${p.id}`) },
+                  ...(p.supplier ? [{ label: `עבור לספק: ${p.supplier}`, icon: Truck, onClick: () => navigateToSupplier(p.supplier!) }] : []),
+                ],
+                [
+                  { label: "ערוך מוצר", icon: Pencil, onClick: () => { setEditProduct(p); setFormOpen(true); }, hidden: !hasEdit },
+                ],
+                [
+                  { label: "מחק מוצר", icon: Trash2, onClick: () => handleDelete(p.id), variant: "destructive" as const, hidden: !hasEdit, confirmTitle: "מחיקת מוצר", confirmDescription: `האם למחוק את "${p.name}"? פעולה זו לא ניתנת לביטול.` },
+                ],
+              ];
+
               return (
                 <Fragment key={p.id}>
+                  <EntityContextMenu groups={productMenuGroups}>
                   <tr
                     className="group cursor-pointer hover:bg-muted/30 transition-colors"
                     onClick={(e) => { if (e.detail !== 1) return; isComposite ? toggleExpand(p.id) : navigate(`/products/${p.id}`); }}
@@ -221,6 +236,7 @@ export default function ProductsPage() {
                       </td>
                     )}
                   </tr>
+                  </EntityContextMenu>
 
                   {/* Expanded components */}
                   {isExpanded && hasComponents && (

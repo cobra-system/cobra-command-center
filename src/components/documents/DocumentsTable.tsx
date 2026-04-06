@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth } from "@/contexts/AppContext";
-import { ArrowUpDown, ArrowUp, ArrowDown, Paperclip, Trash2 } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Paperclip, Trash2, Eye, RefreshCw } from "lucide-react";
+import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -180,9 +181,27 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
           <tbody className="divide-y">
             {filtered.length === 0 ? (
               <tr><td colSpan={11} className="p-8 text-center text-muted-foreground">אין מסמכים</td></tr>
-            ) : filtered.map(doc => (
+            ) : filtered.map(doc => {
+              const docMenuGroups: ContextMenuGroupItem[][] = [
+                [
+                  { label: "צפה במסמך", icon: Eye, onClick: () => navigate(`/documents/${doc.id}`) },
+                ],
+                [
+                  {
+                    label: "שנה סטטוס", icon: RefreshCw,
+                    items: docStatusFlow.map(s => ({
+                      label: s, onClick: () => handleStatusChange(doc.id, s),
+                      disabled: doc.status === s,
+                    })),
+                  },
+                ],
+                [
+                  { label: "מחק מסמך", icon: Trash2, onClick: () => handleDeleteDocument(doc.id), variant: "destructive" as const, confirmTitle: "מחיקת מסמך", confirmDescription: `האם אתה בטוח שברצונך למחוק את המסמך "${doc.document_name || doc.notes || "ללא שם"}"? פעולה זו לא ניתנת לביטול.` },
+                ],
+              ];
+              return (
+              <EntityContextMenu key={doc.id} groups={docMenuGroups}>
               <tr
-                key={doc.id}
                 className="hover:bg-muted/30 cursor-pointer transition-colors"
                 onClick={() => navigate(`/documents/${doc.id}`)}
               >
@@ -265,7 +284,9 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
                   </AlertDialog>
                 </td>
               </tr>
-            ))}
+              </EntityContextMenu>
+              );
+            })}
           </tbody>
         </table>
       </div>

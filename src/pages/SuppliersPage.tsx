@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth, type Supplier } from "@/contexts/AppContext";
-import { Search, Plus, ArrowUpDown, ArrowUp, ArrowDown, Globe, GitMerge, AlertTriangle, ExternalLink } from "lucide-react";
+import { Search, Plus, ArrowUpDown, ArrowUp, ArrowDown, Globe, GitMerge, AlertTriangle, ExternalLink, Eye, Trash2 } from "lucide-react";
+import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -179,8 +180,18 @@ export default function SuppliersPage() {
           <tbody className="divide-y">
             {filtered.length === 0 ? (
               <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">לא נמצאו ספקים</td></tr>
-            ) : filtered.map(s => (
-              <tr key={s.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/suppliers/${s.id}`)} data-navigate-to={`/suppliers/${s.id}`}>
+            ) : filtered.map(s => {
+              const supplierMenuGroups: ContextMenuGroupItem[][] = [
+                [
+                  { label: "צפה בספק", icon: Eye, onClick: () => navigate(`/suppliers/${s.id}`) },
+                ],
+                [
+                  { label: "מחק ספק", icon: Trash2, onClick: () => { deleteSupplier(s.id).then(() => toast.success("הספק נמחק")); }, variant: "destructive" as const, hidden: !hasEdit, confirmTitle: "מחיקת ספק", confirmDescription: `האם למחוק את "${s.company}"? פעולה זו לא ניתנת לביטול.` },
+                ],
+              ];
+              return (
+              <EntityContextMenu key={s.id} groups={supplierMenuGroups}>
+              <tr className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/suppliers/${s.id}`)} data-navigate-to={`/suppliers/${s.id}`}>
                 <td className="p-3 font-medium text-foreground">{s.company}</td>
                 <td className="p-3 text-muted-foreground">{s.contact_name}</td>
                 <td className="p-3">
@@ -194,7 +205,9 @@ export default function SuppliersPage() {
                 <td className="p-3">{s.email ? <span className="text-accent text-xs" dir="ltr">{s.email}</span> : "—"}</td>
                 <td className="p-3 text-muted-foreground" dir="ltr">{s.phone || "—"}</td>
               </tr>
-            ))}
+              </EntityContextMenu>
+              );
+            })}
           </tbody>
         </table>
       </div>
