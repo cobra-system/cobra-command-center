@@ -395,13 +395,18 @@ export default function OrdersPage() {
                   מספר מעקב<SortIcon field="tracking_number" />
                 </button>
               </th>
+              <th className="text-right p-2 sm:p-3 font-semibold text-foreground hidden lg:table-cell">
+                <button onClick={() => toggleSort("updated_at")} className="flex items-center gap-1 hover:text-primary transition-colors">
+                  עודכן לאחרונה<SortIcon field="updated_at" />
+                </button>
+              </th>
               <th className="text-right p-2 sm:p-3 font-semibold text-foreground w-10"></th>
               {hasEdit && <th className="text-right p-2 sm:p-3 font-semibold text-foreground w-10"></th>}
             </tr>
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={hasEdit ? 15 : 14} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
+              <tr><td colSpan={hasEdit ? 16 : 15} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
             ) : filtered.map((order) => (
               <tr key={order.id} className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={(e) => { if (e.detail !== 1) return; navigate(`/orders/${order.id}`); }} data-navigate-to={`/orders/${order.id}`}>
                 <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
@@ -556,6 +561,7 @@ export default function OrdersPage() {
                   )}
                 </td>
                 <td className="p-2 sm:p-3 text-muted-foreground text-xs hidden lg:table-cell">{order.tracking_number || "—"}</td>
+                <td className="p-2 sm:p-3 text-muted-foreground text-xs hidden lg:table-cell">{order.updated_at ? new Date(order.updated_at).toLocaleDateString("he-IL") : "—"}</td>
                 <td className="p-3" onClick={e => e.stopPropagation()}>
                   <button
                     className="p-1 rounded hover:bg-muted transition-colors"
