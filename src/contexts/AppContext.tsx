@@ -100,6 +100,7 @@ export interface Order {
   contact_name?: string | null;
   notes?: string | null;
   tracking_number?: string | null;
+  updated_at?: string | null;
   items: OrderItem[];
 }
 
