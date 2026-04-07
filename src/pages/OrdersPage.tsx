@@ -157,7 +157,12 @@ export default function OrdersPage() {
           case "total_price": cmp = (a.total_price || 0) - (b.total_price || 0); break;
           case "payment": cmp = (a.payment_date || "").localeCompare(b.payment_date || ""); break;
           case "tracking_number": cmp = (a.tracking_number || "").localeCompare(b.tracking_number || "", "he"); break;
-          case "updated_at": cmp = (a.updated_at || "").localeCompare(b.updated_at || ""); break;
+          case "updated_at": {
+            const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+            const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+            cmp = dateA - dateB;
+            break;
+          }
           case "workflow": {
             const stepA = orderWorkflows[a.id] ? (orderWorkflows[a.id].status === "completed" ? 999 : orderWorkflows[a.id].current_step) : -1;
             const stepB = orderWorkflows[b.id] ? (orderWorkflows[b.id].status === "completed" ? 999 : orderWorkflows[b.id].current_step) : -1;
