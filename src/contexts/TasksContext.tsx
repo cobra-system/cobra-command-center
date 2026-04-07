@@ -38,11 +38,10 @@ export function TasksProvider({ session, children }: { session: Session | null; 
       const { data } = await supabase.from("tasks").select("*").neq("status", "TEMPLATE").order("created_at", { ascending: false }).limit(500);
       return (data as Task[]) ?? [];
     },
-    enabled: false, // DataLoader will trigger initial fetch
   });
 
   const refreshTasks = useCallback(async () => {
-    await queryClient.refetchQueries({ queryKey: ["tasks"] });
+    await queryClient.invalidateQueries({ queryKey: ["tasks"] });
   }, [queryClient]);
 
   // Realtime subscription for tasks

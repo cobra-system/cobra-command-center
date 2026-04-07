@@ -42,11 +42,10 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       }
       return [] as Order[];
     },
-    enabled: false,
   });
 
   const refreshOrders = useCallback(async () => {
-    await queryClient.refetchQueries({ queryKey: ["orders"] });
+    await queryClient.invalidateQueries({ queryKey: ["orders"] });
   }, [queryClient]);
 
   const updateOrderStatus = useCallback(async (orderId: string, status: OrderStatus) => {

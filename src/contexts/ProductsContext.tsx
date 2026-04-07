@@ -38,11 +38,10 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
         components: ((p as Record<string, unknown>).product_components || []) as ProductComponent[],
       })) as Product[];
     },
-    enabled: false, // DataLoader will trigger initial fetch
   });
 
   const refreshProducts = useCallback(async () => {
-    await queryClient.refetchQueries({ queryKey: ["products"] });
+    await queryClient.invalidateQueries({ queryKey: ["products"] });
   }, [queryClient]);
 
   const updateProduct = useCallback(async (id: string, updates: Partial<Product>) => {
