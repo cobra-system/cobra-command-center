@@ -4,15 +4,15 @@ import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  Lock, Users, Plus, Pencil, Trash2, User, Settings,
-  Tag,
+  Lock, Pencil, User, Settings,
 } from "lucide-react";
 import RolePermissionsManager from "@/components/settings/RolePermissionsManager";
+import RoleDefinitionManager from "@/components/settings/RoleDefinitionManager";
+import UserManagementTable from "@/components/settings/UserManagementTable";
 import { passwordChangeSchema } from "@/lib/schemas/passwordSchema";
 import { employeeCreateSchema, employeeUpdateSchema } from "@/lib/schemas/employeeSchema";
 
@@ -32,7 +32,6 @@ export default function SettingsPage() {
   const [empPassword, setEmpPassword] = useState("");
   const [empRoleDefId, setEmpRoleDefId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   // Manager profile edit
   const [managerEditOpen, setManagerEditOpen] = useState(false);
@@ -151,7 +150,6 @@ export default function SettingsPage() {
       else { toast.success("העובד נמחק"); await refreshProfiles(); }
     } catch { toast.error("שגיאה בחיבור לשרת"); }
     setSubmitting(false);
-    setDeleteConfirm(null);
   };
 
   const handleSaveManagerName = async () => {
@@ -229,59 +227,21 @@ export default function SettingsPage() {
 
       {/* Role Definitions Management */}
       {isManager && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-lg"><Tag className="h-5 w-5" />ניהול תפקידים</div>
-              <Dialog open={roleDialogOpen} onOpenChange={(v) => { setRoleDialogOpen(v); if (!v) resetRoleForm(); }}>
-                <DialogTrigger asChild>
-                  <Button size="sm"><Plus className="h-4 w-4 ml-1" />תפקיד חדש</Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-sm">
-                  <DialogHeader><DialogTitle>{editingRoleId ? "עריכת תפקיד" : "הוספת תפקיד חדש"}</DialogTitle></DialogHeader>
-                  <div className="space-y-4 pt-2">
-                    <div className="space-y-2"><Label>שם התפקיד *</Label><Input value={roleName} onChange={e => setRoleName(e.target.value)} placeholder="לדוגמה: קניין, טכנאי..." /></div>
-                    <Button onClick={handleRoleSubmit} disabled={!roleName.trim() || roleSubmitting} className="w-full">
-                      {roleSubmitting ? "שומר..." : editingRoleId ? "עדכן" : "הוסף תפקיד"}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {roleDefinitions.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">אין תפקידים מוגדרים</p>
-              ) : roleDefinitions.map(rd => (
-                <div key={rd.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
-                  <div className="flex items-center gap-2">
-                    <Tag className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium text-foreground">{rd.name}</span>
-                    {rd.system_key && <span className="text-xs text-muted-foreground">(מערכת)</span>}
-                  </div>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => handleRoleEdit(rd)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    {roleDeleteConfirm === rd.id ? (
-                      <div className="flex items-center gap-1">
-                        <Button variant="destructive" size="sm" onClick={() => handleRoleDelete(rd.id)} disabled={roleSubmitting}>
-                          {roleSubmitting ? "מוחק..." : "אישור"}
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setRoleDeleteConfirm(null)}>ביטול</Button>
-                      </div>
-                    ) : (
-                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setRoleDeleteConfirm(rd.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <RoleDefinitionManager
+          roleDefinitions={roleDefinitions}
+          roleDialogOpen={roleDialogOpen}
+          setRoleDialogOpen={setRoleDialogOpen}
+          editingRoleId={editingRoleId}
+          roleName={roleName}
+          setRoleName={setRoleName}
+          roleSubmitting={roleSubmitting}
+          roleDeleteConfirm={roleDeleteConfirm}
+          setRoleDeleteConfirm={setRoleDeleteConfirm}
+          onRoleSubmit={handleRoleSubmit}
+          onRoleEdit={handleRoleEdit}
+          onRoleDelete={handleRoleDelete}
+          onRoleFormReset={resetRoleForm}
+        />
       )}
 
       {/* Role Permissions Management */}
@@ -303,102 +263,27 @@ export default function SettingsPage() {
 
       {/* Users Management */}
       {isManager && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-lg"><Users className="h-5 w-5" />ניהול משתמשים</div>
-              <Dialog open={employeeOpen} onOpenChange={(v) => { setEmployeeOpen(v); if (!v) resetEmpForm(); }}>
-                <DialogTrigger asChild>
-                  <Button size="sm"><Plus className="h-4 w-4 ml-1" />משתמש חדש</Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader><DialogTitle>{editingId ? "עריכת משתמש" : "הוספת משתמש חדש"}</DialogTitle></DialogHeader>
-                  <div className="space-y-4 pt-2">
-                    <div className="space-y-2">
-                      <Label>שם *</Label>
-                      <Input value={empName} onChange={e => setEmpName(e.target.value)} placeholder="שם המשתמש" />
-                    </div>
-                    {!editingId && (
-                      <div className="space-y-2">
-                        <Label>אימייל *</Label>
-                        <Input type="email" value={empEmail} onChange={e => setEmpEmail(e.target.value)} placeholder="user@example.com" dir="ltr" />
-                      </div>
-                    )}
-                    <div className="space-y-2">
-                      <Label>תפקיד</Label>
-                      <Select value={empRoleDefId} onValueChange={v => setEmpRoleDefId(v)}>
-                        <SelectTrigger><SelectValue placeholder="בחר תפקיד" /></SelectTrigger>
-                        <SelectContent>
-                          {nonManagerRoleDefinitions.map(rd => (
-                            <SelectItem key={rd.id} value={rd.id}>{rd.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>{editingId ? "סיסמה חדשה (אופציונלי)" : "סיסמה ראשונית *"}</Label>
-                      <Input type="password" value={empPassword} onChange={e => setEmpPassword(e.target.value)} placeholder={editingId ? "השאר ריק לאי-שינוי" : "לפחות 6 תווים"} dir="ltr" />
-                    </div>
-                    <Button
-                      onClick={handleEmpSubmit}
-                      disabled={!empName.trim() || (!editingId && (!empEmail.trim() || empPassword.length < 6)) || submitting}
-                      className="w-full"
-                    >
-                      {submitting ? "שומר..." : editingId ? "עדכן משתמש" : "הוסף משתמש"}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="text-right p-3 font-semibold text-foreground">שם</th>
-                    <th className="text-right p-3 font-semibold text-foreground">תפקיד</th>
-                    <th className="text-right p-3 font-semibold text-foreground">פעולות</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {employees.length === 0 ? (
-                    <tr><td colSpan={3} className="p-6 text-center text-muted-foreground">אין משתמשים</td></tr>
-                  ) : employees.map(u => {
-                    const rd = nonManagerRoleDefinitions.find(r => r.id === u.role_definition_id)
-                      ?? nonManagerRoleDefinitions.find(r => r.system_key === u.role);
-                    const roleName = rd?.name ?? getRoleLabel(u.role);
-                    return (
-                      <tr key={u.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="p-3 font-medium text-foreground">{u.name}</td>
-                        <td className="p-3 text-muted-foreground">{roleName}</td>
-                        <td className="p-3">
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="sm" onClick={() => handleEmpEdit(u)}>
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            {deleteConfirm === u.id ? (
-                              <div className="flex items-center gap-1">
-                                <Button variant="destructive" size="sm" onClick={() => handleEmpDelete(u.id)} disabled={submitting}>
-                                  {submitting ? "מוחק..." : "אישור"}
-                                </Button>
-                                <Button variant="ghost" size="sm" onClick={() => setDeleteConfirm(null)}>ביטול</Button>
-                              </div>
-                            ) : (
-                              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteConfirm(u.id)}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+        <UserManagementTable
+          employees={employees}
+          nonManagerRoleDefinitions={nonManagerRoleDefinitions}
+          getRoleLabel={getRoleLabel}
+          submitting={submitting}
+          employeeOpen={employeeOpen}
+          setEmployeeOpen={setEmployeeOpen}
+          editingId={editingId}
+          empName={empName}
+          setEmpName={setEmpName}
+          empEmail={empEmail}
+          setEmpEmail={setEmpEmail}
+          empPassword={empPassword}
+          setEmpPassword={setEmpPassword}
+          empRoleDefId={empRoleDefId}
+          setEmpRoleDefId={setEmpRoleDefId}
+          onEmpSubmit={handleEmpSubmit}
+          onEmpReset={resetEmpForm}
+          onEmpEdit={handleEmpEdit}
+          onEmpDelete={handleEmpDelete}
+        />
       )}
 
       {/* Manager Edit Dialog */}
