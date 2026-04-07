@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Upload, Search, CreditCard, ScrollText } from "lucide-react";
 import type { PurchaseDocument, Payment } from "@/components/documents/types";
 import DocumentSummaryCards from "@/components/documents/DocumentSummaryCards";
-import DocumentsTable from "@/components/documents/DocumentsTable";
+import DocumentsDriveView from "@/components/documents/DocumentsDriveView";
 import PaymentsTable from "@/components/documents/PaymentsTable";
 import ComplianceTab from "@/components/documents/ComplianceTab";
 import SimpleFileUploadDialog from "@/components/documents/SimpleFileUploadDialog";
@@ -90,7 +90,7 @@ export default function DocumentsPage() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="documents">
-          <DocumentsTable docs={docs} search={search} onRefresh={fetchData} />
+          <DocumentsDriveView docs={docs} search={search} onRefresh={fetchData} />
         </TabsContent>
         <TabsContent value="payments">
           <PaymentsTable
