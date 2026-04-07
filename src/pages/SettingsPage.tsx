@@ -13,6 +13,8 @@ import {
   Tag,
 } from "lucide-react";
 import RolePermissionsManager from "@/components/settings/RolePermissionsManager";
+import { passwordChangeSchema } from "@/lib/schemas/passwordSchema";
+import { employeeCreateSchema, employeeUpdateSchema } from "@/lib/schemas/employeeSchema";
 
 export default function SettingsPage() {
   const { currentUser } = useAuth();
@@ -57,8 +59,8 @@ export default function SettingsPage() {
   const nonManagerRoleDefinitions = roleDefinitions.filter(rd => rd.system_key !== "MANAGER");
 
   const handleChangePassword = async () => {
-    if (newPassword.length < 6) { toast.error("הסיסמה חייבת להכיל לפחות 6 תווים"); return; }
-    if (newPassword !== confirmPassword) { toast.error("הסיסמאות אינן תואמות"); return; }
+    const validation = passwordChangeSchema.safeParse({ newPassword, confirmPassword });
+    if (!validation.success) { toast.error(validation.error.errors[0].message); return; }
     setChangingPassword(true);
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     setChangingPassword(false);
@@ -68,8 +70,13 @@ export default function SettingsPage() {
   const resetEmpForm = () => { setEmpName(""); setEmpEmail(""); setEmpPassword(""); setEmpRoleDefId(""); setEditingId(null); };
 
   const handleEmpSubmit = async () => {
-    if (!empName.trim()) return;
-    if (!editingId && (!empEmail.trim() || empPassword.length < 6)) return;
+    if (editingId) {
+      const validation = employeeUpdateSchema.safeParse({ name: empName, password: empPassword, role_definition_id: empRoleDefId || undefined });
+      if (!validation.success) { toast.error(validation.error.errors[0].message); return; }
+    } else {
+      const validation = employeeCreateSchema.safeParse({ name: empName, email: empEmail, password: empPassword, role_definition_id: empRoleDefId || undefined });
+      if (!validation.success) { toast.error(validation.error.errors[0].message); return; }
+    }
 
     const selectedRd = nonManagerRoleDefinitions.find(rd => rd.id === empRoleDefId);
     const resolvedRole: Role = (selectedRd?.system_key as Role) || "DRIVER";
@@ -78,7 +85,7 @@ export default function SettingsPage() {
     if (editingId) {
       try {
         const sess = await supabase.auth.getSession();
-        const body: Record<string, any> = {
+        const body: Record<string, string | null> = {
           action: "update",
           employee_id: editingId,
           name: empName.trim(),
