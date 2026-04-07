@@ -19,6 +19,84 @@ export function registerInventoryTools(server: McpServer) {
   );
 
   server.tool(
+    "create_distribution_center",
+    "יצירת מרכז הפצה — Create a new distribution center",
+    {
+      name: z.string().describe("Center name"),
+      type: z.string().default("warehouse").describe("Center type (e.g. warehouse, store, office)"),
+      address: z.string().optional().describe("Address"),
+      city: z.string().optional().describe("City"),
+      is_main: z.boolean().default(false).describe("Is this the main center?"),
+    },
+    async ({ name, type, address, city, is_main }) => {
+      const { data, error } = await supabase
+        .from("distribution_centers")
+        .insert({
+          name,
+          type,
+          address: address || null,
+          city: city || null,
+          is_main,
+        })
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Distribution center created:\n${JSON.stringify(data, null, 2)}` }] };
+    }
+  );
+
+  server.tool(
+    "update_distribution_center",
+    "עדכון מרכז הפצה — Update a distribution center's details",
+    {
+      id: z.string().uuid().describe("Center UUID"),
+      name: z.string().optional().describe("Center name"),
+      type: z.string().optional().describe("Center type"),
+      address: z.string().optional().describe("Address"),
+      city: z.string().optional().describe("City"),
+      is_main: z.boolean().optional().describe("Is this the main center?"),
+    },
+    async ({ id, ...fields }) => {
+      const updates: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(fields)) {
+        if (value !== undefined) updates[key] = value;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return { content: [{ type: "text" as const, text: "No fields to update" }] };
+      }
+
+      const { data, error } = await supabase
+        .from("distribution_centers")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Distribution center updated:\n${JSON.stringify(data, null, 2)}` }] };
+    }
+  );
+
+  server.tool(
+    "delete_distribution_center",
+    "מחיקת מרכז הפצה — Delete a distribution center",
+    {
+      id: z.string().uuid().describe("Center UUID"),
+    },
+    async ({ id }) => {
+      const { error } = await supabase
+        .from("distribution_centers")
+        .delete()
+        .eq("id", id);
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: "Distribution center deleted successfully" }] };
+    }
+  );
+
+  server.tool(
     "get_center_inventory",
     "מלאי מרכז הפצה — Get inventory for a distribution center",
     {

@@ -31,6 +31,8 @@ export default function ProductDetailPage() {
   ];
 
   const { hasEdit } = usePermissions("products");
+  const { hasEdit: hasInventoryEdit } = usePermissions("inventory");
+  const canEditStock = hasEdit || hasInventoryEdit;
 
   const product = products.find(p => p.id === id);
   if (!product) {
@@ -184,6 +186,7 @@ export default function ProductDetailPage() {
         product={product}
         suppliers={suppliers}
         hasEdit={hasEdit}
+        canEditStock={canEditStock}
         onAddComponent={handleAddComponent}
         onUpdateComponent={handleUpdateComponent}
         onDeleteComponent={handleDeleteComponent}

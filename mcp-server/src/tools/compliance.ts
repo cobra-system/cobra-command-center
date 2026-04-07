@@ -8,7 +8,7 @@ export function registerComplianceTools(server: McpServer) {
     "רשימת פריטי ציות — List all compliance items, optionally filtered by category or status",
     {
       category: z.string().optional().describe("Filter by category (e.g. 'רגולציה', 'בטיחות')"),
-      status: z.string().optional().describe("Filter by status (e.g. 'active', 'expired', 'pending')"),
+      status: z.enum(["active", "expired", "pending"]).optional().describe("Filter by status: active, expired, pending"),
       limit: z.number().default(50).describe("Max results"),
     },
     async ({ category, status, limit }) => {
@@ -58,7 +58,7 @@ export function registerComplianceTools(server: McpServer) {
     {
       name: z.string().describe("Item name"),
       category: z.string().describe("Category (e.g. 'רגולציה', 'בטיחות', 'ייבוא')"),
-      status: z.string().default("active").describe("Status: active, expired, pending"),
+      status: z.enum(["active", "expired", "pending"]).default("active").describe("Status: active, expired, pending"),
       expiry_date: z.string().optional().describe("Expiry date (ISO 8601, e.g. 2026-12-31)"),
       renewal_contact: z.string().optional().describe("Contact person for renewal"),
       notes: z.string().optional().describe("Additional notes"),
@@ -91,7 +91,7 @@ export function registerComplianceTools(server: McpServer) {
       id: z.string().uuid().describe("Compliance item UUID"),
       name: z.string().optional().describe("Item name"),
       category: z.string().optional().describe("Category"),
-      status: z.string().optional().describe("Status: active, expired, pending"),
+      status: z.enum(["active", "expired", "pending"]).optional().describe("Status: active, expired, pending"),
       expiry_date: z.string().optional().describe("Expiry date (ISO 8601)"),
       renewal_contact: z.string().optional().describe("Renewal contact"),
       notes: z.string().optional().describe("Notes"),

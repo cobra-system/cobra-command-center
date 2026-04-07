@@ -72,6 +72,14 @@ export default function MyTasksPage() {
       return isOnDate(t.completed_at, selectedDate);
     }
     if (t.due_date) {
+      if (t.start_date) {
+        const start = new Date(t.start_date);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(t.due_date);
+        end.setHours(0, 0, 0, 0);
+        if (start > end) return isOnDate(t.due_date, selectedDate);
+        return selectedDate >= start && selectedDate <= end;
+      }
       return isOnDate(t.due_date, selectedDate);
     }
     // Tasks with no due_date appear only on today's view

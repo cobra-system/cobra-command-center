@@ -152,7 +152,7 @@ export function registerWorkflowTools(server: McpServer) {
     "list_workflow_instances",
     "רשימת תהליכים — List all workflow instances with their current step and template name",
     {
-      status: z.string().optional().describe("Filter by status (active, completed, cancelled)"),
+      status: z.enum(["active", "completed", "cancelled"]).optional().describe("Filter by status: active, completed, cancelled"),
       template_id: z.string().uuid().optional().describe("Filter by template UUID"),
       limit: z.number().default(50).describe("Max results"),
     },

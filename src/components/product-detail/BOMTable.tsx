@@ -7,12 +7,15 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SupplierComparisonPanel from "@/components/SupplierComparisonPanel";
+import { InlineEditField } from "@/components/InlineEditField";
+import { toast } from "sonner";
 import type { Product, Supplier, ProductComponent } from "@/contexts/AppContext";
 
 interface BOMTableProps {
   product: Product;
   suppliers: Supplier[];
   hasEdit: boolean;
+  canEditStock?: boolean;
   onAddComponent: (comp: {
     product_id: string;
     name: string;
@@ -29,7 +32,7 @@ interface BOMTableProps {
 
 const emptyNewComp = { name: "", sku: "", supplier: "", origin: "", stock_qty: "", price: "", notes: "" };
 
-export function BOMTable({ product, suppliers, hasEdit, onAddComponent, onUpdateComponent, onDeleteComponent }: BOMTableProps) {
+export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddComponent, onUpdateComponent, onDeleteComponent }: BOMTableProps) {
   const navigate = useNavigate();
   const [addCompOpen, setAddCompOpen] = useState(false);
   const [editingCompId, setEditingCompId] = useState<string | null>(null);
@@ -172,7 +175,22 @@ export function BOMTable({ product, suppliers, hasEdit, onAddComponent, onUpdate
                             ) : (comp.supplier || "—");
                           })()}
                         </td>
-                        <td className="p-3 text-muted-foreground">{comp.stock_qty ?? "—"}</td>
+                        <td className="p-3 text-muted-foreground">
+                          {canEditStock ? (
+                            <InlineEditField
+                              value={comp.stock_qty ?? 0}
+                              type="number"
+                              onSave={async (v) => {
+                                await onUpdateComponent(comp.id, { stock_qty: v !== "" ? Number(v) : null });
+                                toast.success("מלאי רכיב עודכן");
+                              }}
+                              inputClassName="w-16 h-8 text-center text-sm"
+                              displayValue={<span className="text-sm text-muted-foreground">{comp.stock_qty ?? "—"}</span>}
+                            />
+                          ) : (
+                            comp.stock_qty ?? "—"
+                          )}
+                        </td>
                         <td className="p-3 text-muted-foreground">{comp.price ? `$${comp.price}` : "—"}</td>
                         <td className="p-3 text-muted-foreground text-xs">{comp.notes || "—"}</td>
                         {hasEdit && (

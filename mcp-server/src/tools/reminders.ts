@@ -25,7 +25,7 @@ export function registerReminderTools(server: McpServer) {
       const { data, error } = await supabase
         .from("tasks")
         .insert({
-          title: `🔔 ${title}`,
+          title,
           description: notes || null,
           due_date,
           assignee_name: assignee_name || null,

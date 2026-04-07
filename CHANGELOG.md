@@ -9,13 +9,45 @@
 
 ---
 
+## [2026-04-06]
+
+- Merge pull request #101 from cobra-system/claude/product-autocomplete-feature-oT3fb (0c4cda4)
+- feat: add product autocomplete to waste management form (892e3d6)
+
+<!-- last-commit: 0c4cda4b9bb8ce760bc59ca04c6d08fe43a33d2b -->
+
+## [2026-04-06]
+
+- feat: add last updated column to orders table (cf8b141)
+
+
+## [2026-04-05]
+
+- fix: add start_date range support to MyTasksPage (bef5dc5)
+
+
+## [2026-04-04]
+
+- feat: mobile-first UI for employee inventory and product pages (121470b)
+- feat: allow inventory editors to update component stock_qty (4833e50)
+- feat: allow employees with inventory edit permission to manage inventory (1feabc9)
+
+
+## [2026-04-04]
+
+- Resolve merge conflict in orders.ts — keep tracking_number + sap_doc_entry strategies (a50b118)
+- שלב 4: ביקורת מקיפה — תיקון באגים, enums, ותיאורים ב-15 קבצי כלים (6f0bcaf)
+- שלב 3: ניקוי SAP, הרחבת חיפוש, והשלמת פערים (03fcea3)
+- עדכון כלי MCP קיימים — שדות חדשים + 7 כלים חסרים (5108bd5)
+- הרחבת כלי MCP — הוספת 18 כלים חדשים לסגירת פערי כיסוי טבלאות (14c6a21)
+
+
 ## [2026-04-02]
 
 - Update package-lock.json after removing MSAL dependencies (6679732)
 - Clean up remaining SAP/Outlook artifacts (560e0ff)
 - Remove SAP Business One and Outlook integrations (9e5363d)
 
-<!-- last-commit: a89259516213f7b539cb43d8d102df029289b407 -->
 
 ## [2026-04-01]
 

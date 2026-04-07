@@ -12,7 +12,7 @@ export function registerPaymentTools(server: McpServer) {
       amount: z.number().describe("Payment amount"),
       currency: z.enum(["USD", "EUR", "ILS"]).default("USD").describe("Currency"),
       payment_type: z.enum(["Deposit", "Balance", "Full"]).default("Full").describe("Payment type"),
-      status: z.string().default("ממתין").describe("Payment status"),
+      status: z.enum(["ממתין", "שולם פיקדון", "שולם"]).default("ממתין").describe("Payment status: ממתין (pending), שולם פיקדון (deposit paid), שולם (fully paid)"),
       due_date: z.string().optional().describe("Due date (YYYY-MM-DD)"),
       paid_date: z.string().optional().describe("Paid date (YYYY-MM-DD)"),
       notes: z.string().optional().describe("Payment notes"),
@@ -45,7 +45,7 @@ export function registerPaymentTools(server: McpServer) {
     {
       supplier_id: z.string().uuid().describe("Supplier UUID"),
       order_id: z.string().uuid().optional().describe("Filter by order UUID"),
-      status: z.string().optional().describe("Filter by payment status"),
+      status: z.enum(["ממתין", "שולם פיקדון", "שולם"]).optional().describe("Filter by payment status: ממתין (pending), שולם פיקדון (deposit paid), שולם (fully paid)"),
       limit: z.number().default(50).describe("Max results"),
     },
     async ({ supplier_id, order_id, status, limit }) => {
@@ -98,6 +98,41 @@ export function registerPaymentTools(server: McpServer) {
       };
 
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "update_supplier_payment",
+    "עדכון תשלום לספק — Update a supplier payment record",
+    {
+      id: z.string().uuid().describe("Payment UUID"),
+      status: z.enum(["ממתין", "שולם פיקדון", "שולם"]).optional().describe("Payment status: ממתין (pending), שולם פיקדון (deposit paid), שולם (fully paid)"),
+      amount: z.number().optional().describe("Payment amount"),
+      currency: z.enum(["USD", "EUR", "ILS"]).optional().describe("Currency"),
+      payment_type: z.enum(["Deposit", "Balance", "Full"]).optional().describe("Payment type"),
+      due_date: z.string().optional().describe("Due date (YYYY-MM-DD)"),
+      paid_date: z.string().optional().describe("Paid date (YYYY-MM-DD)"),
+      notes: z.string().optional().describe("Payment notes"),
+    },
+    async ({ id, ...fields }) => {
+      const updates: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(fields)) {
+        if (value !== undefined) updates[key] = value;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return { content: [{ type: "text" as const, text: "No fields to update" }] };
+      }
+
+      const { data, error } = await supabase
+        .from("supplier_payments")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Payment updated:\n${JSON.stringify(data, null, 2)}` }] };
     }
   );
 }

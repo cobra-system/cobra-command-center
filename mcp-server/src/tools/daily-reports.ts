@@ -170,7 +170,7 @@ export function registerDailyReportTools(server: McpServer) {
     "יצירת משימות מסקירה — Create task instances from a daily report's action items",
     {
       report_id: z.string().uuid().describe("Daily report UUID"),
-      assignee_name: z.string().default("נועם").describe("Assignee name"),
+      assignee_name: z.string().optional().describe("Assignee name for created tasks"),
     },
     async ({ report_id, assignee_name }) => {
       // Fetch the report
