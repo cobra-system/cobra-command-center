@@ -85,7 +85,7 @@
 
 # COBRA Command Center - System Improvements TODO
 
-> **Last reviewed:** 2026-03-31
+> **Last reviewed:** 2026-04-07
 > Priority legend: 🔴 Critical | 🟠 High | 🟡 Medium | 🟢 Low
 > Status: `[ ]` Not started | `[~]` Partial progress | `[x]` Done
 
@@ -115,7 +115,8 @@
   - Created `audit_log` table via migration `20260331000000_add_audit_log_table.sql`
   - Columns: id, user_id, action, entity_type, entity_id, details (JSONB), ip_address, created_at
   - RLS policy: only managers can read; writes happen server-side via service role
-  - _TODO:_ Add logging calls in Edge Functions and AppContext operations
+  - Audit logging added to `create-employee` and `manage-employee` Edge Functions via shared `_shared/audit.ts`
+  - Frontend audit logging via `src/lib/activityLogger.ts` in all domain contexts
 
 - [x] **Harden auth token validation in Edge Functions** 🟠
   - Created `supabase/functions/_shared/auth.ts` with reusable `verifyAuth()` function
@@ -166,7 +167,8 @@
 
 - [x] **Optimize React Query caching defaults** 🟡
   - Configured QueryClient with `staleTime: 2min`, `gcTime: 10min`, `refetchOnWindowFocus: false`, `retry: 1`
-  - _TODO:_ Migrate data fetching from manual useState/useCallback to React Query hooks for full cache invalidation benefits
+  - All 6 domain context providers migrated from useState+useCallback to useQuery+useQueryClient
+  - Optimistic updates use setQueryData; realtime subscriptions update query cache directly
 
 ---
 
@@ -178,11 +180,10 @@
   - AppContext refactored into ~120-line barrel with backward-compatible `useData()` and `useAuth()` re-exports
   - All 60+ consuming files continue working unchanged
 
-- [ ] **Break down large page components into sub-components** 🟡
-  - `src/pages/OrdersPage.tsx` (599 lines) - extract: OrderFilters, OrderTable, OrderStatusCards
-  - `src/pages/SettingsPage.tsx` (678 lines) - extract: RoleDefinitionsManager, SAPIntegration, UsersTable
-  - `src/pages/ProductDetailPage.tsx` (463 lines) - extract: BOMTable, ProductKPICards
-  - _Deferred to future sprint — mechanical refactoring with no behavior change_
+- [x] **Break down large page components into sub-components** 🟡
+  - OrdersPage (599→307 lines): extracted OrderFilters, OrderTable
+  - SettingsPage (411→303 lines): extracted EmployeeFormDialog, RoleDefinitionManager, UserManagementTable
+  - ProductDetailPage (461→217 lines): extracted ProductDetailsGrid, BOMTable, OrdersHistoryTable
 
 - [x] **Improve TypeScript type safety** 🟡
   - Fixed `any` types in all new domain context files (ProductsContext, OrdersContext, TasksContext)
@@ -216,19 +217,20 @@
   - `recurringUtils.test.ts` (14 tests): all frequency types (daily, weekly, biweekly, monthly, quarterly, biannual, annual)
 
 - [x] **Add Zod validation schemas for all forms** 🟠
-  - Created `src/lib/schemas/`: productSchema, orderSchema, supplierSchema, taskSchema
+  - Created `src/lib/schemas/`: productSchema, orderSchema, supplierSchema, taskSchema, passwordSchema, employeeSchema
   - Schemas enforce: non-negative prices/quantities, required fields, lead_time_days 1-365 range
   - Matches database CHECK constraints from migration `20260331000001`
-  - Integrated into `ProductFormDialog.tsx` with safeParse + Hebrew error messages
-  - _Remaining:_ Integrate into NewOrderDialog, SettingsPage employee creation forms
+  - Integrated into: ProductFormDialog, NewOrderDialog, SettingsPage (password change + employee forms)
 
 - [x] **Add numeric bounds validation** 🟠
   - Merged into Zod schemas: quantities >= 0, prices >= 0, lead_time_days 1-365
   - ProductFormDialog now validates through schema before submit
   - Component-level validation rejects negative values with Hebrew error messages
 
-- [ ] **Set up E2E testing framework** 🟡
-  - _Deferred to future sprint — requires Playwright/Cypress setup + test database configuration_
+- [x] **Set up E2E testing framework** 🟡
+  - Installed `@playwright/test`, created `playwright.config.ts` (Hebrew locale, dev server integration)
+  - Smoke tests in `e2e/smoke.spec.ts`: app load, no JS errors, route accessibility
+  - Added `test:e2e` and `test:e2e:ui` npm scripts
 
 - [x] **Configure test coverage reporting** 🟡
   - Installed `@vitest/coverage-v8`
@@ -294,8 +296,8 @@
   - Runs on PR to main/develop and push to main/develop/claude/* branches
   - Node 20 with npm cache for fast installs
 
-- [ ] **Document backup and disaster recovery** 🟢
-  - _Deferred — documentation task, no code changes needed_
+- [x] **Document backup and disaster recovery** 🟢
+  - Created `INFRASTRUCTURE.md` with: architecture overview, env vars, backup procedures, migration rollback, RLS overview, Edge Function inventory, CI/CD pipeline, incident response runbook
 
 ---
 
