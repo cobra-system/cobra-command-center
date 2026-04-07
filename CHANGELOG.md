@@ -11,10 +11,31 @@
 
 ## [2026-04-07]
 
+- Merge origin/main: incorporate context menus into extracted components (392e1ae)
+- Merge origin/main into feature branch (5db3688)
+- Update TODO.md with all completed tasks (6ca8775)
+- Migrate all context providers to React Query (aaa0b7e)
+- Set up Playwright E2E testing framework (cc7fac6)
+- Extract sub-components from large pages, add infrastructure docs (db78a2d)
+- Add audit logging to employee Edge Functions (5dddaa6)
+- Integrate Zod validation into order and employee forms (dfebc8c)
+- Fix CI: fix password regex lint error, make lint non-blocking (8ed2b6e)
+- Add pre-commit hooks and CI pipeline (4f400a8)
+- Address PR review comments: fix rate-limit comment, password regex, auth error handling (f3bef6d)
+- Add observability: structured logging, Sentry, health check, activity logging (c514aac)
+- Add testing & validation: unit tests, Zod schemas, coverage config (6d15be0)
+- Architecture improvements: split AppContext, add ErrorBoundary, error handler (f9b1b1d)
+- Implement performance improvements: N+1 fixes, lazy loading, indexes, caching (2e053c5)
+- Implement critical security hardening and database constraints (c0e01bf)
+- Update and reorganize TODO.md with priorities and accurate status (151576d)
+
+<!-- last-commit: e7208f841980b205f56062767176d99bebcfa966 -->
+
+## [2026-04-07]
+
 - feat: expand context menus with additional actions across all entities (5d6b797)
 - feat: add right-click context menus throughout the system (b5beaab)
 
-<!-- last-commit: ba14b2ec42406af444e305a03b12b7a451339441 -->
 
 ## [2026-04-06]
 
