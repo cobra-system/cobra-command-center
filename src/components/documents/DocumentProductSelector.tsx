@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useData } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
+import { logger } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -60,7 +61,7 @@ export default function DocumentProductSelector({
       setSelectedProductId("");
       toast.success("מוצר נוסף בהצלחה");
     } catch (error) {
-      console.error("Error adding product:", error);
+      logger.error("Error adding product", error);
       toast.error("שגיאה בהוספת מוצר");
     } finally {
       setIsAdding(false);
@@ -83,7 +84,7 @@ export default function DocumentProductSelector({
       setProductToRemove(null);
       toast.success("מוצר הוסר בהצלחה");
     } catch (error) {
-      console.error("Error removing product:", error);
+      logger.error("Error removing product", error);
       toast.error("שגיאה בהסרת מוצר");
     } finally {
       setIsRemoving(null);

@@ -1,38 +1,52 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AppProvider, useAuth, useData } from "@/contexts/AppContext";
-import { useState, useCallback } from "react";
+import { Suspense, lazy, useState, useCallback } from "react";
 import SplashScreen from "@/components/SplashScreen";
 import { useMiddleClickNavigation } from "@/hooks/useMiddleClickNavigation";
 import { canView, getModuleKeyFromRoute, MODULES } from "@/lib/permissions";
+
+// Eager: needed on first render
 import LoginPage from "@/pages/LoginPage";
 import ManagerLayout from "@/layouts/ManagerLayout";
 import EmployeeLayout from "@/layouts/EmployeeLayout";
-import DashboardPage from "@/pages/DashboardPage";
-import ProductsPage from "@/pages/ProductsPage";
-import ProductDetailPage from "@/pages/ProductDetailPage";
-import OrdersPage from "@/pages/OrdersPage";
-import OrderDetailPage from "@/pages/OrderDetailPage";
-import SuppliersPage from "@/pages/SuppliersPage";
-import SupplierDetailPage from "@/pages/SupplierDetailPage";
-import TasksPage from "@/pages/TasksPage";
-import SettingsPage from "@/pages/SettingsPage";
-import DocumentsPage from "@/pages/DocumentsPage";
-import DocumentDetailPage from "@/pages/DocumentDetailPage";
-import ReorderPage from "@/pages/ReorderPage";
-import ReportsPage from "@/pages/ReportsPage";
-import MyTasksPage from "@/pages/MyTasksPage";
-import MyTaskDetailPage from "@/pages/MyTaskDetailPage";
-import InventoryPage from "@/pages/InventoryPage";
-
 import NotFound from "@/pages/NotFound";
-import IssuesPage from "@/pages/IssuesPage";
-import MeetingsPage from "@/pages/MeetingsPage";
-import WasteManagementPage from "@/pages/WasteManagementPage";
-const queryClient = new QueryClient();
+
+// Lazy: loaded on demand per route
+const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
+const ProductsPage = lazy(() => import("@/pages/ProductsPage"));
+const ProductDetailPage = lazy(() => import("@/pages/ProductDetailPage"));
+const OrdersPage = lazy(() => import("@/pages/OrdersPage"));
+const OrderDetailPage = lazy(() => import("@/pages/OrderDetailPage"));
+const SuppliersPage = lazy(() => import("@/pages/SuppliersPage"));
+const SupplierDetailPage = lazy(() => import("@/pages/SupplierDetailPage"));
+const TasksPage = lazy(() => import("@/pages/TasksPage"));
+const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
+const DocumentsPage = lazy(() => import("@/pages/DocumentsPage"));
+const DocumentDetailPage = lazy(() => import("@/pages/DocumentDetailPage"));
+const ReorderPage = lazy(() => import("@/pages/ReorderPage"));
+const ReportsPage = lazy(() => import("@/pages/ReportsPage"));
+const MyTasksPage = lazy(() => import("@/pages/MyTasksPage"));
+const MyTaskDetailPage = lazy(() => import("@/pages/MyTaskDetailPage"));
+const InventoryPage = lazy(() => import("@/pages/InventoryPage"));
+const IssuesPage = lazy(() => import("@/pages/IssuesPage"));
+const MeetingsPage = lazy(() => import("@/pages/MeetingsPage"));
+const WasteManagementPage = lazy(() => import("@/pages/WasteManagementPage"));
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 2 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 function RequireManager() {
   const { currentUser, loading } = useAuth();
@@ -115,9 +129,21 @@ function AppRoutes() {
   );
 }
 
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center h-screen">
+      <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+    </div>
+  );
+}
+
 function AppRoutesWithMiddleClick() {
   useMiddleClickNavigation();
-  return <AppRoutes />;
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <AppRoutes />
+    </Suspense>
+  );
 }
 
 function AppWithSplash() {
@@ -135,15 +161,17 @@ function AppWithSplash() {
 }
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <AppProvider>
-        <AppWithSplash />
-      </AppProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AppProvider>
+          <AppWithSplash />
+        </AppProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

@@ -1,35 +1,25 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
-import { useData, categories, divisions, type ProductComponent, type Priority, type OrderStatus } from "@/contexts/AppContext";
-import { PriorityBadge } from "@/components/PriorityBadge";
-import { OrderStatusBadge } from "@/components/StatusBadge";
+import { useData, categories, divisions, type ProductComponent } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowRight, Package, Boxes, TruckIcon, Pencil, ExternalLink, Plus, Trash2, Save, X } from "lucide-react";
+import { ArrowRight, ExternalLink, Pencil, Trash2 } from "lucide-react";
 import ProductIssuesTab from "@/components/ProductIssuesTab";
 import ProductLicensesTab from "@/components/ProductLicensesTab";
 import DocumentsSection from "@/components/DocumentsSection";
 import ComplianceTab from "@/components/documents/ComplianceTab";
 import ProductEditDialog from "@/components/products/ProductEditDialog";
-import SupplierComparisonPanel from "@/components/SupplierComparisonPanel";
-import { InlineEditField } from "@/components/InlineEditField";
 import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "sonner";
+import { ProductDetailsGrid } from "@/components/product-detail/ProductDetailsGrid";
+import { BOMTable } from "@/components/product-detail/BOMTable";
+import { OrdersHistoryTable } from "@/components/product-detail/OrdersHistoryTable";
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { products, orders, updateProduct, suppliers, addComponent, updateComponent, deleteComponent, deleteProduct } = useData();
   const [editOpen, setEditOpen] = useState(false);
-  const [addCompOpen, setAddCompOpen] = useState(false);
-  const [editingCompId, setEditingCompId] = useState<string | null>(null);
-  const [editCompFields, setEditCompFields] = useState<Record<string, string>>({});
-  const [newComp, setNewComp] = useState({ name: "", sku: "", supplier: "", origin: "", stock_qty: "", price: "", notes: "" });
-  const [savingComp, setSavingComp] = useState(false);
 
   const categoryOptions = useMemo(() => categories.filter(c => c !== "הכל").map(c => ({ value: c, label: c })), []);
   const supplierOptions = useMemo(() => suppliers.map(s => ({ value: s.company, label: s.company })), [suppliers]);
@@ -40,6 +30,10 @@ export default function ProductDetailPage() {
     { value: "יבשה", label: "יבשה" }, { value: "אקספרס", label: "אקספרס" },
   ];
 
+  const { hasEdit } = usePermissions("products");
+  const { hasEdit: hasInventoryEdit } = usePermissions("inventory");
+  const canEditStock = hasEdit || hasInventoryEdit;
+
   const product = products.find(p => p.id === id);
   if (!product) {
     return (
@@ -49,11 +43,6 @@ export default function ProductDetailPage() {
       </div>
     );
   }
-
-  const { hasEdit: hasProductsEdit } = usePermissions("products");
-  const { hasEdit: hasInventoryEdit } = usePermissions("inventory");
-  const hasEdit = hasProductsEdit;
-  const canEditStock = hasProductsEdit || hasInventoryEdit;
   const relatedOrders = orders.filter(o => o.items.some(item => item.name === product.name || item.product_id === product.id));
 
   const stockStatus = product.stock_qty === 0
@@ -64,7 +53,7 @@ export default function ProductDetailPage() {
 
   const handleInlineSave = async (field: string, value: string) => {
     const numericFields = ["purchase_price", "sale_price", "monthly_sales", "monthly_order", "stock_qty", "incoming_qty"];
-    const updates: Record<string, any> = {};
+    const updates: Record<string, string | number | null> = {};
     const finalValue = field === "sku" ? value.toUpperCase() : value;
     updates[field] = numericFields.includes(field) ? (finalValue ? Number(finalValue) : null) : (finalValue || null);
 
@@ -93,7 +82,7 @@ export default function ProductDetailPage() {
     { label: "הערות", field: "notes", value: product.notes },
   ];
 
-  const handleSaveEdit = async (id: string, updates: Record<string, any>) => {
+  const handleSaveEdit = async (id: string, updates: Record<string, unknown>) => {
     try {
       await updateProduct(id, updates);
       toast.success("המוצר עודכן");
@@ -102,62 +91,26 @@ export default function ProductDetailPage() {
     }
   };
 
-  const handleAddComponent = async () => {
-    if (!newComp.name.trim()) return;
-    setSavingComp(true);
-    try {
-      await addComponent({
-        product_id: product.id,
-        name: newComp.name,
-        sku: newComp.sku || null,
-        supplier: newComp.supplier || null,
-        origin: newComp.origin || null,
-        stock_qty: newComp.stock_qty ? Number(newComp.stock_qty) : null,
-        price: newComp.price ? Number(newComp.price) : null,
-        notes: newComp.notes || null,
-      });
-      setNewComp({ name: "", sku: "", supplier: "", origin: "", stock_qty: "", price: "", notes: "" });
-      setAddCompOpen(false);
-      toast.success("רכיב נוסף");
-    } finally {
-      setSavingComp(false);
-    }
+  const handleAddComponent = async (comp: {
+    product_id: string;
+    name: string;
+    sku: string | null;
+    supplier: string | null;
+    origin: string | null;
+    stock_qty: number | null;
+    price: number | null;
+    notes: string | null;
+  }) => {
+    await addComponent(comp);
+    toast.success("רכיב נוסף");
   };
 
-  const startEditComp = (comp: ProductComponent) => {
-    setEditingCompId(comp.id);
-    setEditCompFields({
-      name: comp.name || "",
-      sku: comp.sku || "",
-      supplier: comp.supplier || "",
-      origin: comp.origin || "",
-      stock_qty: comp.stock_qty?.toString() || "",
-      price: comp.price?.toString() || "",
-      notes: comp.notes || "",
-    });
+  const handleUpdateComponent = async (compId: string, updates: Partial<ProductComponent>) => {
+    await updateComponent(compId, updates);
+    toast.success("רכיב עודכן");
   };
 
-  const handleSaveComp = async () => {
-    if (!editingCompId) return;
-    setSavingComp(true);
-    try {
-      await updateComponent(editingCompId, {
-        name: editCompFields.name,
-        sku: editCompFields.sku || null,
-        supplier: editCompFields.supplier || null,
-        origin: editCompFields.origin || null,
-        stock_qty: editCompFields.stock_qty ? Number(editCompFields.stock_qty) : null,
-        price: editCompFields.price ? Number(editCompFields.price) : null,
-        notes: editCompFields.notes || null,
-      });
-      setEditingCompId(null);
-      toast.success("רכיב עודכן");
-    } finally {
-      setSavingComp(false);
-    }
-  };
-
-  const handleDeleteComp = async (compId: string) => {
+  const handleDeleteComponent = async (compId: string) => {
     await deleteComponent(compId);
     toast.success("רכיב נמחק");
   };
@@ -208,34 +161,12 @@ export default function ProductDetailPage() {
 
       <ProductEditDialog open={editOpen} onOpenChange={setEditOpen} product={product} onSave={handleSaveEdit} />
 
-      <div className="bg-card rounded-xl border shadow-sm p-5">
-        <div className="flex items-center gap-2 mb-4"><Package className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">פרטי מוצר</h2></div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {details.filter(d => d.value != null && d.value !== "").map(d => {
-            const supplierMatch = d.isSupplierLink && typeof d.value === "string" ? suppliers.find(s => s.company === d.value) : null;
-
-            return (
-              <InlineEditField
-                key={d.label}
-                label={d.label}
-                value={d.value}
-                displayValue={
-                  supplierMatch ? (
-                    <button onClick={() => navigate(`/suppliers/${supplierMatch.id}`)} data-navigate-to={`/suppliers/${supplierMatch.id}`} className="text-sm font-medium text-primary hover:underline">
-                      {d.value}
-                    </button>
-                  ) : d.field === "purchase_price" || d.field === "sale_price" ? (d.value ? `$${d.value}` : "—") : undefined
-                }
-                type={["purchase_price", "sale_price", "monthly_sales", "monthly_order", "stock_qty", "incoming_qty"].includes(d.field) ? "number" : "text"}
-                onSave={(v) => handleInlineSave(d.field, v)}
-                disabled={!hasEdit}
-                options={d.options}
-                multiSelect={d.multiSelect}
-              />
-            );
-          })}
-        </div>
-      </div>
+      <ProductDetailsGrid
+        details={details}
+        suppliers={suppliers}
+        hasEdit={hasEdit}
+        onInlineSave={handleInlineSave}
+      />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
@@ -251,211 +182,21 @@ export default function ProductDetailPage() {
         ))}
       </div>
 
-      {/* BOM - Components */}
-      {product.product_type === "מורכב" && (
-        <div className="bg-card rounded-xl border shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Boxes className="h-5 w-5 text-accent" />
-              <h2 className="text-lg font-semibold text-foreground">רכיבים (BOM)</h2>
-            </div>
-            {hasEdit && (
-              <Button variant="outline" size="sm" onClick={() => setAddCompOpen(true)}>
-                <Plus className="h-4 w-4 ml-1" />הוסף רכיב
-              </Button>
-            )}
-          </div>
-          {product.components && product.components.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="text-right p-3 font-semibold text-foreground">רכיב</th>
-                    <th className="text-right p-3 font-semibold text-foreground">מק״ט</th>
-                    <th className="text-right p-3 font-semibold text-foreground">ספק</th>
-                    <th className="text-right p-3 font-semibold text-foreground">מלאי</th>
-                    <th className="text-right p-3 font-semibold text-foreground hidden md:table-cell">מחיר</th>
-                    {hasEdit && <th className="text-right p-3 font-semibold text-foreground">פעולות</th>}
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {product.components.map(comp => (
-                    editingCompId === comp.id ? (
-                      <tr key={comp.id} className="bg-accent/5">
-                        <td className="p-2">
-                          <Input value={editCompFields.name} onChange={e => setEditCompFields(p => ({ ...p, name: e.target.value }))} className="h-10 text-sm mb-1" />
-                          <Input value={editCompFields.notes} onChange={e => setEditCompFields(p => ({ ...p, notes: e.target.value }))} className="h-8 text-xs text-muted-foreground" placeholder="הערות" />
-                        </td>
-                        <td className="p-2"><Input value={editCompFields.sku} onChange={e => setEditCompFields(p => ({ ...p, sku: e.target.value.toUpperCase() }))} className="h-10 text-sm" dir="ltr" /></td>
-                        <td className="p-2">
-                          <Select value={editCompFields.supplier || "__none__"} onValueChange={v => setEditCompFields(p => ({ ...p, supplier: v === "__none__" ? "" : v }))}>
-                            <SelectTrigger className="h-10 text-sm"><SelectValue placeholder="בחר ספק" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">ללא</SelectItem>
-                              {suppliers.map(s => <SelectItem key={s.id} value={s.company}>{s.company}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </td>
-                        <td className="p-2"><Input type="number" value={editCompFields.stock_qty} onChange={e => setEditCompFields(p => ({ ...p, stock_qty: e.target.value }))} className="h-10 text-sm w-20" /></td>
-                        <td className="p-2 hidden md:table-cell"><Input type="number" value={editCompFields.price} onChange={e => setEditCompFields(p => ({ ...p, price: e.target.value }))} className="h-10 text-sm w-20" /></td>
-                        <td className="p-2">
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleSaveComp} disabled={savingComp}>
-                              <Save className="h-4 w-4 text-success" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setEditingCompId(null)}>
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : (
-                      <tr key={comp.id}>
-                        <td className="p-3">
-                          <p className="font-medium text-foreground">{comp.name}</p>
-                          {comp.notes && <p className="text-xs text-muted-foreground mt-0.5">{comp.notes}</p>}
-                        </td>
-                        <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">{comp.sku || "—"}</td>
-                        <td className="p-3 text-muted-foreground">{(() => {
-                          const s = suppliers.find(s => s.company === comp.supplier);
-                          return s ? (
-                            <button onClick={() => navigate(`/suppliers/${s.id}`)} data-navigate-to={`/suppliers/${s.id}`} className="text-primary hover:underline">{comp.supplier}</button>
-                          ) : (comp.supplier || "—");
-                        })()}</td>
-                        <td className="p-3 text-muted-foreground">
-                          {canEditStock ? (
-                            <InlineEditField
-                              value={comp.stock_qty ?? 0}
-                              type="number"
-                              onSave={async (v) => {
-                                await updateComponent(comp.id, { stock_qty: v !== "" ? Number(v) : null });
-                                toast.success("מלאי רכיב עודכן");
-                              }}
-                              inputClassName="w-16 h-10 text-center text-sm"
-                              displayValue={<span className="text-sm text-muted-foreground">{comp.stock_qty ?? "—"}</span>}
-                            />
-                          ) : (
-                            comp.stock_qty ?? "—"
-                          )}
-                        </td>
-                        <td className="p-3 text-muted-foreground hidden md:table-cell">{comp.price ? `$${comp.price}` : "—"}</td>
-                        {hasEdit && (
-                          <td className="p-3">
-                            <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => startEditComp(comp)}>
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteComp(comp.id)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </td>
-                        )}
-                      </tr>
-                    )
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground py-4 text-center">לא הוגדרו רכיבים למוצר זה</p>
-          )}
-          {product.components && product.components.length > 0 && (
-            <div className="mt-4 space-y-3">
-              {product.components.map(comp => (
-                <SupplierComparisonPanel key={comp.id} componentName={comp.name} productId={product.id} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      <BOMTable
+        product={product}
+        suppliers={suppliers}
+        hasEdit={hasEdit}
+        canEditStock={canEditStock}
+        onAddComponent={handleAddComponent}
+        onUpdateComponent={handleUpdateComponent}
+        onDeleteComponent={handleDeleteComponent}
+      />
 
-      {/* Add Component Dialog */}
-      <Dialog open={addCompOpen} onOpenChange={setAddCompOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>הוספת רכיב</DialogTitle></DialogHeader>
-          <div className="space-y-3 pt-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">שם רכיב *</Label>
-                <Input value={newComp.name} onChange={e => setNewComp(p => ({ ...p, name: e.target.value }))} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">מק״ט</Label>
-                <Input value={newComp.sku} onChange={e => setNewComp(p => ({ ...p, sku: e.target.value.toUpperCase() }))} dir="ltr" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">ספק</Label>
-                <Select value={newComp.supplier || "__none__"} onValueChange={v => setNewComp(p => ({ ...p, supplier: v === "__none__" ? "" : v }))}>
-                  <SelectTrigger><SelectValue placeholder="בחר ספק" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">ללא</SelectItem>
-                    {suppliers.map(s => <SelectItem key={s.id} value={s.company}>{s.company}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">מלאי</Label>
-                <Input type="number" value={newComp.stock_qty} onChange={e => setNewComp(p => ({ ...p, stock_qty: e.target.value }))} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">מחיר ($)</Label>
-                <Input type="number" value={newComp.price} onChange={e => setNewComp(p => ({ ...p, price: e.target.value }))} />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">הערות</Label>
-              <Input value={newComp.notes} onChange={e => setNewComp(p => ({ ...p, notes: e.target.value }))} />
-            </div>
-            <Button onClick={handleAddComponent} className="w-full" disabled={savingComp || !newComp.name.trim()}>
-              {savingComp ? "שומר..." : "הוסף רכיב"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Orders History */}
-      <div className="bg-card rounded-xl border shadow-sm p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2"><TruckIcon className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">היסטוריית הזמנות</h2></div>
-          {hasEdit && (
-            <Button variant="outline" size="sm" onClick={() => navigate(`/orders?newOrder=true&productId=${product.id}`)} data-navigate-to={`/orders?newOrder=true&productId=${product.id}`}>
-              <Plus className="h-3.5 w-3.5 ml-1" />הוסף הזמנה
-            </Button>
-          )}
-        </div>
-        {relatedOrders.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="text-right p-3 font-semibold text-foreground">עדיפות</th>
-                  <th className="text-right p-3 font-semibold text-foreground">ספק</th>
-                  <th className="text-right p-3 font-semibold text-foreground">כמות</th>
-                  <th className="text-right p-3 font-semibold text-foreground">סטטוס</th>
-                  <th className="text-right p-3 font-semibold text-foreground">ETA</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {relatedOrders.map(order => {
-                  const relevantItem = order.items.find(i => i.name === product.name || i.product_id === product.id);
-                  return (
-                    <tr key={order.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/orders/${order.id}`)} data-navigate-to={`/orders/${order.id}`}>
-                      <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
-                      <td className="p-3 text-muted-foreground">{order.supplier_name || "—"}</td>
-                      <td className="p-3 text-muted-foreground">{relevantItem?.qty || "—"}</td>
-                      <td className="p-3"><OrderStatusBadge status={order.status as OrderStatus} /></td>
-                      <td className="p-3 text-muted-foreground text-xs">{order.eta ? new Date(order.eta).toLocaleDateString("he-IL") : "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground py-4 text-center">אין הזמנות קשורות למוצר זה</p>
-        )}
-      </div>
+      <OrdersHistoryTable
+        relatedOrders={relatedOrders}
+        product={product}
+        hasEdit={hasEdit}
+      />
 
       {/* Documents */}
       <DocumentsSection productId={product.id} />

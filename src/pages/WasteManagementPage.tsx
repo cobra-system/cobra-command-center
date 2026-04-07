@@ -5,6 +5,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/lib/supabase";
 import { Combobox } from "@/components/ui/combobox";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 import {
   Table,
   TableHeader,
@@ -132,7 +133,7 @@ export default function WasteManagementPage() {
 
     const { data, error } = await query;
     if (error) {
-      console.error("Error fetching waste items:", error);
+      logger.error("Error fetching waste items", error);
       return;
     }
     setItems((data as WasteItem[]) || []);
@@ -220,8 +221,8 @@ export default function WasteManagementPage() {
       setEditingRow(null);
       setDrawerOpen(false);
       await refreshItems();
-    } catch (error: any) {
-      toast.error(error.message || "שגיאה בשמירת הפריט");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "שגיאה בשמירת הפריט");
     } finally {
       setSaving(false);
     }

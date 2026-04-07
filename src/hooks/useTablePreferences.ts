@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useAuth } from "@/contexts/AppContext"
 import { supabase } from "@/lib/supabase"
+import { logger } from "@/lib/logger"
 import type { SortDir } from "@/lib/sortUtils"
 
 export interface TablePreferences {
@@ -49,7 +50,7 @@ export function useTablePreferences(
 
         if (error && error.code !== "PGRST116") {
           // PGRST116 = no rows found, which is fine
-          console.error("Error loading preferences:", error)
+          logger.error("Error loading preferences", error)
         }
 
         if (data) {
@@ -69,7 +70,7 @@ export function useTablePreferences(
         try {
           setPreferences(JSON.parse(stored))
         } catch (e) {
-          console.error("Error parsing stored preferences:", e)
+          logger.error("Error parsing stored preferences", e)
         }
       }
     } finally {
@@ -105,10 +106,10 @@ export function useTablePreferences(
           })
 
           if (error) {
-            console.error("Error saving preferences:", error)
+            logger.error("Error saving preferences", error)
           }
         } catch (e) {
-          console.error("Error saving preferences:", e)
+          logger.error("Error saving preferences", e)
         }
       }
     },

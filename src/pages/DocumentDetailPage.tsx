@@ -4,6 +4,7 @@ import mammoth from "mammoth";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData, useAuth } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
+import { logger } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -492,7 +493,7 @@ export default function DocumentDetailPage() {
       toast.success("הקובץ מורד");
     } catch (err) {
       toast.error("שגיאה בהורדת הקובץ");
-      console.error(err);
+      logger.error("Error downloading file", err);
     }
   };
 

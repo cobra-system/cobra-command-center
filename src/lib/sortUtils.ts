@@ -10,8 +10,8 @@ export type SortDir = "asc" | "desc"
  * Handles different data types and locales (Hebrew support)
  */
 export function compareValues(
-  a: any,
-  b: any,
+  a: unknown,
+  b: unknown,
   type: SortType = "string"
 ): number {
   // Handle null/undefined values

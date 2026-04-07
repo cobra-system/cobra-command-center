@@ -26,6 +26,7 @@ import {
   Recycle,
   ArrowLeft,
   ExternalLink,
+  type LucideIcon,
 } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { useState } from "react";
@@ -48,7 +49,7 @@ const defaultNavItems = [
   { to: "/settings", icon: "Settings", label: "הגדרות" },
 ];
 
-const iconMap: Record<string, any> = {
+const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard, Package, ShoppingCart, Truck, ListTodo,
   Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Users, Recycle,
 };

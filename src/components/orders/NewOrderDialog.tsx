@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Combobox } from "@/components/ui/combobox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DateInput } from "@/components/ui/date-input";
+import { toast } from "sonner";
+import { orderSchema } from "@/lib/schemas/orderSchema";
 
 const priorities: { value: Priority; label: string }[] = [
   { value: "דחוף", label: "דחוף" },
@@ -128,8 +130,32 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
   };
 
   const handleSubmit = async () => {
-    const validItems = items.filter(i => i.name.trim() && Number(i.qty) > 0);
-    if (validItems.length === 0) return;
+    const rawItems = items
+      .filter(i => i.name.trim() && Number(i.qty) > 0)
+      .map(item => ({
+        name: item.name,
+        qty: Number(item.qty),
+        unit_price: Number(item.price) || null,
+        product_id: item.productId || null,
+        component_id: item.componentId || null,
+      }));
+
+    const result = orderSchema.safeParse({
+      supplier_id: supplierId,
+      priority,
+      shipping: shipping || undefined,
+      notes: notes.trim() || undefined,
+      etd: etd?.toISOString() || undefined,
+      eta: eta?.toISOString() || undefined,
+      tracking_number: tracking_number.trim() || undefined,
+      items: rawItems,
+    });
+
+    if (!result.success) {
+      toast.error(result.error.errors[0].message);
+      return;
+    }
+
     const supplier = suppliers.find(s => s.id === supplierId);
 
     await addOrder({
@@ -141,14 +167,14 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
       order_date: new Date().toISOString(),
       etd: etd?.toISOString(),
       eta: eta?.toISOString(),
-      total_price: validItems.reduce((s, i) => s + (Number(i.price) || 0) * Number(i.qty), 0) || undefined,
+      total_price: rawItems.reduce((s, i) => s + (i.unit_price || 0) * i.qty, 0) || undefined,
       notes: notes.trim() || undefined,
       tracking_number: tracking_number.trim() || undefined,
-      items: validItems.map(item => ({
+      items: rawItems.map(item => ({
         name: item.name,
-        qty: Number(item.qty),
-        price: Number(item.price) || undefined,
-        product_id: item.productId || undefined,
+        qty: item.qty,
+        price: item.unit_price ?? undefined,
+        product_id: item.product_id || undefined,
       })),
     });
     resetForm();

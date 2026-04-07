@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth } from "@/contexts/AppContext";
+import { logger } from "@/lib/logger";
 import { ArrowUpDown, ArrowUp, ArrowDown, Paperclip, Trash2, Eye, RefreshCw, Pencil, ShoppingCart, Package, Copy } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Button } from "@/components/ui/button";
@@ -98,7 +99,7 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
   }, [docs, typeFilter, statusFilter, search, sortField, sortDir]);
 
   const handleStatusChange = async (docId: string, newStatus: string) => {
-    const updates: Record<string, any> = { status: newStatus };
+    const updates: Record<string, unknown> = { status: newStatus };
     if (newStatus === "אושר") {
       updates.approval_date = new Date().toISOString();
       updates.approved_by = currentUser?.id;
@@ -118,7 +119,7 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
       onRefresh();
     } catch (err) {
       toast.error("שגיאה במחיקת המסמך");
-      console.error(err);
+      logger.error("Error deleting document", err);
     } finally {
       setDeletingId(null);
     }

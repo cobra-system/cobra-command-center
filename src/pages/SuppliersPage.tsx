@@ -111,8 +111,8 @@ export default function SuppliersPage() {
 
     if (sortKey) {
       result = [...result].sort((a, b) => {
-        const av = (a as any)[sortKey] || "";
-        const bv = (b as any)[sortKey] || "";
+        const av = a[sortKey as keyof Supplier] || "";
+        const bv = b[sortKey as keyof Supplier] || "";
         const cmp = String(av).localeCompare(String(bv), "he");
         return sortDir === "asc" ? cmp : -cmp;
       });
@@ -286,7 +286,7 @@ function MergeDuplicatesDialog({
         notes: allNotes || keeper.notes,
         phone: keeper.phone || toDelete.find(s => s.phone)?.phone,
         email: keeper.email || toDelete.find(s => s.email)?.email,
-        website: (keeper as any).website || toDelete.find(s => (s as any).website)?.website,
+        website: keeper.website || toDelete.find(s => s.website)?.website,
         country: keeper.country || toDelete.find(s => s.country)?.country,
       };
 
@@ -413,7 +413,7 @@ function AddSupplierDialog({ open, onOpenChange, onAdd, onUpdate, editingSupplie
         email: editingSupplier.email || "",
         phone: editingSupplier.phone || "",
         country: editingSupplier.country || "ישראל",
-        website: (editingSupplier as any).website || "",
+        website: editingSupplier.website || "",
         notes: editingSupplier.notes || "",
       });
     } else {
@@ -443,7 +443,7 @@ function AddSupplierDialog({ open, onOpenChange, onAdd, onUpdate, editingSupplie
           country: fields.country || null,
           website: fields.website || null,
           notes: fields.notes || null,
-        } as any);
+        } as Partial<Supplier>);
         toast.success("הספק עודכן");
       } else {
         await onAdd({

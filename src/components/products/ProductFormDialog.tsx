@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Combobox } from "@/components/ui/combobox";
 import { Plus, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { productSchema, productComponentSchema } from "@/lib/schemas/productSchema";
 
 interface Props {
   open: boolean;
@@ -93,12 +94,8 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
   const numOrNull = (v: string) => v === "" ? null : Number(v);
 
   const handleSubmit = async () => {
-    if (!form.name.trim() || !form.sku.trim()) {
-      toast.error("שם ומק״ט הם שדות חובה");
-      return;
-    }
-
-    const productData: any = {
+    // Build raw data for Zod validation
+    const rawProduct = {
       name: form.name.trim(),
       sku: form.sku.trim(),
       category: form.category,
@@ -119,7 +116,15 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
       end_product_url: form.end_product_url || null,
     };
 
-    const compData = comps.filter(c => c.name.trim()).map(c => ({
+    const productResult = productSchema.safeParse(rawProduct);
+    if (!productResult.success) {
+      const firstError = productResult.error.errors[0];
+      toast.error(firstError.message);
+      return;
+    }
+    const productData = productResult.data;
+
+    const rawComps = comps.filter(c => c.name.trim()).map(c => ({
       name: c.name.trim(),
       sku: c.sku || null,
       supplier: c.supplier || null,
@@ -128,6 +133,15 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
       price: numOrNull(c.price),
       notes: c.notes || null,
     }));
+
+    for (const comp of rawComps) {
+      const compResult = productComponentSchema.safeParse(comp);
+      if (!compResult.success) {
+        toast.error(compResult.error.errors[0].message);
+        return;
+      }
+    }
+    const compData = rawComps;
 
     try {
       if (editProduct) {

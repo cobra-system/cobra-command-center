@@ -1,57 +1,55 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.98.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders, handleCors } from "../_shared/cors.ts";
+import { verifyAuth } from "../_shared/auth.ts";
+import { checkRateLimit, getClientId } from "../_shared/rate-limit.ts";
+import { validatePassword } from "../_shared/password.ts";
+import { logAudit, getClientIp } from "../_shared/audit.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
-    // Verify the caller is a manager
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
+    // Rate limit: 5 employee creations per minute per IP
+    const clientId = getClientId(req);
+    const { limited, retryAfterMs } = checkRateLimit(`create-employee:${clientId}`, 5, 60_000);
+    if (limited) {
       return new Response(
-        JSON.stringify({ error: "לא מורשה" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "יותר מדי בקשות, נסה שוב מאוחר יותר" }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": String(Math.ceil((retryAfterMs || 60_000) / 1000)),
+          },
+        }
       );
     }
 
-    // Connect to external backend where auth + data are stored
-    const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL") || Deno.env.get("SUPABASE_URL")!;
-    const externalServiceKey = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabaseAdmin = createClient(externalUrl, externalServiceKey);
-
-    // Verify caller token against the external auth project
-    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-    const { data: { user: caller }, error: callerError } = await supabaseAdmin.auth.getUser(token);
-    if (callerError || !caller) {
+    // Verify caller is a MANAGER
+    const authResult = await verifyAuth(req, ["MANAGER"]);
+    if ("error" in authResult) {
       return new Response(
-        JSON.stringify({ error: "לא מורשה" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    const { data: callerProfile } = await supabaseAdmin
-      .from("profiles")
-      .select("role")
-      .eq("id", caller.id)
-      .single();
-    if (!callerProfile || callerProfile.role !== "MANAGER") {
-      return new Response(
-        JSON.stringify({ error: "רק מנהל יכול ליצור עובדים" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: authResult.error }),
+        { status: authResult.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const { name, role, email, password, role_definition_id } = await req.json();
     const validRoles = ["MANAGER", "WAREHOUSE_MANAGER", "LOGISTICS", "DRIVER"] as const;
 
-    if (!name || !role || !email || !password || password.length < 6) {
+    if (!name || !role || !email) {
       return new Response(
-        JSON.stringify({ error: "שם, תפקיד, אימייל וסיסמה (לפחות 6 תווים) נדרשים" }),
+        JSON.stringify({ error: "שם, תפקיד ואימייל נדרשים" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate password strength
+    const pwCheck = validatePassword(password);
+    if (!pwCheck.valid) {
+      return new Response(
+        JSON.stringify({ error: pwCheck.error }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -62,6 +60,8 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const supabaseAdmin = authResult.auth.supabaseAdmin;
 
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -77,7 +77,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Ensure profile exists גם אם ה-trigger לא יצר אותו
     const profileData: Record<string, unknown> = { id: newUser.user.id, name, role };
     if (role_definition_id) profileData.role_definition_id = role_definition_id;
     const { error: profileError } = await supabaseAdmin
@@ -103,6 +102,15 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    await logAudit(supabaseAdmin, {
+      user_id: authResult.auth.user.id,
+      action: "employee.create",
+      entity_type: "employee",
+      entity_id: newUser.user.id,
+      details: { name, role, email },
+      ip_address: getClientIp(req),
+    });
 
     return new Response(
       JSON.stringify({ success: true, profile: { id: newUser.user.id, name, role } }),

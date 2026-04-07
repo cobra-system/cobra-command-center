@@ -56,8 +56,8 @@ export default function ProductsPage() {
 
     if (sortKey) {
       result = [...result].sort((a, b) => {
-        const av = (a as any)[sortKey];
-        const bv = (b as any)[sortKey];
+        const av = a[sortKey as keyof Product];
+        const bv = b[sortKey as keyof Product];
         if (av == null && bv == null) return 0;
         if (av == null) return 1;
         if (bv == null) return -1;
@@ -179,7 +179,7 @@ export default function ProductsPage() {
                   <EntityContextMenu groups={productMenuGroups}>
                   <tr
                     className="group cursor-pointer hover:bg-muted/30 transition-colors"
-                    onClick={(e) => { if (e.detail !== 1) return; isComposite ? toggleExpand(p.id) : navigate(`/products/${p.id}`); }}
+                    onClick={(e) => { if (e.detail !== 1) return; if (isComposite) { toggleExpand(p.id); } else { navigate(`/products/${p.id}`); } }}
                     onDoubleClick={() => isComposite && navigate(`/products/${p.id}`)}
                     data-navigate-to={`/products/${p.id}`}
                   >
