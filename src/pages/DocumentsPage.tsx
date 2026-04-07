@@ -8,6 +8,7 @@ import { FileText, Upload, Search, CreditCard, ScrollText } from "lucide-react";
 import type { PurchaseDocument, Payment } from "@/components/documents/types";
 import DocumentSummaryCards from "@/components/documents/DocumentSummaryCards";
 import DocumentsDriveView from "@/components/documents/DocumentsDriveView";
+import DocumentAnnotationEditor from "@/components/documents/DocumentAnnotationEditor";
 import PaymentsTable from "@/components/documents/PaymentsTable";
 import ComplianceTab from "@/components/documents/ComplianceTab";
 import SimpleFileUploadDialog from "@/components/documents/SimpleFileUploadDialog";
@@ -24,6 +25,7 @@ export default function DocumentsPage() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [annotatingDoc, setAnnotatingDoc] = useState<PurchaseDocument | null>(null);
   const { hasEdit } = usePermissions("documents");
 
   const fetchData = useCallback(async () => {
@@ -90,7 +92,7 @@ export default function DocumentsPage() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="documents">
-          <DocumentsDriveView docs={docs} search={search} onRefresh={fetchData} />
+          <DocumentsDriveView docs={docs} search={search} onRefresh={fetchData} onAnnotate={setAnnotatingDoc} />
         </TabsContent>
         <TabsContent value="payments">
           <PaymentsTable
@@ -118,6 +120,14 @@ export default function DocumentsPage() {
         docs={docs}
         editPayment={editingPayment}
       />
+      {annotatingDoc && (
+        <DocumentAnnotationEditor
+          open={!!annotatingDoc}
+          onOpenChange={v => { if (!v) setAnnotatingDoc(null); }}
+          doc={annotatingDoc}
+          onSaved={fetchData}
+        />
+      )}
     </div>
   );
 }
