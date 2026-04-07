@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import React, { createContext, useContext, useCallback, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { handleError } from "@/lib/errorHandler";
@@ -22,18 +23,26 @@ export function useGoals() {
 }
 
 export function GoalsProvider({ children }: { children: ReactNode }) {
-  const [goals, setGoals] = useState<Goal[]>([]);
+  const queryClient = useQueryClient();
+
+  const { data: goals = [] } = useQuery({
+    queryKey: ["goals"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("goals").select("*").order("sort_order");
+      if (error) {
+        if (error.message?.includes("schema cache") || error.code === "42P01") {
+          logger.warn("goals table missing — run migration via Supabase SQL Editor");
+        }
+        return [];
+      }
+      return (data as Goal[]) ?? [];
+    },
+    enabled: false, // DataLoader will trigger initial fetch
+  });
 
   const refreshGoals = useCallback(async () => {
-    const { data, error } = await supabase.from("goals").select("*").order("sort_order");
-    if (error) {
-      if (error.message?.includes("schema cache") || error.code === "42P01") {
-        logger.warn("goals table missing — run migration via Supabase SQL Editor");
-      }
-      return;
-    }
-    if (data) setGoals(data as Goal[]);
-  }, []);
+    await queryClient.refetchQueries({ queryKey: ["goals"] });
+  }, [queryClient]);
 
   const addGoal = useCallback(async (goal: Omit<Goal, "id">) => {
     const { error } = await supabase.from("goals").insert(goal);
@@ -45,29 +54,29 @@ export function GoalsProvider({ children }: { children: ReactNode }) {
       }
       return;
     }
-    await refreshGoals();
+    await queryClient.refetchQueries({ queryKey: ["goals"] });
     toast.success("מטרה נוספה");
-  }, [refreshGoals]);
+  }, [queryClient]);
 
   const updateGoal = useCallback(async (id: string, updates: Partial<Goal>) => {
-    const prev = goals;
-    setGoals(g => g.map(item => item.id === id ? { ...item, ...updates } : item));
+    const prev = queryClient.getQueryData<Goal[]>(["goals"]);
+    queryClient.setQueryData(["goals"], (g: Goal[]) => g.map(item => item.id === id ? { ...item, ...updates } : item));
     const { error } = await supabase.from("goals").update(updates).eq("id", id);
     if (error) {
-      setGoals(prev);
+      queryClient.setQueryData(["goals"], prev);
       handleError(error, "שגיאה בעדכון מטרה: " + (error.message || "נסה שוב"));
     }
-  }, [goals]);
+  }, [queryClient]);
 
   const deleteGoal = useCallback(async (id: string) => {
-    const prev = goals;
-    setGoals(g => g.filter(item => item.id !== id));
+    const prev = queryClient.getQueryData<Goal[]>(["goals"]);
+    queryClient.setQueryData(["goals"], (g: Goal[]) => g.filter(item => item.id !== id));
     const { error } = await supabase.from("goals").delete().eq("id", id);
     if (error) {
-      setGoals(prev);
+      queryClient.setQueryData(["goals"], prev);
       handleError(error, "שגיאה במחיקת מטרה: " + (error.message || "נסה שוב"));
     }
-  }, [goals]);
+  }, [queryClient]);
 
   return (
     <GoalsContext.Provider value={{ goals, refreshGoals, addGoal, updateGoal, deleteGoal }}>

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from "react";
+import React, { createContext, useContext, useCallback, useMemo, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { toast } from "sonner";
 import { handleError } from "@/lib/errorHandler";
@@ -31,37 +32,59 @@ export function useRoles() {
 }
 
 export function RolesProvider({ currentUser, children }: { currentUser: Profile | null; children: ReactNode }) {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [roleDefinitions, setRoleDefinitions] = useState<RoleDefinition[]>([]);
-  const [rolePermissions, setRolePermissions] = useState<RolePermissionRecord[]>([]);
+  const queryClient = useQueryClient();
+
+  const { data: profiles = [] } = useQuery({
+    queryKey: ["profiles"],
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("*");
+      return (data as Profile[]) ?? [];
+    },
+    enabled: false, // DataLoader will trigger initial fetch
+  });
+
+  const { data: roleDefinitions = [] } = useQuery({
+    queryKey: ["roleDefinitions"],
+    queryFn: async () => {
+      const { data } = await supabase.from("role_definitions").select("*").order("created_at");
+      return (data as RoleDefinition[]) ?? [];
+    },
+    enabled: false, // DataLoader will trigger initial fetch
+  });
+
+  const { data: rolePermissions = [] } = useQuery({
+    queryKey: ["rolePermissions"],
+    queryFn: async () => {
+      const { data } = await supabase.from("role_permissions").select("*");
+      return (data as RolePermissionRecord[]) ?? [];
+    },
+    enabled: false, // DataLoader will trigger initial fetch
+  });
 
   const refreshProfiles = useCallback(async () => {
-    const { data } = await supabase.from("profiles").select("*");
-    if (data) setProfiles(data as Profile[]);
-  }, []);
+    await queryClient.refetchQueries({ queryKey: ["profiles"] });
+  }, [queryClient]);
 
   const refreshRoleDefinitions = useCallback(async () => {
-    const { data } = await supabase.from("role_definitions").select("*").order("created_at");
-    if (data) setRoleDefinitions(data as RoleDefinition[]);
-  }, []);
+    await queryClient.refetchQueries({ queryKey: ["roleDefinitions"] });
+  }, [queryClient]);
 
   const refreshRolePermissions = useCallback(async () => {
-    const { data } = await supabase.from("role_permissions").select("*");
-    if (data) setRolePermissions(data as RolePermissionRecord[]);
-  }, []);
+    await queryClient.refetchQueries({ queryKey: ["rolePermissions"] });
+  }, [queryClient]);
 
   const upsertRolePermission = useCallback(async (role: string, moduleKey: string, level: PermissionLevel) => {
     try {
       const { error } = await supabase.from("role_permissions").upsert(
-        { role, module_key: moduleKey, permission_level: level } as any,
+        { role, module_key: moduleKey, permission_level: level } as Record<string, unknown>,
         { onConflict: "role,module_key" }
       );
       if (error) throw error;
-      await refreshRolePermissions();
+      await queryClient.refetchQueries({ queryKey: ["rolePermissions"] });
     } catch (err) {
       handleError(err, "שגיאה בעדכון הרשאות: " + (err instanceof Error ? err.message : "נסה שוב"));
     }
-  }, [refreshRolePermissions]);
+  }, [queryClient]);
 
   const addProfile = useCallback(async (profile: { email: string; name: string; role: Role }) => {
     try {
@@ -69,23 +92,23 @@ export function RolesProvider({ currentUser, children }: { currentUser: Profile 
         body: { email: profile.email, name: profile.name, role: profile.role },
       });
       if (res.error) throw new Error(res.error.message);
-      await refreshProfiles();
+      await queryClient.refetchQueries({ queryKey: ["profiles"] });
       toast.success("עובד נוסף בהצלחה");
     } catch (err) {
       handleError(err, "שגיאה בהוספת עובד: " + (err instanceof Error ? err.message : "נסה שוב"));
     }
-  }, [refreshProfiles]);
+  }, [queryClient]);
 
   const updateProfile = useCallback(async (id: string, updates: Partial<Profile>) => {
     try {
       const { error } = await supabase.from("profiles").update(updates).eq("id", id);
       if (error) throw error;
-      await refreshProfiles();
+      await queryClient.refetchQueries({ queryKey: ["profiles"] });
       toast.success("פרופיל עודכן בהצלחה");
     } catch (err) {
       handleError(err, "שגיאה בעדכון פרופיל: " + (err instanceof Error ? err.message : "נסה שוב"));
     }
-  }, [refreshProfiles]);
+  }, [queryClient]);
 
   const createEmployee = useCallback(async (data: { name: string; role: Role; email: string; password: string; role_definition_id?: string }): Promise<string | null> => {
     try {
@@ -102,45 +125,45 @@ export function RolesProvider({ currentUser, children }: { currentUser: Profile 
       });
       const result = await response.json();
       if (!response.ok) return result.error || "שגיאה ביצירת עובד";
-      await refreshProfiles();
+      await queryClient.refetchQueries({ queryKey: ["profiles"] });
       return null;
     } catch {
       return "שגיאה בחיבור לשרת";
     }
-  }, [refreshProfiles]);
+  }, [queryClient]);
 
   const addRoleDefinition = useCallback(async (name: string) => {
     try {
-      const { error } = await supabase.from("role_definitions").insert({ name } as any);
+      const { error } = await supabase.from("role_definitions").insert({ name } as Record<string, unknown>);
       if (error) throw error;
-      await refreshRoleDefinitions();
+      await queryClient.refetchQueries({ queryKey: ["roleDefinitions"] });
       toast.success("תפקיד נוסף בהצלחה");
     } catch (err) {
       handleError(err, "שגיאה בהוספת תפקיד: " + (err instanceof Error ? err.message : "נסה שוב"));
     }
-  }, [refreshRoleDefinitions]);
+  }, [queryClient]);
 
   const updateRoleDefinition = useCallback(async (id: string, name: string) => {
     try {
-      const { error } = await supabase.from("role_definitions").update({ name } as any).eq("id", id);
+      const { error } = await supabase.from("role_definitions").update({ name } as Record<string, unknown>).eq("id", id);
       if (error) throw error;
-      await refreshRoleDefinitions();
+      await queryClient.refetchQueries({ queryKey: ["roleDefinitions"] });
       toast.success("תפקיד עודכן בהצלחה");
     } catch (err) {
       handleError(err, "שגיאה בעדכון תפקיד: " + (err instanceof Error ? err.message : "נסה שוב"));
     }
-  }, [refreshRoleDefinitions]);
+  }, [queryClient]);
 
   const deleteRoleDefinition = useCallback(async (id: string) => {
     try {
       const { error } = await supabase.from("role_definitions").delete().eq("id", id);
       if (error) throw error;
-      await refreshRoleDefinitions();
+      await queryClient.refetchQueries({ queryKey: ["roleDefinitions"] });
       toast.success("תפקיד נמחק בהצלחה");
     } catch (err) {
       handleError(err, "שגיאה במחיקת תפקיד: " + (err instanceof Error ? err.message : "נסה שוב"));
     }
-  }, [refreshRoleDefinitions]);
+  }, [queryClient]);
 
   const currentUserPermissions: RolePermissions = useMemo(() => {
     if (!currentUser || currentUser.role === "MANAGER") {

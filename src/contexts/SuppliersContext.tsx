@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import React, { createContext, useContext, useCallback, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { handleError } from "@/lib/errorHandler";
@@ -22,55 +23,62 @@ export function useSuppliers() {
 }
 
 export function SuppliersProvider({ children }: { children: ReactNode }) {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const queryClient = useQueryClient();
 
-  const refreshSuppliers = useCallback(async () => {
-    const { data } = await supabase.from("suppliers").select("*, supplier_contacts(*)").order("company");
-    if (data) {
-      setSuppliers(data.map((s: Record<string, unknown>) => ({
+  const { data: suppliers = [] } = useQuery({
+    queryKey: ["suppliers"],
+    queryFn: async () => {
+      const { data } = await supabase.from("suppliers").select("*, supplier_contacts(*)").order("company");
+      if (!data) return [];
+      return data.map((s: Record<string, unknown>) => ({
         ...s,
         contacts: (((s as Record<string, unknown>).supplier_contacts || []) as SupplierContact[]).sort((a, b) =>
           (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0)
         ),
-      })) as Supplier[]);
-    }
-  }, []);
+      })) as Supplier[];
+    },
+    enabled: false, // DataLoader will trigger initial fetch
+  });
+
+  const refreshSuppliers = useCallback(async () => {
+    await queryClient.refetchQueries({ queryKey: ["suppliers"] });
+  }, [queryClient]);
 
   const addSupplier = useCallback(async (supplier: Omit<Supplier, "id">) => {
     try {
       const { error } = await supabase.from("suppliers").insert(supplier as Record<string, unknown>);
       if (error) throw error;
-      await refreshSuppliers();
+      await queryClient.refetchQueries({ queryKey: ["suppliers"] });
       toast.success("ספק נוסף בהצלחה");
       logActivity({ action: "supplier.create", entityType: "supplier" });
     } catch (err) {
       handleError(err, "שגיאה בהוספת ספק");
     }
-  }, [refreshSuppliers]);
+  }, [queryClient]);
 
   const updateSupplier = useCallback(async (id: string, updates: Partial<Supplier>) => {
     try {
       const { error } = await supabase.from("suppliers").update(updates as Record<string, unknown>).eq("id", id);
       if (error) throw error;
-      await refreshSuppliers();
+      await queryClient.refetchQueries({ queryKey: ["suppliers"] });
       toast.success("ספק עודכן בהצלחה");
       logActivity({ action: "supplier.update", entityType: "supplier", entityId: id });
     } catch (err) {
       handleError(err, "שגיאה בעדכון ספק");
     }
-  }, [refreshSuppliers]);
+  }, [queryClient]);
 
   const deleteSupplier = useCallback(async (id: string) => {
     try {
       const { error } = await supabase.from("suppliers").delete().eq("id", id);
       if (error) throw error;
-      await refreshSuppliers();
+      await queryClient.refetchQueries({ queryKey: ["suppliers"] });
       toast.success("ספק נמחק בהצלחה");
       logActivity({ action: "supplier.delete", entityType: "supplier", entityId: id });
     } catch (err) {
       handleError(err, "שגיאה במחיקת ספק");
     }
-  }, [refreshSuppliers]);
+  }, [queryClient]);
 
   return (
     <SuppliersContext.Provider value={{ suppliers, refreshSuppliers, addSupplier, updateSupplier, deleteSupplier }}>

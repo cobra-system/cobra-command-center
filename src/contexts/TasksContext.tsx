@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
+import React, { createContext, useContext, useCallback, useEffect, useRef, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { handleError } from "@/lib/errorHandler";
@@ -28,13 +29,21 @@ export function useTasks() {
 }
 
 export function TasksProvider({ session, children }: { session: Session | null; children: ReactNode }) {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const queryClient = useQueryClient();
   const ownMutationIds = useRef<Set<string>>(new Set());
 
+  const { data: tasks = [] } = useQuery({
+    queryKey: ["tasks"],
+    queryFn: async () => {
+      const { data } = await supabase.from("tasks").select("*").neq("status", "TEMPLATE").order("created_at", { ascending: false }).limit(500);
+      return (data as Task[]) ?? [];
+    },
+    enabled: false, // DataLoader will trigger initial fetch
+  });
+
   const refreshTasks = useCallback(async () => {
-    const { data } = await supabase.from("tasks").select("*").neq("status", "TEMPLATE").order("created_at", { ascending: false }).limit(500);
-    if (data) setTasks(data as Task[]);
-  }, []);
+    await queryClient.refetchQueries({ queryKey: ["tasks"] });
+  }, [queryClient]);
 
   // Realtime subscription for tasks
   useEffect(() => {
@@ -58,7 +67,7 @@ export function TasksProvider({ session, children }: { session: Session | null; 
             const newTask = payload.new as Task;
             const oldTask = payload.old as Record<string, unknown>;
 
-            setTasks(prev => prev.map(t => t.id === newTask.id ? newTask : t));
+            queryClient.setQueryData(["tasks"], (prev: Task[]) => prev.map(t => t.id === newTask.id ? newTask : t));
 
             // Show notification for status changes
             if (oldTask.status && oldTask.status !== newTask.status) {
@@ -69,11 +78,11 @@ export function TasksProvider({ session, children }: { session: Session | null; 
             }
           } else if (payload.eventType === 'INSERT') {
             const newTask = payload.new as Task;
-            setTasks(prev => [newTask, ...prev]);
+            queryClient.setQueryData(["tasks"], (prev: Task[]) => [newTask, ...prev]);
             toast.info(`📋 משימה חדשה: "${newTask.title}"`);
           } else if (payload.eventType === 'DELETE') {
             const oldId = (payload.old as Record<string, unknown>).id as string;
-            setTasks(prev => prev.filter(t => t.id !== oldId));
+            queryClient.setQueryData(["tasks"], (prev: Task[]) => prev.filter(t => t.id !== oldId));
           }
         }
       )
@@ -82,30 +91,30 @@ export function TasksProvider({ session, children }: { session: Session | null; 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [session]);
+  }, [session, queryClient]);
 
   const updateTaskStatus = useCallback(async (taskId: string, status: TaskStatus) => {
     ownMutationIds.current.add(taskId);
-    const prevTasks = tasks;
+    const prevTasks = queryClient.getQueryData<Task[]>(["tasks"]);
     const completedAt = status === "DONE" ? new Date().toISOString() : null;
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status, completed_at: completedAt } : t));
+    queryClient.setQueryData(["tasks"], (prev: Task[]) => prev.map(t => t.id === taskId ? { ...t, status, completed_at: completedAt } : t));
     const { error } = await supabase.from("tasks").update({ status, completed_at: completedAt }).eq("id", taskId);
     if (error) {
-      setTasks(prevTasks);
+      queryClient.setQueryData(["tasks"], prevTasks);
       handleError(error, "שגיאה בעדכון משימה: " + (error.message || "נסה שוב"));
     }
-  }, [tasks]);
+  }, [queryClient]);
 
   const addTaskNote = useCallback(async (taskId: string, note: string) => {
     ownMutationIds.current.add(taskId);
-    const prevTasks = tasks;
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, notes: note } : t));
+    const prevTasks = queryClient.getQueryData<Task[]>(["tasks"]);
+    queryClient.setQueryData(["tasks"], (prev: Task[]) => prev.map(t => t.id === taskId ? { ...t, notes: note } : t));
     const { error } = await supabase.from("tasks").update({ notes: note }).eq("id", taskId);
     if (error) {
-      setTasks(prevTasks);
+      queryClient.setQueryData(["tasks"], prevTasks);
       handleError(error, "שגיאה בשמירת הערה: " + (error.message || "נסה שוב"));
     }
-  }, [tasks]);
+  }, [queryClient]);
 
   const addTask = useCallback(async (task: Omit<Task, "id">) => {
     try {
@@ -121,38 +130,39 @@ export function TasksProvider({ session, children }: { session: Session | null; 
 
   const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
     ownMutationIds.current.add(id);
-    const prevTasks = tasks;
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+    const prevTasks = queryClient.getQueryData<Task[]>(["tasks"]);
+    queryClient.setQueryData(["tasks"], (prev: Task[]) => prev.map(t => t.id === id ? { ...t, ...updates } : t));
     const { error } = await supabase.from("tasks").update(updates).eq("id", id);
     if (error) {
-      setTasks(prevTasks);
+      queryClient.setQueryData(["tasks"], prevTasks);
       handleError(error, "שגיאה בעדכון משימה: " + (error.message || "נסה שוב"));
     } else {
       logActivity({ action: "task.update", entityType: "task", entityId: id });
     }
-  }, [tasks]);
+  }, [queryClient]);
 
   const deleteTask = useCallback(async (id: string) => {
     ownMutationIds.current.add(id);
-    const prevTasks = tasks;
-    setTasks(prev => prev.filter(t => t.id !== id));
+    const prevTasks = queryClient.getQueryData<Task[]>(["tasks"]);
+    queryClient.setQueryData(["tasks"], (prev: Task[]) => prev.filter(t => t.id !== id));
     const { error } = await supabase.from("tasks").delete().eq("id", id);
     if (error) {
-      setTasks(prevTasks);
+      queryClient.setQueryData(["tasks"], prevTasks);
       handleError(error, "שגיאה במחיקת משימה: " + (error.message || "נסה שוב"));
       throw error;
     }
     logActivity({ action: "task.delete", entityType: "task", entityId: id });
-  }, [tasks]);
+  }, [queryClient]);
 
   const resetDailyTasks = useCallback(async () => {
-    const dailyTasks = tasks.filter(t => t.is_daily && t.status !== "TODO");
-    setTasks(prev => prev.map(t => t.is_daily ? { ...t, status: "TODO" } : t));
+    const currentTasks = queryClient.getQueryData<Task[]>(["tasks"]) ?? [];
+    const dailyTasks = currentTasks.filter(t => t.is_daily && t.status !== "TODO");
+    queryClient.setQueryData(["tasks"], (prev: Task[]) => prev.map(t => t.is_daily ? { ...t, status: "TODO" } : t));
     for (const t of dailyTasks) {
       ownMutationIds.current.add(t.id);
       await supabase.from("tasks").update({ status: "TODO" }).eq("id", t.id);
     }
-  }, [tasks]);
+  }, [queryClient]);
 
   return (
     <TasksContext.Provider value={{

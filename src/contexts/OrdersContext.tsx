@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import React, { createContext, useContext, useCallback, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { handleError } from "@/lib/errorHandler";
@@ -23,31 +24,42 @@ export function useOrders() {
 }
 
 export function OrdersProvider({ children }: { children: ReactNode }) {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const queryClient = useQueryClient();
+
+  const { data: orders = [] } = useQuery({
+    queryKey: ["orders"],
+    queryFn: async () => {
+      const { data: ords } = await supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(500);
+      if (ords) {
+        return ords.map(o => {
+          const items = o.order_items || [];
+          const calculatedTotal = items.reduce((sum: number, item: Record<string, number | null>) => {
+            const itemTotal = (item.price || 0) * (item.qty || 0);
+            return sum + itemTotal;
+          }, 0);
+          return { ...o, items, total_price: calculatedTotal };
+        }) as unknown as Order[];
+      }
+      return [] as Order[];
+    },
+    enabled: false,
+  });
 
   const refreshOrders = useCallback(async () => {
-    const { data: ords } = await supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(500);
-    if (ords) {
-      setOrders(ords.map(o => {
-        const items = o.order_items || [];
-        const calculatedTotal = items.reduce((sum: number, item: Record<string, number | null>) => {
-          const itemTotal = (item.price || 0) * (item.qty || 0);
-          return sum + itemTotal;
-        }, 0);
-        return { ...o, items, total_price: calculatedTotal };
-      }) as unknown as Order[]);
-    }
-  }, []);
+    await queryClient.refetchQueries({ queryKey: ["orders"] });
+  }, [queryClient]);
 
   const updateOrderStatus = useCallback(async (orderId: string, status: OrderStatus) => {
-    const prevOrders = orders;
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+    const prevOrders = queryClient.getQueryData<Order[]>(["orders"]) ?? [];
+    queryClient.setQueryData(["orders"], (prev: Order[] | undefined) =>
+      (prev ?? []).map(o => o.id === orderId ? { ...o, status } : o)
+    );
     const { error } = await supabase.from("orders").update({ status }).eq("id", orderId);
     if (error) {
-      setOrders(prevOrders);
+      queryClient.setQueryData(["orders"], prevOrders);
       handleError(error, "שגיאה בעדכון סטטוס הזמנה: " + (error.message || "נסה שוב"));
     }
-  }, [orders]);
+  }, [queryClient]);
 
   const addOrder = useCallback(async (order: Omit<Order, "id" | "items"> & { items: Omit<OrderItem, "id" | "order_id">[] }) => {
     try {
@@ -80,37 +92,37 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
         if (tpl) {
           await supabase.from("workflow_instances").insert({ template_id: tpl.id, order_id: newOrder.id });
         }
-        await refreshOrders();
+        await queryClient.refetchQueries({ queryKey: ["orders"] });
         toast.success("הזמנה נוצרה בהצלחה");
         logActivity({ action: "order.create", entityType: "order", entityId: newOrder.id });
       }
     } catch (err) {
       handleError(err, "שגיאה בלתי צפויה: " + (err instanceof Error ? err.message : "נסה שוב"));
     }
-  }, [refreshOrders]);
+  }, [queryClient]);
 
   const updateOrder = useCallback(async (id: string, updates: Partial<Order>) => {
     try {
-      const { items, ...dbUpdates } = updates as any;
+      const { items, ...dbUpdates } = updates as Partial<Order> & Record<string, unknown>;
       const { error } = await supabase.from("orders").update(dbUpdates).eq("id", id);
       if (error) {
         handleError(error, "שגיאה בעדכון הזמנה: " + (error.message || "נסה שוב"));
         return;
       }
-      await refreshOrders();
+      await queryClient.refetchQueries({ queryKey: ["orders"] });
       toast.success("הזמנה עודכנה בהצלחה");
       logActivity({ action: "order.update", entityType: "order", entityId: id });
     } catch (err) {
       handleError(err, "שגיאה בלתי צפויה: " + (err instanceof Error ? err.message : "נסה שוב"));
     }
-  }, [refreshOrders]);
+  }, [queryClient]);
 
   const deleteOrder = useCallback(async (id: string) => {
     try {
       // Delete workflow step logs first (referenced by workflow_instances)
       const { data: instances } = await supabase.from("workflow_instances").select("id").eq("order_id", id);
       if (instances && instances.length > 0) {
-        const instanceIds = instances.map((i: any) => i.id);
+        const instanceIds = instances.map((i: { id: string }) => i.id);
         await supabase.from("workflow_step_logs").delete().in("instance_id", instanceIds);
         await supabase.from("workflow_instances").delete().eq("order_id", id);
       }
@@ -118,13 +130,13 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       if (itemsError) throw itemsError;
       const { error: orderError } = await supabase.from("orders").delete().eq("id", id);
       if (orderError) throw orderError;
-      await refreshOrders();
+      await queryClient.refetchQueries({ queryKey: ["orders"] });
       toast.success("הזמנה נמחקה בהצלחה");
       logActivity({ action: "order.delete", entityType: "order", entityId: id });
     } catch (err) {
       handleError(err, "שגיאה במחיקת הזמנה: " + (err instanceof Error ? err.message : "נסה שוב"));
     }
-  }, [refreshOrders]);
+  }, [queryClient]);
 
   return (
     <OrdersContext.Provider value={{

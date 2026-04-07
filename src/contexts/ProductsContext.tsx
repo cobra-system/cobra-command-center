@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import React, { createContext, useContext, useCallback, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { handleError } from "@/lib/errorHandler";
@@ -25,21 +26,28 @@ export function useProducts() {
 }
 
 export function ProductsProvider({ children }: { children: ReactNode }) {
-  const [products, setProducts] = useState<Product[]>([]);
+  const queryClient = useQueryClient();
 
-  const refreshProducts = useCallback(async () => {
-    const { data: prods } = await supabase.from("products").select("*, product_components(*)").order("category").limit(500);
-    if (prods) {
-      setProducts(prods.map(p => ({
+  const { data: products = [] } = useQuery({
+    queryKey: ["products"],
+    queryFn: async () => {
+      const { data: prods } = await supabase.from("products").select("*, product_components(*)").order("category").limit(500);
+      if (!prods) return [];
+      return prods.map(p => ({
         ...p,
         components: ((p as Record<string, unknown>).product_components || []) as ProductComponent[],
-      })) as Product[]);
-    }
-  }, []);
+      })) as Product[];
+    },
+    enabled: false, // DataLoader will trigger initial fetch
+  });
+
+  const refreshProducts = useCallback(async () => {
+    await queryClient.refetchQueries({ queryKey: ["products"] });
+  }, [queryClient]);
 
   const updateProduct = useCallback(async (id: string, updates: Partial<Product>) => {
     try {
-      const { components, supplier_id, ...dbUpdates } = updates as any;
+      const { components, supplier_id, ...dbUpdates } = updates as Partial<Product> & Record<string, unknown>;
       const { error } = await supabase.from("products").update(dbUpdates).eq("id", id);
       if (error) throw error;
       // Sync stock with main center inventory
@@ -47,37 +55,37 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
         const { data: mainCenter } = await supabase.from("distribution_centers").select("id").eq("is_main", true).maybeSingle();
         if (mainCenter) {
           await supabase.from("center_inventory").upsert(
-            { center_id: mainCenter.id, product_id: id, quantity: dbUpdates.stock_qty } as any,
+            { center_id: mainCenter.id, product_id: id, quantity: dbUpdates.stock_qty } as Record<string, unknown>,
             { onConflict: "center_id,product_id" }
           );
         }
       }
-      await refreshProducts();
+      await queryClient.refetchQueries({ queryKey: ["products"] });
       toast.success("מוצר עודכן בהצלחה");
       logActivity({ action: "product.update", entityType: "product", entityId: id });
     } catch (err) {
       handleError(err, "שגיאה בעדכון מוצר: " + (err instanceof Error ? err.message : "נסה שוב"));
       throw err;
     }
-  }, [refreshProducts]);
+  }, [queryClient]);
 
   const addProduct = useCallback(async (product: Omit<Product, "id" | "components">, components?: Omit<ProductComponent, "id" | "product_id">[]) => {
     try {
-      const { supplier_id, ...productData } = product as any;
+      const { supplier_id, ...productData } = product as Omit<Product, "id" | "components"> & Record<string, unknown>;
       const { data: newProd, error: prodError } = await supabase.from("products").insert(productData).select("id").single();
       if (prodError) throw prodError;
       if (newProd && components && components.length > 0) {
         const { error: compError } = await supabase.from("product_components").insert(components.map(c => ({ ...c, product_id: newProd.id })));
         if (compError) throw compError;
       }
-      await refreshProducts();
+      await queryClient.refetchQueries({ queryKey: ["products"] });
       toast.success("מוצר נוצר בהצלחה");
       if (newProd) logActivity({ action: "product.create", entityType: "product", entityId: newProd.id });
     } catch (err) {
       handleError(err, "שגיאה ביצירת מוצר: " + (err instanceof Error ? err.message : "נסה שוב"));
       throw err;
     }
-  }, [refreshProducts]);
+  }, [queryClient]);
 
   const deleteProduct = useCallback(async (id: string) => {
     try {
@@ -85,47 +93,47 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
       if (compError) throw compError;
       const { error: prodError } = await supabase.from("products").delete().eq("id", id);
       if (prodError) throw prodError;
-      await refreshProducts();
+      await queryClient.refetchQueries({ queryKey: ["products"] });
       toast.success("מוצר נמחק בהצלחה");
       logActivity({ action: "product.delete", entityType: "product", entityId: id });
     } catch (err) {
       handleError(err, "שגיאה במחיקת מוצר: " + (err instanceof Error ? err.message : "נסה שוב"));
     }
-  }, [refreshProducts]);
+  }, [queryClient]);
 
   const addComponent = useCallback(async (component: Omit<ProductComponent, "id">) => {
     try {
       const { error } = await supabase.from("product_components").insert(component);
       if (error) throw error;
-      await refreshProducts();
+      await queryClient.refetchQueries({ queryKey: ["products"] });
       toast.success("רכיב נוסף בהצלחה");
     } catch (err) {
       handleError(err, "שגיאה בהוספת רכיב: " + (err instanceof Error ? err.message : "נסה שוב"));
     }
-  }, [refreshProducts]);
+  }, [queryClient]);
 
   const updateComponent = useCallback(async (id: string, updates: Partial<ProductComponent>) => {
     try {
-      const { product_id, ...dbUpdates } = updates as any;
+      const { product_id, ...dbUpdates } = updates as Partial<ProductComponent> & Record<string, unknown>;
       const { error } = await supabase.from("product_components").update(dbUpdates).eq("id", id);
       if (error) throw error;
-      await refreshProducts();
+      await queryClient.refetchQueries({ queryKey: ["products"] });
       toast.success("רכיב עודכן בהצלחה");
     } catch (err) {
       handleError(err, "שגיאה בעדכון רכיב: " + (err instanceof Error ? err.message : "נסה שוב"));
     }
-  }, [refreshProducts]);
+  }, [queryClient]);
 
   const deleteComponent = useCallback(async (id: string) => {
     try {
       const { error } = await supabase.from("product_components").delete().eq("id", id);
       if (error) throw error;
-      await refreshProducts();
+      await queryClient.refetchQueries({ queryKey: ["products"] });
       toast.success("רכיב נמחק בהצלחה");
     } catch (err) {
       handleError(err, "שגיאה במחיקת רכיב: " + (err instanceof Error ? err.message : "נסה שוב"));
     }
-  }, [refreshProducts]);
+  }, [queryClient]);
 
   return (
     <ProductsContext.Provider value={{
