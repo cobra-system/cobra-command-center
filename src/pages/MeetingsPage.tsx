@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Users, Plus, Search, Loader2, CalendarDays, ListChecks, Eye, Trash2 } from "lucide-react";
+import { Users, Plus, Search, Loader2, CalendarDays, ListChecks, Eye, Trash2, Pencil } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { toast } from "sonner";
 import MeetingFormDialog from "@/components/meetings/MeetingFormDialog";
@@ -16,6 +16,8 @@ export default function MeetingsPage() {
   const [search, setSearch] = useState("");
   const [newOpen, setNewOpen] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
+  const [editMeeting, setEditMeeting] = useState<Meeting | null>(null);
+  const [editMeetingOpen, setEditMeetingOpen] = useState(false);
 
   const fetchMeetings = async () => {
     const { data } = await supabase
@@ -116,6 +118,7 @@ export default function MeetingsPage() {
             const meetingMenuGroups: ContextMenuGroupItem[][] = [
               [
                 { label: "פרטי פגישה", icon: Eye, onClick: () => setSelectedMeeting(meeting) },
+                { label: "ערוך פגישה", icon: Pencil, onClick: () => { setEditMeeting(meeting); setEditMeetingOpen(true); } },
               ],
               [
                 { label: "מחק פגישה", icon: Trash2, onClick: () => handleDeleteMeeting(meeting.id), variant: "destructive" as const, confirmTitle: "מחיקת פגישה", confirmDescription: `האם למחוק את הפגישה "${meeting.title}"? פעולה זו תמחק גם את כל המשימות והמסמכים המשויכים.` },
@@ -161,6 +164,7 @@ export default function MeetingsPage() {
 
       {/* Dialogs */}
       <MeetingFormDialog open={newOpen} onOpenChange={setNewOpen} onSaved={refresh} />
+      <MeetingFormDialog open={editMeetingOpen} onOpenChange={(o) => { setEditMeetingOpen(o); if (!o) setEditMeeting(null); }} editingMeeting={editMeeting} onSaved={refresh} />
       <MeetingDetailDialog meeting={selectedMeeting} onClose={() => setSelectedMeeting(null)} onRefresh={refresh} />
     </div>
   );

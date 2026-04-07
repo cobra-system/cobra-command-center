@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { Plus, Trash2, Copy, Search, ArrowUpDown, ArrowUp, ArrowDown, Zap, CheckCircle, Eye, RefreshCw, CreditCard } from "lucide-react";
+import { Plus, Trash2, Copy, Search, ArrowUpDown, ArrowUp, ArrowDown, Zap, CheckCircle, Eye, RefreshCw, CreditCard, Truck } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -211,8 +211,8 @@ export default function OrdersPage() {
     return result;
   }, [orders, statusFilter, priorityFilter, paymentFilter, workflowFilter, search, sortField, sortDir, orderWorkflows]);
 
-  const navigateToSupplier = (supplierName: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const navigateToSupplier = (supplierName: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     const s = suppliers.find(s => s.company === supplierName);
     if (s) navigate(`/suppliers/${s.id}`);
   };
@@ -409,9 +409,11 @@ export default function OrdersPage() {
             {filtered.length === 0 ? (
               <tr><td colSpan={hasEdit ? 16 : 15} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
             ) : filtered.map((order) => {
+              const isAlreadyPaid = (order as any).payment_status === "שולם";
               const orderMenuGroups: ContextMenuGroupItem[][] = [
                 [
                   { label: "צפה בהזמנה", icon: Eye, onClick: () => navigate(`/orders/${order.id}`) },
+                  { label: `עבור לספק: ${order.supplier_name}`, icon: Truck, onClick: () => navigateToSupplier(order.supplier_name!), hidden: !order.supplier_name },
                 ],
                 [
                   {
@@ -431,9 +433,11 @@ export default function OrdersPage() {
                       disabled: (order as any).payment_status === ps,
                     })),
                   },
+                  { label: "סמן כשולם", icon: CheckCircle, onClick: () => updateOrder(order.id, { payment_status: "שולם", payment_date: new Date().toISOString() } as any), hidden: isAlreadyPaid || !hasEdit },
                 ],
                 [
                   { label: "שכפל הזמנה", icon: Copy, onClick: () => handleDuplicateOrder(order.id) },
+                  { label: "העתק מספר מעקב", icon: Copy, onClick: () => { navigator.clipboard.writeText(order.tracking_number!); toast.success("מספר המעקב הועתק"); }, hidden: !order.tracking_number },
                 ],
                 [
                   { label: "מחק הזמנה", icon: Trash2, onClick: () => handleDeleteOrder(order.id), variant: "destructive" as const, hidden: !hasEdit, confirmTitle: "מחיקת הזמנה", confirmDescription: "האם למחוק את ההזמנה? פעולה זו לא ניתנת לביטול." },

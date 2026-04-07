@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth, type Supplier } from "@/contexts/AppContext";
-import { Search, Plus, ArrowUpDown, ArrowUp, ArrowDown, Globe, GitMerge, AlertTriangle, ExternalLink, Eye, Trash2 } from "lucide-react";
+import { Search, Plus, ArrowUpDown, ArrowUp, ArrowDown, Globe, GitMerge, AlertTriangle, ExternalLink, Eye, Trash2, Pencil, ShoppingCart, Mail } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -84,6 +84,8 @@ export default function SuppliersPage() {
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
+  const [editSupplierTarget, setEditSupplierTarget] = useState<Supplier | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   const prefs = useTablePreferences("SuppliersPage", {
     sortField: "company",
@@ -184,6 +186,13 @@ export default function SuppliersPage() {
               const supplierMenuGroups: ContextMenuGroupItem[][] = [
                 [
                   { label: "צפה בספק", icon: Eye, onClick: () => navigate(`/suppliers/${s.id}`) },
+                  { label: "הזמנות הספק", icon: ShoppingCart, onClick: () => navigate(`/orders?q=${encodeURIComponent(s.company)}`) },
+                ],
+                [
+                  { label: "ערוך ספק", icon: Pencil, onClick: () => { setEditSupplierTarget(s); setEditOpen(true); }, hidden: !hasEdit },
+                ],
+                [
+                  { label: "העתק אימייל", icon: Mail, onClick: () => { navigator.clipboard.writeText(s.email!); toast.success("האימייל הועתק"); }, hidden: !s.email },
                 ],
                 [
                   { label: "מחק ספק", icon: Trash2, onClick: () => { deleteSupplier(s.id).then(() => toast.success("הספק נמחק")); }, variant: "destructive" as const, hidden: !hasEdit, confirmTitle: "מחיקת ספק", confirmDescription: `האם למחוק את "${s.company}"? פעולה זו לא ניתנת לביטול.` },
@@ -211,6 +220,16 @@ export default function SuppliersPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Edit Supplier Dialog */}
+      <AddSupplierDialog
+        open={editOpen}
+        onOpenChange={(o) => { setEditOpen(o); if (!o) setEditSupplierTarget(null); }}
+        onAdd={addSupplier}
+        onUpdate={updateSupplier}
+        editingSupplier={editSupplierTarget}
+        existingSuppliers={suppliers}
+      />
 
       {/* Merge Duplicates Dialog */}
       <MergeDuplicatesDialog
@@ -369,10 +388,12 @@ function MergeDuplicatesDialog({
   );
 }
 
-function AddSupplierDialog({ open, onOpenChange, onAdd, existingSuppliers }: {
+function AddSupplierDialog({ open, onOpenChange, onAdd, onUpdate, editingSupplier, existingSuppliers }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAdd: (supplier: Omit<Supplier, "id">) => Promise<void>;
+  onUpdate?: (id: string, updates: Partial<Supplier>) => Promise<void>;
+  editingSupplier?: Supplier | null;
   existingSuppliers: Supplier[];
 }) {
   const navigate = useNavigate();
@@ -381,31 +402,62 @@ function AddSupplierDialog({ open, onOpenChange, onAdd, existingSuppliers }: {
   });
   const [saving, setSaving] = useState(false);
 
+  const isEditing = !!editingSupplier;
+
+  // Pre-populate fields when editing
+  React.useEffect(() => {
+    if (editingSupplier) {
+      setFields({
+        company: editingSupplier.company || "",
+        contact_name: editingSupplier.contact_name || "",
+        email: editingSupplier.email || "",
+        phone: editingSupplier.phone || "",
+        country: editingSupplier.country || "ישראל",
+        website: (editingSupplier as any).website || "",
+        notes: editingSupplier.notes || "",
+      });
+    } else {
+      setFields({ company: "", contact_name: "", email: "", phone: "", country: "ישראל", website: "", notes: "" });
+    }
+  }, [editingSupplier, open]);
+
   const set = (key: string, value: string) => setFields(prev => ({ ...prev, [key]: value }));
 
   const similarSuppliers = useMemo(() => {
-    if (!fields.company.trim()) return [];
+    if (isEditing || !fields.company.trim()) return [];
     const q = fields.company.trim().toLowerCase();
     return existingSuppliers.filter(s =>
       s.company.toLowerCase().includes(q) || q.includes(s.company.toLowerCase().slice(0, Math.max(q.length - 1, 3)))
     ).slice(0, 3);
-  }, [fields.company, existingSuppliers]);
+  }, [fields.company, existingSuppliers, isEditing]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await onAdd({
-        company: fields.company,
-        contact_name: fields.contact_name,
-        email: fields.email || null,
-        phone: fields.phone || null,
-        country: fields.country || null,
-        website: fields.website || null,
-        notes: fields.notes || null,
-      });
-      toast.success("ספק נוסף בהצלחה");
+      if (isEditing && onUpdate) {
+        await onUpdate(editingSupplier!.id, {
+          company: fields.company,
+          contact_name: fields.contact_name,
+          email: fields.email || null,
+          phone: fields.phone || null,
+          country: fields.country || null,
+          website: fields.website || null,
+          notes: fields.notes || null,
+        } as any);
+        toast.success("הספק עודכן");
+      } else {
+        await onAdd({
+          company: fields.company,
+          contact_name: fields.contact_name,
+          email: fields.email || null,
+          phone: fields.phone || null,
+          country: fields.country || null,
+          website: fields.website || null,
+          notes: fields.notes || null,
+        });
+        toast.success("ספק נוסף בהצלחה");
+      }
       onOpenChange(false);
-      setFields({ company: "", contact_name: "", email: "", phone: "", country: "ישראל", website: "", notes: "" });
     } finally {
       setSaving(false);
     }
@@ -414,7 +466,7 @@ function AddSupplierDialog({ open, onOpenChange, onAdd, existingSuppliers }: {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
-        <DialogHeader><DialogTitle>ספק חדש</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{isEditing ? "עריכת ספק" : "ספק חדש"}</DialogTitle></DialogHeader>
         <div className="space-y-3 pt-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
@@ -471,7 +523,7 @@ function AddSupplierDialog({ open, onOpenChange, onAdd, existingSuppliers }: {
             <Textarea value={fields.notes} onChange={e => set("notes", e.target.value)} rows={2} />
           </div>
           <Button onClick={handleSave} className="w-full" disabled={saving || !fields.company.trim() || !fields.contact_name.trim()}>
-            {saving ? "שומר..." : "הוסף ספק"}
+            {saving ? "שומר..." : isEditing ? "שמור שינויים" : "הוסף ספק"}
           </Button>
         </div>
       </DialogContent>

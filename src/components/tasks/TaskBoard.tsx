@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { DateInput } from "@/components/ui/date-input";
-import { Plus, RotateCcw, Pencil, Trash2, Search, CheckCircle2 } from "lucide-react";
+import { Plus, RotateCcw, Pencil, Trash2, Search, CheckCircle2, Zap } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { toast } from "sonner";
 
@@ -209,6 +209,9 @@ export default function TaskBoard() {
                     [
                       { label: "ערוך משימה", icon: Pencil, onClick: () => openEdit(task) },
                       { label: task.status === "DONE" ? "סמן כלא בוצע" : "סמן כבוצע", icon: CheckCircle2, onClick: () => updateTaskStatus(task.id, task.status === "DONE" ? "TODO" : "DONE") },
+                    ],
+                    [
+                      { label: "שנה עדיפות", icon: Zap, items: (["דחוף", "גבוה", "בינוני", "נמוך"] as const).map(p => ({ label: p, onClick: () => updateTask(task.id, { priority: p }), disabled: task.priority === p })) },
                     ],
                     [
                       { label: "מחק משימה", icon: Trash2, onClick: () => handleDelete(task.id), variant: "destructive" as const, confirmTitle: "מחיקת משימה", confirmDescription: `האם אתה בטוח שברצונך למחוק את "${task.title}"?` },

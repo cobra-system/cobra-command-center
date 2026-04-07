@@ -6,7 +6,7 @@ import { PriorityBadge } from "@/components/PriorityBadge";
 import { type RecurringTask, recurringMatchesDay, findOrCreateRecurringInstance } from "@/lib/recurringUtils";
 import { format, startOfWeek, addDays, isSameDay, isToday, isPast, addWeeks, subWeeks, getDay, startOfDay, isWithinInterval } from "date-fns";
 import { he } from "date-fns/locale";
-import { ChevronRight, ChevronLeft, CalendarDays, AlertTriangle, Users, Repeat, Settings, X, Plus, ClipboardList, Pencil, CheckCircle2, Trash2 } from "lucide-react";
+import { ChevronRight, ChevronLeft, CalendarDays, AlertTriangle, Users, Repeat, Settings, X, Plus, ClipboardList, Pencil, CheckCircle2, Trash2, Zap } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -328,6 +328,9 @@ export default function TaskWeeklyView() {
                     [
                       { label: "פרטי משימה", icon: Pencil, onClick: () => setSelectedTask(task) },
                       { label: task.status === "DONE" ? "סמן כלא בוצע" : "סמן כבוצע", icon: CheckCircle2, onClick: () => updateTaskStatus(task.id, task.status === "DONE" ? "TODO" : "DONE") },
+                    ],
+                    [
+                      { label: "שנה עדיפות", icon: Zap, items: (["דחוף", "גבוה", "בינוני", "נמוך"] as const).map(p => ({ label: p, onClick: () => updateTask(task.id, { priority: p }), disabled: task.priority === p })) },
                     ],
                     [
                       { label: "מחק משימה", icon: Trash2, onClick: () => deleteTask(task.id), variant: "destructive" as const, confirmTitle: "מחיקת משימה", confirmDescription: `האם אתה בטוח שברצונך למחוק את "${task.title}"?` },

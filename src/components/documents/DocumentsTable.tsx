@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth } from "@/contexts/AppContext";
-import { ArrowUpDown, ArrowUp, ArrowDown, Paperclip, Trash2, Eye, RefreshCw } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Paperclip, Trash2, Eye, RefreshCw, Pencil, ShoppingCart, Package, Copy } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -182,9 +182,13 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
             {filtered.length === 0 ? (
               <tr><td colSpan={11} className="p-8 text-center text-muted-foreground">אין מסמכים</td></tr>
             ) : filtered.map(doc => {
+              const docName = doc.document_name || doc.notes || "ללא שם";
               const docMenuGroups: ContextMenuGroupItem[][] = [
                 [
                   { label: "צפה במסמך", icon: Eye, onClick: () => navigate(`/documents/${doc.id}`) },
+                  { label: "ערוך מסמך", icon: Pencil, onClick: () => onEdit?.(doc), hidden: !onEdit },
+                  { label: "עבור להזמנה", icon: ShoppingCart, onClick: () => navigate(`/orders/${doc.order_id}`), hidden: !doc.order_id },
+                  { label: "עבור למוצר", icon: Package, onClick: () => navigate(`/products/${doc.product_id}`), hidden: !doc.product_id },
                 ],
                 [
                   {
@@ -196,7 +200,10 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
                   },
                 ],
                 [
-                  { label: "מחק מסמך", icon: Trash2, onClick: () => handleDeleteDocument(doc.id), variant: "destructive" as const, confirmTitle: "מחיקת מסמך", confirmDescription: `האם אתה בטוח שברצונך למחוק את המסמך "${doc.document_name || doc.notes || "ללא שם"}"? פעולה זו לא ניתנת לביטול.` },
+                  { label: "העתק שם מסמך", icon: Copy, onClick: () => { navigator.clipboard.writeText(docName); toast.success("שם המסמך הועתק"); }, hidden: !doc.document_name && !doc.notes },
+                ],
+                [
+                  { label: "מחק מסמך", icon: Trash2, onClick: () => handleDeleteDocument(doc.id), variant: "destructive" as const, confirmTitle: "מחיקת מסמך", confirmDescription: `האם אתה בטוח שברצונך למחוק את המסמך "${docName}"? פעולה זו לא ניתנת לביטול.` },
                 ],
               ];
               return (

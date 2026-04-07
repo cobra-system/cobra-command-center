@@ -1,7 +1,7 @@
 import { useState, useMemo, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, categories, type Product } from "@/contexts/AppContext";
-import { Search, ChevronDown, ChevronUp, Boxes, Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye, Pencil, Truck } from "lucide-react";
+import { Search, ChevronDown, ChevronUp, Boxes, Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye, Pencil, Truck, ShoppingCart, ClipboardList, Copy, Hash } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -159,9 +159,15 @@ export default function ProductsPage() {
                 [
                   { label: "צפה במוצר", icon: Eye, onClick: () => navigate(`/products/${p.id}`) },
                   ...(p.supplier ? [{ label: `עבור לספק: ${p.supplier}`, icon: Truck, onClick: () => navigateToSupplier(p.supplier!) }] : []),
+                  { label: "הזמנות המוצר", icon: ClipboardList, onClick: () => navigate(`/orders?q=${encodeURIComponent(p.name)}`) },
                 ],
                 [
                   { label: "ערוך מוצר", icon: Pencil, onClick: () => { setEditProduct(p); setFormOpen(true); }, hidden: !hasEdit },
+                  { label: "צור הזמנה", icon: ShoppingCart, onClick: () => navigate(`/orders?newOrder=true&productId=${p.id}`), hidden: !hasEdit },
+                ],
+                [
+                  { label: "העתק שם", icon: Copy, onClick: () => { navigator.clipboard.writeText(p.name); toast.success("השם הועתק"); } },
+                  { label: "העתק מקט", icon: Hash, onClick: () => { navigator.clipboard.writeText(p.sku); toast.success("המקט הועתק"); }, hidden: !p.sku },
                 ],
                 [
                   { label: "מחק מוצר", icon: Trash2, onClick: () => handleDelete(p.id), variant: "destructive" as const, hidden: !hasEdit, confirmTitle: "מחיקת מוצר", confirmDescription: `האם למחוק את "${p.name}"? פעולה זו לא ניתנת לביטול.` },
