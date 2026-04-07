@@ -11,7 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { DateInput } from "@/components/ui/date-input";
-import { Plus, RotateCcw, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, RotateCcw, Pencil, Trash2, Search, CheckCircle2, Zap } from "lucide-react";
+import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { toast } from "sonner";
 
 const columns: { status: TaskStatus; label: string; bgClass: string }[] = [
@@ -203,9 +204,22 @@ export default function TaskBoard() {
                 <span className="text-xs bg-card px-2 py-0.5 rounded-full text-muted-foreground font-medium">{colTasks.length}</span>
               </div>
               <div className="space-y-2 min-h-[200px]">
-                {colTasks.map(task => (
+                {colTasks.map(task => {
+                  const taskMenuGroups: ContextMenuGroupItem[][] = [
+                    [
+                      { label: "ערוך משימה", icon: Pencil, onClick: () => openEdit(task) },
+                      { label: task.status === "DONE" ? "סמן כלא בוצע" : "סמן כבוצע", icon: CheckCircle2, onClick: () => updateTaskStatus(task.id, task.status === "DONE" ? "TODO" : "DONE") },
+                    ],
+                    [
+                      { label: "שנה עדיפות", icon: Zap, items: (["דחוף", "גבוה", "בינוני", "נמוך"] as const).map(p => ({ label: p, onClick: () => updateTask(task.id, { priority: p }), disabled: task.priority === p })) },
+                    ],
+                    [
+                      { label: "מחק משימה", icon: Trash2, onClick: () => handleDelete(task.id), variant: "destructive" as const, confirmTitle: "מחיקת משימה", confirmDescription: `האם אתה בטוח שברצונך למחוק את "${task.title}"?` },
+                    ],
+                  ];
+                  return (
+                  <EntityContextMenu key={task.id} groups={taskMenuGroups}>
                   <div
-                    key={task.id}
                     ref={task.id === highlightId ? highlightRef : undefined}
                     className={`bg-card rounded-lg border p-3 shadow-sm space-y-2 group transition-all ${task.id === highlightId ? "ring-2 ring-primary" : ""}`}
                   >
@@ -248,7 +262,9 @@ export default function TaskBoard() {
                       </button>
                     </div>
                   </div>
-                ))}
+                  </EntityContextMenu>
+                  );
+                })}
               </div>
             </div>
           );
