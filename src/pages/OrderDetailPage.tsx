@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect, useMemo } from "react";
 import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Trash2, CreditCard, Zap, Check, Ship, Hash, Plus, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Trash2, CreditCard, Zap, Check, Ship, Hash, Plus, Pencil, ChevronLeft, ChevronRight, Warehouse } from "lucide-react";
 import DocumentsSection from "@/components/DocumentsSection";
 import { supabase } from "@/lib/supabase";
 import { Progress } from "@/components/ui/progress";
@@ -51,6 +52,7 @@ export default function OrderDetailPage() {
   const { orders, updateOrderStatus, updateOrder, deleteOrder, suppliers, products, refreshOrders, updateProduct, updateComponent } = useData();
 
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [inventoryDialog, setInventoryDialog] = useState(false);
   const [editItemDialog, setEditItemDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [itemName, setItemName] = useState("");
@@ -79,6 +81,10 @@ export default function OrderDetailPage() {
       updates[field] = value ? Number(value) : null;
     } else if (field === "status") {
       await updateOrderStatus(order.id, value as OrderStatus);
+      if (value === "ARRIVED") {
+        const hasLinked = order.items.some(item => item.product_id && products.find(p => p.id === item.product_id));
+        if (hasLinked) setInventoryDialog(true);
+      }
       return;
     } else if (field === "priority") {
       updates[field] = value;
@@ -428,6 +434,49 @@ export default function OrderDetailPage() {
 
       {/* Documents */}
       <DocumentsSection orderId={order.id} />
+
+      {/* Inventory Update on Arrival */}
+      <Dialog open={inventoryDialog} onOpenChange={setInventoryDialog}>
+        <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Warehouse className="h-5 w-5 text-primary" />
+              עדכון מלאי
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">הסחורה הגיעה. תרצה לעדכן את המלאי עבור המוצרים הבאים?</p>
+          <div className="divide-y rounded-lg border overflow-hidden">
+            {order.items
+              .filter(item => item.product_id && products.find(p => p.id === item.product_id))
+              .map(item => {
+                const product = products.find(p => p.id === item.product_id)!;
+                return (
+                  <div key={item.id} className="flex items-center justify-between px-3 py-2.5 text-sm">
+                    <span className="font-medium text-foreground">{item.name}</span>
+                    <span className="text-muted-foreground">
+                      {product.stock_qty} → <span className="text-success font-semibold">{product.stock_qty + item.qty}</span>
+                      <span className="text-xs mr-1">(+{item.qty})</span>
+                    </span>
+                  </div>
+                );
+              })}
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button variant="outline" className="flex-1" onClick={() => setInventoryDialog(false)}>דלג</Button>
+            <Button className="flex-1" onClick={async () => {
+              const itemsToUpdate = order.items.filter(item => item.product_id && products.find(p => p.id === item.product_id));
+              for (const item of itemsToUpdate) {
+                const product = products.find(p => p.id === item.product_id)!;
+                await updateProduct(product.id, { stock_qty: product.stock_qty + item.qty });
+              }
+              setInventoryDialog(false);
+              toast.success("המלאי עודכן בהצלחה");
+            }}>
+              עדכן מלאי
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation */}
       <Dialog open={deleteConfirm} onOpenChange={setDeleteConfirm}>
