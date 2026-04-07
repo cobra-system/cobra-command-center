@@ -9,12 +9,18 @@
 
 ---
 
+## [2026-04-07]
+
+- feat: expand context menus with additional actions across all entities (5d6b797)
+- feat: add right-click context menus throughout the system (b5beaab)
+
+<!-- last-commit: ba14b2ec42406af444e305a03b12b7a451339441 -->
+
 ## [2026-04-06]
 
 - Merge pull request #101 from cobra-system/claude/product-autocomplete-feature-oT3fb (0c4cda4)
 - feat: add product autocomplete to waste management form (892e3d6)
 
-<!-- last-commit: 0c4cda4b9bb8ce760bc59ca04c6d08fe43a33d2b -->
 
 ## [2026-04-06]
 
