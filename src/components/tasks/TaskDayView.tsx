@@ -5,7 +5,8 @@ import { type RecurringTask, recurringMatchesDay, findOrCreateRecurringInstance 
 import { supabase } from "@/lib/supabase";
 import { format, addDays, subDays, isToday, isSameDay, startOfDay, isWithinInterval } from "date-fns";
 import { he } from "date-fns/locale";
-import { ChevronRight, ChevronLeft, Calendar, Users, CheckCircle2, Circle, Flame, Settings, Plus, Repeat } from "lucide-react";
+import { ChevronRight, ChevronLeft, Calendar, Users, CheckCircle2, Circle, Flame, Settings, Plus, Repeat, Pencil, Trash2, Zap } from "lucide-react";
+import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -248,9 +249,19 @@ export default function TaskDayView() {
                 </div>
               ) : (
                 <>
-                  {dayTasks.map(task => (
+                  {dayTasks.map(task => {
+                    const taskMenuGroups: ContextMenuGroupItem[][] = [
+                      [
+                        { label: "פרטי משימה", icon: Pencil, onClick: () => handleSelectTask(task) },
+                        { label: task.status === "DONE" ? "סמן כלא בוצע" : "סמן כבוצע", icon: CheckCircle2, onClick: () => handleToggle(task.id, task.status) },
+                      ],
+                      [
+                        { label: "שנה עדיפות", icon: Zap, items: (["דחוף", "גבוה", "בינוני", "נמוך"] as const).map(p => ({ label: p, onClick: () => updateTask(task.id, { priority: p }), disabled: task.priority === p })) },
+                      ],
+                    ];
+                    return (
+                    <EntityContextMenu key={task.id} groups={taskMenuGroups}>
                     <div
-                      key={task.id}
                       className={cn(
                         "p-3 rounded-lg border transition-all cursor-pointer hover:shadow-sm flex items-center gap-3",
                         task.status === "DONE"
@@ -294,7 +305,9 @@ export default function TaskDayView() {
                         <PriorityBadge priority={task.priority as Priority} />
                       </div>
                     </div>
-                  ))}
+                    </EntityContextMenu>
+                    );
+                  })}
                   {recurringForDay.map(rt => (
                     <div
                       key={`r-${rt.id}`}

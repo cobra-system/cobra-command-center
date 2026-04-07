@@ -2,7 +2,9 @@ import { useNavigate } from "react-router-dom";
 import { type Order, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { Trash2, Copy, ArrowUpDown, ArrowUp, ArrowDown, Zap, CheckCircle } from "lucide-react";
+import { Trash2, Copy, ArrowUpDown, ArrowUp, ArrowDown, Zap, CheckCircle, Eye, RefreshCw, CreditCard, Truck } from "lucide-react";
+import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
+import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
@@ -26,10 +28,10 @@ interface OrderTableProps {
   sortDir: SortDir;
   toggleSort: (field: SortField) => void;
   allStatuses: { value: OrderStatus; label: string }[];
-  navigateToSupplier: (supplierName: string, e: React.MouseEvent) => void;
-  navigateToProduct: (productId: string, e: React.MouseEvent) => void;
-  handleDeleteOrder: (orderId: string, e: React.MouseEvent) => void;
-  handleDuplicateOrder: (orderId: string, e: React.MouseEvent) => void;
+  navigateToSupplier: (supplierName: string, e?: React.MouseEvent) => void;
+  navigateToProduct: (productId: string, e?: React.MouseEvent) => void;
+  handleDeleteOrder: (orderId: string, e?: React.MouseEvent) => void;
+  handleDuplicateOrder: (orderId: string, e?: React.MouseEvent) => void;
   handleWorkflowStepChange: (orderId: string, wf: WorkflowInfo, newStep: number) => void;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   updateOrder: (orderId: string, updates: Partial<Order>) => void;
@@ -135,8 +137,44 @@ export function OrderTable({
         <tbody className="divide-y">
           {filtered.length === 0 ? (
             <tr><td colSpan={hasEdit ? 16 : 15} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
-          ) : filtered.map((order) => (
-            <tr key={order.id} className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={(e) => { if (e.detail !== 1) return; navigate(`/orders/${order.id}`); }} data-navigate-to={`/orders/${order.id}`}>
+          ) : filtered.map((order) => {
+              const isAlreadyPaid = (order as Record<string, unknown>).payment_status === "שולם";
+              const orderMenuGroups: ContextMenuGroupItem[][] = [
+                [
+                  { label: "צפה בהזמנה", icon: Eye, onClick: () => navigate(`/orders/${order.id}`) },
+                  { label: `עבור לספק: ${order.supplier_name}`, icon: Truck, onClick: () => navigateToSupplier(order.supplier_name!), hidden: !order.supplier_name },
+                ],
+                [
+                  {
+                    label: "שנה סטטוס", icon: RefreshCw, hidden: !hasEdit,
+                    items: allStatuses.map(s => ({
+                      label: s.label, onClick: () => updateOrderStatus(order.id, s.value),
+                      disabled: order.status === s.value,
+                    })),
+                  },
+                  {
+                    label: "שנה סטטוס תשלום", icon: CreditCard, hidden: !hasEdit,
+                    items: ["ממתין", "שולם פיקדון", "שולם"].map(ps => ({
+                      label: ps, onClick: () => updateOrder(order.id, {
+                        payment_status: ps,
+                        payment_date: ps === "שולם" || ps === "שולם פיקדון" ? new Date().toISOString() : null,
+                      } as Record<string, unknown>),
+                      disabled: (order as Record<string, unknown>).payment_status === ps,
+                    })),
+                  },
+                  { label: "סמן כשולם", icon: CheckCircle, onClick: () => updateOrder(order.id, { payment_status: "שולם", payment_date: new Date().toISOString() } as Record<string, unknown>), hidden: isAlreadyPaid || !hasEdit },
+                ],
+                [
+                  { label: "שכפל הזמנה", icon: Copy, onClick: () => handleDuplicateOrder(order.id) },
+                  { label: "העתק מספר מעקב", icon: Copy, onClick: () => { navigator.clipboard.writeText(order.tracking_number!); toast.success("מספר המעקב הועתק"); }, hidden: !order.tracking_number },
+                ],
+                [
+                  { label: "מחק הזמנה", icon: Trash2, onClick: () => handleDeleteOrder(order.id), variant: "destructive" as const, hidden: !hasEdit, confirmTitle: "מחיקת הזמנה", confirmDescription: "האם למחוק את ההזמנה? פעולה זו לא ניתנת לביטול." },
+                ],
+              ];
+              return (
+              <EntityContextMenu key={order.id} groups={orderMenuGroups}>
+              <tr className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={(e) => { if (e.detail !== 1) return; navigate(`/orders/${order.id}`); }} data-navigate-to={`/orders/${order.id}`}>
               <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
               <td className="p-3 font-medium text-foreground max-w-[200px] truncate" onClick={e => e.stopPropagation()}>
                 {order.items.length === 0 ? (
@@ -321,7 +359,9 @@ export function OrderTable({
                 </td>
               )}
             </tr>
-          ))}
+              </EntityContextMenu>
+              );
+            })}
         </tbody>
       </table>
     </div>

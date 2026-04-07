@@ -24,7 +24,11 @@ import {
   ChevronLeft,
   Users,
   Recycle,
+  ArrowLeft,
+  ExternalLink,
+  type LucideIcon,
 } from "lucide-react";
+import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { useState } from "react";
 import cobraLogo from "@/assets/cobra-logo.png";
 import GlobalSearch from "@/components/GlobalSearch";
@@ -45,7 +49,7 @@ const defaultNavItems = [
   { to: "/settings", icon: "Settings", label: "הגדרות" },
 ];
 
-const iconMap: Record<string, any> = {
+const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard, Package, ShoppingCart, Truck, ListTodo,
   Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Users, Recycle,
 };
@@ -159,9 +163,15 @@ export default function ManagerLayout() {
         <nav className={`flex-1 overflow-y-auto py-3 ${collapsed ? "px-2" : "px-3"} space-y-0.5 scrollbar-thin scrollbar-thumb-border/50 scrollbar-track-transparent`}>
           {visibleNavItems.map((item, index) => {
             const Icon = iconMap[item.icon] || Package;
+            const navMenuGroups: ContextMenuGroupItem[][] = [
+              [
+                { label: "נווט לעמוד", icon: ArrowLeft, onClick: () => { navigate(item.to); setSidebarOpen(false); } },
+                { label: "פתח בלשונית חדשה", icon: ExternalLink, onClick: () => window.open(item.to, "_blank") },
+              ],
+            ];
             return (
+              <EntityContextMenu key={item.to} groups={navMenuGroups}>
               <div
-                key={item.to}
                 draggable={!collapsed}
                 onDragStart={() => handleDragStart(index)}
                 onDragOver={(e) => handleDragOver(e, index)}
@@ -202,6 +212,7 @@ export default function ManagerLayout() {
                   )}
                 </NavLink>
               </div>
+              </EntityContextMenu>
             );
           })}
         </nav>

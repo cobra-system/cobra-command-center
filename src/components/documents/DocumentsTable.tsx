@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth } from "@/contexts/AppContext";
 import { logger } from "@/lib/logger";
-import { ArrowUpDown, ArrowUp, ArrowDown, Paperclip, Trash2 } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Paperclip, Trash2, Eye, RefreshCw, Pencil, ShoppingCart, Package, Copy } from "lucide-react";
+import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -98,7 +99,7 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
   }, [docs, typeFilter, statusFilter, search, sortField, sortDir]);
 
   const handleStatusChange = async (docId: string, newStatus: string) => {
-    const updates: Record<string, any> = { status: newStatus };
+    const updates: Record<string, unknown> = { status: newStatus };
     if (newStatus === "אושר") {
       updates.approval_date = new Date().toISOString();
       updates.approved_by = currentUser?.id;
@@ -181,9 +182,34 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
           <tbody className="divide-y">
             {filtered.length === 0 ? (
               <tr><td colSpan={11} className="p-8 text-center text-muted-foreground">אין מסמכים</td></tr>
-            ) : filtered.map(doc => (
+            ) : filtered.map(doc => {
+              const docName = doc.document_name || doc.notes || "ללא שם";
+              const docMenuGroups: ContextMenuGroupItem[][] = [
+                [
+                  { label: "צפה במסמך", icon: Eye, onClick: () => navigate(`/documents/${doc.id}`) },
+                  { label: "ערוך מסמך", icon: Pencil, onClick: () => onEdit?.(doc), hidden: !onEdit },
+                  { label: "עבור להזמנה", icon: ShoppingCart, onClick: () => navigate(`/orders/${doc.order_id}`), hidden: !doc.order_id },
+                  { label: "עבור למוצר", icon: Package, onClick: () => navigate(`/products/${doc.product_id}`), hidden: !doc.product_id },
+                ],
+                [
+                  {
+                    label: "שנה סטטוס", icon: RefreshCw,
+                    items: docStatusFlow.map(s => ({
+                      label: s, onClick: () => handleStatusChange(doc.id, s),
+                      disabled: doc.status === s,
+                    })),
+                  },
+                ],
+                [
+                  { label: "העתק שם מסמך", icon: Copy, onClick: () => { navigator.clipboard.writeText(docName); toast.success("שם המסמך הועתק"); }, hidden: !doc.document_name && !doc.notes },
+                ],
+                [
+                  { label: "מחק מסמך", icon: Trash2, onClick: () => handleDeleteDocument(doc.id), variant: "destructive" as const, confirmTitle: "מחיקת מסמך", confirmDescription: `האם אתה בטוח שברצונך למחוק את המסמך "${docName}"? פעולה זו לא ניתנת לביטול.` },
+                ],
+              ];
+              return (
+              <EntityContextMenu key={doc.id} groups={docMenuGroups}>
               <tr
-                key={doc.id}
                 className="hover:bg-muted/30 cursor-pointer transition-colors"
                 onClick={() => navigate(`/documents/${doc.id}`)}
               >
@@ -266,7 +292,9 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
                   </AlertDialog>
                 </td>
               </tr>
-            ))}
+              </EntityContextMenu>
+              );
+            })}
           </tbody>
         </table>
       </div>

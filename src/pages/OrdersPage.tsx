@@ -180,25 +180,25 @@ export default function OrdersPage() {
     return result;
   }, [orders, statusFilter, priorityFilter, paymentFilter, workflowFilter, search, sortField, sortDir, orderWorkflows]);
 
-  const navigateToSupplier = (supplierName: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const navigateToSupplier = (supplierName: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     const s = suppliers.find(s => s.company === supplierName);
     if (s) navigate(`/suppliers/${s.id}`);
   };
 
-  const navigateToProduct = (productId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const navigateToProduct = (productId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     navigate(`/products/${productId}`);
   };
 
-  const handleDeleteOrder = async (orderId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDeleteOrder = async (orderId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     await deleteOrder(orderId);
     toast.success("ההזמנה נמחקה");
   };
 
-  const handleDuplicateOrder = async (orderId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDuplicateOrder = async (orderId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
     await addOrder({
