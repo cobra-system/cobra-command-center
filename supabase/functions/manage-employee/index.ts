@@ -2,6 +2,7 @@ import { corsHeaders, handleCors } from "../_shared/cors.ts";
 import { verifyAuth } from "../_shared/auth.ts";
 import { checkRateLimit, getClientId } from "../_shared/rate-limit.ts";
 import { validatePassword } from "../_shared/password.ts";
+import { logAudit, getClientIp } from "../_shared/audit.ts";
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -44,7 +45,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      const updates: Record<string, any> = {};
+      const updates: Record<string, string | null> = {};
       if (name) updates.name = name;
       if (role) updates.role = role;
       if (role_definition_id !== undefined) updates.role_definition_id = role_definition_id;
@@ -75,6 +76,15 @@ Deno.serve(async (req) => {
         }
       }
 
+      await logAudit(supabaseAdmin, {
+        user_id: authResult.auth.user.id,
+        action: password ? "employee.update_password" : "employee.update",
+        entity_type: "employee",
+        entity_id: employee_id,
+        details: { name, role, password_changed: !!password },
+        ip_address: getClientIp(req),
+      });
+
       return new Response(JSON.stringify({ success: true }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -100,6 +110,14 @@ Deno.serve(async (req) => {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      await logAudit(supabaseAdmin, {
+        user_id: authResult.auth.user.id,
+        action: "employee.delete",
+        entity_type: "employee",
+        entity_id: employee_id,
+        ip_address: getClientIp(req),
+      });
 
       return new Response(JSON.stringify({ success: true }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -2,6 +2,7 @@ import { corsHeaders, handleCors } from "../_shared/cors.ts";
 import { verifyAuth } from "../_shared/auth.ts";
 import { checkRateLimit, getClientId } from "../_shared/rate-limit.ts";
 import { validatePassword } from "../_shared/password.ts";
+import { logAudit, getClientIp } from "../_shared/audit.ts";
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -101,6 +102,15 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    await logAudit(supabaseAdmin, {
+      user_id: authResult.auth.user.id,
+      action: "employee.create",
+      entity_type: "employee",
+      entity_id: newUser.user.id,
+      details: { name, role, email },
+      ip_address: getClientIp(req),
+    });
 
     return new Response(
       JSON.stringify({ success: true, profile: { id: newUser.user.id, name, role } }),
