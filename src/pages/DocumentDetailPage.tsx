@@ -48,6 +48,8 @@ interface PurchaseDocument {
   notes: string | null;
   folder_id: string | null;
   is_starred: boolean;
+  document_number: string | null;
+  expiry_date: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -447,6 +449,15 @@ export default function DocumentDetailPage() {
 
   const handleRemoveFile = async () => {
     if (!doc) return;
+    // Clean up the file from storage
+    if (doc.file_url) {
+      const marker = "/documents/";
+      const idx = doc.file_url.lastIndexOf(marker);
+      if (idx !== -1) {
+        const storagePath = doc.file_url.slice(idx + marker.length).split("?")[0];
+        await supabase.storage.from("documents").remove([storagePath]);
+      }
+    }
     const { error } = await supabase.from("purchase_documents").update({ file_url: null }).eq("id", doc.id);
     if (error) { toast.error("שגיאה בהסרת קובץ: " + error.message); return; }
     toast.success("קובץ הוסר");
@@ -593,21 +604,21 @@ export default function DocumentDetailPage() {
                 {/* Document number */}
                 <InfoCell label="מספר מסמך">
                   <InlineEditField
-                    value={(doc as { document_number?: string | null }).document_number || ""}
+                    value={doc.document_number || ""}
                     onSave={v => handleFieldSave("document_number", v || null)}
-                    displayValue={(doc as { document_number?: string | null }).document_number
-                      ? <span className="font-mono text-sm text-primary">{(doc as { document_number?: string | null }).document_number}</span>
+                    displayValue={doc.document_number
+                      ? <span className="font-mono text-sm text-primary">{doc.document_number}</span>
                       : <span className="text-muted-foreground">לחץ להוספה</span>}
                   />
                 </InfoCell>
                 {/* Expiry date */}
                 <InfoCell label="תאריך תפוגה">
                   <InlineEditField
-                    value={(doc as { expiry_date?: string | null }).expiry_date || ""}
+                    value={doc.expiry_date || ""}
                     onSave={v => handleFieldSave("expiry_date", v || null)}
-                    displayValue={(doc as { expiry_date?: string | null }).expiry_date
-                      ? <span className={cn("text-sm font-medium", isPast(new Date((doc as { expiry_date?: string | null }).expiry_date!)) ? "text-destructive" : "text-foreground")}>
-                          {format(new Date((doc as { expiry_date?: string | null }).expiry_date!), "dd/MM/yyyy")}
+                    displayValue={doc.expiry_date
+                      ? <span className={cn("text-sm font-medium", isPast(new Date(doc.expiry_date)) ? "text-destructive" : "text-foreground")}>
+                          {format(new Date(doc.expiry_date), "dd/MM/yyyy")}
                         </span>
                       : <span className="text-muted-foreground">לחץ להוספה</span>}
                     placeholder="YYYY-MM-DD"

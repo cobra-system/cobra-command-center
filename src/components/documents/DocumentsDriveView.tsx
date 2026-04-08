@@ -89,6 +89,14 @@ function isPdf(doc: PurchaseDocument) {
   return url.toLowerCase().includes(".pdf");
 }
 
+/** Extract the storage path from a Supabase public URL (e.g. ".../documents/uploads/foo.pdf" → "uploads/foo.pdf") */
+function extractStoragePath(publicUrl: string): string | null {
+  const marker = "/documents/";
+  const idx = publicUrl.lastIndexOf(marker);
+  if (idx === -1) return null;
+  return publicUrl.slice(idx + marker.length).split("?")[0];
+}
+
 // ── expiry badge ───────────────────────────────────────────────────────────────
 function ExpiryBadge({ expiryDate }: { expiryDate: string | null }) {
   if (!expiryDate) return null;
@@ -151,6 +159,9 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
   const selectAll = (ids: string[]) => setSelectedIds(new Set(ids));
   const clearSelection = () => setSelectedIds(new Set());
 
+  // Clear selection when navigating between views
+  useEffect(() => { setSelectedIds(new Set()); }, [view]);
+
   // ── fetch real folders ────────────────────────────────────────────────────────
   const fetchFolders = useCallback(async () => {
     const { data } = await supabase.from("document_folders").select("*").order("created_at");
@@ -204,15 +215,23 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
       updates.approval_date = new Date().toISOString();
       updates.approved_by   = currentUser?.id;
     }
-    await supabase.from("purchase_documents").update(updates).eq("id", docId);
+    const { error } = await supabase.from("purchase_documents").update(updates).eq("id", docId);
+    if (error) { toast.error("שגיאה בעדכון סטטוס"); return; }
     onRefresh();
   };
 
   const handleDelete = async (docId: string) => {
     setDeletingId(docId);
     try {
+      // Find the doc to clean up its storage file
+      const targetDoc = docs.find(d => d.id === docId);
       const { error } = await supabase.from("purchase_documents").delete().eq("id", docId);
       if (error) throw error;
+      // Clean up storage file if it exists
+      if (targetDoc?.file_url) {
+        const storagePath = extractStoragePath(targetDoc.file_url);
+        if (storagePath) await supabase.storage.from("documents").remove([storagePath]);
+      }
       toast.success("מסמך נמחק");
       onRefresh();
     } catch (err) {
@@ -224,20 +243,24 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
   };
 
   const handleToggleStar = async (doc: PurchaseDocument) => {
-    await supabase.from("purchase_documents").update({ is_starred: !doc.is_starred }).eq("id", doc.id);
+    const { error } = await supabase.from("purchase_documents").update({ is_starred: !doc.is_starred }).eq("id", doc.id);
+    if (error) { toast.error("שגיאה בעדכון"); return; }
     onRefresh();
   };
 
   const handleMoveToFolder = async (docId: string, folderId: string | null) => {
-    await supabase.from("purchase_documents").update({ folder_id: folderId }).eq("id", docId);
+    const { error } = await supabase.from("purchase_documents").update({ folder_id: folderId }).eq("id", docId);
+    if (error) { toast.error("שגיאה בהעברת מסמך"); return; }
     toast.success(folderId ? "הועבר לתיקייה" : "הוסר מהתיקייה");
     onRefresh();
   };
 
   const handleDeleteFolder = async (folder: DocumentFolder) => {
     // Move documents to root first
-    await supabase.from("purchase_documents").update({ folder_id: null }).eq("folder_id", folder.id);
-    await supabase.from("document_folders").delete().eq("id", folder.id);
+    const { error: moveErr } = await supabase.from("purchase_documents").update({ folder_id: null }).eq("folder_id", folder.id);
+    if (moveErr) { toast.error("שגיאה בהעברת מסמכים מהתיקייה"); return; }
+    const { error: delErr } = await supabase.from("document_folders").delete().eq("id", folder.id);
+    if (delErr) { toast.error("שגיאה במחיקת התיקייה"); return; }
     toast.success("התיקייה נמחקה");
     if (view.kind === "real" && view.folder.id === folder.id) setView({ kind: "root" });
     fetchFolders();
@@ -252,9 +275,10 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
 
   const handleRenameDoc = async () => {
     if (!renamingDoc) return;
-    await supabase.from("purchase_documents")
+    const { error } = await supabase.from("purchase_documents")
       .update({ document_name: renameValue.trim() })
       .eq("id", renamingDoc.id);
+    if (error) { toast.error("שגיאה בשינוי שם"); return; }
     toast.success("שם עודכן");
     setRenameDocOpen(false);
     onRefresh();
