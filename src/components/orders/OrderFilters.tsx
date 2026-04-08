@@ -8,7 +8,6 @@ const statusFilterOptions = [
   { value: "PENDING", label: "ממתין" },
   { value: "ORDERED", label: "הוזמן" },
   { value: "SHIPPED", label: "נשלח" },
-  { value: "ARRIVED", label: "הגיע" },
 ];
 
 const priorities: { value: Priority; label: string }[] = [
