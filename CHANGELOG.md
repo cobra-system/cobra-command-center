@@ -11,12 +11,17 @@
 
 ## [2026-04-08]
 
+- Remove זרימת מלאי tab and fix RTL layout in inventory page (bde94b1)
+
+<!-- last-commit: b4d9a18817731ae2bac26ff9a71e07225adc379e -->
+
+## [2026-04-08]
+
 - Merge pull request #105 from cobra-system/claude/organize-documents-folders-asBkf (eba57a3)
 - feat(documents): Phase 3 — document tracking, bulk actions, inline PDF viewer (7160150)
 - Add real folders, PDF annotation editor, and digital signature to documents page (5ded2b5)
 - Redesign documents page with Google Drive-like folder UI (a527460)
 
-<!-- last-commit: eba57a3296a1c2c1549915cf5fb14494c7a8516d -->
 
 ## [2026-04-08]
 
