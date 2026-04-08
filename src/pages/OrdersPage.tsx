@@ -294,7 +294,7 @@ export default function OrdersPage() {
         <TabsList>
           <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>
           <TabsTrigger value="table">טבלת הזמנות</TabsTrigger>
-          <TabsTrigger value="archive" className="gap-1.5">
+          <TabsTrigger value="archive" className="gap-1.5" dir="ltr">
             ארכיון הזמנות
             {archivedOrders.length > 0 && (
               <span className="bg-muted text-muted-foreground text-xs font-medium px-1.5 py-0.5 rounded-full">
