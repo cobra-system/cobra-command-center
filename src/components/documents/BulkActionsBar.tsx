@@ -59,9 +59,27 @@ export default function BulkActionsBar({ selectedIds, docs, folders, onClearSele
   async function bulkDelete() {
     setWorking(true);
     const ids = [...selectedIds];
+    // Collect storage paths for cleanup before deleting DB records
+    const storagePaths = selectedDocs
+      .filter(d => d.file_url)
+      .map(d => {
+        const marker = "/documents/";
+        const idx = d.file_url!.lastIndexOf(marker);
+        return idx !== -1 ? d.file_url!.slice(idx + marker.length).split("?")[0] : null;
+      })
+      .filter((p): p is string => !!p);
+
     const { error } = await supabase.from("purchase_documents").delete().in("id", ids);
     if (error) { toast.error("שגיאה במחיקה"); }
-    else { toast.success(`${count} מסמכים נמחקו`); onClearSelection(); onRefresh(); }
+    else {
+      // Clean up storage files (best-effort, don't block on failure)
+      if (storagePaths.length > 0) {
+        await supabase.storage.from("documents").remove(storagePaths);
+      }
+      toast.success(`${count} מסמכים נמחקו`);
+      onClearSelection();
+      onRefresh();
+    }
     setWorking(false);
   }
 
