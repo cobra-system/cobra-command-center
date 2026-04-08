@@ -9,6 +9,12 @@
 
 ---
 
+## [2026-04-08]
+
+- Fix data not loading after React Query migration (2a85656)
+
+<!-- last-commit: 946ccfc1313a2f39aeaef6f078c3dc663aad7309 -->
+
 ## [2026-04-07]
 
 - Merge origin/main: incorporate context menus into extracted components (392e1ae)
@@ -29,7 +35,6 @@
 - Implement critical security hardening and database constraints (c0e01bf)
 - Update and reorganize TODO.md with priorities and accurate status (151576d)
 
-<!-- last-commit: e7208f841980b205f56062767176d99bebcfa966 -->
 
 ## [2026-04-07]
 
