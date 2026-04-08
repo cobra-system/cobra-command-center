@@ -87,9 +87,17 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
     const vp    = page.getViewport({ scale });
     const pdfCvs = pdfCanvasRef.current;
     if (!pdfCvs) return;
-    pdfCvs.width  = vp.width;
-    pdfCvs.height = vp.height;
-    await page.render({ canvasContext: pdfCvs.getContext("2d")!, viewport: vp }).promise;
+    const dpr = window.devicePixelRatio || 1;
+
+    // Render at physical pixel resolution for crisp text on high-DPI screens
+    pdfCvs.width  = Math.floor(vp.width * dpr);
+    pdfCvs.height = Math.floor(vp.height * dpr);
+    pdfCvs.style.width  = `${vp.width}px`;
+    pdfCvs.style.height = `${vp.height}px`;
+
+    const ctx = pdfCvs.getContext("2d")!;
+    ctx.scale(dpr, dpr);
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
 
     const fc = fabricRef.current;
     if (fc) {
@@ -111,14 +119,23 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
   }, [open, loadPdf]);
 
   useEffect(() => {
-    if (!open || !canvasElRef.current) return;
+    if (!open || !pdfDoc || !canvasElRef.current) return;
     const canvas = new FabricCanvas(canvasElRef.current, {
       isDrawingMode: true,
       selection: false,
     });
+
+    // Fabric wraps the canvas in a container div with position:relative.
+    // We need it absolutely positioned over the PDF canvas.
+    const wrapper = canvas.wrapperEl;
+    if (wrapper) {
+      wrapper.style.position = "absolute";
+      wrapper.style.inset = "0";
+    }
+
     fabricRef.current = canvas;
     return () => { canvas.dispose(); fabricRef.current = null; };
-  }, [open]);
+  }, [open, pdfDoc]);
 
   useEffect(() => {
     if (pdfDoc) renderPage(pdfDoc, pageNum);
@@ -148,6 +165,10 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
       canvas.isDrawingMode = false;
     }
 
+    // Set cursor based on active tool
+    canvas.defaultCursor = tool === "text" ? "text" : tool === "eraser" ? "crosshair" : "default";
+    canvas.freeDrawingCursor = tool === "pen" || tool === "highlighter" ? "crosshair" : "default";
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (tool === "eraser" && (e.key === "Delete" || e.key === "Backspace")) {
         const active = canvas.getActiveObjects();
@@ -174,24 +195,30 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
     return () => { canvas.off("mouse:up", handler); };
   }, [tool]);
 
-  // ── add text ─────────────────────────────────────────────────────────────────
-  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (tool !== "text") return;
+  // ── add text via Fabric event ────────────────────────────────────────────────
+  useEffect(() => {
     const canvas = fabricRef.current;
-    if (!canvas) return;
-    const rect = canvasElRef.current!.getBoundingClientRect();
-    const text = new IText("טקסט", {
-      left: e.clientX - rect.left,
-      top:  e.clientY - rect.top,
-      fontSize: 18, fill: color,
-      fontFamily: "Heebo, sans-serif",
-      editable: true,
-    });
-    canvas.add(text);
-    canvas.setActiveObject(text);
-    text.enterEditing();
-    canvas.renderAll();
-    setTool("select");
+    if (!canvas || tool !== "text") return;
+
+    const handler = (opt: { e: PointerEvent }) => {
+      const pointer = canvas.getScenePoint(opt.e);
+      const text = new IText("טקסט", {
+        left: pointer.x,
+        top: pointer.y,
+        fontSize: 18,
+        fill: color,
+        fontFamily: "Heebo, sans-serif",
+        editable: true,
+      });
+      canvas.add(text);
+      canvas.setActiveObject(text);
+      text.enterEditing();
+      canvas.renderAll();
+      setTool("select");
+    };
+
+    canvas.on("mouse:down", handler);
+    return () => { canvas.off("mouse:down", handler); };
   }, [tool, color]);
 
   // ── add rect ─────────────────────────────────────────────────────────────────
@@ -239,17 +266,18 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
         const saved = annotationsRef.current[p];
         if (!saved) continue;
 
-        // Render annotation layer to offscreen canvas
+        // Render annotation layer to offscreen canvas at 2x for crisp output
         const offscreen = document.createElement("canvas");
         const pdfPage   = await pdfDoc.getPage(p);
         const vp        = pdfPage.getViewport({ scale: 1.5 });
         offscreen.width  = vp.width;
         offscreen.height = vp.height;
 
-        const tempFc = new FabricCanvas(offscreen);
+        const tempFc = new FabricCanvas(offscreen, { enableRetinaScaling: false });
+        tempFc.setDimensions({ width: vp.width, height: vp.height });
         await tempFc.loadFromJSON(saved.json);
         tempFc.renderAll();
-        const pngDataUrl = offscreen.toDataURL("image/png");
+        const pngDataUrl = tempFc.toDataURL({ format: "png", multiplier: 2 });
         tempFc.dispose();
 
         const pngData  = await fetch(pngDataUrl).then(r => r.arrayBuffer());
@@ -370,8 +398,6 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
                 <canvas
                   ref={canvasElRef}
                   className="absolute inset-0"
-                  style={{ cursor: tool === "text" ? "text" : tool === "eraser" ? "crosshair" : "default" }}
-                  onClick={handleCanvasClick}
                 />
               </div>
             )}

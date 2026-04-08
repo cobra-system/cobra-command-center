@@ -67,9 +67,17 @@ export default function DocumentPdfViewerDialog({ open, onOpenChange, doc, onAnn
     const page = await pdfDoc.getPage(pageNum);
     const vp   = page.getViewport({ scale, rotation });
     const cvs  = canvasRef.current;
-    cvs.width  = vp.width;
-    cvs.height = vp.height;
-    await page.render({ canvasContext: cvs.getContext("2d")!, viewport: vp }).promise;
+    const dpr  = window.devicePixelRatio || 1;
+
+    // Render at physical pixel resolution for crisp text on high-DPI screens
+    cvs.width  = Math.floor(vp.width * dpr);
+    cvs.height = Math.floor(vp.height * dpr);
+    cvs.style.width  = `${vp.width}px`;
+    cvs.style.height = `${vp.height}px`;
+
+    const ctx = cvs.getContext("2d")!;
+    ctx.scale(dpr, dpr);
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
   }, [pdfDoc, pageNum, scale, rotation]);
 
   useEffect(() => { renderPage(); }, [renderPage]);
