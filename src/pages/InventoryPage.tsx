@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { InlineEditField } from "@/components/InlineEditField";
-import { Plus, Warehouse, ArrowDown, Phone, User, Trash2, Building2, ArrowLeftRight, AlertTriangle, History, Users, Crown, Search, ArrowUpDown, ArrowUp, ArrowDown as ArrowDownIcon, FileText } from "lucide-react";
+import { Plus, Warehouse, Phone, User, Trash2, ArrowLeftRight, AlertTriangle, History, Users, Crown, Search, ArrowUpDown, ArrowUp, ArrowDown as ArrowDownIcon, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 interface InventoryChangeLog {
@@ -75,7 +75,7 @@ export default function InventoryPage() {
   const [transfers, setTransfers] = useState<InventoryTransfer[]>([]);
   const [changeLogs, setChangeLogs] = useState<InventoryChangeLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("flow");
+  const [activeTab, setActiveTab] = useState("details");
   const [detailSearch, setDetailSearch] = useState("");
   const [selectedCenter, setSelectedCenter] = useState<string | null>(null);
 
@@ -295,10 +295,10 @@ export default function InventoryPage() {
         {hasEdit && (
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setShowTransfer(true)}>
-              <ArrowLeftRight className="h-4 w-4 ml-2" />העבר מלאי
+              <ArrowLeftRight className="h-4 w-4 me-2" />העבר מלאי
             </Button>
             <Button onClick={() => setShowAddCenter(true)}>
-              <Plus className="h-4 w-4 ml-2" />הוסף מרכז הפצה
+              <Plus className="h-4 w-4 me-2" />הוסף מרכז הפצה
             </Button>
           </div>
         )}
@@ -323,9 +323,8 @@ export default function InventoryPage() {
         </Card>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl">
         <TabsList className="w-full justify-start">
-          <TabsTrigger value="flow">זרימת מלאי</TabsTrigger>
           <TabsTrigger value="details">פירוט מלאי</TabsTrigger>
           <TabsTrigger value="transfers" className="flex items-center gap-1">
             <History className="h-3.5 w-3.5" />
@@ -336,10 +335,6 @@ export default function InventoryPage() {
             לוג שינויים
           </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="flow">
-          <FlowVisualization mainCenter={mainCenter} bondedCenters={bondedCenters} inventory={inventory} products={products} />
-        </TabsContent>
 
         <TabsContent value="details" className="space-y-4">
           {/* Center filter */}
@@ -580,7 +575,7 @@ export default function InventoryPage() {
                       </div>
                       <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                         <span>{getCenterName(t.from_center_id)}</span>
-                        <ArrowDownIcon className="h-3.5 w-3.5 rotate-90 shrink-0" />
+                        <ArrowDownIcon className="h-3.5 w-3.5 -rotate-90 shrink-0" />
                         <span>{getCenterName(t.to_center_id)}</span>
                       </div>
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -663,9 +658,9 @@ export default function InventoryPage() {
                         </div>
                         <div className="flex items-center gap-2 text-sm">
                           <span className="text-muted-foreground">{log.old_quantity ?? "—"}</span>
-                          <ArrowDownIcon className="h-3.5 w-3.5 rotate-90 text-muted-foreground shrink-0" />
+                          <ArrowDownIcon className="h-3.5 w-3.5 -rotate-90 text-muted-foreground shrink-0" />
                           <span className="font-bold text-foreground">{log.new_quantity ?? "—"}</span>
-                          <span className="text-xs text-muted-foreground mr-auto">{typeLabels[log.change_type] || log.change_type}</span>
+                          <span className="text-xs text-muted-foreground ms-auto">{typeLabels[log.change_type] || log.change_type}</span>
                         </div>
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <span>{log.changed_by ? `ע״י ${log.changed_by}` : ""}</span>
@@ -820,63 +815,6 @@ export default function InventoryPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-function FlowVisualization({ mainCenter, bondedCenters, inventory, products }: {
-  mainCenter: DistributionCenter | undefined; bondedCenters: DistributionCenter[];
-  inventory: CenterInventoryItem[]; products: { id: string; name: string; stock_qty: number }[];
-}) {
-  if (!mainCenter) return null;
-  const mainQty = inventory.filter(i => i.center_id === mainCenter.id).reduce((s, i) => s + i.quantity, 0);
-
-  return (
-    <div className="space-y-8" dir="rtl">
-      {/* Incoming orders → Main center */}
-      <div className="flex flex-col items-center gap-4">
-        <Card className="w-64 text-center border-dashed border-2 border-muted-foreground/30">
-          <CardContent className="py-4">
-            <p className="font-medium text-muted-foreground">הזמנות נכנסות</p>
-            <p className="text-xs text-muted-foreground">ייבוא מספקים</p>
-          </CardContent>
-        </Card>
-        <ArrowDown className="h-8 w-8 text-primary animate-bounce" />
-        <Card className="w-80 text-center border-2 border-primary/40 shadow-lg">
-          <CardContent className="py-6">
-            <Building2 className="h-8 w-8 mx-auto text-primary mb-2" />
-            <p className="font-bold text-lg">{mainCenter.name}</p>
-            <p className="text-2xl font-bold text-primary mt-2">{mainQty}</p>
-            <p className="text-xs text-muted-foreground">יחידות במלאי</p>
-          </CardContent>
-        </Card>
-        <ArrowDown className="h-8 w-8 text-muted-foreground" />
-      </div>
-
-      {/* Bonded centers */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {bondedCenters.map(center => {
-          const centerQty = inventory.filter(i => i.center_id === center.id).reduce((s, i) => s + i.quantity, 0);
-          const productCount = inventory.filter(i => i.center_id === center.id && i.quantity > 0).length;
-          const lowCount = inventory.filter(i => i.center_id === center.id && i.min_stock > 0 && i.quantity < i.min_stock).length;
-          return (
-            <Card key={center.id} className={`text-center hover:shadow-md transition-shadow ${lowCount > 0 ? "border-destructive/40" : ""}`}>
-              <CardContent className="py-4">
-                <Warehouse className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
-                <p className="font-semibold text-sm">{center.name}</p>
-                <p className="text-xl font-bold text-foreground mt-1">{centerQty}</p>
-                <p className="text-xs text-muted-foreground">{productCount} מוצרים</p>
-                {lowCount > 0 && (
-                  <div className="flex items-center justify-center gap-1 mt-1">
-                    <AlertTriangle className="h-3 w-3 text-destructive" />
-                    <span className="text-xs text-destructive">{lowCount} מתחת למינימום</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
     </div>
   );
 }
