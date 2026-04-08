@@ -18,7 +18,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { InlineEditField } from "@/components/InlineEditField";
-import { ArrowRight, FileText, Upload, ExternalLink, X, Loader2, Check, Download, Trash2 } from "lucide-react";
+import { ArrowRight, FileText, Upload, ExternalLink, X, Loader2, Check, Download, Trash2, PenLine, Eye } from "lucide-react";
+import DocumentAnnotationEditor from "@/components/documents/DocumentAnnotationEditor";
+import DocumentPdfViewerDialog from "@/components/documents/DocumentPdfViewerDialog";
 import { toast } from "sonner";
 import { format, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -34,6 +36,7 @@ interface PurchaseDocument {
   document_name: string | null;
   supplier_id: string | null;
   product_id: string | null;
+  order_id: string | null;
   quantity: number;
   unit_price: number | null;
   total_price: number | null;
@@ -43,7 +46,10 @@ interface PurchaseDocument {
   approved_by: string | null;
   file_url: string | null;
   notes: string | null;
+  folder_id: string | null;
+  is_starred: boolean;
   created_at: string;
+  updated_at: string;
 }
 
 function FilePreview({ url, filename }: { url: string; filename?: string }) {
@@ -352,6 +358,8 @@ export default function DocumentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [annotateOpen, setAnnotateOpen] = useState(false);
+  const [viewingPdf, setViewingPdf] = useState(false);
   const { hasEdit } = usePermissions("documents");
 
   const fetchDoc = useCallback(async () => {
@@ -360,7 +368,7 @@ export default function DocumentDetailPage() {
     const docRes = await supabase.from("purchase_documents").select("*").eq("id", id).single();
     if (docRes.data) setDoc(docRes.data as unknown as PurchaseDocument);
     // Payments linked by order_id if available
-    const orderIdVal = (docRes.data as any)?.order_id;
+    const orderIdVal = (docRes.data as Record<string, unknown>)?.order_id as string | null;
     if (orderIdVal) {
       const paysRes = await supabase.from("supplier_payments").select("*").eq("order_id", orderIdVal).order("created_at", { ascending: false });
       if (paysRes.data) setLinkedPayments(paysRes.data as unknown as Payment[]);
@@ -373,7 +381,7 @@ export default function DocumentDetailPage() {
         .eq("document_id", docRes.data.id)
         .order("created_at", { ascending: true });
       if (productsRes.data) {
-        setLinkedProductIds(productsRes.data.map(row => (row as any).product_id));
+        setLinkedProductIds(productsRes.data.map(row => (row as Record<string, unknown>).product_id as string));
       }
     }
     setLoading(false);
@@ -383,7 +391,7 @@ export default function DocumentDetailPage() {
 
   const handleFieldSave = async (field: string, rawValue: string) => {
     if (!doc) return;
-    const updates: Record<string, any> = {};
+    const updates: Record<string, unknown> = {};
 
     if (field === "quantity") {
       const qty = Number(rawValue) || 0;
@@ -405,7 +413,7 @@ export default function DocumentDetailPage() {
 
   const handleStatusChange = async (newStatus: string) => {
     if (!doc) return;
-    const updates: Record<string, any> = { status: newStatus };
+    const updates: Record<string, unknown> = { status: newStatus };
     if (newStatus === "אושר") {
       updates.approval_date = new Date().toISOString();
       updates.approved_by = currentUser?.id;
@@ -507,10 +515,11 @@ export default function DocumentDetailPage() {
 
   const supplierName = suppliers.find(s => s.id === doc.supplier_id)?.company;
   const productName = products.find(p => p.id === doc.product_id)?.name;
-  const linkedOrder = orders.find(o => o.id === (doc as any).order_id);
+  const linkedOrder = orders.find(o => o.id === doc.order_id);
   const currentStepIdx = docStatusFlow.indexOf(doc.status);
 
   return (
+    <>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -580,6 +589,31 @@ export default function DocumentDetailPage() {
                   displayValue={doc.document_name || <span className="text-muted-foreground">לחץ פעמיים להוספת שם</span>}
                 />
               </InfoCell>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Document number */}
+                <InfoCell label="מספר מסמך">
+                  <InlineEditField
+                    value={(doc as { document_number?: string | null }).document_number || ""}
+                    onSave={v => handleFieldSave("document_number", v || null)}
+                    displayValue={(doc as { document_number?: string | null }).document_number
+                      ? <span className="font-mono text-sm text-primary">{(doc as { document_number?: string | null }).document_number}</span>
+                      : <span className="text-muted-foreground">לחץ להוספה</span>}
+                  />
+                </InfoCell>
+                {/* Expiry date */}
+                <InfoCell label="תאריך תפוגה">
+                  <InlineEditField
+                    value={(doc as { expiry_date?: string | null }).expiry_date || ""}
+                    onSave={v => handleFieldSave("expiry_date", v || null)}
+                    displayValue={(doc as { expiry_date?: string | null }).expiry_date
+                      ? <span className={cn("text-sm font-medium", isPast(new Date((doc as { expiry_date?: string | null }).expiry_date!)) ? "text-destructive" : "text-foreground")}>
+                          {format(new Date((doc as { expiry_date?: string | null }).expiry_date!), "dd/MM/yyyy")}
+                        </span>
+                      : <span className="text-muted-foreground">לחץ להוספה</span>}
+                    placeholder="YYYY-MM-DD"
+                  />
+                </InfoCell>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 {/* Type */}
                 <InfoCell label="סוג">
@@ -686,12 +720,12 @@ export default function DocumentDetailPage() {
               {/* Linked order */}
               <InfoCell label="הזמנה מקושרת">
                 <InlineEditField
-                  value={(doc as any).order_id || ""}
-                  displayValue={linkedOrder ? `${linkedOrder.supplier_name || ""} — ${linkedOrder.items?.map((i: any) => i.name).join(", ")}` : "—"}
+                  value={doc.order_id || ""}
+                  displayValue={linkedOrder ? `${linkedOrder.supplier_name || ""} — ${linkedOrder.items?.map((i: { name?: string }) => i.name).join(", ")}` : "—"}
                   onSave={v => handleFieldSave("order_id", v)}
                   options={[
                     { value: "", label: "ללא" },
-                    ...orders.map(o => ({ value: o.id, label: `${o.supplier_name || o.id.slice(0, 8)} — ${o.items?.map((i: any) => i.name).join(", ")}` })),
+                    ...orders.map(o => ({ value: o.id, label: `${o.supplier_name || o.id.slice(0, 8)} — ${o.items?.map((i: { name?: string }) => i.name).join(", ")}` })),
                   ]}
                 />
               </InfoCell>
@@ -718,6 +752,16 @@ export default function DocumentDetailPage() {
                 <Button variant="ghost" size="sm" onClick={handleDownloadFile} className="text-primary hover:text-primary">
                   <Download className="h-4 w-4 ml-1" />הורד
                 </Button>
+                {doc.file_url.toLowerCase().includes(".pdf") && (
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => setViewingPdf(true)} className="gap-1.5">
+                      <Eye className="h-4 w-4" />צפה ב-PDF
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setAnnotateOpen(true)} className="gap-1.5">
+                      <PenLine className="h-4 w-4" />ערוך / חתום
+                    </Button>
+                  </>
+                )}
                 {hasEdit && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -859,6 +903,27 @@ export default function DocumentDetailPage() {
         )}
       </div>
     </div>
+
+    {/* PDF Annotation Editor */}
+    {doc && (
+      <DocumentAnnotationEditor
+        open={annotateOpen}
+        onOpenChange={setAnnotateOpen}
+        doc={doc}
+        onSaved={fetchDoc}
+      />
+    )}
+
+    {/* PDF Viewer */}
+    {doc && viewingPdf && (
+      <DocumentPdfViewerDialog
+        open={viewingPdf}
+        onOpenChange={setViewingPdf}
+        doc={doc}
+        onAnnotate={() => { setViewingPdf(false); setAnnotateOpen(true); }}
+      />
+    )}
+    </>
   );
 }
 

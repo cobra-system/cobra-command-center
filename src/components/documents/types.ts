@@ -14,6 +14,19 @@ export interface PurchaseDocument {
   approved_by: string | null;
   file_url: string | null;
   notes: string | null;
+  folder_id: string | null;
+  is_starred: boolean;
+  document_number: string | null;
+  expiry_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DocumentFolder {
+  id: string;
+  name: string;
+  color: string;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 }
