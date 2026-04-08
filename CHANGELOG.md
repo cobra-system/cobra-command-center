@@ -11,9 +11,17 @@
 
 ## [2026-04-08]
 
+- Merge pull request #107 from cobra-system/claude/organize-documents-folders-F0um8 (6d90f89)
+- fix(documents): fix RLS policy blocking folder creation for non-manager users (b9151a3)
+- fix(documents): fix silent errors, type safety, storage cleanup, and stale selections (ef640c5)
+- fix(documents): fix PDF annotation drawing and text rendering quality (1fba7c2)
+
+<!-- last-commit: 6d90f896b7d3a01095714847b9f6f09429d8ab80 -->
+
+## [2026-04-08]
+
 - Remove זרימת מלאי tab and fix RTL layout in inventory page (bde94b1)
 
-<!-- last-commit: b4d9a18817731ae2bac26ff9a71e07225adc379e -->
 
 ## [2026-04-08]
 
