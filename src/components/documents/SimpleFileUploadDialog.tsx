@@ -29,6 +29,8 @@ export default function SimpleFileUploadDialog({
   const [file, setFile] = useState<File | null>(null);
   const [docName, setDocName] = useState("");
   const [docType, setDocType] = useState("כללי");
+  const [documentNumber, setDocumentNumber] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
   const [supplierId, setSupplierId] = useState(defaultSupplierId || "");
   const [productId, setProductId] = useState(defaultProductId || "");
   const [orderId, setOrderId] = useState(defaultOrderId || "");
@@ -41,6 +43,8 @@ export default function SimpleFileUploadDialog({
     setFile(null);
     setDocName("");
     setDocType("כללי");
+    setDocumentNumber("");
+    setExpiryDate("");
     setSupplierId(defaultSupplierId || "");
     setProductId(defaultProductId || "");
     setOrderId(defaultOrderId || "");
@@ -96,8 +100,10 @@ export default function SimpleFileUploadDialog({
       supplier_id: supplierId || null,
       product_id: productId || null,
       order_id: orderId || null,
+      document_number: documentNumber.trim() || null,
+      expiry_date: expiryDate || null,
       quantity: 0,
-    } as any);
+    } as Record<string, unknown>);
 
     if (error) {
       // Rollback: delete uploaded file if DB insert failed
@@ -181,6 +187,28 @@ export default function SimpleFileUploadDialog({
                 <SelectItem value="כללי">כללי</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Document number + expiry */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>מספר מסמך</Label>
+              <Input
+                value={documentNumber}
+                onChange={e => setDocumentNumber(e.target.value)}
+                placeholder="PI-2026-001"
+                dir="ltr"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>תאריך תפוגה</Label>
+              <Input
+                type="date"
+                value={expiryDate}
+                onChange={e => setExpiryDate(e.target.value)}
+                dir="ltr"
+              />
+            </div>
           </div>
 
           {/* Entity linking - only show when not in entity context */}

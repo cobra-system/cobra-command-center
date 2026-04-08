@@ -16,6 +16,8 @@ export interface PurchaseDocument {
   notes: string | null;
   folder_id: string | null;
   is_starred: boolean;
+  document_number: string | null;
+  expiry_date: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -18,8 +18,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { InlineEditField } from "@/components/InlineEditField";
-import { ArrowRight, FileText, Upload, ExternalLink, X, Loader2, Check, Download, Trash2, PenLine } from "lucide-react";
+import { ArrowRight, FileText, Upload, ExternalLink, X, Loader2, Check, Download, Trash2, PenLine, Eye } from "lucide-react";
 import DocumentAnnotationEditor from "@/components/documents/DocumentAnnotationEditor";
+import DocumentPdfViewerDialog from "@/components/documents/DocumentPdfViewerDialog";
 import { toast } from "sonner";
 import { format, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -358,6 +359,7 @@ export default function DocumentDetailPage() {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [annotateOpen, setAnnotateOpen] = useState(false);
+  const [viewingPdf, setViewingPdf] = useState(false);
   const { hasEdit } = usePermissions("documents");
 
   const fetchDoc = useCallback(async () => {
@@ -588,6 +590,31 @@ export default function DocumentDetailPage() {
                 />
               </InfoCell>
               <div className="grid grid-cols-2 gap-3">
+                {/* Document number */}
+                <InfoCell label="מספר מסמך">
+                  <InlineEditField
+                    value={(doc as { document_number?: string | null }).document_number || ""}
+                    onSave={v => handleFieldSave("document_number", v || null)}
+                    displayValue={(doc as { document_number?: string | null }).document_number
+                      ? <span className="font-mono text-sm text-primary">{(doc as { document_number?: string | null }).document_number}</span>
+                      : <span className="text-muted-foreground">לחץ להוספה</span>}
+                  />
+                </InfoCell>
+                {/* Expiry date */}
+                <InfoCell label="תאריך תפוגה">
+                  <InlineEditField
+                    value={(doc as { expiry_date?: string | null }).expiry_date || ""}
+                    onSave={v => handleFieldSave("expiry_date", v || null)}
+                    displayValue={(doc as { expiry_date?: string | null }).expiry_date
+                      ? <span className={cn("text-sm font-medium", isPast(new Date((doc as { expiry_date?: string | null }).expiry_date!)) ? "text-destructive" : "text-foreground")}>
+                          {format(new Date((doc as { expiry_date?: string | null }).expiry_date!), "dd/MM/yyyy")}
+                        </span>
+                      : <span className="text-muted-foreground">לחץ להוספה</span>}
+                    placeholder="YYYY-MM-DD"
+                  />
+                </InfoCell>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 {/* Type */}
                 <InfoCell label="סוג">
                   <InlineEditField
@@ -726,9 +753,14 @@ export default function DocumentDetailPage() {
                   <Download className="h-4 w-4 ml-1" />הורד
                 </Button>
                 {doc.file_url.toLowerCase().includes(".pdf") && (
-                  <Button variant="outline" size="sm" onClick={() => setAnnotateOpen(true)} className="gap-1.5">
-                    <PenLine className="h-4 w-4" />ערוך / חתום
-                  </Button>
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => setViewingPdf(true)} className="gap-1.5">
+                      <Eye className="h-4 w-4" />צפה ב-PDF
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setAnnotateOpen(true)} className="gap-1.5">
+                      <PenLine className="h-4 w-4" />ערוך / חתום
+                    </Button>
+                  </>
                 )}
                 {hasEdit && (
                   <AlertDialog>
@@ -879,6 +911,16 @@ export default function DocumentDetailPage() {
         onOpenChange={setAnnotateOpen}
         doc={doc}
         onSaved={fetchDoc}
+      />
+    )}
+
+    {/* PDF Viewer */}
+    {doc && viewingPdf && (
+      <DocumentPdfViewerDialog
+        open={viewingPdf}
+        onOpenChange={setViewingPdf}
+        doc={doc}
+        onAnnotate={() => { setViewingPdf(false); setAnnotateOpen(true); }}
       />
     )}
     </>

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { differenceInDays, isPast, isValid, parseISO } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth } from "@/contexts/AppContext";
 import { logger } from "@/lib/logger";
@@ -7,7 +8,7 @@ import {
   LayoutGrid, List, ChevronLeft, Paperclip, Trash2, Eye,
   RefreshCw, ShoppingCart, Package, Copy, MoreVertical,
   CheckCircle2, Clock, Send, CircleCheck, Star, Download,
-  Pencil, FolderPlus, FolderSymlink, AlertCircle,
+  Pencil, FolderPlus, FolderSymlink, AlertCircle, CalendarX,
 } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,8 @@ import { docStatusFlow, docStatusColors, currencySymbol } from "./constants";
 import { DocStatusBadge } from "./DocStatusBadge";
 import { usePermissions } from "@/hooks/usePermissions";
 import CreateFolderDialog from "./CreateFolderDialog";
+import DocumentPdfViewerDialog from "./DocumentPdfViewerDialog";
+import BulkActionsBar from "./BulkActionsBar";
 
 // ── folder color helpers ───────────────────────────────────────────────────────
 const COLOR_MAP: Record<string, { bg: string; border: string; icon: string; fill: string }> = {
@@ -86,6 +89,29 @@ function isPdf(doc: PurchaseDocument) {
   return url.toLowerCase().includes(".pdf");
 }
 
+// ── expiry badge ───────────────────────────────────────────────────────────────
+function ExpiryBadge({ expiryDate }: { expiryDate: string | null }) {
+  if (!expiryDate) return null;
+  const date = parseISO(expiryDate);
+  if (!isValid(date)) return null;
+  const daysLeft = differenceInDays(date, new Date());
+  if (isPast(date) && daysLeft < 0) {
+    return (
+      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-destructive/15 text-destructive">
+        <CalendarX className="h-2.5 w-2.5" />פג תוקף
+      </span>
+    );
+  }
+  if (daysLeft <= 30) {
+    return (
+      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-warning/15 text-warning">
+        <CalendarX className="h-2.5 w-2.5" />{daysLeft}י׳
+      </span>
+    );
+  }
+  return null;
+}
+
 // ── props ──────────────────────────────────────────────────────────────────────
 interface Props {
   docs: PurchaseDocument[];
@@ -113,6 +139,17 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
   const [renameDocOpen, setRenameDocOpen] = useState(false);
   const [renamingDoc, setRenamingDoc] = useState<PurchaseDocument | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [viewingPdf, setViewingPdf] = useState<PurchaseDocument | null>(null);
+
+  // ── bulk selection ───────────────────────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleSelect = (id: string) => setSelectedIds(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) { next.delete(id); } else { next.add(id); }
+    return next;
+  });
+  const selectAll = (ids: string[]) => setSelectedIds(new Set(ids));
+  const clearSelection = () => setSelectedIds(new Set());
 
   // ── fetch real folders ────────────────────────────────────────────────────────
   const fetchFolders = useCallback(async () => {
@@ -511,12 +548,25 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
             return (
               <EntityContextMenu key={doc.id} groups={buildDocMenuGroups(doc)}>
                 <div
-                  className="group relative flex flex-col rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 overflow-hidden cursor-pointer"
-                  onClick={() => navigate(`/documents/${doc.id}`)}
+                  className={cn(
+                    "group relative flex flex-col rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 overflow-hidden cursor-pointer",
+                    selectedIds.has(doc.id) && "ring-2 ring-primary border-primary"
+                  )}
+                  onClick={() => isPdf(doc) && doc.file_url ? setViewingPdf(doc) : navigate(`/documents/${doc.id}`)}
                 >
+                  {/* Checkbox (top-right, visible on hover or when selected) */}
+                  <div
+                    className={cn("absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity", selectedIds.has(doc.id) && "opacity-100")}
+                    onClick={e => { e.stopPropagation(); toggleSelect(doc.id); }}
+                  >
+                    <div className={cn("w-4 h-4 rounded border-2 flex items-center justify-center", selectedIds.has(doc.id) ? "bg-primary border-primary" : "bg-background/90 border-muted-foreground/50")}>
+                      {selectedIds.has(doc.id) && <span className="text-primary-foreground text-[10px] font-bold leading-none">✓</span>}
+                    </div>
+                  </div>
+
                   {/* Star button */}
                   <button
-                    className={cn("absolute top-2 right-2 z-10 p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity", doc.is_starred && "opacity-100")}
+                    className={cn("absolute top-2 left-2 z-10 p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity", doc.is_starred && "opacity-100")}
                     onClick={e => { e.stopPropagation(); handleToggleStar(doc); }}
                     title={doc.is_starred ? "הסר מועדפים" : "הוסף למועדפים"}
                   >
@@ -526,9 +576,9 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
                   {/* Thumbnail */}
                   <div className="flex items-center justify-center h-20 bg-muted/30 border-b relative">
                     {getFileIcon(doc)}
-                    {doc.file_url && <Paperclip className="absolute bottom-1.5 left-1.5 h-3 w-3 text-muted-foreground" />}
-                    {/* Actions */}
-                    <div className="absolute top-1.5 left-1.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                    {doc.file_url && <Paperclip className="absolute bottom-1.5 right-1.5 h-3 w-3 text-muted-foreground" />}
+                    {/* Actions menu */}
+                    <div className="absolute bottom-1.5 left-1.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button className="p-1 rounded-full bg-background/80 hover:bg-background shadow-sm">
@@ -536,8 +586,13 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" dir="rtl" className="w-48">
+                          {isPdf(doc) && doc.file_url && (
+                            <DropdownMenuItem onClick={() => setViewingPdf(doc)}>
+                              <Eye className="h-4 w-4 ml-2" />צפה ב-PDF
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem onClick={() => navigate(`/documents/${doc.id}`)}>
-                            <Eye className="h-4 w-4 ml-2" />צפה
+                            <Eye className="h-4 w-4 ml-2" />פרטי מסמך
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openRename(doc)}>
                             <Pencil className="h-4 w-4 ml-2" />שנה שם
@@ -596,11 +651,15 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
                   {/* Info */}
                   <div className="p-2.5">
                     <p className="text-xs font-medium text-foreground truncate leading-tight">{docName}</p>
+                    {doc.document_number && (
+                      <p className="text-[10px] text-primary/80 font-mono mt-0.5">{doc.document_number}</p>
+                    )}
                     <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{supplierName(doc.supplier_id)}</p>
-                    <div className="flex items-center justify-between mt-1.5">
+                    <div className="flex items-center justify-between mt-1.5 gap-1 flex-wrap">
                       <span className={cn("inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium", docStatusColors[doc.status] || "bg-muted text-muted-foreground")}>
                         {STATUS_ICONS[doc.status]}{doc.status}
                       </span>
+                      <ExpiryBadge expiryDate={doc.expiry_date} />
                       <span className="text-[10px] text-muted-foreground">{format(new Date(doc.created_at), "dd/MM/yy")}</span>
                     </div>
                   </div>
@@ -617,6 +676,14 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
+                <th className="w-8 p-3">
+                  <input
+                    type="checkbox"
+                    className="rounded"
+                    checked={selectedIds.size === visibleDocs.length && visibleDocs.length > 0}
+                    onChange={e => e.target.checked ? selectAll(visibleDocs.map(d => d.id)) : clearSelection()}
+                  />
+                </th>
                 <th className="w-8 p-3" />
                 <th className="text-right p-3 font-semibold">שם</th>
                 <th className="text-right p-3 font-semibold">ספק</th>
@@ -631,7 +698,19 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
                 const docName = doc.document_name || doc.notes || "ללא שם";
                 return (
                   <EntityContextMenu key={doc.id} groups={buildDocMenuGroups(doc)}>
-                    <tr className="hover:bg-muted/30 cursor-pointer transition-colors" onClick={() => navigate(`/documents/${doc.id}`)}>
+                    <tr
+                      className={cn("hover:bg-muted/30 cursor-pointer transition-colors", selectedIds.has(doc.id) && "bg-primary/5")}
+                      onClick={() => isPdf(doc) && doc.file_url ? setViewingPdf(doc) : navigate(`/documents/${doc.id}`)}
+                    >
+                      {/* Checkbox */}
+                      <td className="p-3" onClick={e => e.stopPropagation()}>
+                        <div
+                          className={cn("w-4 h-4 rounded border-2 flex items-center justify-center cursor-pointer", selectedIds.has(doc.id) ? "bg-primary border-primary" : "border-muted-foreground/50")}
+                          onClick={() => toggleSelect(doc.id)}
+                        >
+                          {selectedIds.has(doc.id) && <span className="text-primary-foreground text-[10px] font-bold leading-none">✓</span>}
+                        </div>
+                      </td>
                       {/* Star */}
                       <td className="p-3" onClick={e => e.stopPropagation()}>
                         <button onClick={() => handleToggleStar(doc)}>
@@ -644,6 +723,9 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
                           {getFileIcon(doc, "h-5 w-5")}
                           <div>
                             <p className="font-medium truncate max-w-[200px]">{docName}</p>
+                            {doc.document_number && (
+                              <p className="text-[10px] text-primary/80 font-mono">{doc.document_number}</p>
+                            )}
                             {doc.file_url && <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground"><Paperclip className="h-2.5 w-2.5" />קובץ</span>}
                           </div>
                         </div>
@@ -670,9 +752,19 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
                           </PopoverContent>
                         </Popover>
                       </td>
-                      <td className="p-3 text-muted-foreground text-xs">{format(new Date(doc.created_at), "dd/MM/yy")}</td>
+                      <td className="p-3 text-muted-foreground text-xs">
+                        <div className="flex flex-col gap-1">
+                          <span>{format(new Date(doc.created_at), "dd/MM/yy")}</span>
+                          <ExpiryBadge expiryDate={doc.expiry_date} />
+                        </div>
+                      </td>
                       <td className="p-3" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-1">
+                          {isPdf(doc) && doc.file_url && (
+                            <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setViewingPdf(doc); }}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          )}
                           {doc.file_url && (
                             <a href={doc.file_url} download={docName} onClick={e => e.stopPropagation()}>
                               <Button variant="ghost" size="sm"><Download className="h-4 w-4" /></Button>
@@ -737,6 +829,26 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
         onOpenChange={setCreateFolderOpen}
         onSaved={fetchFolders}
         editFolder={editingFolder}
+      />
+
+      {/* PDF Viewer */}
+      {viewingPdf && (
+        <DocumentPdfViewerDialog
+          open={!!viewingPdf}
+          onOpenChange={v => { if (!v) setViewingPdf(null); }}
+          doc={viewingPdf}
+          onAnnotate={onAnnotate}
+        />
+      )}
+
+      {/* Bulk Actions Bar */}
+      <BulkActionsBar
+        selectedIds={selectedIds}
+        docs={visibleDocs}
+        folders={folders}
+        onClearSelection={clearSelection}
+        onRefresh={onRefresh}
+        suppliers={suppliers}
       />
     </div>
   );
