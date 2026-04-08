@@ -11,13 +11,21 @@
 
 ## [2026-04-08]
 
+- Merge pull request #105 from cobra-system/claude/organize-documents-folders-asBkf (eba57a3)
+- feat(documents): Phase 3 — document tracking, bulk actions, inline PDF viewer (7160150)
+- Add real folders, PDF annotation editor, and digital signature to documents page (5ded2b5)
+- Redesign documents page with Google Drive-like folder UI (a527460)
+
+<!-- last-commit: eba57a3296a1c2c1549915cf5fb14494c7a8516d -->
+
+## [2026-04-08]
+
 - Merge pull request #104 from cobra-system/claude/fix-recent-sort-vjqMB (deffd3b)
 - Fix RTL badge direction in archive tab trigger (afaec54)
 - Add archive tab for ARRIVED orders, hide them from main table (a6bc06f)
 - Offer inventory update when order is marked as ARRIVED (32faec2)
 - Fix updated_at sort to use Date comparison instead of string localeCompare (3065680)
 
-<!-- last-commit: deffd3b48a80b42690a425e4956b91f10af1fd66 -->
 
 ## [2026-04-08]
 
