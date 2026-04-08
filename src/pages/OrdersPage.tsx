@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -32,6 +33,7 @@ export default function OrdersPage() {
   const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
   const [defaultProductId, setDefaultProductId] = useState<string | undefined>();
   const [defaultSupplierId, setDefaultSupplierId] = useState<string | undefined>();
+  const [archiveSearch, setArchiveSearch] = useState("");
 
   useEffect(() => {
     const fetchWorkflows = async () => {
@@ -118,8 +120,28 @@ export default function OrdersPage() {
     }, { replace: true });
   }, [setSearchParams]);
 
+  const archivedOrders = useMemo(() => {
+    const q = archiveSearch.toLowerCase();
+    return orders
+      .filter(o => {
+        if (o.status !== "ARRIVED") return false;
+        if (q) {
+          const itemNames = o.items.map(i => i.name).join(" ").toLowerCase();
+          const supplier = (o.supplier_name || "").toLowerCase();
+          if (!itemNames.includes(q) && !supplier.includes(q)) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+        const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+        return dateB - dateA;
+      });
+  }, [orders, archiveSearch]);
+
   const filtered = useMemo(() => {
     let result = orders.filter(o => {
+      if (o.status === "ARRIVED") return false;
       if (statusFilter !== "all" && o.status !== statusFilter) return false;
       if (priorityFilter !== "all" && o.priority !== priorityFilter) return false;
       if (paymentFilter !== "all" && (o as Record<string, unknown>).payment_status !== paymentFilter) return false;
@@ -272,6 +294,14 @@ export default function OrdersPage() {
         <TabsList>
           <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>
           <TabsTrigger value="table">טבלת הזמנות</TabsTrigger>
+          <TabsTrigger value="archive" className="gap-1.5">
+            ארכיון הזמנות
+            {archivedOrders.length > 0 && (
+              <span className="bg-muted text-muted-foreground text-xs font-medium px-1.5 py-0.5 rounded-full">
+                {archivedOrders.length}
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-0">
@@ -298,6 +328,34 @@ export default function OrdersPage() {
             sortField={sortField}
             sortDir={sortDir}
             toggleSort={toggleSort}
+            allStatuses={allStatuses}
+            navigateToSupplier={navigateToSupplier}
+            navigateToProduct={navigateToProduct}
+            handleDeleteOrder={handleDeleteOrder}
+            handleDuplicateOrder={handleDuplicateOrder}
+            handleWorkflowStepChange={handleWorkflowStepChange}
+            updateOrderStatus={updateOrderStatus}
+            updateOrder={updateOrder}
+          />
+        </TabsContent>
+
+        <TabsContent value="archive" className="mt-0 space-y-4">
+          <div className="relative max-w-sm">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="חיפוש לפי מוצר או ספק..."
+              value={archiveSearch}
+              onChange={e => setArchiveSearch(e.target.value)}
+              className="pr-9"
+            />
+          </div>
+          <OrderTable
+            filtered={archivedOrders}
+            orderWorkflows={orderWorkflows}
+            hasEdit={hasEdit}
+            sortField={null}
+            sortDir={null}
+            toggleSort={() => {}}
             allStatuses={allStatuses}
             navigateToSupplier={navigateToSupplier}
             navigateToProduct={navigateToProduct}
