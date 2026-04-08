@@ -11,9 +11,18 @@
 
 ## [2026-04-08]
 
+- Merge pull request #104 from cobra-system/claude/fix-recent-sort-vjqMB (deffd3b)
+- Fix RTL badge direction in archive tab trigger (afaec54)
+- Add archive tab for ARRIVED orders, hide them from main table (a6bc06f)
+- Offer inventory update when order is marked as ARRIVED (32faec2)
+- Fix updated_at sort to use Date comparison instead of string localeCompare (3065680)
+
+<!-- last-commit: deffd3b48a80b42690a425e4956b91f10af1fd66 -->
+
+## [2026-04-08]
+
 - Fix data not loading after React Query migration (2a85656)
 
-<!-- last-commit: 946ccfc1313a2f39aeaef6f078c3dc663aad7309 -->
 
 ## [2026-04-07]
 
