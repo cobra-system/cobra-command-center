@@ -40,7 +40,6 @@ export function RolesProvider({ currentUser, children }: { currentUser: Profile 
       const { data } = await supabase.from("profiles").select("*");
       return (data as Profile[]) ?? [];
     },
-    enabled: false, // DataLoader will trigger initial fetch
   });
 
   const { data: roleDefinitions = [] } = useQuery({
@@ -49,7 +48,6 @@ export function RolesProvider({ currentUser, children }: { currentUser: Profile 
       const { data } = await supabase.from("role_definitions").select("*").order("created_at");
       return (data as RoleDefinition[]) ?? [];
     },
-    enabled: false, // DataLoader will trigger initial fetch
   });
 
   const { data: rolePermissions = [] } = useQuery({
@@ -58,19 +56,18 @@ export function RolesProvider({ currentUser, children }: { currentUser: Profile 
       const { data } = await supabase.from("role_permissions").select("*");
       return (data as RolePermissionRecord[]) ?? [];
     },
-    enabled: false, // DataLoader will trigger initial fetch
   });
 
   const refreshProfiles = useCallback(async () => {
-    await queryClient.refetchQueries({ queryKey: ["profiles"] });
+    await queryClient.invalidateQueries({ queryKey: ["profiles"] });
   }, [queryClient]);
 
   const refreshRoleDefinitions = useCallback(async () => {
-    await queryClient.refetchQueries({ queryKey: ["roleDefinitions"] });
+    await queryClient.invalidateQueries({ queryKey: ["roleDefinitions"] });
   }, [queryClient]);
 
   const refreshRolePermissions = useCallback(async () => {
-    await queryClient.refetchQueries({ queryKey: ["rolePermissions"] });
+    await queryClient.invalidateQueries({ queryKey: ["rolePermissions"] });
   }, [queryClient]);
 
   const upsertRolePermission = useCallback(async (role: string, moduleKey: string, level: PermissionLevel) => {

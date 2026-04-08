@@ -37,11 +37,10 @@ export function GoalsProvider({ children }: { children: ReactNode }) {
       }
       return (data as Goal[]) ?? [];
     },
-    enabled: false, // DataLoader will trigger initial fetch
   });
 
   const refreshGoals = useCallback(async () => {
-    await queryClient.refetchQueries({ queryKey: ["goals"] });
+    await queryClient.invalidateQueries({ queryKey: ["goals"] });
   }, [queryClient]);
 
   const addGoal = useCallback(async (goal: Omit<Goal, "id">) => {

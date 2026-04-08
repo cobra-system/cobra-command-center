@@ -37,11 +37,10 @@ export function SuppliersProvider({ children }: { children: ReactNode }) {
         ),
       })) as Supplier[];
     },
-    enabled: false, // DataLoader will trigger initial fetch
   });
 
   const refreshSuppliers = useCallback(async () => {
-    await queryClient.refetchQueries({ queryKey: ["suppliers"] });
+    await queryClient.invalidateQueries({ queryKey: ["suppliers"] });
   }, [queryClient]);
 
   const addSupplier = useCallback(async (supplier: Omit<Supplier, "id">) => {
