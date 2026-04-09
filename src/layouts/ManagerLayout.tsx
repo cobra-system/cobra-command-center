@@ -24,6 +24,7 @@ import {
   ChevronLeft,
   Users,
   Recycle,
+  Boxes,
   ArrowLeft,
   ExternalLink,
   type LucideIcon,
@@ -37,6 +38,7 @@ const defaultNavItems = [
   { to: "/dashboard", icon: "LayoutDashboard", label: "דשבורד" },
   { to: "/products", icon: "Package", label: "מוצרים" },
   { to: "/orders", icon: "ShoppingCart", label: "הזמנות" },
+  { to: "/equipment", icon: "Boxes", label: "הצטיידויות ובלאי" },
   { to: "/tasks", icon: "ListTodo", label: "משימות" },
   { to: "/meetings", icon: "Users", label: "פגישות" },
   { to: "/inventory", icon: "Warehouse", label: "מלאי" },
@@ -51,7 +53,7 @@ const defaultNavItems = [
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard, Package, ShoppingCart, Truck, ListTodo,
-  Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Users, Recycle,
+  Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Users, Recycle, Boxes,
 };
 
 const NAV_ORDER_KEY = "cobra-nav-order";

@@ -1,0 +1,436 @@
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+import { useData } from "@/contexts/AppContext";
+import { format } from "date-fns";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  ArrowRight,
+  Package,
+  PackageX,
+  TrendingDown,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Clock,
+} from "lucide-react";
+import { NewPickupDialog } from "@/components/equipment/NewPickupDialog";
+import { NewReturnDialog } from "@/components/equipment/NewReturnDialog";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface Installer {
+  id: string;
+  name: string;
+  warehouse_number: number | null;
+  division: string;
+  status: string;
+  coordinator: string | null;
+  phone: string | null;
+}
+
+interface PickupRow {
+  id: string;
+  pickup_date: string;
+  notes: string | null;
+  created_by: string | null;
+  product_name: string;
+  product_id: string;
+  quantity: number;
+  serial_numbers: string[] | null;
+}
+
+interface ReturnRow {
+  id: string;
+  return_item_id: string;
+  return_date: string;
+  product_name: string;
+  product_id: string;
+  quantity: number;
+  reason: string;
+  reason_detail: string | null;
+  sticker_label: string | null;
+  is_actually_faulty: boolean | null;
+  logged_by: string | null;
+  serial_numbers: string[] | null;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function returnPctColor(pct: number) {
+  if (pct <= 5) return "text-green-600";
+  if (pct <= 15) return "text-yellow-600";
+  return "text-red-600";
+}
+
+function returnPctBadge(pct: number) {
+  if (pct <= 5) return "bg-green-100 text-green-700 hover:bg-green-100";
+  if (pct <= 15) return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100";
+  return "bg-red-100 text-red-700 hover:bg-red-100";
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+export default function InstallerDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { products } = useData();
+
+  const [installer, setInstaller] = useState<Installer | null>(null);
+  const [pickupRows, setPickupRows] = useState<PickupRow[]>([]);
+  const [returnRows, setReturnRows] = useState<ReturnRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [updatingFaulty, setUpdatingFaulty] = useState<string | null>(null);
+
+  const [showNewPickup, setShowNewPickup] = useState(false);
+  const [showNewReturn, setShowNewReturn] = useState(false);
+
+  const productMap = useMemo(() => {
+    const m = new Map<string, string>();
+    products.forEach((p) => m.set(p.id, p.name));
+    return m;
+  }, [products]);
+
+  const fetchData = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const [instRes, pickRes, retRes] = await Promise.all([
+        supabase.from("installers").select("*").eq("id", id).single(),
+        supabase
+          .from("equipment_pickups")
+          .select("id, pickup_date, notes, created_by, equipment_pickup_items(id, product_id, quantity, serial_numbers)")
+          .eq("installer_id", id)
+          .order("pickup_date", { ascending: false }),
+        supabase
+          .from("equipment_returns")
+          .select(
+            "id, return_date, logged_by, equipment_return_items(id, product_id, quantity, reason, reason_detail, sticker_label, is_actually_faulty, serial_numbers)"
+          )
+          .eq("installer_id", id)
+          .order("return_date", { ascending: false }),
+      ]);
+
+      if (instRes.error) throw instRes.error;
+      if (pickRes.error) throw pickRes.error;
+      if (retRes.error) throw retRes.error;
+
+      setInstaller(instRes.data as Installer);
+
+      type PickupItemRaw = { id: string; product_id: string; quantity: number; serial_numbers: string[] | null };
+      type PickupRaw = { id: string; pickup_date: string; notes: string | null; created_by: string | null; equipment_pickup_items: PickupItemRaw[] };
+      type ReturnItemRaw = { id: string; product_id: string; quantity: number; reason: string; reason_detail: string | null; sticker_label: string | null; is_actually_faulty: boolean | null; serial_numbers: string[] | null };
+      type ReturnRaw = { id: string; return_date: string; logged_by: string | null; equipment_return_items: ReturnItemRaw[] };
+
+      // Flatten pickup items
+      const pRows: PickupRow[] = [];
+      ((pickRes.data ?? []) as PickupRaw[]).forEach((pickup) => {
+        (pickup.equipment_pickup_items ?? []).forEach((item) => {
+          pRows.push({
+            id: pickup.id,
+            pickup_date: pickup.pickup_date,
+            notes: pickup.notes,
+            created_by: pickup.created_by,
+            product_name: productMap.get(item.product_id) ?? item.product_id,
+            product_id: item.product_id,
+            quantity: item.quantity,
+            serial_numbers: item.serial_numbers,
+          });
+        });
+      });
+      setPickupRows(pRows);
+
+      // Flatten return items
+      const rRows: ReturnRow[] = [];
+      ((retRes.data ?? []) as ReturnRaw[]).forEach((ret) => {
+        (ret.equipment_return_items ?? []).forEach((item) => {
+          rRows.push({
+            id: ret.id,
+            return_item_id: item.id,
+            return_date: ret.return_date,
+            product_name: productMap.get(item.product_id) ?? item.product_id,
+            product_id: item.product_id,
+            quantity: item.quantity,
+            reason: item.reason,
+            reason_detail: item.reason_detail,
+            sticker_label: item.sticker_label,
+            is_actually_faulty: item.is_actually_faulty,
+            logged_by: ret.logged_by,
+            serial_numbers: item.serial_numbers,
+          });
+        });
+      });
+      setReturnRows(rRows);
+    } catch (err) {
+      toast.error("שגיאה בטעינת נתוני המתקין");
+    } finally {
+      setLoading(false);
+    }
+  }, [id, productMap]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // KPI computations
+  const totalTaken = useMemo(
+    () => pickupRows.reduce((sum, r) => sum + r.quantity, 0),
+    [pickupRows]
+  );
+  const totalReturned = useMemo(
+    () => returnRows.reduce((sum, r) => sum + r.quantity, 0),
+    [returnRows]
+  );
+  const returnPct = totalTaken > 0 ? Math.round((totalReturned / totalTaken) * 100) : 0;
+
+  const handleFaultyToggle = async (returnItemId: string, current: boolean | null) => {
+    // Cycle: null → false → true → null
+    const next = current === null ? false : current === false ? true : null;
+    setUpdatingFaulty(returnItemId);
+    try {
+      const { error } = await supabase
+        .from("equipment_return_items")
+        .update({
+          is_actually_faulty: next,
+          checked_at: next !== null ? new Date().toISOString() : null,
+        })
+        .eq("id", returnItemId);
+      if (error) throw error;
+      setReturnRows((prev) =>
+        prev.map((r) =>
+          r.return_item_id === returnItemId ? { ...r, is_actually_faulty: next } : r
+        )
+      );
+    } catch {
+      toast.error("שגיאה בעדכון הסטטוס");
+    } finally {
+      setUpdatingFaulty(null);
+    }
+  };
+
+  const FaultyCell = ({ row }: { row: ReturnRow }) => {
+    const isUpdating = updatingFaulty === row.return_item_id;
+    if (isUpdating) return <Loader2 className="h-4 w-4 animate-spin mx-auto" />;
+    const v = row.is_actually_faulty;
+    return (
+      <button
+        title="לחץ לשינוי סטטוס"
+        className="flex items-center justify-center mx-auto hover:scale-110 transition-transform"
+        onClick={() => handleFaultyToggle(row.return_item_id, v)}
+      >
+        {v === true && <CheckCircle2 className="h-5 w-5 text-red-500" />}
+        {v === false && <XCircle className="h-5 w-5 text-green-600" />}
+        {v === null && <Clock className="h-5 w-5 text-muted-foreground/50" />}
+      </button>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <Skeleton className="h-8 w-64" />
+        <div className="grid grid-cols-3 gap-3">
+          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
+        </div>
+        <Skeleton className="h-64 rounded-md" />
+      </div>
+    );
+  }
+
+  if (!installer) {
+    return (
+      <div className="p-6 text-center text-muted-foreground">מתקין לא נמצא</div>
+    );
+  }
+
+  return (
+    <div className="p-4 md:p-6 space-y-6">
+      {/* Back + header */}
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/equipment")}
+            className="h-8 w-8"
+          >
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl font-bold">{installer.name}</h1>
+              {installer.warehouse_number && (
+                <Badge variant="outline">מחסן {installer.warehouse_number}</Badge>
+              )}
+              <Badge variant="outline" className="text-xs">{installer.division}</Badge>
+              <Badge
+                className={`text-xs ${installer.status === "פעיל" ? "bg-green-100 text-green-700 hover:bg-green-100" : "bg-gray-100 text-gray-500 hover:bg-gray-100"}`}
+              >
+                {installer.status}
+              </Badge>
+            </div>
+            {installer.coordinator && (
+              <p className="text-sm text-muted-foreground mt-0.5">מתאם: {installer.coordinator}</p>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setShowNewPickup(true)}>
+            <Package className="h-4 w-4 me-1" />
+            הצטיידות חדשה
+          </Button>
+          <Button size="sm" onClick={() => setShowNewReturn(true)}>
+            <PackageX className="h-4 w-4 me-1" />
+            החזרה חדשה
+          </Button>
+        </div>
+      </div>
+
+      {/* KPI cards */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "פריטים נלקחו", value: totalTaken, icon: Package, color: "text-blue-600", bg: "bg-blue-50" },
+          { label: "פריטים הוחזרו", value: totalReturned, icon: PackageX, color: "text-orange-600", bg: "bg-orange-50" },
+          {
+            label: "אחוז החזרה",
+            value: totalTaken > 0 ? `${returnPct}%` : "—",
+            icon: TrendingDown,
+            color: returnPctColor(returnPct),
+            bg: returnPct <= 5 ? "bg-green-50" : returnPct <= 15 ? "bg-yellow-50" : "bg-red-50",
+          },
+        ].map((kpi) => (
+          <Card key={kpi.label}>
+            <CardContent className="p-4">
+              <div className={`inline-flex p-1.5 rounded-lg ${kpi.bg} mb-2`}>
+                <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
+              </div>
+              <p className="text-xs text-muted-foreground">{kpi.label}</p>
+              <p className={`text-2xl font-bold mt-0.5 ${kpi.color}`}>{kpi.value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Pickup history table */}
+      <div>
+        <h2 className="font-semibold mb-2 text-sm text-muted-foreground uppercase tracking-wide">
+          היסטוריית הצטיידויות
+        </h2>
+        {pickupRows.length === 0 ? (
+          <div className="text-center py-8 text-sm text-muted-foreground border rounded-md">
+            אין הצטיידויות עדיין
+          </div>
+        ) : (
+          <div className="rounded-md border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>תאריך</TableHead>
+                  <TableHead>מוצר</TableHead>
+                  <TableHead className="text-center">כמות</TableHead>
+                  <TableHead className="hidden md:table-cell">מספרים סידוריים</TableHead>
+                  <TableHead className="hidden md:table-cell">הערות</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pickupRows.map((row, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="text-sm">
+                      {format(new Date(row.pickup_date), "dd/MM/yyyy")}
+                    </TableCell>
+                    <TableCell>{row.product_name}</TableCell>
+                    <TableCell className="text-center">{row.quantity}</TableCell>
+                    <TableCell className="hidden md:table-cell text-xs text-muted-foreground dir-ltr">
+                      {row.serial_numbers?.join(", ") ?? "—"}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                      {row.notes ?? "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+
+      {/* Return history table */}
+      <div>
+        <h2 className="font-semibold mb-2 text-sm text-muted-foreground uppercase tracking-wide">
+          היסטוריית החזרות
+        </h2>
+        {returnRows.length === 0 ? (
+          <div className="text-center py-8 text-sm text-muted-foreground border rounded-md">
+            אין החזרות עדיין ✅
+          </div>
+        ) : (
+          <div className="rounded-md border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>תאריך</TableHead>
+                  <TableHead>מוצר</TableHead>
+                  <TableHead className="text-center">כמות</TableHead>
+                  <TableHead>סיבה</TableHead>
+                  <TableHead className="hidden md:table-cell">מדבקה</TableHead>
+                  <TableHead className="text-center">באמת פגום?</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {returnRows.map((row, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="text-sm">
+                      {format(new Date(row.return_date), "dd/MM/yyyy")}
+                    </TableCell>
+                    <TableCell>{row.product_name}</TableCell>
+                    <TableCell className="text-center">{row.quantity}</TableCell>
+                    <TableCell>
+                      <div>
+                        <Badge variant="secondary" className="text-xs">{row.reason}</Badge>
+                        {row.reason_detail && (
+                          <p className="text-xs text-muted-foreground mt-0.5">{row.reason_detail}</p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
+                      {row.sticker_label ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <FaultyCell row={row} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+
+      {/* Dialogs */}
+      <NewPickupDialog
+        open={showNewPickup}
+        onOpenChange={setShowNewPickup}
+        onCreated={fetchData}
+        preselectedInstallerId={id}
+      />
+      <NewReturnDialog
+        open={showNewReturn}
+        onOpenChange={setShowNewReturn}
+        onCreated={fetchData}
+        preselectedInstallerId={id}
+      />
+    </div>
+  );
+}
