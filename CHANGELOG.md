@@ -11,10 +11,15 @@
 
 ## [2026-04-09]
 
+- Fix country dropdown in supplier form to show all existing countries (3d94ca3)
+
+<!-- last-commit: 6864ea664ca10afc65ac4436065104b8f752b07f -->
+
+## [2026-04-09]
+
 - fix(documents): fix garbled PDF text by using pdfjs transform parameter (0d4bab0)
 - fix(documents): fix freehand drawing, folder creation errors, and name truncation (3ccee5a)
 
-<!-- last-commit: 82169172b6739c85d38ffcc228752ae5248b50cb -->
 
 ## [2026-04-08]
 
