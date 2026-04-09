@@ -2,7 +2,7 @@ import type { Session } from "@supabase/supabase-js";
 import type { PermissionLevel, RolePermissions } from "@/lib/permissions";
 
 export type Role = "MANAGER" | "WAREHOUSE_MANAGER" | "LOGISTICS" | "DRIVER";
-export type OrderStatus = "PENDING" | "ORDERED" | "SHIPPED" | "ARRIVED" | "CANCELLED";
+export type OrderStatus = "PENDING" | "ORDERED" | "SHIPPED" | "ARRIVED_PORT" | "CUSTOMS_CLEARANCE" | "DELIVERED" | "ARRIVED" | "CANCELLED";
 export type Priority = "דחוף" | "גבוה" | "בינוני" | "נמוך";
 export type TaskStatus = "TODO" | "IN_PROGRESS" | "DONE" | "BLOCKED";
 
@@ -96,8 +96,51 @@ export interface Order {
   contact_name?: string | null;
   notes?: string | null;
   tracking_number?: string | null;
+  pi_number?: string | null;
+  vessel_name?: string | null;
+  booking_number?: string | null;
+  tclog_reference?: string | null;
+  shipment_group_id?: string | null;
   updated_at?: string | null;
   items: OrderItem[];
+}
+
+export interface ShipmentGroup {
+  id: string;
+  name: string;
+  vessel_name?: string | null;
+  departure_date?: string | null;
+  arrival_date?: string | null;
+  booking_number?: string | null;
+  tclog_reference?: string | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface OrderPayment {
+  id: string;
+  order_id: string;
+  payment_type: "Deposit" | "Balance" | "Full";
+  percentage?: number | null;
+  amount: number;
+  currency: "USD" | "EUR" | "ILS";
+  due_date?: string | null;
+  paid_date?: string | null;
+  swift_reference?: string | null;
+  status: "ממתין" | "שולם";
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface OrderNoteHistory {
+  id: string;
+  order_id: string;
+  note_text?: string | null;
+  changed_by?: string | null;
+  changed_at: string;
+  change_reason?: string | null;
 }
 
 export interface OrderItem {
