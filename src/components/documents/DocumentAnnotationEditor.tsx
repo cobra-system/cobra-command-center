@@ -97,8 +97,8 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
     pdfCvs.style.height = `${vp.height}px`;
 
     const ctx = pdfCvs.getContext("2d")!;
-    ctx.scale(dpr, dpr);
-    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+    const transform = dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] as const : undefined;
+    await page.render({ canvasContext: ctx, viewport: vp, transform }).promise;
 
     const fc = fabricRef.current;
     if (fc) {
