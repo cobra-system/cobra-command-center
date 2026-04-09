@@ -18,33 +18,56 @@ jobs:
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
+      - name: Validate secrets
+        run: |
+          if [ -z "${{ secrets.DATABASE_PASSWORD }}" ]; then
+            echo "::error::DATABASE_PASSWORD secret is not set! Go to repo Settings → Secrets → Actions and add it."
+            exit 1
+          fi
+          echo "✅ DATABASE_PASSWORD secret is configured"
+
       - name: Resolve database IPv4
         run: |
           DB_IPV4=$(getent ahostsv4 db.ljpdwezgahrrffnwajho.supabase.co | awk '{print $1}' | head -1)
+          if [ -z "$DB_IPV4" ]; then
+            echo "::error::Failed to resolve database hostname"
+            exit 1
+          fi
           echo "DB_IPV4=$DB_IPV4" >> $GITHUB_ENV
-          echo "Resolved host to IPv4: $DB_IPV4"
+          echo "✅ Resolved host to IPv4: $DB_IPV4"
 
       - name: Run migrations
         env:
           PGPASSWORD: ${{ secrets.DATABASE_PASSWORD }}
         run: |
+          FAILED=0
           for file in $(ls supabase/migrations/*.sql | sort); do
-            echo "Applying migration: $file"
-            psql "postgresql://postgres:$PGPASSWORD@$DB_IPV4:5432/postgres?sslmode=require" -f "$file" --set ON_ERROR_STOP=0 || true
+            echo "━━━ Applying: $file ━━━"
+            if psql "postgresql://postgres:$PGPASSWORD@$DB_IPV4:5432/postgres?sslmode=require" -f "$file" --set ON_ERROR_STOP=0; then
+              echo "✅ $file applied"
+            else
+              echo "⚠️  $file had errors (may be expected for already-applied migrations)"
+              FAILED=$((FAILED+1))
+            fi
           done
-          echo "All migrations applied!"
+          echo ""
+          echo "━━━ Migration summary: $FAILED file(s) with warnings ━━━"
 
       - name: Reload PostgREST schema cache
         env:
           PGPASSWORD: ${{ secrets.DATABASE_PASSWORD }}
         run: |
-          psql "postgresql://postgres:$PGPASSWORD@$DB_IPV4:5432/postgres?sslmode=require" -c "NOTIFY pgrst, 'reload schema';" && echo "Schema cache reloaded!" || echo "Warning: Could not reload schema cache"
+          psql "postgresql://postgres:$PGPASSWORD@$DB_IPV4:5432/postgres?sslmode=require" -c "NOTIFY pgrst, 'reload schema';" && echo "✅ Schema cache reloaded!" || echo "::warning::Could not reload schema cache"
 
-      - name: Verify database connection
+      - name: Verify database tables
         env:
           PGPASSWORD: ${{ secrets.DATABASE_PASSWORD }}
         run: |
-          psql "postgresql://postgres:$PGPASSWORD@$DB_IPV4:5432/postgres?sslmode=require" -c "SELECT count(*) as table_count FROM information_schema.tables WHERE table_schema = 'public';" || echo "Warning: Could not verify connection"
+          echo "Checking public tables..."
+          psql "postgresql://postgres:$PGPASSWORD@$DB_IPV4:5432/postgres?sslmode=require" -c "
+            SELECT table_name FROM information_schema.tables
+            WHERE table_schema = 'public'
+            ORDER BY table_name;" || echo "::warning::Could not verify tables"
 
   deploy-functions:
     runs-on: ubuntu-latest
