@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Pencil, Trash2, Users } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Pencil, Trash2, Users, Package } from "lucide-react";
 import type { Role } from "@/contexts/AppContext";
+import type { Product } from "@/contexts/types";
 import EmployeeFormDialog from "./EmployeeFormDialog";
 
 interface Employee {
@@ -10,6 +12,7 @@ interface Employee {
   name: string;
   role: Role;
   role_definition_id?: string | null;
+  allowed_product_ids?: string[] | null;
 }
 
 interface UserManagementTableProps {
@@ -28,6 +31,9 @@ interface UserManagementTableProps {
   setEmpPassword: (v: string) => void;
   empRoleDefId: string;
   setEmpRoleDefId: (v: string) => void;
+  empAllowedProductIds: string[];
+  setEmpAllowedProductIds: (v: string[]) => void;
+  products: Product[];
   onEmpSubmit: () => void;
   onEmpReset: () => void;
   onEmpEdit: (profile: Employee) => void;
@@ -51,6 +57,9 @@ export default function UserManagementTable({
   setEmpPassword,
   empRoleDefId,
   setEmpRoleDefId,
+  empAllowedProductIds,
+  setEmpAllowedProductIds,
+  products,
   onEmpSubmit,
   onEmpReset,
   onEmpEdit,
@@ -75,12 +84,13 @@ export default function UserManagementTable({
               <tr className="border-b bg-muted/50">
                 <th className="text-right p-3 font-semibold text-foreground">שם</th>
                 <th className="text-right p-3 font-semibold text-foreground">תפקיד</th>
+                <th className="text-right p-3 font-semibold text-foreground">גישה למוצרים</th>
                 <th className="text-right p-3 font-semibold text-foreground">פעולות</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {employees.length === 0 ? (
-                <tr><td colSpan={3} className="p-6 text-center text-muted-foreground">אין משתמשים</td></tr>
+                <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">אין משתמשים</td></tr>
               ) : employees.map(u => {
                 const rd = nonManagerRoleDefinitions.find(r => r.id === u.role_definition_id)
                   ?? nonManagerRoleDefinitions.find(r => r.system_key === u.role);
@@ -89,6 +99,16 @@ export default function UserManagementTable({
                   <tr key={u.id} className="hover:bg-muted/30 transition-colors">
                     <td className="p-3 font-medium text-foreground">{u.name}</td>
                     <td className="p-3 text-muted-foreground">{displayRole}</td>
+                    <td className="p-3">
+                      {u.allowed_product_ids && u.allowed_product_ids.length > 0 ? (
+                        <Badge variant="outline" className="text-xs gap-1">
+                          <Package className="h-3 w-3" />
+                          {u.allowed_product_ids.length} מוצרים
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">הכל</span>
+                      )}
+                    </td>
                     <td className="p-3">
                       <div className="flex gap-1">
                         <Button variant="ghost" size="sm" onClick={() => onEmpEdit(u)}>
@@ -128,7 +148,10 @@ export default function UserManagementTable({
         setEmpPassword={setEmpPassword}
         empRoleDefId={empRoleDefId}
         setEmpRoleDefId={setEmpRoleDefId}
+        empAllowedProductIds={empAllowedProductIds}
+        setEmpAllowedProductIds={setEmpAllowedProductIds}
         nonManagerRoleDefinitions={nonManagerRoleDefinitions}
+        products={products}
         submitting={submitting}
         onSubmit={onEmpSubmit}
         onReset={onEmpReset}

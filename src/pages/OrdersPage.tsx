@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useProductScope } from "@/hooks/useProductScope";
 import { NewOrderDialog } from "@/components/orders/NewOrderDialog";
 import { OrdersDashboardView } from "@/components/orders/OrdersDashboardView";
 import { OrderFilters } from "@/components/orders/OrderFilters";
@@ -25,7 +26,8 @@ const priorityOrder: Record<string, number> = { "דחוף": 0, "גבוה": 1, "�
 const statusOrder: Record<string, number> = { PENDING: 0, ORDERED: 1, SHIPPED: 2, ARRIVED: 3, CANCELLED: 4 };
 
 export default function OrdersPage() {
-  const { orders, updateOrderStatus, updateOrder, addOrder, deleteOrder, suppliers, products } = useData();
+  const { updateOrderStatus, updateOrder, addOrder, deleteOrder, suppliers } = useData();
+  const { scopedOrders: orders, scopedProducts: products } = useProductScope();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [orderWorkflows, setOrderWorkflows] = useState<Record<string, WorkflowInfo>>({});

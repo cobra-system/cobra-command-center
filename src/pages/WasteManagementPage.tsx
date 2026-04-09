@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth, useData } from "@/contexts/AppContext";
+import { useProductScope } from "@/hooks/useProductScope";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/lib/supabase";
 import { Combobox } from "@/components/ui/combobox";
@@ -80,7 +81,7 @@ const emptyRow: EditingRow = {
 
 export default function WasteManagementPage() {
   const { currentUser } = useAuth();
-  const { products } = useData();
+  const { scopedProducts: products, isScoped, scopedProductNames } = useProductScope();
   const { hasEdit, isManager } = usePermissions("waste");
   const isMobile = useIsMobile();
 
@@ -159,6 +160,10 @@ export default function WasteManagementPage() {
 
   const filteredItems = useMemo(() => {
     let filtered = items;
+    // Filter by product scope
+    if (isScoped) {
+      filtered = filtered.filter((item) => scopedProductNames.has(item.product_name));
+    }
     if (search) {
       const q = search.toLowerCase();
       filtered = filtered.filter(
@@ -172,7 +177,7 @@ export default function WasteManagementPage() {
       filtered = filtered.filter((item) => item.created_by === filterEmployee);
     }
     return filtered;
-  }, [items, search, filterEmployee, isManager]);
+  }, [items, search, filterEmployee, isManager, isScoped, scopedProductNames]);
 
   const summaryStats = useMemo(() => {
     const total = items.length;

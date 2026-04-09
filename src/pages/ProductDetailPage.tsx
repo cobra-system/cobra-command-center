@@ -10,6 +10,7 @@ import DocumentsSection from "@/components/DocumentsSection";
 import ComplianceTab from "@/components/documents/ComplianceTab";
 import ProductEditDialog from "@/components/products/ProductEditDialog";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useProductScope } from "@/hooks/useProductScope";
 import { toast } from "sonner";
 import { ProductDetailsGrid } from "@/components/product-detail/ProductDetailsGrid";
 import { BOMTable } from "@/components/product-detail/BOMTable";
@@ -33,9 +34,10 @@ export default function ProductDetailPage() {
   const { hasEdit } = usePermissions("products");
   const { hasEdit: hasInventoryEdit } = usePermissions("inventory");
   const canEditStock = hasEdit || hasInventoryEdit;
+  const { isScoped, scopedProductIds } = useProductScope();
 
   const product = products.find(p => p.id === id);
-  if (!product) {
+  if (!product || (isScoped && id && !scopedProductIds.has(id))) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <p className="text-lg text-muted-foreground">מוצר לא נמצא</p>

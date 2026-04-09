@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
     }
 
     const supabaseAdmin = authResult.auth.supabaseAdmin;
-    const { action, employee_id, name, role, password, role_definition_id } = await req.json();
+    const { action, employee_id, name, role, password, role_definition_id, allowed_product_ids } = await req.json();
 
     if (action === "update") {
       if (!employee_id) {
@@ -45,10 +45,11 @@ Deno.serve(async (req) => {
         });
       }
 
-      const updates: Record<string, string | null> = {};
+      const updates: Record<string, unknown> = {};
       if (name) updates.name = name;
       if (role) updates.role = role;
       if (role_definition_id !== undefined) updates.role_definition_id = role_definition_id;
+      if (allowed_product_ids !== undefined) updates.allowed_product_ids = allowed_product_ids;
 
       await supabaseAdmin.from("profiles").update(updates).eq("id", employee_id);
 

@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useProductScope } from "@/hooks/useProductScope";
 import { toast } from "sonner";
 
 const allStatuses: { value: OrderStatus; label: string }[] = [
@@ -49,7 +50,8 @@ const priorityOptions = priorities.map(p => ({ value: p.value, label: p.label })
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { orders, updateOrderStatus, updateOrder, deleteOrder, suppliers, products, refreshOrders, updateProduct, updateComponent } = useData();
+  const { updateOrderStatus, updateOrder, deleteOrder, refreshOrders, updateProduct, updateComponent } = useData();
+  const { scopedOrders: orders, scopedSuppliers: suppliers, scopedProducts: products } = useProductScope();
 
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [inventoryDialog, setInventoryDialog] = useState(false);

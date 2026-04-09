@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth, type Supplier } from "@/contexts/AppContext";
+import { useProductScope } from "@/hooks/useProductScope";
 import { Search, Plus, ArrowUpDown, ArrowUp, ArrowDown, Globe, GitMerge, AlertTriangle, ExternalLink, Eye, Trash2, Pencil, ShoppingCart, Mail } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Input } from "@/components/ui/input";
@@ -80,7 +81,8 @@ export default function SuppliersPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { hasEdit } = usePermissions("suppliers");
-  const { suppliers, addSupplier, updateSupplier, deleteSupplier, refreshSuppliers } = useData();
+  const { addSupplier, updateSupplier, deleteSupplier, refreshSuppliers } = useData();
+  const { scopedSuppliers: suppliers } = useProductScope();
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
