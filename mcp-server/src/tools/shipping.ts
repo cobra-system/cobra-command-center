@@ -245,12 +245,17 @@ export function registerShippingTools(server: McpServer) {
 
   server.tool(
     "update_order_eta_from_dhl",
-    "עדכון ETA מ-DHL — Track a DHL shipment and auto-update the order ETA if changed",
+    "עדכון ETA מ-DHL — Fetch DHL ETA and propose update (dry_run=true by default — does NOT save without confirmation)",
     {
       order_id: z.string().uuid().describe("Order UUID to update"),
       tracking_number: z.string().describe("DHL tracking number"),
+      dry_run: z.boolean().default(true).describe(
+        "Default true — returns the proposed ETA change WITHOUT saving. " +
+        "Set to false to actually update the order. " +
+        "Always review the proposed change before setting dry_run=false."
+      ),
     },
-    async ({ order_id, tracking_number }) => {
+    async ({ order_id, tracking_number, dry_run }) => {
       const apiKey = process.env.DHL_API_KEY;
 
       if (!apiKey) {
@@ -281,6 +286,8 @@ export function registerShippingTools(server: McpServer) {
 
         const dhlEta = shipments[0].estimatedTimeOfDelivery as string | null;
         const dhlStatus = ((shipments[0].status as Record<string, unknown>)?.description as string) || "";
+        const dhlEvents = (shipments[0].events as Record<string, unknown>[]) || [];
+        const latestEvent = dhlEvents[0];
 
         if (!dhlEta) {
           return { content: [{ type: "text" as const, text: `DHL has no estimated delivery date for ${tracking_number}.\nCurrent status: ${dhlStatus}` }] };
@@ -288,20 +295,63 @@ export function registerShippingTools(server: McpServer) {
 
         const newEta = dhlEta.split("T")[0];
 
-        const { data: currentOrder } = await supabase.from("orders").select("eta, notes").eq("id", order_id).single();
+        const { data: currentOrder } = await supabase.from("orders").select("eta, notes, supplier_name, pi_number").eq("id", order_id).single();
         const oldEta = currentOrder?.eta ? (currentOrder.eta as string).split("T")[0] : null;
 
-        if (oldEta === newEta) {
-          return { content: [{ type: "text" as const, text: `ETA unchanged: ${newEta}\nDHL status: ${dhlStatus}` }] };
+        const proposal = {
+          order_id,
+          supplier: currentOrder?.supplier_name,
+          pi_number: currentOrder?.pi_number,
+          current_eta_in_cobra: oldEta || "not set",
+          dhl_proposed_eta: newEta,
+          eta_changed: oldEta !== newEta,
+          dhl_status: dhlStatus,
+          dhl_latest_event: latestEvent ? {
+            time: latestEvent.timestamp,
+            location: (latestEvent.location as Record<string, unknown>)?.address,
+            description: latestEvent.description,
+          } : null,
+        };
+
+        if (!proposal.eta_changed) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: `✅ ETA unchanged: ${newEta}\nDHL status: ${dhlStatus}\n\nNo update needed.`,
+            }],
+          };
         }
 
-        // Save old notes to history and update ETA
+        // DRY RUN: return proposal without saving
+        if (dry_run) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: [
+                "🔍 DRY RUN — no changes saved.",
+                "",
+                `Proposed ETA change:`,
+                `  Current ETA in COBRA: ${oldEta || "not set"}`,
+                `  DHL proposed ETA:     ${newEta}`,
+                `  DHL status:           ${dhlStatus}`,
+                "",
+                "To apply this update, call again with dry_run=false:",
+                `  update_order_eta_from_dhl(order_id="${order_id}", tracking_number="${tracking_number}", dry_run=false)`,
+                "",
+                "Full proposal:",
+                JSON.stringify(proposal, null, 2),
+              ].join("\n"),
+            }],
+          };
+        }
+
+        // APPLY: save old notes to history and update ETA
         if (currentOrder) {
           await supabase.from("order_notes_history").insert({
             order_id,
-            note_text: currentOrder.notes,
+            note_text: currentOrder.notes as string | null,
             changed_at: new Date().toISOString(),
-            change_reason: `ETA auto-updated from DHL tracking: ${oldEta} → ${newEta}`,
+            change_reason: `ETA updated from DHL tracking: ${oldEta} → ${newEta}`,
           });
         }
 
@@ -310,7 +360,7 @@ export function registerShippingTools(server: McpServer) {
           .update({
             eta: newEta,
             tracking_number,
-            notes: `${currentOrder?.notes || ""}\n[${new Date().toISOString().split("T")[0]}] DHL ETA updated: ${newEta} (was: ${oldEta || "not set"}). Status: ${dhlStatus}`.trim(),
+            notes: `${(currentOrder?.notes as string) || ""}\n[${new Date().toISOString().split("T")[0]}] DHL ETA updated: ${newEta} (was: ${oldEta || "not set"}). Status: ${dhlStatus}`.trim(),
           })
           .eq("id", order_id)
           .select()
@@ -321,7 +371,7 @@ export function registerShippingTools(server: McpServer) {
         return {
           content: [{
             type: "text" as const,
-            text: `Order ETA updated from DHL:\n  Old ETA: ${oldEta || "not set"}\n  New ETA: ${newEta}\n  DHL Status: ${dhlStatus}\n\nUpdated order:\n${JSON.stringify(updatedOrder, null, 2)}`,
+            text: `✅ Order ETA updated from DHL:\n  Old ETA: ${oldEta || "not set"}\n  New ETA: ${newEta}\n  DHL Status: ${dhlStatus}\n\nUpdated order:\n${JSON.stringify(updatedOrder, null, 2)}`,
           }],
         };
       } catch (err) {

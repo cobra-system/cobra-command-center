@@ -70,31 +70,36 @@ export function registerOrderTools(server: McpServer) {
 
   server.tool(
     "get_order_by_pi",
-    "חיפוש הזמנה לפי מספר PI — Find an order by its Proforma Invoice number",
+    "חיפוש הזמנה לפי מספר PI — Find an order by its Proforma Invoice number (fuzzy — handles revisions like iSV251224003rev1)",
     {
-      pi_number: z.string().describe("PI number to search for (exact or partial match)"),
+      pi_number: z.string().describe("PI number or partial PI number to search for. Fuzzy match — 'iSV251224003' will match 'iSV251224003rev1', 'iSV251224003b', etc."),
     },
     async ({ pi_number }) => {
-      // Try exact match first
-      const { data: exact } = await supabase
+      // Pure fuzzy: search pi_number field and notes in one pass.
+      // This handles revisions (iSV251224003rev1), suffixes (iSV260112001b),
+      // and PI numbers that were stored in notes before the pi_number field existed.
+      const { data, error } = await supabase
         .from("orders")
         .select("*")
-        .eq("pi_number", pi_number);
+        .or(`pi_number.ilike.%${pi_number}%,notes.ilike.%${pi_number}%`)
+        .order("created_at", { ascending: false });
 
-      if (exact && exact.length > 0) {
-        return { content: [{ type: "text" as const, text: JSON.stringify(exact, null, 2) }] };
-      }
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
 
-      // Fallback: partial match on pi_number or notes
-      const { data: partial } = await supabase
-        .from("orders")
-        .select("*")
-        .or(`pi_number.ilike.%${pi_number}%,notes.ilike.%${pi_number}%`);
-
-      if (!partial || partial.length === 0) {
+      if (!data || data.length === 0) {
         return { content: [{ type: "text" as const, text: `No orders found for PI number "${pi_number}"` }] };
       }
-      return { content: [{ type: "text" as const, text: JSON.stringify(partial, null, 2) }] };
+
+      // Sort: orders with pi_number field set first, then notes-only matches
+      const sorted = [...data].sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+        const aHasPi = Boolean(a.pi_number);
+        const bHasPi = Boolean(b.pi_number);
+        if (aHasPi && !bHasPi) return -1;
+        if (!aHasPi && bHasPi) return 1;
+        return 0;
+      });
+
+      return { content: [{ type: "text" as const, text: JSON.stringify(sorted, null, 2) }] };
     }
   );
 

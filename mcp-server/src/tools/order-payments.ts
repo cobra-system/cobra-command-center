@@ -217,16 +217,17 @@ export function registerOrderPaymentTools(server: McpServer) {
 
   server.tool(
     "match_swift_to_payment",
-    "התאמת SWIFT לתשלום — Search for a pending order payment matching a SWIFT transfer amount",
+    "התאמת SWIFT לתשלום — Search for a pending order payment matching a SWIFT transfer by amount + date window",
     {
       amount: z.number().describe("Payment amount from bank statement"),
       currency: z.enum(["USD", "EUR", "ILS"]).default("USD").describe("Currency"),
-      tolerance_percent: z.number().default(1).describe("Amount tolerance % for fuzzy matching (default 1%)"),
+      tolerance_percent: z.number().default(2).describe("Amount tolerance % for fuzzy matching (default 2% — accounts for bank fees and exchange rate rounding)"),
       supplier_name: z.string().optional().describe("Supplier/beneficiary name (partial match)"),
-      date: z.string().optional().describe("Transfer date (YYYY-MM-DD) — used to filter orders by period"),
+      transfer_date: z.string().optional().describe("Actual transfer date from bank statement (YYYY-MM-DD). Used to filter by due_date ±7 days."),
+      date_window_days: z.number().default(7).describe("Days around transfer_date to search within (default ±7 days from due_date)"),
       swift_reference: z.string().optional().describe("SWIFT reference if already known — will be saved to matched payment"),
     },
-    async ({ amount, currency, tolerance_percent, supplier_name, date, swift_reference }) => {
+    async ({ amount, currency, tolerance_percent, supplier_name, transfer_date, date_window_days, swift_reference }) => {
       const tolerance = amount * (tolerance_percent / 100);
       const minAmount = amount - tolerance;
       const maxAmount = amount + tolerance;
@@ -243,33 +244,73 @@ export function registerOrderPaymentTools(server: McpServer) {
         query = query.ilike("orders.supplier_name", `%${supplier_name}%`);
       }
 
+      // Date window: filter by due_date ±N days around the transfer date.
+      // SWIFT can go out before or after due_date (exchange rate fluctuations,
+      // bank processing delays, weekend offsets).
+      if (transfer_date) {
+        const refDate = new Date(transfer_date);
+        const windowMs = date_window_days * 24 * 60 * 60 * 1000;
+        const dateFrom = new Date(refDate.getTime() - windowMs).toISOString().split("T")[0];
+        const dateTo = new Date(refDate.getTime() + windowMs).toISOString().split("T")[0];
+        query = query.gte("due_date", dateFrom).lte("due_date", dateTo);
+      }
+
       const { data: matches, error } = await query;
 
       if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
 
-      if (!matches || matches.length === 0) {
+      // If no matches with date window, retry without date filter and warn
+      let finalMatches = matches || [];
+      let dateWindowApplied = Boolean(transfer_date);
+      if (finalMatches.length === 0 && transfer_date) {
+        const { data: noDateMatches } = await supabase
+          .from("order_payments")
+          .select("*, orders!inner(id, supplier_name, pi_number, status, total_price)")
+          .eq("currency", currency)
+          .gte("amount", minAmount)
+          .lte("amount", maxAmount)
+          .eq("status", "ממתין");
+        finalMatches = noDateMatches || [];
+        dateWindowApplied = false;
+      }
+
+      if (finalMatches.length === 0) {
         return {
           content: [{
             type: "text" as const,
             text: [
               `No pending order payments found matching ${amount} ${currency} (±${tolerance_percent}%).`,
               supplier_name ? `Supplier filter: "${supplier_name}"` : "",
+              transfer_date ? `Transfer date: ${transfer_date} (±${date_window_days} days)` : "",
               "",
-              "Try: broaden the tolerance, check the currency, or verify the amount.",
+              "Suggestions:",
+              "  • Broaden tolerance_percent (default 2%, try 5%)",
+              "  • Check the currency",
+              "  • Increase date_window_days",
+              "  • Verify the amount (SWIFT amount may differ from order amount due to bank fees)",
             ].filter(Boolean).join("\n"),
           }],
         };
       }
 
       const result: Record<string, unknown> = {
-        search: { amount, currency, tolerance_percent, supplier_name },
-        matches_found: matches.length,
-        matches,
+        search: {
+          amount, currency, tolerance_percent, supplier_name,
+          transfer_date: transfer_date || null,
+          date_window_days,
+          date_window_applied: dateWindowApplied,
+          amount_range: { min: minAmount, max: maxAmount },
+        },
+        matches_found: finalMatches.length,
+        matches: finalMatches,
+        note: !dateWindowApplied && transfer_date
+          ? `⚠️  No matches within ±${date_window_days} days of ${transfer_date} — showing all pending matches regardless of due_date`
+          : undefined,
       };
 
       // If SWIFT reference provided and exactly one match found, offer to update it
-      if (swift_reference && matches.length === 1) {
-        const paymentId = (matches[0] as Record<string, unknown>).id as string;
+      if (swift_reference && finalMatches.length === 1) {
+        const paymentId = (finalMatches[0] as Record<string, unknown>).id as string;
         const { data: updated, error: updateErr } = await supabase
           .from("order_payments")
           .update({ swift_reference })
@@ -283,7 +324,7 @@ export function registerOrderPaymentTools(server: McpServer) {
           result.swift_reference_saved = true;
           result.updated_payment = updated;
         }
-      } else if (swift_reference && matches.length > 1) {
+      } else if (swift_reference && finalMatches.length > 1) {
         result.swift_note = `Multiple matches found — cannot auto-assign SWIFT reference. Use update_order_payment with the specific payment ID.`;
       }
 

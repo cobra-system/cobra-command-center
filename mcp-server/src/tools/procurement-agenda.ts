@@ -118,18 +118,48 @@ export function registerProcurementAgendaTools(server: McpServer) {
         };
       };
 
-      // Also fetch ETA alerts (orders that need action)
-      const { data: etaAlerts } = await supabase
-        .from("orders")
-        .select("id, supplier_name, status, eta, pi_number, vessel_name, total_price")
-        .in("status", ["ORDERED", "SHIPPED"])
-        .lt("eta", today);
+      // Fetch supplementary data in parallel
+      const [etaAlertsRes, customsOrdersRes, pendingPiOrdersRes] = await Promise.all([
+        // ETA alerts: shipped orders whose ETA has passed
+        supabase
+          .from("orders")
+          .select("id, supplier_name, status, eta, pi_number, vessel_name, total_price")
+          .in("status", ["ORDERED", "SHIPPED"])
+          .lt("eta", today),
+        // Orders awaiting customs
+        supabase
+          .from("orders")
+          .select("id, supplier_name, status, eta, pi_number, vessel_name, total_price")
+          .in("status", ["ARRIVED_PORT", "CUSTOMS_CLEARANCE"]),
+        // Orders with PI but NO Deposit payment in order_payments yet
+        // = PIs received from supplier, not yet approved/paid
+        supabase
+          .from("orders")
+          .select("id, supplier_name, status, total_price, pi_number, etd, vessel_name, created_at")
+          .not("pi_number", "is", null)
+          .in("status", ["PENDING", "ORDERED"]),
+      ]);
 
-      // Fetch orders awaiting customs
-      const { data: customsOrders } = await supabase
-        .from("orders")
-        .select("id, supplier_name, status, eta, pi_number, vessel_name, total_price")
-        .in("status", ["ARRIVED_PORT", "CUSTOMS_CLEARANCE"]);
+      const etaAlerts = etaAlertsRes.data || [];
+      const customsOrders = customsOrdersRes.data || [];
+      const pendingPiCandidates = pendingPiOrdersRes.data || [];
+
+      // From the pending-PI candidates, keep only those with NO order_payments row at all
+      // (no deposit scheduled means PI hasn't been approved for payment yet)
+      let pisPendingApproval: typeof pendingPiCandidates = [];
+      if (pendingPiCandidates.length > 0) {
+        const candidateIds = pendingPiCandidates.map((o: Record<string, unknown>) => o.id as string);
+        const { data: existingPayments } = await supabase
+          .from("order_payments")
+          .select("order_id")
+          .in("order_id", candidateIds);
+        const ordersWithPayments = new Set(
+          (existingPayments || []).map((p: Record<string, unknown>) => p.order_id as string)
+        );
+        pisPendingApproval = pendingPiCandidates.filter(
+          (o: Record<string, unknown>) => !ordersWithPayments.has(o.id as string)
+        );
+      }
 
       const agenda = {
         generated_at: new Date().toISOString(),
@@ -139,11 +169,18 @@ export function registerProcurementAgendaTools(server: McpServer) {
           overdue: overdue.length,
           due_this_week: dueThisWeek.length,
           due_this_month: dueThisMonth.length,
+          pis_awaiting_approval: pisPendingApproval.length,
           total_by_currency: sumByCurrency(allPayments),
           overdue_by_currency: sumByCurrency(overdue),
           due_this_week_by_currency: sumByCurrency(dueThisWeek),
         },
         agenda_items: {
+          "0_pis_awaiting_approval": {
+            title: "📋 PIs חדשים ממתינים לאישור — New PIs Awaiting Payment Decision",
+            count: pisPendingApproval.length,
+            description: "Orders with a PI number but no payment schedule set yet — need decision: approve and set deposit due date, or hold",
+            items: pisPendingApproval,
+          },
           "1_overdue_payments": {
             title: "🔴 תשלומים באיחור — Overdue Payments",
             count: overdue.length,
@@ -169,14 +206,14 @@ export function registerProcurementAgendaTools(server: McpServer) {
           },
           "5_eta_alerts": {
             title: "⚠️ הזמנות עם ETA שעבר — Orders with Overdue ETA",
-            count: (etaAlerts || []).length,
+            count: etaAlerts.length,
             description: "These orders are still ORDERED/SHIPPED but ETA has passed — need status update",
-            items: etaAlerts || [],
+            items: etaAlerts,
           },
           "6_customs_clearance": {
             title: "🛃 בתהליך שחרור מכס — Orders in Customs",
-            count: (customsOrders || []).length,
-            items: customsOrders || [],
+            count: customsOrders.length,
+            items: customsOrders,
           },
         },
       };
@@ -188,6 +225,14 @@ export function registerProcurementAgendaTools(server: McpServer) {
         "## סיכום תשלומים ממתינים",
         "",
       ];
+
+      if (pisPendingApproval.length > 0) {
+        markdownLines.push(`### 📋 PIs ממתינים לאישור (${pisPendingApproval.length})`);
+        for (const o of pisPendingApproval as Record<string, unknown>[]) {
+          markdownLines.push(`- **${o.supplier_name}** | PI: ${o.pi_number} | ${o.total_price ? `$${o.total_price}` : "—"} | Status: ${o.status}`);
+        }
+        markdownLines.push("");
+      }
 
       if (overdue.length > 0) {
         markdownLines.push(`### 🔴 באיחור (${overdue.length} תשלומים)`);
