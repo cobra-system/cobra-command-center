@@ -11,9 +11,15 @@
 
 ## [2026-04-09]
 
+- Merge pull request #110 from cobra-system/claude/create-restricted-account-pbCgg (ee9f43c)
+- feat: add product-scoped employee access control (973ed3d)
+
+<!-- last-commit: ee9f43c38d5665ef1a358a1c3f74fd5efd332332 -->
+
+## [2026-04-09]
+
 - Fix country dropdown in supplier form to show all existing countries (3d94ca3)
 
-<!-- last-commit: 6864ea664ca10afc65ac4436065104b8f752b07f -->
 
 ## [2026-04-09]
 
