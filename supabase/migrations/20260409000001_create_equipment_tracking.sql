@@ -1,5 +1,6 @@
 -- ============================================================
 -- Equipment Tracking: Installers, Pickups, and Returns
+-- Applied via CI on claude/installer-equipment-tracking-xRKGD
 -- ============================================================
 
 -- Table: installers — מתקינים
