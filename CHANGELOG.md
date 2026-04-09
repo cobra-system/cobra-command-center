@@ -9,6 +9,13 @@
 
 ---
 
+## [2026-04-09]
+
+- fix(documents): fix garbled PDF text by using pdfjs transform parameter (0d4bab0)
+- fix(documents): fix freehand drawing, folder creation errors, and name truncation (3ccee5a)
+
+<!-- last-commit: 82169172b6739c85d38ffcc228752ae5248b50cb -->
+
 ## [2026-04-08]
 
 - Merge pull request #107 from cobra-system/claude/organize-documents-folders-F0um8 (6d90f89)
@@ -16,7 +23,6 @@
 - fix(documents): fix silent errors, type safety, storage cleanup, and stale selections (ef640c5)
 - fix(documents): fix PDF annotation drawing and text rendering quality (1fba7c2)
 
-<!-- last-commit: 6d90f896b7d3a01095714847b9f6f09429d8ab80 -->
 
 ## [2026-04-08]
 
