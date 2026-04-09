@@ -23,6 +23,9 @@ import { registerLearningJournalTools } from "./tools/learning-journal.js";
 import { registerGoalTools } from "./tools/goals.js";
 import { registerAuditLogTools } from "./tools/audit-logs.js";
 import { registerUserPreferenceTools } from "./tools/user-preferences.js";
+import { registerShippingTools } from "./tools/shipping.js";
+import { registerOrderPaymentTools } from "./tools/order-payments.js";
+import { registerProcurementAgendaTools } from "./tools/procurement-agenda.js";
 import { registerEquipmentTools } from "./tools/equipment.js";
 
 const server = new McpServer({
@@ -54,6 +57,9 @@ registerLearningJournalTools(server);
 registerGoalTools(server);
 registerAuditLogTools(server);
 registerUserPreferenceTools(server);
+registerShippingTools(server);
+registerOrderPaymentTools(server);
+registerProcurementAgendaTools(server);
 registerEquipmentTools(server);
 
 // Start the server with stdio transport
