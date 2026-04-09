@@ -4,6 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { useData, useAuth } from "@/contexts/AppContext";
 import { logger } from "@/lib/logger";
 import {
+  getLocalFolders, removeLocalFolder, setLocalAssignment,
+  getLocalAssignments, toggleLocalStar, getLocalStarred,
+} from "@/lib/folderStore";
+import {
   Folder, FolderOpen, FileText, FileSpreadsheet, File,
   LayoutGrid, List, ChevronLeft, Paperclip, Trash2, Eye,
   RefreshCw, ShoppingCart, Package, Copy, MoreVertical,
@@ -134,8 +138,9 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
   const navigate = useNavigate();
   const { hasEdit } = usePermissions("documents");
 
-  // ── folder state ─────────────────────────────────────────────────────────────
-  const [folders, setFolders] = useState<DocumentFolder[]>([]);
+  // ── folder state (localStorage-backed) ───────────────────────────────────────
+  const [folders,       setFolders]       = useState<DocumentFolder[]>(() => getLocalFolders());
+  const [folderVersion, setFolderVersion] = useState(0);
   const [view, setView] = useState<FolderView>({ kind: "root" });
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -162,13 +167,26 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
   // Clear selection when navigating between views
   useEffect(() => { setSelectedIds(new Set()); }, [view]);
 
-  // ── fetch real folders ────────────────────────────────────────────────────────
-  const fetchFolders = useCallback(async () => {
-    const { data } = await supabase.from("document_folders").select("*").order("created_at");
-    if (data) setFolders(data as DocumentFolder[]);
+  // ── sync folders from localStorage on every mutation ─────────────────────────
+  const fetchFolders = useCallback(() => {
+    setFolders(getLocalFolders());
+    setFolderVersion(v => v + 1);
   }, []);
 
-  useEffect(() => { fetchFolders(); }, [fetchFolders]);
+  useEffect(() => {
+    window.addEventListener("cobra:folders-updated", fetchFolders);
+    return () => window.removeEventListener("cobra:folders-updated", fetchFolders);
+  }, [fetchFolders]);
+
+  // Derived local state (re-computed whenever folderVersion bumps)
+  const localAssigns = useMemo(() => getLocalAssignments(), [folderVersion]);
+  const localStars   = useMemo(() => getLocalStarred(),     [folderVersion]);
+
+  // Effective star / folder helpers
+  const isStarred    = useCallback((doc: PurchaseDocument) =>
+    localStars.has(doc.id) || doc.is_starred === true, [localStars]);
+  const folderId     = useCallback((doc: PurchaseDocument) =>
+    localAssigns[doc.id] ?? doc.folder_id ?? null, [localAssigns]);
 
   // ── helpers ───────────────────────────────────────────────────────────────────
   const supplierName = useCallback((id: string | null) => suppliers.find(s => s.id === id)?.company || "—", [suppliers]);
@@ -185,8 +203,8 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
 
     if (view.kind === "root") return [];
     if (view.kind === "smart")   result = docs.filter(d => d.type === view.typeId);
-    if (view.kind === "real")    result = docs.filter(d => d.folder_id === view.folder.id);
-    if (view.kind === "starred") result = docs.filter(d => d.is_starred);
+    if (view.kind === "real")    result = docs.filter(d => folderId(d) === view.folder.id);
+    if (view.kind === "starred") result = docs.filter(d => isStarred(d));
 
     if (statusFilter !== "all") result = result.filter(d => d.status === statusFilter);
     if (search) {
@@ -198,15 +216,15 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
       );
     }
     return result;
-  }, [docs, view, statusFilter, search, supplierName, productName]);
+  }, [docs, view, statusFilter, search, supplierName, productName, folderId, isStarred]);
 
   const smartCounts  = useMemo(() => Object.fromEntries(
     SMART_FOLDERS.map(f => [f.id, docs.filter(d => d.type === f.id).length])
   ), [docs]);
   const realCounts   = useMemo(() => Object.fromEntries(
-    folders.map(f => [f.id, docs.filter(d => d.folder_id === f.id).length])
-  ), [docs, folders]);
-  const starredCount = useMemo(() => docs.filter(d => d.is_starred).length, [docs]);
+    folders.map(f => [f.id, docs.filter(d => folderId(d) === f.id).length])
+  ), [docs, folders, folderId]);
+  const starredCount = useMemo(() => docs.filter(d => isStarred(d)).length, [docs, isStarred]);
 
   // ── mutations ─────────────────────────────────────────────────────────────────
   const handleStatusChange = async (docId: string, newStatus: string) => {
@@ -242,29 +260,19 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
     }
   };
 
-  const handleToggleStar = async (doc: PurchaseDocument) => {
-    const { error } = await supabase.from("purchase_documents").update({ is_starred: !doc.is_starred }).eq("id", doc.id);
-    if (error) { toast.error("שגיאה בעדכון"); return; }
-    onRefresh();
+  const handleToggleStar = (doc: PurchaseDocument) => {
+    toggleLocalStar(doc.id);
   };
 
-  const handleMoveToFolder = async (docId: string, folderId: string | null) => {
-    const { error } = await supabase.from("purchase_documents").update({ folder_id: folderId }).eq("id", docId);
-    if (error) { toast.error("שגיאה בהעברת מסמך"); return; }
-    toast.success(folderId ? "הועבר לתיקייה" : "הוסר מהתיקייה");
-    onRefresh();
+  const handleMoveToFolder = (docId: string, targetFolderId: string | null) => {
+    setLocalAssignment(docId, targetFolderId);
+    toast.success(targetFolderId ? "הועבר לתיקייה" : "הוסר מהתיקייה");
   };
 
-  const handleDeleteFolder = async (folder: DocumentFolder) => {
-    // Move documents to root first
-    const { error: moveErr } = await supabase.from("purchase_documents").update({ folder_id: null }).eq("folder_id", folder.id);
-    if (moveErr) { toast.error("שגיאה בהעברת מסמכים מהתיקייה"); return; }
-    const { error: delErr } = await supabase.from("document_folders").delete().eq("id", folder.id);
-    if (delErr) { toast.error("שגיאה במחיקת התיקייה"); return; }
+  const handleDeleteFolder = (folder: DocumentFolder) => {
+    removeLocalFolder(folder.id);   // also clears all doc assignments for this folder
     toast.success("התיקייה נמחקה");
     if (view.kind === "real" && view.folder.id === folder.id) setView({ kind: "root" });
-    fetchFolders();
-    onRefresh();
   };
 
   const openRename = (doc: PurchaseDocument) => {
@@ -309,7 +317,7 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
         ...(isPdf(doc) && onAnnotate ? [{ label: "ערוך / חתום", icon: Pencil, onClick: () => onAnnotate(doc) }] : []),
       ],
       [
-        { label: doc.is_starred ? "הסר מועדף" : "הוסף למועדפים", icon: Star, onClick: () => handleToggleStar(doc) },
+        { label: isStarred(doc) ? "הסר מועדף" : "הוסף למועדפים", icon: Star, onClick: () => handleToggleStar(doc) },
         {
           label: "העבר לתיקייה", icon: FolderSymlink,
           items: [
@@ -487,7 +495,7 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
                 >
                   <div className="relative">
                     {getFileIcon(doc)}
-                    {doc.is_starred && <Star className="absolute -top-1 -right-1 h-3 w-3 text-yellow-500 fill-yellow-400" />}
+                    {isStarred(doc) && <Star className="absolute -top-1 -right-1 h-3 w-3 text-yellow-500 fill-yellow-400" />}
                   </div>
                   <p className="text-xs font-medium text-foreground truncate w-full">
                     {doc.document_name || doc.notes || "ללא שם"}
@@ -568,7 +576,8 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
       {viewMode === "grid" && visibleDocs.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
           {visibleDocs.map(doc => {
-            const docName = doc.document_name || doc.notes || "ללא שם";
+            const docName  = doc.document_name || doc.notes || "ללא שם";
+            const starred  = isStarred(doc);
             return (
               <EntityContextMenu key={doc.id} groups={buildDocMenuGroups(doc)}>
                 <div
@@ -590,11 +599,11 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
 
                   {/* Star button */}
                   <button
-                    className={cn("absolute top-2 left-2 z-10 p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity", doc.is_starred && "opacity-100")}
+                    className={cn("absolute top-2 left-2 z-10 p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity", starred && "opacity-100")}
                     onClick={e => { e.stopPropagation(); handleToggleStar(doc); }}
-                    title={doc.is_starred ? "הסר מועדפים" : "הוסף למועדפים"}
+                    title={starred ? "הסר מועדפים" : "הוסף למועדפים"}
                   >
-                    <Star className={cn("h-4 w-4", doc.is_starred ? "text-yellow-500 fill-yellow-400" : "text-muted-foreground")} />
+                    <Star className={cn("h-4 w-4", starred ? "text-yellow-500 fill-yellow-400" : "text-muted-foreground")} />
                   </button>
 
                   {/* Thumbnail */}
@@ -720,6 +729,7 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
             <tbody className="divide-y">
               {visibleDocs.map(doc => {
                 const docName = doc.document_name || doc.notes || "ללא שם";
+                const starred = isStarred(doc);
                 return (
                   <EntityContextMenu key={doc.id} groups={buildDocMenuGroups(doc)}>
                     <tr
@@ -738,7 +748,7 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
                       {/* Star */}
                       <td className="p-3" onClick={e => e.stopPropagation()}>
                         <button onClick={() => handleToggleStar(doc)}>
-                          <Star className={cn("h-4 w-4", doc.is_starred ? "text-yellow-500 fill-yellow-400" : "text-muted-foreground/30 hover:text-yellow-400")} />
+                          <Star className={cn("h-4 w-4", starred ? "text-yellow-500 fill-yellow-400" : "text-muted-foreground/30 hover:text-yellow-400")} />
                         </button>
                       </td>
                       {/* Name */}

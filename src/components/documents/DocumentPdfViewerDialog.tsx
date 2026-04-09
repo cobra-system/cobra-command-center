@@ -65,19 +65,22 @@ export default function DocumentPdfViewerDialog({ open, onOpenChange, doc, onAnn
   const renderPage = useCallback(async () => {
     if (!pdfDoc || !canvasRef.current) return;
     const page = await pdfDoc.getPage(pageNum);
-    const vp   = page.getViewport({ scale, rotation });
-    const cvs  = canvasRef.current;
     const dpr  = window.devicePixelRatio || 1;
 
-    // Render at physical pixel resolution for crisp text on high-DPI screens
-    cvs.width  = Math.floor(vp.width * dpr);
-    cvs.height = Math.floor(vp.height * dpr);
-    cvs.style.width  = `${vp.width}px`;
-    cvs.style.height = `${vp.height}px`;
+    // displayVp  → logical (CSS) pixel size shown on screen
+    // physicalVp → physical pixel size that pdfjs renders into; DPR is baked
+    //              into the viewport scale so glyph positions are computed at
+    //              full device resolution (no ctx.scale or transform hacks).
+    const displayVp  = page.getViewport({ scale, rotation });
+    const physicalVp = page.getViewport({ scale: scale * dpr, rotation });
 
-    const ctx = cvs.getContext("2d")!;
-    const transform = dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] as const : undefined;
-    await page.render({ canvasContext: ctx, viewport: vp, transform }).promise;
+    const cvs = canvasRef.current;
+    cvs.width        = Math.floor(physicalVp.width);
+    cvs.height       = Math.floor(physicalVp.height);
+    cvs.style.width  = `${displayVp.width}px`;
+    cvs.style.height = `${displayVp.height}px`;
+
+    await page.render({ canvasContext: cvs.getContext("2d")!, viewport: physicalVp }).promise;
   }, [pdfDoc, pageNum, scale, rotation]);
 
   useEffect(() => { renderPage(); }, [renderPage]);

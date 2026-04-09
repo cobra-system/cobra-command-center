@@ -3,11 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AppContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { DocumentFolder } from "./types";
+import { upsertLocalFolder } from "@/lib/folderStore";
 
 const FOLDER_COLORS: { value: string; label: string; bg: string; ring: string }[] = [
   { value: "blue",   label: "כחול",   bg: "bg-blue-500",   ring: "ring-blue-500" },
@@ -27,9 +27,8 @@ interface Props {
 
 export default function CreateFolderDialog({ open, onOpenChange, onSaved, editFolder }: Props) {
   const { currentUser } = useAuth();
-  const [name, setName] = useState("");
+  const [name,  setName]  = useState("");
   const [color, setColor] = useState("blue");
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -38,36 +37,26 @@ export default function CreateFolderDialog({ open, onOpenChange, onSaved, editFo
     }
   }, [open, editFolder]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    setSaving(true);
-    try {
-      if (editFolder) {
-        const { error } = await supabase
-          .from("document_folders")
-          .update({ name: trimmed, color })
-          .eq("id", editFolder.id);
-        if (error) throw error;
-        toast.success("התיקייה עודכנה");
-      } else {
-        const { error } = await supabase
-          .from("document_folders")
-          .insert({ name: trimmed, color, created_by: currentUser?.id ?? null });
-        if (error) throw error;
-        toast.success("תיקייה נוצרה");
-      }
-      onSaved();
-      onOpenChange(false);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message
-        : typeof err === "object" && err !== null && "message" in err ? String((err as { message: unknown }).message)
-        : "שגיאה לא ידועה";
-      console.error("Folder save error:", err);
-      toast.error(`שגיאה בשמירת התיקייה: ${message}`);
-    } finally {
-      setSaving(false);
-    }
+
+    const now = new Date().toISOString();
+    const folder: DocumentFolder = editFolder
+      ? { ...editFolder, name: trimmed, color, updated_at: now }
+      : {
+          id:         crypto.randomUUID(),
+          name:       trimmed,
+          color,
+          created_by: currentUser?.id ?? null,
+          created_at: now,
+          updated_at: now,
+        };
+
+    upsertLocalFolder(folder);
+    toast.success(editFolder ? "התיקייה עודכנה" : "תיקייה נוצרה");
+    onSaved();
+    onOpenChange(false);
   };
 
   return (
@@ -106,7 +95,7 @@ export default function CreateFolderDialog({ open, onOpenChange, onSaved, editFo
           </div>
           <div className="flex gap-2 justify-end pt-1">
             <Button variant="outline" onClick={() => onOpenChange(false)}>ביטול</Button>
-            <Button onClick={handleSave} disabled={!name.trim() || saving}>
+            <Button onClick={handleSave} disabled={!name.trim()}>
               {editFolder ? "שמור" : "צור תיקייה"}
             </Button>
           </div>

@@ -83,26 +83,33 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
 
   // ── render page ─────────────────────────────────────────────────────────────
   const renderPage = useCallback(async (pdf: pdfjsLib.PDFDocumentProxy, num: number) => {
-    const page  = await pdf.getPage(num);
-    const scale = 1.5;
-    const vp    = page.getViewport({ scale });
+    const page       = await pdf.getPage(num);
+    const BASE_SCALE = 1.5;
+    const dpr        = window.devicePixelRatio || 1;
+
+    // displayVp  → logical (CSS) pixel dimensions; used by Fabric.js overlay
+    // physicalVp → physical pixel dimensions; bakes DPR into pdfjs viewport so
+    //              glyph positioning is calculated at full device resolution.
+    //              No ctx.scale() or transform parameter needed — pdfjs handles
+    //              all coordinate math internally when given a scaled viewport.
+    const displayVp  = page.getViewport({ scale: BASE_SCALE });
+    const physicalVp = page.getViewport({ scale: BASE_SCALE * dpr });
+
     const pdfCvs = pdfCanvasRef.current;
     if (!pdfCvs) return;
-    const dpr = window.devicePixelRatio || 1;
 
-    // Render at physical pixel resolution for crisp text on high-DPI screens
-    pdfCvs.width  = Math.floor(vp.width * dpr);
-    pdfCvs.height = Math.floor(vp.height * dpr);
-    pdfCvs.style.width  = `${vp.width}px`;
-    pdfCvs.style.height = `${vp.height}px`;
+    // Backing store at physical pixels, CSS display size at logical pixels
+    pdfCvs.width        = Math.floor(physicalVp.width);
+    pdfCvs.height       = Math.floor(physicalVp.height);
+    pdfCvs.style.width  = `${displayVp.width}px`;
+    pdfCvs.style.height = `${displayVp.height}px`;
 
-    const ctx = pdfCvs.getContext("2d")!;
-    const transform = dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] as const : undefined;
-    await page.render({ canvasContext: ctx, viewport: vp, transform }).promise;
+    await page.render({ canvasContext: pdfCvs.getContext("2d")!, viewport: physicalVp }).promise;
 
+    // Fabric canvas operates in logical pixel space
     const fc = fabricRef.current;
     if (fc) {
-      fc.setDimensions({ width: vp.width, height: vp.height });
+      fc.setDimensions({ width: displayVp.width, height: displayVp.height });
       const saved = annotationsRef.current[num];
       if (saved) {
         fc.loadFromJSON(saved.json).then(() => fc.renderAll());
