@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useData, useAuth, type Supplier, type SupplierContact, type Priority, type OrderStatus, type Product } from "@/contexts/AppContext";
@@ -13,6 +14,7 @@ import DocumentsSection from "@/components/DocumentsSection";
 import ProductFormDialog from "@/components/products/ProductFormDialog";
 import { InlineEditField } from "@/components/InlineEditField";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useProductScope } from "@/hooks/useProductScope";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -20,7 +22,8 @@ export default function SupplierDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { suppliers, orders, products, updateSupplier, deleteSupplier, refreshSuppliers, updateProduct } = useData();
+  const { updateSupplier, deleteSupplier, refreshSuppliers, updateProduct } = useData();
+  const { scopedSuppliers: suppliers, scopedOrders: orders, scopedProducts: products, isScoped } = useProductScope();
   const { hasEdit } = usePermissions("suppliers");
 
   const [editOpen, setEditOpen] = useState(false);

@@ -1,6 +1,7 @@
 import { useState, useMemo, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, categories, type Product } from "@/contexts/AppContext";
+import { useProductScope } from "@/hooks/useProductScope";
 import { Search, ChevronDown, ChevronUp, Boxes, Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye, Pencil, Truck, ShoppingCart, ClipboardList, Copy, Hash } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,8 @@ const sortableColumns: { key: SortKey; label: string }[] = [
 ];
 
 export default function ProductsPage() {
-  const { products, suppliers, deleteProduct } = useData();
+  const { suppliers, deleteProduct } = useData();
+  const { scopedProducts: products } = useProductScope();
   const navigate = useNavigate();
   const [category, setCategory] = useState("הכל");
   const [search, setSearch] = useState("");

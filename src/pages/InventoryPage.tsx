@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useData, useAuth } from "@/contexts/AppContext";
+import { useProductScope } from "@/hooks/useProductScope";
 import { supabase } from "@/lib/supabase";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,7 +67,8 @@ interface InventoryTransfer {
 }
 
 export default function InventoryPage() {
-  const { products, refreshProducts } = useData();
+  const { refreshProducts } = useData();
+  const { scopedProducts: products, isScoped, scopedProductIds } = useProductScope();
   const { currentUser } = useAuth();
   const { hasEdit } = usePermissions("inventory");
   const [centers, setCenters] = useState<DistributionCenter[]>([]);
@@ -169,10 +171,16 @@ export default function InventoryPage() {
   const mainCenter = centers.find(c => c.is_main);
   const bondedCenters = centers.filter(c => !c.is_main);
   const getContactsForCenter = (centerId: string) => contacts.filter(c => c.center_id === centerId);
-  const getTotalQty = (centerId: string) => inventory.filter(i => i.center_id === centerId).reduce((sum, i) => sum + i.quantity, 0);
+
+  // Filter inventory by product scope when applicable
+  const visibleInventory = isScoped
+    ? inventory.filter(i => i.product_id && scopedProductIds.has(i.product_id))
+    : inventory;
+
+  const getTotalQty = (centerId: string) => visibleInventory.filter(i => i.center_id === centerId).reduce((sum, i) => sum + i.quantity, 0);
 
   // Low stock alerts
-  const lowStockAlerts = inventory.filter(i => i.min_stock > 0 && i.quantity < i.min_stock);
+  const lowStockAlerts = visibleInventory.filter(i => i.min_stock > 0 && i.quantity < i.min_stock);
 
   const handleAddCenter = async () => {
     if (!newCenterName.trim()) return;

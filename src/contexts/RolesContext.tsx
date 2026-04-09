@@ -16,7 +16,7 @@ interface RolesState {
   refreshRolePermissions: () => Promise<void>;
   addProfile: (profile: { email: string; name: string; role: Role }) => Promise<void>;
   updateProfile: (id: string, updates: Partial<Profile>) => Promise<void>;
-  createEmployee: (data: { name: string; role: Role; email: string; password: string; role_definition_id?: string }) => Promise<string | null>;
+  createEmployee: (data: { name: string; role: Role; email: string; password: string; role_definition_id?: string; allowed_product_ids?: string[] }) => Promise<string | null>;
   addRoleDefinition: (name: string) => Promise<void>;
   updateRoleDefinition: (id: string, name: string) => Promise<void>;
   deleteRoleDefinition: (id: string) => Promise<void>;
@@ -107,7 +107,7 @@ export function RolesProvider({ currentUser, children }: { currentUser: Profile 
     }
   }, [queryClient]);
 
-  const createEmployee = useCallback(async (data: { name: string; role: Role; email: string; password: string; role_definition_id?: string }): Promise<string | null> => {
+  const createEmployee = useCallback(async (data: { name: string; role: Role; email: string; password: string; role_definition_id?: string; allowed_product_ids?: string[] }): Promise<string | null> => {
     try {
       const url = `${SUPABASE_URL}/functions/v1/create-employee`;
       const sess = await supabase.auth.getSession();

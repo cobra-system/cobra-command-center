@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Apply pending database migrations
  * This ensures the user_preferences table exists before the app starts using it
@@ -7,7 +8,7 @@
 import { supabase } from "@/lib/supabase";
 
 const MIGRATION_KEY = "cobra_migrations_applied"
-const CURRENT_VERSION = "20260331_add_waste_items_table"
+const CURRENT_VERSION = "20260409_add_product_scope_to_profiles"
 
 const INTERNATIONAL_TEMPLATE_ID = "b5a990c9-579d-4d9f-8e9a-90a8856ad00b";
 const ISRAEL_TEMPLATE_ID = "c7b881d0-68ae-4e0a-9f1b-a1b9967be11c";
@@ -325,6 +326,15 @@ export async function applyMigrations() {
       );
       // Do NOT set localStorage — migration will retry on next load
       return false;
+    }
+
+    // Migration 7: Add allowed_product_ids to profiles for product-scoped access
+    try {
+      await supabase.rpc("exec_sql" as any, {
+        sql: "ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS allowed_product_ids text[] DEFAULT NULL;"
+      });
+    } catch {
+      console.warn("allowed_product_ids column may need to be added via Supabase dashboard");
     }
 
     localStorage.setItem(MIGRATION_KEY, CURRENT_VERSION)

@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { name, role, email, password, role_definition_id } = await req.json();
+    const { name, role, email, password, role_definition_id, allowed_product_ids } = await req.json();
     const validRoles = ["MANAGER", "WAREHOUSE_MANAGER", "LOGISTICS", "DRIVER"] as const;
 
     if (!name || !role || !email) {
@@ -79,6 +79,7 @@ Deno.serve(async (req) => {
 
     const profileData: Record<string, unknown> = { id: newUser.user.id, name, role };
     if (role_definition_id) profileData.role_definition_id = role_definition_id;
+    if (Array.isArray(allowed_product_ids)) profileData.allowed_product_ids = allowed_product_ids;
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
       .upsert(profileData, { onConflict: "id" });
