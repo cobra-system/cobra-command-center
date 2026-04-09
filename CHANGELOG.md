@@ -11,10 +11,18 @@
 
 ## [2026-04-09]
 
+- Merge pull request #111 from cobra-system/claude/installer-equipment-tracking-xRKGD (a7ad2f7)
+- feat: expand MCP equipment tools for full agent operation (c73dd49)
+- feat: add MCP tools for equipment tracking (installers, pickups, returns) (42bca3f)
+- feat: add installer equipment tracking page (הצטיידויות ובלאי) (deb7cd0)
+
+<!-- last-commit: a7ad2f7fb89539074288f4c5448d4dda6f133933 -->
+
+## [2026-04-09]
+
 - Merge pull request #110 from cobra-system/claude/create-restricted-account-pbCgg (ee9f43c)
 - feat: add product-scoped employee access control (973ed3d)
 
-<!-- last-commit: ee9f43c38d5665ef1a358a1c3f74fd5efd332332 -->
 
 ## [2026-04-09]
 

@@ -1295,6 +1295,241 @@ export type Database = {
         }
         Relationships: []
       }
+      installers: {
+        Row: {
+          id: string
+          name: string
+          warehouse_number: number | null
+          division: string
+          phone: string | null
+          coordinator: string | null
+          status: string
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          warehouse_number?: number | null
+          division?: string
+          phone?: string | null
+          coordinator?: string | null
+          status?: string
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          warehouse_number?: number | null
+          division?: string
+          phone?: string | null
+          coordinator?: string | null
+          status?: string
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      equipment_pickups: {
+        Row: {
+          id: string
+          installer_id: string
+          pickup_date: string
+          created_by: string | null
+          notes: string | null
+          source_email_subject: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          installer_id: string
+          pickup_date: string
+          created_by?: string | null
+          notes?: string | null
+          source_email_subject?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          installer_id?: string
+          pickup_date?: string
+          created_by?: string | null
+          notes?: string | null
+          source_email_subject?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_pickups_installer_id_fkey"
+            columns: ["installer_id"]
+            isOneToOne: false
+            referencedRelation: "installers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_pickups_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_pickup_items: {
+        Row: {
+          id: string
+          pickup_id: string
+          product_id: string
+          quantity: number
+          serial_numbers: string[] | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          pickup_id: string
+          product_id: string
+          quantity?: number
+          serial_numbers?: string[] | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          pickup_id?: string
+          product_id?: string
+          quantity?: number
+          serial_numbers?: string[] | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_pickup_items_pickup_id_fkey"
+            columns: ["pickup_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_pickups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_pickup_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_returns: {
+        Row: {
+          id: string
+          installer_id: string
+          return_date: string
+          logged_by: string | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          installer_id: string
+          return_date: string
+          logged_by?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          installer_id?: string
+          return_date?: string
+          logged_by?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_returns_installer_id_fkey"
+            columns: ["installer_id"]
+            isOneToOne: false
+            referencedRelation: "installers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_returns_logged_by_fkey"
+            columns: ["logged_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_return_items: {
+        Row: {
+          id: string
+          return_id: string
+          product_id: string
+          quantity: number
+          reason: string
+          reason_detail: string | null
+          sticker_label: string | null
+          serial_numbers: string[] | null
+          is_actually_faulty: boolean | null
+          checked_at: string | null
+          checked_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          return_id: string
+          product_id: string
+          quantity?: number
+          reason?: string
+          reason_detail?: string | null
+          sticker_label?: string | null
+          serial_numbers?: string[] | null
+          is_actually_faulty?: boolean | null
+          checked_at?: string | null
+          checked_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          return_id?: string
+          product_id?: string
+          quantity?: number
+          reason?: string
+          reason_detail?: string | null
+          sticker_label?: string | null
+          serial_numbers?: string[] | null
+          is_actually_faulty?: boolean | null
+          checked_at?: string | null
+          checked_by?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_return_items_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_returns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_return_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_return_items_checked_by_fkey"
+            columns: ["checked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
