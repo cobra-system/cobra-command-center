@@ -401,8 +401,14 @@ function AddSupplierDialog({ open, onOpenChange, onAdd, onUpdate, editingSupplie
     company: "", contact_name: "", email: "", phone: "", country: "ישראל", website: "", notes: "",
   });
   const [saving, setSaving] = useState(false);
+  const [addingCountry, setAddingCountry] = useState(false);
 
   const isEditing = !!editingSupplier;
+
+  const availableCountries = useMemo(() => {
+    const set = new Set(existingSuppliers.map(s => s.country).filter(Boolean) as string[]);
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "he"));
+  }, [existingSuppliers]);
 
   // Pre-populate fields when editing
   React.useEffect(() => {
@@ -419,6 +425,7 @@ function AddSupplierDialog({ open, onOpenChange, onAdd, onUpdate, editingSupplie
     } else {
       setFields({ company: "", contact_name: "", email: "", phone: "", country: "ישראל", website: "", notes: "" });
     }
+    setAddingCountry(false);
   }, [editingSupplier, open]);
 
   const set = (key: string, value: string) => setFields(prev => ({ ...prev, [key]: value }));
@@ -505,13 +512,38 @@ function AddSupplierDialog({ open, onOpenChange, onAdd, onUpdate, editingSupplie
             </div>
             <div className="space-y-1">
               <Label className="text-xs">מדינה</Label>
-              <Select value={fields.country} onValueChange={v => set("country", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ישראל">ישראל</SelectItem>
-                  <SelectItem value="חול">חו״ל</SelectItem>
-                </SelectContent>
-              </Select>
+              {addingCountry ? (
+                <div className="flex gap-1">
+                  <Input
+                    autoFocus
+                    placeholder="שם מדינה"
+                    value={fields.country}
+                    onChange={e => set("country", e.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="px-2 shrink-0"
+                    onClick={() => { setAddingCountry(false); set("country", availableCountries[0] || "ישראל"); }}
+                  >
+                    ←
+                  </Button>
+                </div>
+              ) : (
+                <Select value={fields.country} onValueChange={v => {
+                  if (v === "__new__") { set("country", ""); setAddingCountry(true); }
+                  else set("country", v);
+                }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {availableCountries.map(c => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                    <SelectItem value="__new__">+ הוסף מדינה חדשה</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="space-y-1">
               <Label className="text-xs">אתר</Label>
