@@ -11,12 +11,19 @@
 
 ## [2026-04-09]
 
+- chore: merge main into branch, register equipment tools (a8afb69)
+- fix: address review feedback on shipping integrations (c437571)
+- feat: add shipping integrations, payment schedule, and order logistics (3e1874b)
+
+<!-- last-commit: d25a83cdf1c03083d1b2716895cdd7bcf7259468 -->
+
+## [2026-04-09]
+
 - Merge pull request #111 from cobra-system/claude/installer-equipment-tracking-xRKGD (a7ad2f7)
 - feat: expand MCP equipment tools for full agent operation (c73dd49)
 - feat: add MCP tools for equipment tracking (installers, pickups, returns) (42bca3f)
 - feat: add installer equipment tracking page (הצטיידויות ובלאי) (deb7cd0)
 
-<!-- last-commit: a7ad2f7fb89539074288f4c5448d4dda6f133933 -->
 
 ## [2026-04-09]
 
