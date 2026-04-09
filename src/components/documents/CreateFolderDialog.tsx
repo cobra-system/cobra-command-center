@@ -59,8 +59,12 @@ export default function CreateFolderDialog({ open, onOpenChange, onSaved, editFo
       }
       onSaved();
       onOpenChange(false);
-    } catch {
-      toast.error("שגיאה בשמירת התיקייה");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message
+        : typeof err === "object" && err !== null && "message" in err ? String((err as { message: unknown }).message)
+        : "שגיאה לא ידועה";
+      console.error("Folder save error:", err);
+      toast.error(`שגיאה בשמירת התיקייה: ${message}`);
     } finally {
       setSaving(false);
     }

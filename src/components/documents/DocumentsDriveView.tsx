@@ -674,7 +674,7 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
 
                   {/* Info */}
                   <div className="p-2.5">
-                    <p className="text-xs font-medium text-foreground truncate leading-tight">{docName}</p>
+                    <p className="text-xs font-medium text-foreground truncate leading-tight" dir="auto">{docName}</p>
                     {doc.document_number && (
                       <p className="text-[10px] text-primary/80 font-mono mt-0.5">{doc.document_number}</p>
                     )}
@@ -746,7 +746,7 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
                         <div className="flex items-center gap-2">
                           {getFileIcon(doc, "h-5 w-5")}
                           <div>
-                            <p className="font-medium truncate max-w-[200px]">{docName}</p>
+                            <p className="font-medium truncate max-w-[200px]" dir="auto">{docName}</p>
                             {doc.document_number && (
                               <p className="text-[10px] text-primary/80 font-mono">{doc.document_number}</p>
                             )}

@@ -61,6 +61,7 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
   const canvasElRef  = useRef<HTMLCanvasElement>(null);
   const fabricRef    = useRef<FabricCanvas | null>(null);
   const pdfCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [fabricReady, setFabricReady] = useState(0);
 
   const annotationsRef = useRef<Record<number, PageAnnotations>>({});
 
@@ -134,6 +135,7 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
     }
 
     fabricRef.current = canvas;
+    setFabricReady(n => n + 1);
     return () => { canvas.dispose(); fabricRef.current = null; };
   }, [open, pdfDoc]);
 
@@ -179,7 +181,7 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [tool, color, lineWidth]);
+  }, [tool, color, lineWidth, fabricReady]);
 
   // ── mouse-up eraser ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -221,16 +223,25 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
     return () => { canvas.off("mouse:down", handler); };
   }, [tool, color]);
 
-  // ── add rect ─────────────────────────────────────────────────────────────────
-  const handleAddRect = () => {
+  // ── add rect via click ────────────────────────────────────────────────────────
+  useEffect(() => {
     const canvas = fabricRef.current;
-    if (!canvas) return;
-    canvas.add(new Rect({
-      left: 60, top: 60, width: 160, height: 80,
-      fill: "transparent", stroke: color, strokeWidth: lineWidth, selectable: true,
-    }));
-    canvas.renderAll();
-  };
+    if (!canvas || tool !== "rect") return;
+
+    const handler = (opt: { e: PointerEvent }) => {
+      const pointer = canvas.getScenePoint(opt.e);
+      canvas.add(new Rect({
+        left: pointer.x - 80, top: pointer.y - 40,
+        width: 160, height: 80,
+        fill: "transparent", stroke: color, strokeWidth: lineWidth, selectable: true,
+      }));
+      canvas.renderAll();
+      setTool("select");
+    };
+
+    canvas.on("mouse:down", handler);
+    return () => { canvas.off("mouse:down", handler); };
+  }, [tool, color, lineWidth]);
 
   // ── page nav ─────────────────────────────────────────────────────────────────
   const saveCurrentPage = () => {
@@ -317,12 +328,12 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
     }
   };
 
-  const toolButtons: { id: Tool; icon: React.ReactNode; label: string; onClick?: () => void }[] = [
+  const toolButtons: { id: Tool; icon: React.ReactNode; label: string }[] = [
     { id: "select",      icon: <PenLine className="h-4 w-4" />,      label: "בחירה" },
     { id: "pen",         icon: <Pen className="h-4 w-4" />,          label: "עט" },
     { id: "highlighter", icon: <Highlighter className="h-4 w-4" />,  label: "הדגשה" },
     { id: "text",        icon: <Type className="h-4 w-4" />,         label: "טקסט" },
-    { id: "rect",        icon: <Square className="h-4 w-4" />,       label: "מלבן", onClick: handleAddRect },
+    { id: "rect",        icon: <Square className="h-4 w-4" />,       label: "מלבן" },
     { id: "eraser",      icon: <Eraser className="h-4 w-4" />,       label: "מחיקה" },
   ];
 
@@ -339,7 +350,7 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
                 <Tooltip key={btn.id}>
                   <TooltipTrigger asChild>
                     <button
-                      onClick={() => btn.onClick ? btn.onClick() : setTool(btn.id)}
+                      onClick={() => setTool(btn.id)}
                       className={cn("p-1.5 rounded-md transition-colors", tool === btn.id ? "bg-primary text-primary-foreground" : "hover:bg-muted")}
                     >
                       {btn.icon}
