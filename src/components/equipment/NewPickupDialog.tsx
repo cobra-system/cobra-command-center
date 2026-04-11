@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
-import { useData } from "@/contexts/AppContext";
+import { useData, useAuth } from "@/contexts/AppContext";
 import { toast } from "sonner";
+import { deductInventoryForPickup } from "@/lib/inventoryUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,6 +47,7 @@ interface Props {
 
 export function NewPickupDialog({ open, onOpenChange, onCreated, preselectedInstallerId }: Props) {
   const { products } = useData();
+  const { user } = useAuth();
   const [saving, setSaving] = useState(false);
   const [installers, setInstallers] = useState<Installer[]>([]);
   const [installerId, setInstallerId] = useState(preselectedInstallerId ?? "");
@@ -143,6 +145,15 @@ export function NewPickupDialog({ open, onOpenChange, onCreated, preselectedInst
         .insert(itemRows);
 
       if (itemsError) throw itemsError;
+
+      // Deduct from main center inventory (fire-and-forget, non-blocking)
+      const installerName =
+        installers.find((i) => i.id === installerId)?.name ?? "לא ידוע";
+      deductInventoryForPickup(
+        validItems.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
+        installerName,
+        (user as { name?: string } | null)?.name ?? null
+      ).catch(() => {/* inventory sync errors are non-critical */});
 
       toast.success("ההצטיידות נשמרה בהצלחה");
       onOpenChange(false);

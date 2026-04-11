@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
-import { useData } from "@/contexts/AppContext";
+import { useData, useAuth } from "@/contexts/AppContext";
 import { toast } from "sonner";
+import { restockInventoryForReturn } from "@/lib/inventoryUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,6 +60,7 @@ interface Props {
 
 export function NewReturnDialog({ open, onOpenChange, onCreated, preselectedInstallerId }: Props) {
   const { products } = useData();
+  const { user } = useAuth();
   const [saving, setSaving] = useState(false);
   const [installers, setInstallers] = useState<Installer[]>([]);
   const [installerId, setInstallerId] = useState(preselectedInstallerId ?? "");
@@ -160,6 +162,15 @@ export function NewReturnDialog({ open, onOpenChange, onCreated, preselectedInst
         .insert(itemRows);
 
       if (itemsError) throw itemsError;
+
+      // Restock main center inventory (fire-and-forget)
+      const installerName =
+        installers.find((i) => i.id === installerId)?.name ?? "לא ידוע";
+      restockInventoryForReturn(
+        validItems.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
+        installerName,
+        (user as { name?: string } | null)?.name ?? null
+      ).catch(() => {/* inventory sync errors are non-critical */});
 
       toast.success("ההחזרה נשמרה בהצלחה");
       onOpenChange(false);
