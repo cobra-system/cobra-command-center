@@ -11,12 +11,19 @@
 
 ## [2026-04-11]
 
+- merge: resolve conflict in ManagerLayout — keep shipment-groups nav item + equipment label rename from main (8132a12)
+- refactor: move procurement agenda from standalone page to tab in OrdersPage (c6b8068)
+- feat: add 8 missing UI features — PI/vessel fields, customs statuses, payment schedule, shipment groups, procurement agenda, alerts center, audit log (a2aad38)
+
+<!-- last-commit: 8922095b6c6c2bf535b5c1fab71fcf5e83fa0765 -->
+
+## [2026-04-11]
+
 - Merge pull request #114 from cobra-system/claude/fix-rtl-product-integration-oSfcx (214bdd6)
 - Phase 3: rename חטיבות tab + add MCP tools for complete page control (5369f1a)
 - feat: חטיבות page — bonded entities, inventory sync, waste integration, clean dashboard (f5dd95a)
 - feat: overhaul equipment page - RTL, product integration, division panel, new tracking tab (908597c)
 
-<!-- last-commit: 214bdd68f485064b78e49bd8bc08fbcad43e8fd0 -->
 
 ## [2026-04-11]
 
