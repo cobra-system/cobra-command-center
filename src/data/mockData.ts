@@ -2,7 +2,7 @@
 // Will be replaced with Supabase later
 
 export type Role = "MANAGER" | "WAREHOUSE_MANAGER" | "LOGISTICS" | "DRIVER";
-export type OrderStatus = "PENDING" | "ORDERED" | "SHIPPED" | "ARRIVED" | "CANCELLED";
+export type OrderStatus = "PENDING" | "ORDERED" | "SHIPPED" | "ARRIVED_PORT" | "CUSTOMS_CLEARANCE" | "DELIVERED" | "ARRIVED" | "CANCELLED";
 export type Priority = "דחוף" | "גבוה" | "בינוני" | "נמוך";
 export type TaskStatus = "TODO" | "IN_PROGRESS" | "DONE" | "BLOCKED";
 
@@ -192,7 +192,7 @@ export const tasks: Task[] = [
 
 // ─── Helpers ───
 export const priorityLabel: Record<Priority, string> = { "דחוף": "דחוף", "גבוה": "גבוה", "בינוני": "בינוני", "נמוך": "נמוך" };
-export const statusLabel: Record<OrderStatus, string> = { PENDING: "ממתין", ORDERED: "הוזמן", SHIPPED: "נשלח", ARRIVED: "הגיע", CANCELLED: "בוטל" };
+export const statusLabel: Record<OrderStatus, string> = { PENDING: "ממתין", ORDERED: "הוזמן", SHIPPED: "נשלח", ARRIVED_PORT: "הגיע לנמל", CUSTOMS_CLEARANCE: "שחרור מכס", DELIVERED: "נמסר", ARRIVED: "הגיע", CANCELLED: "בוטל" };
 export const taskStatusLabel: Record<TaskStatus, string> = { TODO: "לביצוע", IN_PROGRESS: "בביצוע", DONE: "הושלם", BLOCKED: "חסום" };
 export const roleLabel: Record<Role, string> = { MANAGER: "מנהל", WAREHOUSE_MANAGER: "מנהל מחסן", LOGISTICS: "לוגיסטיקה", DRIVER: "נהג" };
 

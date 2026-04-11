@@ -6,6 +6,9 @@ import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Trash2, CreditCard, Zap, Check, Ship, Hash, Plus, Pencil, ChevronLeft, ChevronRight, Warehouse } from "lucide-react";
 import DocumentsSection from "@/components/DocumentsSection";
+import { OrderPaymentsSection } from "@/components/orders/OrderPaymentsSection";
+import { OrderAuditLog } from "@/components/orders/OrderAuditLog";
+import { ShipmentGroupSelector } from "@/components/orders/ShipmentGroupSelector";
 import { supabase } from "@/lib/supabase";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -26,7 +29,10 @@ const allStatuses: { value: OrderStatus; label: string }[] = [
   { value: "PENDING", label: "ממתין" },
   { value: "ORDERED", label: "הוזמן" },
   { value: "SHIPPED", label: "נשלח" },
-  { value: "ARRIVED", label: "הגיע" },
+  { value: "ARRIVED_PORT", label: "הגיע לנמל" },
+  { value: "CUSTOMS_CLEARANCE", label: "שחרור מכס" },
+  { value: "DELIVERED", label: "נמסר" },
+  { value: "ARRIVED", label: "הגיע (ישן)" },
   { value: "CANCELLED", label: "בוטל" },
 ];
 
@@ -225,6 +231,10 @@ export default function OrderDetailPage() {
     { label: "סה״כ ($)", field: "total_price", value: order.total_price?.toString() ?? "", icon: DollarSign, isReadOnly: true },
     { label: "שיטת משלוח", field: "shipping", value: order.shipping, options: shippingOptions, icon: Ship },
     { label: "מספר מעקב", field: "tracking_number", value: order.tracking_number, icon: Hash },
+    { label: "מספר PI", field: "pi_number", value: order.pi_number, icon: Hash },
+    { label: "שם אונייה", field: "vessel_name", value: order.vessel_name, icon: Ship },
+    { label: "מספר הזמנת מקום", field: "booking_number", value: order.booking_number, icon: Hash },
+    { label: "אסמכתא TCLOG", field: "tclog_reference", value: order.tclog_reference, icon: FileText },
     { label: "הערות", field: "notes", value: order.notes, icon: FileText },
   ];
 
@@ -298,6 +308,12 @@ export default function OrderDetailPage() {
                 onSave={(v) => handleInlineSave(d.field, v)} disabled={d.isReadOnly || !hasEdit} options={d.options} />
             );
           })}
+          <ShipmentGroupSelector
+            orderId={order.id}
+            currentGroupId={order.shipment_group_id}
+            hasEdit={hasEdit}
+            onUpdated={refreshOrders}
+          />
         </div>
       </div>
 
@@ -431,11 +447,17 @@ export default function OrderDetailPage() {
         </div>
       </div>
 
+      {/* Payment Schedule */}
+      <OrderPaymentsSection orderId={order.id} orderTotal={order.total_price} hasEdit={hasEdit} />
+
       {/* Workflow Timeline with advance */}
       <OrderWorkflowTimeline orderId={order.id} hasEdit={hasEdit} />
 
       {/* Documents */}
       <DocumentsSection orderId={order.id} />
+
+      {/* Audit Log / Change History */}
+      <OrderAuditLog orderId={order.id} />
 
       {/* Inventory Update on Arrival */}
       <Dialog open={inventoryDialog} onOpenChange={setInventoryDialog}>
