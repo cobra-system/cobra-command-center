@@ -1,14 +1,18 @@
 import React from "react";
 import { cn } from "@/lib/utils";
-import type { OrderStatus, TaskStatus } from "@/data/mockData";
+import type { OrderStatus } from "@/contexts/types";
+import type { TaskStatus } from "@/data/mockData";
 import { statusLabel, taskStatusLabel } from "@/data/mockData";
 
 const orderColors: Record<OrderStatus, string> = {
-  PENDING: "bg-muted text-muted-foreground",
-  ORDERED: "bg-accent/15 text-accent",
-  SHIPPED: "bg-warning/15 text-warning",
-  ARRIVED: "bg-success/15 text-success",
-  CANCELLED: "bg-destructive/15 text-destructive",
+  PENDING:           "bg-muted text-muted-foreground",
+  ORDERED:           "bg-accent/15 text-accent",
+  SHIPPED:           "bg-warning/15 text-warning",
+  ARRIVED_PORT:      "bg-blue-100 text-blue-700",
+  CUSTOMS_CLEARANCE: "bg-warning/15 text-warning",
+  DELIVERED:         "bg-success/15 text-success",
+  ARRIVED:           "bg-success/15 text-success",
+  CANCELLED:         "bg-destructive/15 text-destructive",
 };
 
 const taskColors: Record<TaskStatus, string> = {

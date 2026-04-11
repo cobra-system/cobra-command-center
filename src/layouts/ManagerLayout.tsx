@@ -27,8 +27,11 @@ import {
   Boxes,
   ArrowLeft,
   ExternalLink,
+  Bell,
+  Ship,
   type LucideIcon,
 } from "lucide-react";
+import { useAlertCount } from "@/hooks/useAlertCount";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { useState } from "react";
 import cobraLogo from "@/assets/cobra-logo.png";
@@ -38,22 +41,25 @@ const defaultNavItems = [
   { to: "/dashboard", icon: "LayoutDashboard", label: "דשבורד" },
   { to: "/products", icon: "Package", label: "מוצרים" },
   { to: "/orders", icon: "ShoppingCart", label: "הזמנות" },
+  { to: "/shipment-groups", icon: "Ship", label: "קבוצות משלוח" },
   { to: "/equipment", icon: "Boxes", label: "הצטיידויות ובלאי" },
   { to: "/tasks", icon: "ListTodo", label: "משימות" },
   { to: "/meetings", icon: "Users", label: "פגישות" },
+  { to: "/procurement-agenda", icon: "CalendarClock", label: "סדר יום רכש" },
   { to: "/inventory", icon: "Warehouse", label: "מלאי" },
   { to: "/documents", icon: "FileText", label: "מסמכים" },
   { to: "/suppliers", icon: "Truck", label: "ספקים" },
   { to: "/issues", icon: "Wrench", label: "תקלות" },
   { to: "/waste-management", icon: "Recycle", label: "ניהול בלאי" },
   { to: "/reorder", icon: "CalendarClock", label: "תכנון רכש" },
+  { to: "/alerts", icon: "Bell", label: "התראות" },
   { to: "/reports", icon: "BarChart3", label: "דוחות" },
   { to: "/settings", icon: "Settings", label: "הגדרות" },
 ];
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard, Package, ShoppingCart, Truck, ListTodo,
-  Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Users, Recycle, Boxes,
+  Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Users, Recycle, Boxes, Bell, Ship,
 };
 
 const NAV_ORDER_KEY = "cobra-nav-order";
@@ -92,6 +98,7 @@ export default function ManagerLayout() {
     return moduleKey ? canView(currentUserPermissions, moduleKey) : false;
   });
   const pendingCount = tasks.filter(t => t.status !== "DONE").length;
+  const alertCount = useAlertCount();
 
   const handleLogout = () => {
     logout();
@@ -211,6 +218,14 @@ export default function ManagerLayout() {
                   )}
                   {collapsed && item.to === "/tasks" && pendingCount > 0 && (
                     <span className="absolute top-0 right-0 h-2 w-2 bg-primary rounded-full" />
+                  )}
+                  {!collapsed && item.to === "/alerts" && alertCount > 0 && (
+                    <span className="ms-auto text-[10px] font-semibold bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded-full leading-none">
+                      {alertCount}
+                    </span>
+                  )}
+                  {collapsed && item.to === "/alerts" && alertCount > 0 && (
+                    <span className="absolute top-0 right-0 h-2 w-2 bg-destructive rounded-full" />
                   )}
                 </NavLink>
               </div>

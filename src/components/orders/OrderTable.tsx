@@ -13,7 +13,7 @@ import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import type { ColDef } from "@/hooks/useColumnVisibility";
 
-export type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment" | "workflow" | "tracking_number" | "updated_at";
+export type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment" | "workflow" | "tracking_number" | "updated_at" | "pi_number";
 export type SortDir = "asc" | "desc" | null;
 
 export interface WorkflowInfo {
@@ -38,6 +38,7 @@ const COLUMN_DEFS: ColDef[] = [
   { id: "payment",         label: "תשלום",          sortField: "payment" },
   { id: "workflow",        label: "תהליך",          sortField: "workflow" },
   { id: "tracking_number", label: "מספר מעקב",      sortField: "tracking_number" },
+  { id: "pi_number",       label: "PI Number",       sortField: "pi_number" },
   { id: "updated_at",      label: "עודכן לאחרונה",  sortField: "updated_at" },
 ];
 
@@ -85,7 +86,7 @@ export function OrderTable({
   updateOrder,
 }: OrderTableProps) {
   const navigate = useNavigate();
-  const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility("orders:hidden-columns", COLUMN_DEFS, ["total_price"]);
+  const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility("orders:hidden-columns", COLUMN_DEFS, ["total_price", "pi_number"]);
   const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 
   const totalColSpan = visibleCount + 1 + (hasEdit ? 1 : 0);
@@ -343,6 +344,9 @@ export function OrderTable({
                     )}
                     {isVisible("tracking_number") && (
                       <td className="p-3 text-muted-foreground text-xs">{order.tracking_number || "—"}</td>
+                    )}
+                    {isVisible("pi_number") && (
+                      <td className="p-3 text-muted-foreground text-xs font-mono">{order.pi_number || "—"}</td>
                     )}
                     {isVisible("updated_at") && (
                       <td className="p-3 text-muted-foreground text-xs">{order.updated_at ? new Date(order.updated_at).toLocaleDateString("he-IL") : "—"}</td>

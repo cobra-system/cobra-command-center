@@ -20,6 +20,9 @@ export const MODULES: ModuleDefinition[] = [
   { key: "reports", label: "דוחות", route: "/reports" },
   { key: "waste", label: "ניהול בלאי", route: "/waste-management" },
   { key: "equipment", label: "הצטיידויות ובלאי", route: "/equipment" },
+  { key: "shipment-groups", label: "קבוצות משלוח", route: "/shipment-groups" },
+  { key: "procurement-agenda", label: "סדר יום רכש", route: "/procurement-agenda" },
+  { key: "alerts", label: "התראות", route: "/alerts" },
 ];
 
 export function canView(permissions: RolePermissions, moduleKey: string): boolean {

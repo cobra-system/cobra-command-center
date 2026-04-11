@@ -18,12 +18,15 @@ const allStatuses: { value: OrderStatus; label: string }[] = [
   { value: "PENDING", label: "ממתין" },
   { value: "ORDERED", label: "הוזמן" },
   { value: "SHIPPED", label: "נשלח" },
-  { value: "ARRIVED", label: "הגיע" },
+  { value: "ARRIVED_PORT", label: "הגיע לנמל" },
+  { value: "CUSTOMS_CLEARANCE", label: "שחרור מכס" },
+  { value: "DELIVERED", label: "נמסר" },
+  { value: "ARRIVED", label: "הגיע (ישן)" },
   { value: "CANCELLED", label: "בוטל" },
 ];
 
 const priorityOrder: Record<string, number> = { "דחוף": 0, "גבוה": 1, "בינוני": 2, "נמוך": 3 };
-const statusOrder: Record<string, number> = { PENDING: 0, ORDERED: 1, SHIPPED: 2, ARRIVED: 3, CANCELLED: 4 };
+const statusOrder: Record<string, number> = { PENDING: 0, ORDERED: 1, SHIPPED: 2, ARRIVED_PORT: 3, CUSTOMS_CLEARANCE: 4, DELIVERED: 5, ARRIVED: 6, CANCELLED: 7 };
 
 export default function OrdersPage() {
   const { updateOrderStatus, updateOrder, addOrder, deleteOrder, suppliers } = useData();
@@ -189,6 +192,7 @@ export default function OrdersPage() {
           case "total_price": cmp = (a.total_price || 0) - (b.total_price || 0); break;
           case "payment": cmp = (a.payment_date || "").localeCompare(b.payment_date || ""); break;
           case "tracking_number": cmp = (a.tracking_number || "").localeCompare(b.tracking_number || "", "he"); break;
+          case "pi_number": cmp = (a.pi_number || "").localeCompare(b.pi_number || "", "he"); break;
           case "updated_at": {
             const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
             const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;

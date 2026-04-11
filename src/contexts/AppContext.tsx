@@ -32,7 +32,7 @@ export { useRoles } from "@/contexts/RolesContext";
 export const categories = ["הכל", "מיגון ואיתור", "מולטימדיה", "בטיחות", "נוחות וקישוריות", "בית"];
 export const divisions = ["AWCAS", "דלק מוטורס", "קראסו (פריזבי)", "לובינסקי", "כפתור", "Doore", "מוסד Cobra"];
 export const priorityLabel: Record<string, string> = { "דחוף": "דחוף", "גבוה": "גבוה", "בינוני": "בינוני", "נמוך": "נמוך" };
-export const statusLabel: Record<string, string> = { PENDING: "ממתין", ORDERED: "הוזמן", SHIPPED: "נשלח", ARRIVED: "הגיע", CANCELLED: "בוטל" };
+export const statusLabel: Record<string, string> = { PENDING: "ממתין", ORDERED: "הוזמן", SHIPPED: "נשלח", ARRIVED_PORT: "הגיע לנמל", CUSTOMS_CLEARANCE: "שחרור מכס", DELIVERED: "נמסר", ARRIVED: "הגיע", CANCELLED: "בוטל" };
 export const taskStatusLabel: Record<string, string> = { TODO: "לביצוע", IN_PROGRESS: "בביצוע", DONE: "הושלם", BLOCKED: "חסום" };
 export const roleLabel: Record<string, string> = { MANAGER: "מנהל", WAREHOUSE_MANAGER: "מנהל מחסן", LOGISTICS: "לוגיסטיקה", DRIVER: "נהג" };
 
