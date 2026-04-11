@@ -122,6 +122,15 @@ export default function OrdersPage() {
     }, { replace: true });
   }, [setSearchParams]);
 
+  const setSort = useCallback((field: SortField, dir: "asc" | "desc") => {
+    setSearchParams(prev => {
+      const n = new URLSearchParams(prev);
+      n.set("sort", field);
+      n.set("dir", dir);
+      return n;
+    }, { replace: true });
+  }, [setSearchParams]);
+
   const archivedOrders = useMemo(() => {
     const q = archiveSearch.toLowerCase();
     return orders
@@ -330,6 +339,7 @@ export default function OrdersPage() {
             sortField={sortField}
             sortDir={sortDir}
             toggleSort={toggleSort}
+            setSort={setSort}
             allStatuses={allStatuses}
             navigateToSupplier={navigateToSupplier}
             navigateToProduct={navigateToProduct}
@@ -358,6 +368,7 @@ export default function OrdersPage() {
             sortField={null}
             sortDir={null}
             toggleSort={() => {}}
+            setSort={() => {}}
             allStatuses={allStatuses}
             navigateToSupplier={navigateToSupplier}
             navigateToProduct={navigateToProduct}
