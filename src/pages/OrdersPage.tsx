@@ -99,6 +99,35 @@ export default function OrdersPage() {
   const sortField = (searchParams.get("sort") as SortField | null) || null;
   const sortDir = (searchParams.get("dir") as SortDir) || null;
 
+  // Restore sort from localStorage on mount (if URL has no sort params)
+  useEffect(() => {
+    if (searchParams.get("sort")) return; // URL already has sort — respect it
+    try {
+      const stored = localStorage.getItem("orders:sort");
+      if (stored) {
+        const { field, dir } = JSON.parse(stored) as { field: SortField; dir: SortDir };
+        if (field && dir) {
+          setSearchParams(prev => {
+            const n = new URLSearchParams(prev);
+            n.set("sort", field);
+            n.set("dir", dir);
+            return n;
+          }, { replace: true });
+        }
+      }
+    } catch (_) { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // only on mount
+
+  // Persist sort to localStorage whenever it changes
+  useEffect(() => {
+    if (sortField && sortDir) {
+      localStorage.setItem("orders:sort", JSON.stringify({ field: sortField, dir: sortDir }));
+    } else {
+      localStorage.removeItem("orders:sort");
+    }
+  }, [sortField, sortDir]);
+
   // Setters that update URL params
   const setSearch = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v) { n.set("q", v); } else { n.delete("q"); } return n; }, { replace: true }), [setSearchParams]);
   const setStatusFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("status"); } else { n.set("status", v); } return n; }, { replace: true }), [setSearchParams]);
