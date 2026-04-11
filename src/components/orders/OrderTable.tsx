@@ -1,15 +1,17 @@
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
 import { type Order, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { Trash2, Copy, ArrowUpDown, ArrowUp, ArrowDown, Zap, CheckCircle, Eye, RefreshCw, CreditCard, Truck, EyeOff, Plus } from "lucide-react";
+import { Trash2, Copy, ArrowUpDown, ArrowUp, ArrowDown, Zap, CheckCircle, Eye, RefreshCw, CreditCard, Truck } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import type { Priority } from "@/contexts/AppContext";
+import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
+import type { ColDef } from "@/hooks/useColumnVisibility";
 
 export type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment" | "workflow" | "tracking_number" | "updated_at";
 export type SortDir = "asc" | "desc" | null;
@@ -22,62 +24,22 @@ export interface WorkflowInfo {
 }
 
 // ─── Column configuration ────────────────────────────────────────────────────
-const COLUMN_DEFS = [
-  { id: "priority",        label: "עדיפות",        sortField: "priority" as SortField },
-  { id: "product",         label: "מוצר",           sortField: "product" as SortField },
-  { id: "qty",             label: "כמות",           sortField: "qty" as SortField },
-  { id: "supplier",        label: "ספק",            sortField: "supplier" as SortField },
-  { id: "shipping",        label: "משלוח",          sortField: "shipping" as SortField },
-  { id: "status",          label: "סטטוס",          sortField: "status" as SortField },
-  { id: "order_date",      label: "תאריך הזמנה",    sortField: "order_date" as SortField },
-  { id: "etd",             label: "ETD",             sortField: "etd" as SortField },
-  { id: "eta",             label: "ETA",             sortField: "eta" as SortField },
-  { id: "total_price",     label: "סה״כ",           sortField: "total_price" as SortField },
-  { id: "payment",         label: "תשלום",          sortField: "payment" as SortField },
-  { id: "workflow",        label: "תהליך",          sortField: "workflow" as SortField },
-  { id: "tracking_number", label: "מספר מעקב",      sortField: "tracking_number" as SortField },
-  { id: "updated_at",      label: "עודכן לאחרונה",  sortField: "updated_at" as SortField },
-] as const;
-
-type ColumnId = (typeof COLUMN_DEFS)[number]["id"];
-const DEFAULT_HIDDEN: ColumnId[] = ["total_price"];
-const HIDDEN_COLS_KEY = "orders:hidden-columns";
-
-// ─── Column visibility hook ──────────────────────────────────────────────────
-function useColumnVisibility() {
-  const [hidden, setHidden] = useState<Set<ColumnId>>(() => {
-    try {
-      const s = localStorage.getItem(HIDDEN_COLS_KEY);
-      if (s) {
-        const parsed = JSON.parse(s) as string[];
-        return new Set(parsed.filter(id => COLUMN_DEFS.some(c => c.id === id)) as ColumnId[]);
-      }
-    } catch (_) {
-      // ignore parse errors, fall through to default
-    }
-    return new Set(DEFAULT_HIDDEN);
-  });
-
-  const hide = (id: ColumnId) =>
-    setHidden(prev => {
-      const next = new Set(prev);
-      next.add(id);
-      localStorage.setItem(HIDDEN_COLS_KEY, JSON.stringify([...next]));
-      return next;
-    });
-
-  const show = (id: ColumnId) =>
-    setHidden(prev => {
-      const next = new Set(prev);
-      next.delete(id);
-      localStorage.setItem(HIDDEN_COLS_KEY, JSON.stringify([...next]));
-      return next;
-    });
-
-  const isVisible = (id: ColumnId) => !hidden.has(id);
-  const hiddenCols = COLUMN_DEFS.filter(c => hidden.has(c.id as ColumnId));
-  return { isVisible, hide, show, hiddenCols };
-}
+const COLUMN_DEFS: ColDef[] = [
+  { id: "priority",        label: "עדיפות",        sortField: "priority" },
+  { id: "product",         label: "מוצר",           sortField: "product" },
+  { id: "qty",             label: "כמות",           sortField: "qty" },
+  { id: "supplier",        label: "ספק",            sortField: "supplier" },
+  { id: "shipping",        label: "משלוח",          sortField: "shipping" },
+  { id: "status",          label: "סטטוס",          sortField: "status" },
+  { id: "order_date",      label: "תאריך הזמנה",    sortField: "order_date" },
+  { id: "etd",             label: "ETD",             sortField: "etd" },
+  { id: "eta",             label: "ETA",             sortField: "eta" },
+  { id: "total_price",     label: "סה״כ",           sortField: "total_price" },
+  { id: "payment",         label: "תשלום",          sortField: "payment" },
+  { id: "workflow",        label: "תהליך",          sortField: "workflow" },
+  { id: "tracking_number", label: "מספר מעקב",      sortField: "tracking_number" },
+  { id: "updated_at",      label: "עודכן לאחרונה",  sortField: "updated_at" },
+];
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 interface OrderTableProps {
@@ -104,94 +66,6 @@ const SortIcon = ({ field, sortField, sortDir }: { field: SortField; sortField: 
   return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
 };
 
-// ─── Column header context menu ──────────────────────────────────────────────
-type MenuState =
-  | { type: "column"; colId: ColumnId; x: number; y: number }
-  | { type: "add"; x: number; y: number };
-
-function ColContextMenu({
-  menu,
-  sortField,
-  sortDir,
-  hiddenCols,
-  onClose,
-  onHide,
-  onShow,
-  onSetSort,
-}: {
-  menu: MenuState;
-  sortField: SortField | null;
-  sortDir: SortDir;
-  hiddenCols: typeof COLUMN_DEFS[number][];
-  onClose: () => void;
-  onHide: (id: ColumnId) => void;
-  onShow: (id: ColumnId) => void;
-  onSetSort: (field: SortField, dir: "asc" | "desc") => void;
-}) {
-  // Clamp to viewport so menu never clips off screen
-  const x = Math.min(menu.x, window.innerWidth - 200);
-  const y = Math.min(menu.y, window.innerHeight - 200);
-
-  if (menu.type === "column") {
-    const col = COLUMN_DEFS.find(c => c.id === menu.colId)!;
-    const isAsc = sortField === col.sortField && sortDir === "asc";
-    const isDesc = sortField === col.sortField && sortDir === "desc";
-    return (
-      <div
-        style={{ position: "fixed", top: y, left: x, zIndex: 9999 }}
-        className="bg-popover border rounded-lg shadow-lg py-1 min-w-[160px] text-sm"
-        onMouseDown={e => e.stopPropagation()}
-      >
-        <button
-          className={cn("w-full text-right px-3 py-2 hover:bg-muted flex items-center gap-2", isAsc && "text-primary font-medium")}
-          onClick={() => { onSetSort(col.sortField, "asc"); onClose(); }}
-        >
-          <ArrowUp className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-          מיין עולה
-        </button>
-        <button
-          className={cn("w-full text-right px-3 py-2 hover:bg-muted flex items-center gap-2", isDesc && "text-primary font-medium")}
-          onClick={() => { onSetSort(col.sortField, "desc"); onClose(); }}
-        >
-          <ArrowDown className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-          מיין יורד
-        </button>
-        <div className="border-t my-1" />
-        <button
-          className="w-full text-right px-3 py-2 hover:bg-muted flex items-center gap-2 text-muted-foreground"
-          onClick={() => { onHide(menu.colId); onClose(); }}
-        >
-          <EyeOff className="h-3.5 w-3.5 flex-shrink-0" />
-          הסתר עמודה
-        </button>
-      </div>
-    );
-  }
-
-  // "add" menu – only shown if there are hidden columns
-  if (hiddenCols.length === 0) return null;
-  return (
-    <div
-      style={{ position: "fixed", top: y, left: x, zIndex: 9999 }}
-      className="bg-popover border rounded-lg shadow-lg py-1 min-w-[180px] text-sm"
-      onMouseDown={e => e.stopPropagation()}
-    >
-      <div className="px-3 py-1.5 text-xs text-muted-foreground font-semibold">הוסף עמודה</div>
-      <div className="border-t mb-1" />
-      {hiddenCols.map(col => (
-        <button
-          key={col.id}
-          className="w-full text-right px-3 py-2 hover:bg-muted flex items-center gap-2"
-          onClick={() => { onShow(col.id as ColumnId); onClose(); }}
-        >
-          <Plus className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-          {col.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 // ─── Main component ──────────────────────────────────────────────────────────
 export function OrderTable({
   filtered,
@@ -211,19 +85,10 @@ export function OrderTable({
   updateOrder,
 }: OrderTableProps) {
   const navigate = useNavigate();
-  const { isVisible, hide, show, hiddenCols } = useColumnVisibility();
-  const [colMenu, setColMenu] = useState<MenuState | null>(null);
+  const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility("orders:hidden-columns", COLUMN_DEFS, ["total_price"]);
+  const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 
-  // Close menu on outside click
-  useEffect(() => {
-    if (!colMenu) return;
-    const h = () => setColMenu(null);
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [colMenu]);
-
-  const visibleColCount = COLUMN_DEFS.filter(c => isVisible(c.id)).length;
-  const totalColSpan = visibleColCount + 1 + (hasEdit ? 1 : 0);
+  const totalColSpan = visibleCount + 1 + (hasEdit ? 1 : 0);
 
   return (
     <>
@@ -232,13 +97,7 @@ export function OrderTable({
           <thead>
             <tr
               className="border-b bg-muted/50"
-              onContextMenu={e => {
-                // Catches right-clicks on the empty actions area
-                e.preventDefault();
-                if (hiddenCols.length > 0) {
-                  setColMenu({ type: "add", x: e.clientX, y: e.clientY });
-                }
-              }}
+              onContextMenu={trContextMenu(hiddenCols, setColMenu)}
             >
               {COLUMN_DEFS.map(col => {
                 if (!isVisible(col.id)) return null;
@@ -246,11 +105,7 @@ export function OrderTable({
                   <th
                     key={col.id}
                     className="text-right p-3 font-semibold text-foreground"
-                    onContextMenu={e => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      setColMenu({ type: "column", colId: col.id, x: e.clientX, y: e.clientY });
-                    }}
+                    onContextMenu={colThContextMenu(col, setColMenu)}
                   >
                     <button
                       onClick={() => toggleSort(col.sortField)}
@@ -536,10 +391,11 @@ export function OrderTable({
           sortField={sortField}
           sortDir={sortDir}
           hiddenCols={hiddenCols}
-          onClose={() => setColMenu(null)}
+          onClose={closeMenu}
           onHide={hide}
           onShow={show}
-          onSetSort={setSort}
+          onSortAsc={field => setSort(field as SortField, "asc")}
+          onSortDesc={field => setSort(field as SortField, "desc")}
         />
       )}
     </>

@@ -20,6 +20,8 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
+import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { supabase } from "@/lib/supabase";
 import type { PurchaseDocument } from "./types";
 import { docStatusFlow, docStatusColors, currencySymbol } from "./constants";
@@ -34,6 +36,19 @@ interface Props {
   onEdit?: (doc: PurchaseDocument) => void;
 }
 
+const COLUMN_DEFS = [
+  { id: "name",        label: "שם",         sortField: "name" },
+  { id: "type",        label: "סוג",        sortField: "type" },
+  { id: "supplier",    label: "ספק",        sortField: "supplier" },
+  { id: "product",     label: "מוצר",       sortField: "product" },
+  { id: "quantity",    label: "כמות",       sortField: "quantity" },
+  { id: "total_price", label: "מחיר כולל",  sortField: "total_price" },
+  { id: "order",       label: "הזמנה" },
+  { id: "status",      label: "סטטוס",      sortField: "status" },
+  { id: "approval",    label: "אישור" },
+  { id: "created_at",  label: "תאריך",      sortField: "created_at" },
+] as const;
+
 export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Props) {
   const { suppliers, products, orders } = useData();
   const { currentUser } = useAuth();
@@ -45,6 +60,8 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
     sortDir: "desc",
     filters: { typeFilter: "all", statusFilter: "all" },
   });
+  const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility("documents:hidden-columns", COLUMN_DEFS);
+  const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 
   const sortField = prefs.sortField as SortField | null;
   const sortDir = prefs.sortDir;
@@ -149,39 +166,22 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
       <div className="bg-card rounded-xl border shadow-sm overflow-x-auto" dir="rtl">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b bg-muted/50">
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("name")}>
-                <span className="flex items-center gap-1">שם <SortIcon field="name" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("type")}>
-                <span className="flex items-center gap-1">סוג <SortIcon field="type" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("supplier")}>
-                <span className="flex items-center gap-1">ספק <SortIcon field="supplier" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("product")}>
-                <span className="flex items-center gap-1">מוצר <SortIcon field="product" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("quantity")}>
-                <span className="flex items-center gap-1">כמות <SortIcon field="quantity" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("total_price")}>
-                <span className="flex items-center gap-1">מחיר כולל <SortIcon field="total_price" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground">הזמנה</th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("status")}>
-                <span className="flex items-center gap-1">סטטוס <SortIcon field="status" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground">אישור</th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("created_at")}>
-                <span className="flex items-center gap-1">תאריך <SortIcon field="created_at" /></span>
-              </th>
+            <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
+              {COLUMN_DEFS.map(col => isVisible(col.id) ? (
+                <th key={col.id} className="text-right p-3 font-semibold text-foreground" onContextMenu={colThContextMenu(col, setColMenu)}>
+                  {col.sortField ? (
+                    <button onClick={() => prefs.toggleSort(col.sortField!)} className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors">
+                      {col.label} <SortIcon field={col.sortField} />
+                    </button>
+                  ) : col.label}
+                </th>
+              ) : null)}
               <th className="text-right p-3 font-semibold text-foreground">פעולות</th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={11} className="p-8 text-center text-muted-foreground">אין מסמכים</td></tr>
+              <tr><td colSpan={visibleCount + 1} className="p-8 text-center text-muted-foreground">אין מסמכים</td></tr>
             ) : filtered.map(doc => {
               const docName = doc.document_name || doc.notes || "ללא שם";
               const docMenuGroups: ContextMenuGroupItem[][] = [
@@ -213,55 +213,65 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
                 className="hover:bg-muted/30 cursor-pointer transition-colors"
                 onClick={() => navigate(`/documents/${doc.id}`)}
               >
-                <td className="p-3 text-foreground">
-                  <div className="flex items-center gap-1.5">
-                    {doc.file_url && <Paperclip className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />}
-                    <span className="truncate max-w-[200px]">{doc.document_name || doc.notes || "ללא שם"}</span>
-                  </div>
-                </td>
-                <td className="p-3"><DocTypeBadge type={doc.type} /></td>
-                <td className="p-3 text-foreground">{supplierName(doc.supplier_id)}</td>
-                <td className="p-3 text-foreground">{productName(doc.product_id)}</td>
-                <td className="p-3 text-muted-foreground">{doc.quantity || "—"}</td>
-                <td className="p-3 text-muted-foreground font-mono" dir="ltr">
-                  {doc.total_price ? `${currencySymbol[doc.currency] || ""}${doc.total_price.toLocaleString()}` : "—"}
-                </td>
-                <td className="p-3" onClick={e => e.stopPropagation()}>
-                  {doc.order_id && orderLabel(doc.order_id) ? (
-                    <button
-                      className="text-xs text-accent hover:underline"
-                      onClick={() => navigate(`/orders/${doc.order_id}`)}
-                    >
-                      {orderLabel(doc.order_id)}
-                    </button>
-                  ) : <span className="text-muted-foreground">—</span>}
-                </td>
-                <td className="p-3" onClick={e => e.stopPropagation()}>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button className={cn("px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer", docStatusColors[doc.status] || "bg-muted text-muted-foreground")}>
-                        {doc.status}
+                {isVisible("name") && (
+                  <td className="p-3 text-foreground">
+                    <div className="flex items-center gap-1.5">
+                      {doc.file_url && <Paperclip className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />}
+                      <span className="truncate max-w-[200px]">{doc.document_name || doc.notes || "ללא שם"}</span>
+                    </div>
+                  </td>
+                )}
+                {isVisible("type") && <td className="p-3"><DocTypeBadge type={doc.type} /></td>}
+                {isVisible("supplier") && <td className="p-3 text-foreground">{supplierName(doc.supplier_id)}</td>}
+                {isVisible("product") && <td className="p-3 text-foreground">{productName(doc.product_id)}</td>}
+                {isVisible("quantity") && <td className="p-3 text-muted-foreground">{doc.quantity || "—"}</td>}
+                {isVisible("total_price") && (
+                  <td className="p-3 text-muted-foreground font-mono" dir="ltr">
+                    {doc.total_price ? `${currencySymbol[doc.currency] || ""}${doc.total_price.toLocaleString()}` : "—"}
+                  </td>
+                )}
+                {isVisible("order") && (
+                  <td className="p-3" onClick={e => e.stopPropagation()}>
+                    {doc.order_id && orderLabel(doc.order_id) ? (
+                      <button
+                        className="text-xs text-accent hover:underline"
+                        onClick={() => navigate(`/orders/${doc.order_id}`)}
+                      >
+                        {orderLabel(doc.order_id)}
                       </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-1" align="start">
-                      <div className="flex flex-col gap-0.5">
-                        {docStatusFlow.map(s => (
-                          <button
-                            key={s}
-                            onClick={() => handleStatusChange(doc.id, s)}
-                            className={cn("px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted", doc.status === s && "bg-muted")}
-                          >
-                            {s}
-                          </button>
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </td>
-                <td className="p-3 text-xs text-muted-foreground">
-                  {doc.approved_by ? format(new Date(doc.approval_date!), "dd/MM/yy") : "—"}
-                </td>
-                <td className="p-3 text-muted-foreground text-xs">{format(new Date(doc.created_at), "dd/MM/yy")}</td>
+                    ) : <span className="text-muted-foreground">—</span>}
+                  </td>
+                )}
+                {isVisible("status") && (
+                  <td className="p-3" onClick={e => e.stopPropagation()}>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className={cn("px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer", docStatusColors[doc.status] || "bg-muted text-muted-foreground")}>
+                          {doc.status}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-1" align="start">
+                        <div className="flex flex-col gap-0.5">
+                          {docStatusFlow.map(s => (
+                            <button
+                              key={s}
+                              onClick={() => handleStatusChange(doc.id, s)}
+                              className={cn("px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted", doc.status === s && "bg-muted")}
+                            >
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </td>
+                )}
+                {isVisible("approval") && (
+                  <td className="p-3 text-xs text-muted-foreground">
+                    {doc.approved_by ? format(new Date(doc.approval_date!), "dd/MM/yy") : "—"}
+                  </td>
+                )}
+                {isVisible("created_at") && <td className="p-3 text-muted-foreground text-xs">{format(new Date(doc.created_at), "dd/MM/yy")}</td>}
                 <td className="p-3" onClick={e => e.stopPropagation()}>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -298,6 +308,19 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
           </tbody>
         </table>
       </div>
+      {colMenu && (
+        <ColContextMenu
+          menu={colMenu}
+          sortField={prefs.sortField}
+          sortDir={prefs.sortDir}
+          hiddenCols={hiddenCols}
+          onClose={closeMenu}
+          onHide={hide}
+          onShow={show}
+          onSortAsc={field => prefs.savePreferences({ sortField: field, sortDir: "asc" })}
+          onSortDesc={field => prefs.savePreferences({ sortField: field, sortDir: "desc" })}
+        />
+      )}
     </div>
   );
 }

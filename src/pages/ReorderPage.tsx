@@ -10,8 +10,21 @@ import { InlineEditField } from "@/components/InlineEditField";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "sonner";
+import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 
 type SortKey = "status" | "name" | "sku" | "stock_qty" | "incoming_qty" | "monthly_sales_avg" | "days_until_stockout" | "lead_time_days" | "order_by_date";
+
+const COLUMN_DEFS = [
+  { id: "status",              label: "סטטוס",             sortField: "status" },
+  { id: "name",                label: "מוצר",              sortField: "name" },
+  { id: "stock_qty",           label: "מלאי",              sortField: "stock_qty" },
+  { id: "incoming_qty",        label: "בדרך",              sortField: "incoming_qty" },
+  { id: "monthly_sales_avg",   label: "מכירות/חודש",       sortField: "monthly_sales_avg" },
+  { id: "days_until_stockout", label: "ימים לאזילה",       sortField: "days_until_stockout" },
+  { id: "lead_time_days",      label: "Lead Time",          sortField: "lead_time_days" },
+  { id: "order_by_date",       label: "צריך להזמין עד",    sortField: "order_by_date" },
+] as const;
 
 interface ReorderRow {
   id: string;
@@ -36,6 +49,8 @@ export default function ReorderPage() {
   const prefs = useTablePreferences("ReorderPage", {
     sortField: "status",
   });
+  const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility("reorder:hidden-columns", COLUMN_DEFS);
+  const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 
   const sortKey = prefs.sortField as SortKey | null;
   const sortDir = prefs.sortDir;
@@ -181,76 +196,67 @@ export default function ReorderPage() {
       <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b bg-muted/50">
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("status")}>
-                <span className="flex items-center gap-1">סטטוס <SortIcon col="status" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("name")}>
-                <span className="flex items-center gap-1">מוצר <SortIcon col="name" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("stock_qty")}>
-                <span className="flex items-center gap-1">מלאי <SortIcon col="stock_qty" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("incoming_qty")}>
-                <span className="flex items-center gap-1">בדרך <SortIcon col="incoming_qty" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("monthly_sales_avg")}>
-                <span className="flex items-center gap-1">מכירות/חודש <SortIcon col="monthly_sales_avg" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("days_until_stockout")}>
-                <span className="flex items-center gap-1">ימים לאזילה <SortIcon col="days_until_stockout" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("lead_time_days")}>
-                <span className="flex items-center gap-1">Lead Time <SortIcon col="lead_time_days" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("order_by_date")}>
-                <span className="flex items-center gap-1">צריך להזמין עד <SortIcon col="order_by_date" /></span>
-              </th>
+            <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
+              {COLUMN_DEFS.map(col => isVisible(col.id) ? (
+                <th key={col.id} className="text-right p-3 font-semibold text-foreground" onContextMenu={colThContextMenu(col, setColMenu)}>
+                  <button onClick={() => prefs.toggleSort(col.sortField)} className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors">
+                    {col.label} <SortIcon col={col.sortField} />
+                  </button>
+                </th>
+              ) : null)}
               {hasEdit && <th className="text-right p-3 font-semibold text-foreground">פעולה</th>}
             </tr>
           </thead>
           <tbody className="divide-y">
             {rows.length === 0 ? (
-              <tr><td colSpan={hasEdit ? 9 : 8} className="p-8 text-center text-muted-foreground">אין מוצרים עם נתוני מכירות לחישוב</td></tr>
+              <tr><td colSpan={visibleCount + (hasEdit ? 1 : 0)} className="p-8 text-center text-muted-foreground">אין מוצרים עם נתוני מכירות לחישוב</td></tr>
             ) : (
               rows.map(r => (
                 <tr key={r.id} className={`hover:bg-muted/30 transition-colors ${r.status === "danger" ? "bg-destructive/5" : r.status === "warning" ? "bg-warning/5" : ""}`}>
-                  <td className="p-3 text-center text-lg">{statusIcon(r.status)}</td>
-                  <td className="p-3">
-                    <button onClick={() => navigate(`/products/${r.id}`)} className="text-primary hover:underline">
-                      <p className="font-medium">{r.name}</p>
-                    </button>
-                    <p className="text-xs text-muted-foreground font-mono" dir="ltr">{r.sku}</p>
-                  </td>
-                  <td className="p-3 text-foreground font-semibold">{r.stock_qty}</td>
-                  <td className="p-3 text-muted-foreground">{r.incoming_qty}</td>
-                  <td className="p-3 text-muted-foreground">{r.monthly_sales_avg?.toFixed(0) || "—"}</td>
-                  <td className="p-3">
-                    <span className={`font-bold ${r.status === "danger" ? "text-destructive" : r.status === "warning" ? "text-warning" : "text-foreground"}`}>
-                      {r.days_until_stockout !== null ? `${r.days_until_stockout} ימים` : "—"}
-                    </span>
-                  </td>
-                  <td className="p-3">
-                    {hasEdit ? (
-                      <InlineEditField
-                        value={r.lead_time_days?.toString() || ""}
-                        onSave={(v) => handleLeadTimeUpdate(r.id, v)}
-                        type="number"
-                        displayValue={
-                          <span className="text-muted-foreground">{r.lead_time_days ? `${r.lead_time_days} ימים` : "—"}</span>
-                        }
-                      />
-                    ) : (
-                      <span className="text-muted-foreground">{r.lead_time_days ? `${r.lead_time_days} ימים` : "—"}</span>
-                    )}
-                  </td>
-                  <td className="p-3 text-xs">
-                    {r.order_by_date ? (
-                      <span className={`font-medium ${r.status === "danger" ? "text-destructive" : "text-foreground"}`}>
-                        {format(r.order_by_date, "dd/MM/yyyy")}
+                  {isVisible("status") && <td className="p-3 text-center text-lg">{statusIcon(r.status)}</td>}
+                  {isVisible("name") && (
+                    <td className="p-3">
+                      <button onClick={() => navigate(`/products/${r.id}`)} className="text-primary hover:underline">
+                        <p className="font-medium">{r.name}</p>
+                      </button>
+                      <p className="text-xs text-muted-foreground font-mono" dir="ltr">{r.sku}</p>
+                    </td>
+                  )}
+                  {isVisible("stock_qty") && <td className="p-3 text-foreground font-semibold">{r.stock_qty}</td>}
+                  {isVisible("incoming_qty") && <td className="p-3 text-muted-foreground">{r.incoming_qty}</td>}
+                  {isVisible("monthly_sales_avg") && <td className="p-3 text-muted-foreground">{r.monthly_sales_avg?.toFixed(0) || "—"}</td>}
+                  {isVisible("days_until_stockout") && (
+                    <td className="p-3">
+                      <span className={`font-bold ${r.status === "danger" ? "text-destructive" : r.status === "warning" ? "text-warning" : "text-foreground"}`}>
+                        {r.days_until_stockout !== null ? `${r.days_until_stockout} ימים` : "—"}
                       </span>
-                    ) : "—"}
-                  </td>
+                    </td>
+                  )}
+                  {isVisible("lead_time_days") && (
+                    <td className="p-3">
+                      {hasEdit ? (
+                        <InlineEditField
+                          value={r.lead_time_days?.toString() || ""}
+                          onSave={(v) => handleLeadTimeUpdate(r.id, v)}
+                          type="number"
+                          displayValue={
+                            <span className="text-muted-foreground">{r.lead_time_days ? `${r.lead_time_days} ימים` : "—"}</span>
+                          }
+                        />
+                      ) : (
+                        <span className="text-muted-foreground">{r.lead_time_days ? `${r.lead_time_days} ימים` : "—"}</span>
+                      )}
+                    </td>
+                  )}
+                  {isVisible("order_by_date") && (
+                    <td className="p-3 text-xs">
+                      {r.order_by_date ? (
+                        <span className={`font-medium ${r.status === "danger" ? "text-destructive" : "text-foreground"}`}>
+                          {format(r.order_by_date, "dd/MM/yyyy")}
+                        </span>
+                      ) : "—"}
+                    </td>
+                  )}
                   {hasEdit && (
                     <td className="p-3">
                       {r.status === "danger" && (
@@ -271,6 +277,20 @@ export default function ReorderPage() {
           </tbody>
         </table>
       </div>
+
+      {colMenu && (
+        <ColContextMenu
+          menu={colMenu}
+          sortField={prefs.sortField}
+          sortDir={prefs.sortDir}
+          hiddenCols={hiddenCols}
+          onClose={closeMenu}
+          onHide={hide}
+          onShow={show}
+          onSortAsc={field => prefs.savePreferences({ sortField: field, sortDir: "asc" })}
+          onSortDesc={field => prefs.savePreferences({ sortField: field, sortDir: "desc" })}
+        />
+      )}
 
       <p className="text-xs text-muted-foreground text-center">
         * החישוב מבוסס על: ימים לאזילה = (מלאי + בדרך) ÷ מכירות יומיות | תאריך הזמנה = היום + ימים לאזילה - Lead Time

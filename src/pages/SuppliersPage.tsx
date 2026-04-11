@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useData, useAuth, type Supplier } from "@/contexts/AppContext";
 import { useProductScope } from "@/hooks/useProductScope";
 import { Search, Plus, ArrowUpDown, ArrowUp, ArrowDown, Globe, GitMerge, AlertTriangle, ExternalLink, Eye, Trash2, Pencil, ShoppingCart, Mail } from "lucide-react";
+import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,13 +20,13 @@ import { toast } from "sonner";
 
 type SortKey = "company" | "contact_name" | "email" | "phone" | "country";
 
-const sortableColumns: { key: SortKey; label: string }[] = [
-  { key: "company", label: "חברה" },
-  { key: "contact_name", label: "איש קשר" },
-  { key: "country", label: "מקור" },
-  { key: "email", label: "אימייל" },
-  { key: "phone", label: "טלפון" },
-];
+const COLUMN_DEFS = [
+  { id: "company",       label: "חברה",      sortField: "company" },
+  { id: "contact_name",  label: "איש קשר",   sortField: "contact_name" },
+  { id: "country",       label: "מקור",      sortField: "country" },
+  { id: "email",         label: "אימייל",    sortField: "email" },
+  { id: "phone",         label: "טלפון",     sortField: "phone" },
+] as const;
 
 interface DuplicateGroup {
   reason: string;
@@ -93,6 +95,8 @@ export default function SuppliersPage() {
     sortField: "company",
     filters: { countryFilter: "all" },
   });
+  const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility("suppliers:hidden-columns", COLUMN_DEFS);
+  const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 
   const sortKey = prefs.sortField as SortKey | null;
   const sortDir = prefs.sortDir;
@@ -171,19 +175,19 @@ export default function SuppliersPage() {
 
       <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
-          <thead><tr className="border-b bg-muted/50">
-            {sortableColumns.map(col => (
-              <th key={col.key} className="text-right p-3 font-semibold text-foreground">
-                <button onClick={() => prefs.toggleSort(col.key)} className="flex items-center gap-1 hover:text-accent transition-colors">
+          <thead><tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
+            {COLUMN_DEFS.map(col => isVisible(col.id) ? (
+              <th key={col.id} className="text-right p-3 font-semibold text-foreground" onContextMenu={colThContextMenu(col, setColMenu)}>
+                <button onClick={() => prefs.toggleSort(col.sortField)} className="flex items-center gap-1 hover:text-accent transition-colors">
                   {col.label}
-                  <SortIcon col={col.key} />
+                  <SortIcon col={col.sortField} />
                 </button>
               </th>
-            ))}
+            ) : null)}
           </tr></thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">לא נמצאו ספקים</td></tr>
+              <tr><td colSpan={visibleCount} className="p-6 text-center text-muted-foreground">לא נמצאו ספקים</td></tr>
             ) : filtered.map(s => {
               const supplierMenuGroups: ContextMenuGroupItem[][] = [
                 [
@@ -203,18 +207,20 @@ export default function SuppliersPage() {
               return (
               <EntityContextMenu key={s.id} groups={supplierMenuGroups}>
               <tr className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/suppliers/${s.id}`)} data-navigate-to={`/suppliers/${s.id}`}>
-                <td className="p-3 font-medium text-foreground">{s.company}</td>
-                <td className="p-3 text-muted-foreground">{s.contact_name}</td>
-                <td className="p-3">
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                    s.country === "ישראל" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" : "bg-muted text-muted-foreground"
-                  }`}>
-                    <Globe className="h-3 w-3" />
-                    {s.country || "—"}
-                  </span>
-                </td>
-                <td className="p-3">{s.email ? <span className="text-accent text-xs" dir="ltr">{s.email}</span> : "—"}</td>
-                <td className="p-3 text-muted-foreground" dir="ltr">{s.phone || "—"}</td>
+                {isVisible("company") && <td className="p-3 font-medium text-foreground">{s.company}</td>}
+                {isVisible("contact_name") && <td className="p-3 text-muted-foreground">{s.contact_name}</td>}
+                {isVisible("country") && (
+                  <td className="p-3">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                      s.country === "ישראל" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" : "bg-muted text-muted-foreground"
+                    }`}>
+                      <Globe className="h-3 w-3" />
+                      {s.country || "—"}
+                    </span>
+                  </td>
+                )}
+                {isVisible("email") && <td className="p-3">{s.email ? <span className="text-accent text-xs" dir="ltr">{s.email}</span> : "—"}</td>}
+                {isVisible("phone") && <td className="p-3 text-muted-foreground" dir="ltr">{s.phone || "—"}</td>}
               </tr>
               </EntityContextMenu>
               );
@@ -222,6 +228,20 @@ export default function SuppliersPage() {
           </tbody>
         </table>
       </div>
+
+      {colMenu && (
+        <ColContextMenu
+          menu={colMenu}
+          sortField={sortKey}
+          sortDir={sortDir}
+          hiddenCols={hiddenCols}
+          onClose={closeMenu}
+          onHide={hide}
+          onShow={show}
+          onSortAsc={field => prefs.savePreferences({ sortField: field, sortDir: "asc" })}
+          onSortDesc={field => prefs.savePreferences({ sortField: field, sortDir: "desc" })}
+        />
+      )}
 
       {/* Edit Supplier Dialog */}
       <AddSupplierDialog
