@@ -22,13 +22,11 @@ import {
   ScrollText,
   Wrench,
   ChevronLeft,
-  Users,
   Recycle,
   Boxes,
   ArrowLeft,
   ExternalLink,
   Bell,
-  Ship,
   type LucideIcon,
 } from "lucide-react";
 import { useAlertCount } from "@/hooks/useAlertCount";
@@ -41,10 +39,8 @@ const defaultNavItems = [
   { to: "/dashboard", icon: "LayoutDashboard", label: "דשבורד" },
   { to: "/products", icon: "Package", label: "מוצרים" },
   { to: "/orders", icon: "ShoppingCart", label: "הזמנות" },
-  { to: "/shipment-groups", icon: "Ship", label: "קבוצות משלוח" },
   { to: "/equipment", icon: "Boxes", label: "חטיבות" },
   { to: "/tasks", icon: "ListTodo", label: "משימות" },
-  { to: "/meetings", icon: "Users", label: "פגישות" },
   { to: "/inventory", icon: "Warehouse", label: "מלאי" },
   { to: "/documents", icon: "FileText", label: "מסמכים" },
   { to: "/suppliers", icon: "Truck", label: "ספקים" },
@@ -58,7 +54,7 @@ const defaultNavItems = [
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard, Package, ShoppingCart, Truck, ListTodo,
-  Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Users, Recycle, Boxes, Bell, Ship,
+  Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Recycle, Boxes, Bell,
 };
 
 const NAV_ORDER_KEY = "cobra-nav-order";

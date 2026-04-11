@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import { supabase } from "@/lib/supabase";
 
 const productCategories = categories.filter(c => c !== "הכל");
 const productTypes = ["מוגמר", "מורכב"];
-const shippingMethods = ["אוויר", "ים", "יבשה", "שילוב"];
+const shippingMethods = ["אוויר", "ים", "יבשה", "שילוב", "בין ספקים"];
 
 interface Supplier {
   id: string;

@@ -48,6 +48,7 @@ const shippingOptions = [
   { value: "אוויר", label: "אוויר" },
   { value: "יבשה", label: "יבשה" },
   { value: "אקספרס", label: "אקספרס" },
+  { value: "בין ספקים", label: "בין ספקים" },
 ];
 
 const statusOptions = allStatuses.map(s => ({ value: s.value, label: s.label }));
@@ -100,6 +101,10 @@ export default function OrderDetailPage() {
       updates.supplier_id = value || null;
       const s = suppliers.find(s => s.id === value);
       updates.supplier_name = s?.company || null;
+    } else if (field === "destination_supplier_id") {
+      updates.destination_supplier_id = value || null;
+      const ds = suppliers.find(s => s.id === value);
+      updates.destination_supplier_name = ds?.company || null;
     } else if (field === "tracking_number") {
       updates[field] = value || null;
     } else {
@@ -314,6 +319,25 @@ export default function OrderDetailPage() {
             hasEdit={hasEdit}
             onUpdated={refreshOrders}
           />
+          {order.shipping === "בין ספקים" && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                <Truck className="h-3.5 w-3.5" />
+                ספק יעד
+              </div>
+              {hasEdit ? (
+                <Combobox
+                  value={(order as any).destination_supplier_id || ""}
+                  onValueChange={v => handleInlineSave("destination_supplier_id", v)}
+                  options={supplierOptions}
+                  placeholder="בחר ספק יעד..."
+                  searchPlaceholder="חיפוש ספק..."
+                />
+              ) : (
+                <span className="text-sm font-medium">{(order as any).destination_supplier_name || "—"}</span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
