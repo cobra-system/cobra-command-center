@@ -9,13 +9,22 @@
 
 ---
 
+## [2026-04-11]
+
+- Add CLAUDE.md with column visibility pattern instructions (7387288)
+- Add configurable column visibility to all sortable tables (3af0b4c)
+- refactor: sort state — localStorage only, remove URL params (040b8a0)
+- feat: persist sort preference across sessions (localStorage) (2e6dc0f)
+- feat: configurable column visibility for orders table (ce4fb1f)
+
+<!-- last-commit: e6ca3b6f79e9eb6b0e5d845a5282aa8888031d1c -->
+
 ## [2026-04-09]
 
 - chore: merge main into branch, register equipment tools (a8afb69)
 - fix: address review feedback on shipping integrations (c437571)
 - feat: add shipping integrations, payment schedule, and order logistics (3e1874b)
 
-<!-- last-commit: d25a83cdf1c03083d1b2716895cdd7bcf7259468 -->
 
 ## [2026-04-09]
 
