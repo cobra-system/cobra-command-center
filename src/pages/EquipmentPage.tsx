@@ -435,7 +435,7 @@ export default function EquipmentPage() {
 
       <Tabs defaultValue="recipients">
         <TabsList className="mb-2 w-full justify-start">
-          <TabsTrigger value="recipients">מקבלי ציוד</TabsTrigger>
+          <TabsTrigger value="recipients">חטיבות</TabsTrigger>
           <TabsTrigger value="pickups">מעקב הצטיידויות</TabsTrigger>
           <TabsTrigger value="field">מלאי שטח</TabsTrigger>
           <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>

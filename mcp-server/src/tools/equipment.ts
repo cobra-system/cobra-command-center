@@ -9,14 +9,15 @@ export function registerEquipmentTools(server: McpServer) {
 
   server.tool(
     "list_installers",
-    "רשימת מתקינים — List installers, optionally filtered by division/status/coordinator",
+    "רשימת חטיבות/מתקינים — List installers and bonded entities, optionally filtered by division/status/entity_type/coordinator",
     {
-      division: z.string().optional().describe("Filter by division: 'AWACS' | 'כפתור' | 'DOORE'"),
+      division: z.string().optional().describe("Filter by division: 'AWACS' | 'כפתור' | 'DOORE' | 'דלק מוטורס' | 'פריזבי קרסו' | 'לובינסקי'"),
       status: z.string().optional().describe("Filter by status: 'פעיל' (active) | 'לא פעיל' (inactive)"),
       coordinator: z.string().optional().describe("Filter by coordinator name"),
+      entity_type: z.enum(["technician", "bonded"]).optional().describe("Filter by entity type: 'technician' (field installer) or 'bonded' (bonded warehouse)"),
       limit: z.number().default(100).describe("Max results"),
     },
-    async ({ division, status, coordinator, limit }) => {
+    async ({ division, status, coordinator, entity_type, limit }) => {
       let query = supabase
         .from("installers")
         .select("*")
@@ -26,6 +27,7 @@ export function registerEquipmentTools(server: McpServer) {
       if (division) query = query.eq("division", division);
       if (status) query = query.eq("status", status);
       if (coordinator) query = query.ilike("coordinator", `%${coordinator}%`);
+      if (entity_type) query = query.eq("entity_type", entity_type);
 
       const { data, error } = await query;
       if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
@@ -90,16 +92,18 @@ export function registerEquipmentTools(server: McpServer) {
 
   server.tool(
     "create_installer",
-    "יצירת מתקין חדש — Create a new installer",
+    "יצירת מתקין/גוף חדש — Create a new installer (technician) or bonded entity",
     {
-      name: z.string().describe("Installer name"),
+      name: z.string().describe("Installer / entity name"),
       warehouse_number: z.number().optional().describe("Warehouse number"),
-      division: z.enum(["AWACS", "כפתור", "DOORE"]).default("AWACS").describe("Division: AWACS, כפתור, DOORE"),
+      division: z.string().default("AWACS").describe("Division: AWACS | כפתור | DOORE | דלק מוטורס | פריזבי קרסו | לובינסקי"),
       phone: z.string().optional().describe("Phone number"),
-      coordinator: z.string().optional().describe("Coordinator name (e.g. סלין, ליטל)"),
+      coordinator: z.string().optional().describe("Coordinator name"),
       notes: z.string().optional().describe("Notes"),
+      entity_type: z.enum(["technician", "bonded"]).default("technician").describe("Entity type: 'technician' (field installer) or 'bonded' (bonded warehouse)"),
+      center_id: z.string().uuid().optional().describe("Distribution center UUID — required for bonded entities"),
     },
-    async ({ name, warehouse_number, division, phone, coordinator, notes }) => {
+    async ({ name, warehouse_number, division, phone, coordinator, notes, entity_type, center_id }) => {
       const { data, error } = await supabase
         .from("installers")
         .insert({
@@ -109,6 +113,8 @@ export function registerEquipmentTools(server: McpServer) {
           phone: phone || null,
           coordinator: coordinator || null,
           notes: notes || null,
+          entity_type,
+          center_id: center_id || null,
         })
         .select()
         .single();
@@ -120,18 +126,20 @@ export function registerEquipmentTools(server: McpServer) {
 
   server.tool(
     "update_installer",
-    "עדכון מתקין — Update installer fields",
+    "עדכון מתקין/גוף — Update installer or bonded entity fields",
     {
       id: z.string().uuid().describe("Installer UUID"),
-      name: z.string().optional().describe("Installer name"),
+      name: z.string().optional().describe("Name"),
       warehouse_number: z.number().optional().describe("Warehouse number"),
-      division: z.enum(["AWACS", "כפתור", "DOORE"]).optional().describe("Division"),
+      division: z.string().optional().describe("Division: AWACS | כפתור | DOORE | דלק מוטורס | פריזבי קרסו | לובינסקי"),
       phone: z.string().optional().describe("Phone number"),
       coordinator: z.string().optional().describe("Coordinator name"),
       status: z.enum(["פעיל", "לא פעיל"]).optional().describe("Status: פעיל (active), לא פעיל (inactive)"),
       notes: z.string().optional().describe("Notes"),
+      entity_type: z.enum(["technician", "bonded"]).optional().describe("Entity type"),
+      center_id: z.string().uuid().optional().describe("Distribution center UUID"),
     },
-    async ({ id, name, warehouse_number, division, phone, coordinator, status, notes }) => {
+    async ({ id, name, warehouse_number, division, phone, coordinator, status, notes, entity_type, center_id }) => {
       const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
       if (name !== undefined) updates.name = name;
       if (warehouse_number !== undefined) updates.warehouse_number = warehouse_number;
@@ -140,6 +148,8 @@ export function registerEquipmentTools(server: McpServer) {
       if (coordinator !== undefined) updates.coordinator = coordinator || null;
       if (status !== undefined) updates.status = status;
       if (notes !== undefined) updates.notes = notes || null;
+      if (entity_type !== undefined) updates.entity_type = entity_type;
+      if (center_id !== undefined) updates.center_id = center_id || null;
 
       const { data, error } = await supabase
         .from("installers")
@@ -433,11 +443,11 @@ export function registerEquipmentTools(server: McpServer) {
       if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
 
       // Post-filter by is_actually_faulty if needed
-      let result = data ?? [];
+      let result: Record<string, unknown>[] = (data ?? []).map((r) => r as unknown as Record<string, unknown>);
       if (is_actually_faulty !== undefined) {
         result = result.map((r) => ({
           ...r,
-          equipment_return_items: ((r as Record<string, unknown>).equipment_return_items as Array<{ is_actually_faulty: boolean | null }> ?? []).filter(
+          equipment_return_items: ((r.equipment_return_items as Array<{ is_actually_faulty: boolean | null }>) ?? []).filter(
             (i) => i.is_actually_faulty === is_actually_faulty
           ),
         })).filter((r) => (r.equipment_return_items as unknown[]).length > 0);
@@ -625,13 +635,28 @@ export function registerEquipmentTools(server: McpServer) {
 
   server.tool(
     "update_return_item_faulty_status",
-    "עדכון סטטוס בלאי — Mark a returned item as faulty (true), not faulty/waste (false), or unchecked (null)",
+    "עדכון סטטוס בלאי — Mark a returned item as faulty (true=deducts inventory+creates waste record), not faulty/waste (false), or unchecked (null=reverses if was faulty)",
     {
       return_item_id: z.string().uuid().describe("Return item UUID"),
-      is_actually_faulty: z.boolean().nullable().describe("true=actually faulty, false=not faulty (waste), null=unchecked"),
+      is_actually_faulty: z.boolean().nullable().describe("true=actually faulty (deducts from center inventory + creates waste record), false=not faulty (waste), null=unchecked/reset"),
       checked_by: z.string().uuid().optional().describe("Profile UUID of who checked"),
+      checked_by_name: z.string().optional().describe("Name of who checked (for audit log)"),
     },
-    async ({ return_item_id, is_actually_faulty, checked_by }) => {
+    async ({ return_item_id, is_actually_faulty, checked_by, checked_by_name }) => {
+      // Fetch current item state before updating
+      const { data: currentItem, error: fetchErr } = await supabase
+        .from("equipment_return_items")
+        .select("*, products(name, sku)")
+        .eq("id", return_item_id)
+        .single();
+
+      if (fetchErr || !currentItem) {
+        return { content: [{ type: "text" as const, text: `Error fetching item: ${fetchErr?.message ?? "not found"}` }] };
+      }
+
+      const previousValue = (currentItem as Record<string, unknown>).is_actually_faulty as boolean | null;
+
+      // Update the flag
       const { data, error } = await supabase
         .from("equipment_return_items")
         .update({
@@ -644,7 +669,91 @@ export function registerEquipmentTools(server: McpServer) {
         .single();
 
       if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
-      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+
+      const productId = (currentItem as Record<string, unknown>).product_id as string;
+      const quantity = (currentItem as Record<string, unknown>).quantity as number;
+      const product = (currentItem as Record<string, unknown>).products as Record<string, unknown> | null;
+      const productName = (product?.name as string) ?? "לא ידוע";
+      const sku = (product?.sku as string) ?? null;
+      const sideEffects: string[] = [];
+
+      // Find main distribution center for inventory sync
+      const { data: mainCenter } = await supabase
+        .from("distribution_centers")
+        .select("id")
+        .eq("type", "main")
+        .single();
+
+      if (mainCenter) {
+        const centerId = mainCenter.id as string;
+
+        if (is_actually_faulty === true && previousValue !== true) {
+          // Deduct from center inventory
+          const { data: invRow } = await supabase
+            .from("center_inventory")
+            .select("id, quantity")
+            .eq("center_id", centerId)
+            .eq("product_id", productId)
+            .maybeSingle();
+
+          if (invRow) {
+            const newQty = Math.max(0, (invRow.quantity as number) - quantity);
+            await supabase.from("center_inventory").update({ quantity: newQty, updated_at: new Date().toISOString() }).eq("id", invRow.id as string);
+            await supabase.from("inventory_change_log").insert({
+              center_id: centerId,
+              product_id: productId,
+              change_type: "manual",
+              quantity_change: -quantity,
+              reason: `סומן כפגום (החזרה) — ${productName}${sku ? ` [${sku}]` : ""}`,
+              changed_by: checked_by || null,
+              changed_by_name: checked_by_name || null,
+            });
+            sideEffects.push(`Deducted ${quantity} from center inventory`);
+          }
+
+          // Create waste_items record
+          await supabase.from("waste_items").insert({
+            product_name: productName,
+            sku: sku || null,
+            quantity,
+            source: "equipment_return",
+            return_item_id,
+            created_by: checked_by || null,
+            created_by_name: checked_by_name || null,
+          });
+          sideEffects.push("Created waste_items record");
+
+        } else if (is_actually_faulty === null && previousValue === true) {
+          // Restore center inventory
+          const { data: invRow } = await supabase
+            .from("center_inventory")
+            .select("id, quantity")
+            .eq("center_id", centerId)
+            .eq("product_id", productId)
+            .maybeSingle();
+
+          if (invRow) {
+            const newQty = (invRow.quantity as number) + quantity;
+            await supabase.from("center_inventory").update({ quantity: newQty, updated_at: new Date().toISOString() }).eq("id", invRow.id as string);
+            await supabase.from("inventory_change_log").insert({
+              center_id: centerId,
+              product_id: productId,
+              change_type: "manual",
+              quantity_change: quantity,
+              reason: `בוטל סימון פגום (החזרה) — ${productName}${sku ? ` [${sku}]` : ""}`,
+              changed_by: checked_by || null,
+              changed_by_name: checked_by_name || null,
+            });
+            sideEffects.push(`Restored ${quantity} to center inventory`);
+          }
+
+          // Delete waste_items record
+          await supabase.from("waste_items").delete().eq("return_item_id", return_item_id);
+          sideEffects.push("Deleted waste_items record");
+        }
+      }
+
+      return { content: [{ type: "text" as const, text: JSON.stringify({ updated: data, side_effects: sideEffects }, null, 2) }] };
     }
   );
 
@@ -986,6 +1095,262 @@ export function registerEquipmentTools(server: McpServer) {
         },
         installers: perInstaller,
       };
+
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+    }
+  );
+
+  // ═══════════════════════════════════════════════════════════════
+  // Division Contacts — אנשי קשר לחטיבות
+  // ═══════════════════════════════════════════════════════════════
+
+  server.tool(
+    "list_division_contacts",
+    "רשימת אנשי קשר — List division contacts, optionally filtered by division name",
+    {
+      division: z.string().optional().describe("Filter by division name (e.g. 'AWACS', 'כפתור', 'DOORE', 'דלק מוטורס', 'פריזבי קרסו', 'לובינסקי')"),
+    },
+    async ({ division }) => {
+      let query = supabase.from("division_contacts").select("*").order("name");
+      if (division) query = query.eq("division", division);
+      const { data, error } = await query;
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "create_division_contact",
+    "יצירת איש קשר — Create a new contact for a division",
+    {
+      division: z.string().describe("Division name: AWACS | כפתור | DOORE | דלק מוטורס | פריזבי קרסו | לובינסקי"),
+      name: z.string().describe("Contact full name"),
+      role: z.string().optional().describe("Role: מנהל | רכז | טכנאי | תמיכה | אחר"),
+      phone: z.string().optional().describe("Phone number"),
+      email: z.string().optional().describe("Email address"),
+      notes: z.string().optional().describe("Additional notes"),
+    },
+    async ({ division, name, role, phone, email, notes }) => {
+      const { data, error } = await supabase
+        .from("division_contacts")
+        .insert({
+          division,
+          name,
+          role: role || null,
+          phone: phone || null,
+          email: email || null,
+          notes: notes || null,
+        })
+        .select()
+        .single();
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "update_division_contact",
+    "עדכון איש קשר — Update a division contact's details",
+    {
+      id: z.string().uuid().describe("Contact UUID"),
+      division: z.string().optional().describe("Division name"),
+      name: z.string().optional().describe("Contact full name"),
+      role: z.string().optional().describe("Role"),
+      phone: z.string().optional().describe("Phone number"),
+      email: z.string().optional().describe("Email address"),
+      notes: z.string().optional().describe("Additional notes"),
+    },
+    async ({ id, division, name, role, phone, email, notes }) => {
+      const updates: Record<string, unknown> = {};
+      if (division !== undefined) updates.division = division;
+      if (name !== undefined) updates.name = name;
+      if (role !== undefined) updates.role = role || null;
+      if (phone !== undefined) updates.phone = phone || null;
+      if (email !== undefined) updates.email = email || null;
+      if (notes !== undefined) updates.notes = notes || null;
+
+      const { data, error } = await supabase
+        .from("division_contacts")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "delete_division_contact",
+    "מחיקת איש קשר — Delete a division contact",
+    {
+      id: z.string().uuid().describe("Contact UUID"),
+    },
+    async ({ id }) => {
+      const { error } = await supabase.from("division_contacts").delete().eq("id", id);
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Contact ${id} deleted successfully.` }] };
+    }
+  );
+
+  // ═══════════════════════════════════════════════════════════════
+  // Field Inventory — מלאי שטח (net: taken − returned)
+  // ═══════════════════════════════════════════════════════════════
+
+  server.tool(
+    "get_field_inventory",
+    "מלאי שטח — Compute net field inventory per entity×product (items taken minus items returned). Shows what is currently in the field.",
+    {
+      installer_id: z.string().uuid().optional().describe("Filter to a single installer/entity UUID"),
+      division: z.string().optional().describe("Filter by division name"),
+      product_id: z.string().uuid().optional().describe("Filter to a single product UUID"),
+      entity_type: z.enum(["technician", "bonded"]).optional().describe("Filter by entity type"),
+      date_from: z.string().optional().describe("Start date (YYYY-MM-DD) — only include events from this date"),
+      date_to: z.string().optional().describe("End date (YYYY-MM-DD)"),
+    },
+    async ({ installer_id, division, product_id, entity_type, date_from, date_to }) => {
+      // Resolve matching installer IDs
+      let instQuery = supabase.from("installers").select("id, name, division, entity_type").eq("status", "פעיל");
+      if (installer_id) instQuery = instQuery.eq("id", installer_id);
+      if (division) instQuery = instQuery.eq("division", division);
+      if (entity_type) instQuery = instQuery.eq("entity_type", entity_type);
+      const { data: installers, error: instErr } = await instQuery;
+      if (instErr) return { content: [{ type: "text" as const, text: `Error: ${instErr.message}` }] };
+      if (!installers || installers.length === 0) {
+        return { content: [{ type: "text" as const, text: JSON.stringify([], null, 2) }] };
+      }
+
+      const installerIds = installers.map((i) => i.id as string);
+
+      // Fetch pickups and returns
+      let pickQuery = supabase
+        .from("equipment_pickups")
+        .select("installer_id, equipment_pickup_items(product_id, quantity)")
+        .in("installer_id", installerIds);
+      let retQuery = supabase
+        .from("equipment_returns")
+        .select("installer_id, equipment_return_items(product_id, quantity)")
+        .in("installer_id", installerIds);
+
+      if (date_from) { pickQuery = pickQuery.gte("pickup_date", date_from); retQuery = retQuery.gte("return_date", date_from); }
+      if (date_to) { pickQuery = pickQuery.lte("pickup_date", date_to); retQuery = retQuery.lte("return_date", date_to); }
+
+      const [pickRes, retRes] = await Promise.all([pickQuery, retQuery]);
+      if (pickRes.error) return { content: [{ type: "text" as const, text: `Error: ${pickRes.error.message}` }] };
+      if (retRes.error) return { content: [{ type: "text" as const, text: `Error: ${retRes.error.message}` }] };
+
+      type PickItem = { product_id: string; quantity: number };
+
+      // Build net map: key = "installer_id::product_id"
+      const netMap = new Map<string, { installer_id: string; product_id: string; taken: number; returned: number }>();
+
+      (pickRes.data ?? []).forEach((p) => {
+        ((p.equipment_pickup_items as PickItem[]) ?? []).forEach((item) => {
+          if (product_id && item.product_id !== product_id) return;
+          const key = `${p.installer_id}::${item.product_id}`;
+          const entry = netMap.get(key) ?? { installer_id: p.installer_id as string, product_id: item.product_id, taken: 0, returned: 0 };
+          entry.taken += item.quantity;
+          netMap.set(key, entry);
+        });
+      });
+
+      (retRes.data ?? []).forEach((r) => {
+        ((r.equipment_return_items as PickItem[]) ?? []).forEach((item) => {
+          if (product_id && item.product_id !== product_id) return;
+          const key = `${r.installer_id}::${item.product_id}`;
+          const entry = netMap.get(key) ?? { installer_id: r.installer_id as string, product_id: item.product_id, taken: 0, returned: 0 };
+          entry.returned += item.quantity;
+          netMap.set(key, entry);
+        });
+      });
+
+      // Resolve product names
+      const productIds = [...new Set([...netMap.values()].map((e) => e.product_id))];
+      const { data: products } = productIds.length
+        ? await supabase.from("products").select("id, name, sku").in("id", productIds)
+        : { data: [] };
+      const productNameMap = new Map((products ?? []).map((p) => [p.id as string, { name: p.name as string, sku: p.sku as string | null }]));
+
+      const installerMap = new Map(installers.map((i) => [i.id as string, { name: i.name as string, division: i.division as string }]));
+
+      const result = [...netMap.values()]
+        .filter((e) => e.taken - e.returned > 0) // only items still in field
+        .map((e) => ({
+          installer_id: e.installer_id,
+          installer_name: installerMap.get(e.installer_id)?.name ?? e.installer_id,
+          division: installerMap.get(e.installer_id)?.division ?? "",
+          product_id: e.product_id,
+          product_name: productNameMap.get(e.product_id)?.name ?? e.product_id,
+          product_sku: productNameMap.get(e.product_id)?.sku ?? "",
+          taken: e.taken,
+          returned: e.returned,
+          in_field: e.taken - e.returned,
+        }))
+        .sort((a, b) => a.installer_name.localeCompare(b.installer_name, "he") || a.product_name.localeCompare(b.product_name, "he"));
+
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+    }
+  );
+
+  // ═══════════════════════════════════════════════════════════════
+  // Top Consumed Products — צריכה לפי מוצר (pickup-based)
+  // ═══════════════════════════════════════════════════════════════
+
+  server.tool(
+    "get_top_consumed_products",
+    "מוצרים נצרכים מובילים — Get top products by pickup quantity (how much was taken from central warehouse)",
+    {
+      date_from: z.string().optional().describe("Start date (YYYY-MM-DD)"),
+      date_to: z.string().optional().describe("End date (YYYY-MM-DD)"),
+      division: z.string().optional().describe("Filter by division"),
+      entity_type: z.enum(["technician", "bonded"]).optional().describe("Filter by entity type"),
+      top_n: z.number().default(10).describe("Number of top products to return"),
+    },
+    async ({ date_from, date_to, division, entity_type, top_n }) => {
+      let installerIds: string[] | null = null;
+      if (division || entity_type) {
+        let instQ = supabase.from("installers").select("id");
+        if (division) instQ = instQ.eq("division", division);
+        if (entity_type) instQ = instQ.eq("entity_type", entity_type);
+        const { data: insts } = await instQ;
+        installerIds = (insts ?? []).map((i) => i.id as string);
+        if (installerIds.length === 0) {
+          return { content: [{ type: "text" as const, text: JSON.stringify([], null, 2) }] };
+        }
+      }
+
+      let pickQuery = supabase
+        .from("equipment_pickups")
+        .select("installer_id, equipment_pickup_items(product_id, quantity)");
+
+      if (installerIds) pickQuery = pickQuery.in("installer_id", installerIds);
+      if (date_from) pickQuery = pickQuery.gte("pickup_date", date_from);
+      if (date_to) pickQuery = pickQuery.lte("pickup_date", date_to);
+
+      const { data, error } = await pickQuery;
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+
+      type PickItem = { product_id: string; quantity: number };
+      const productMap = new Map<string, number>();
+      (data ?? []).forEach((p) => {
+        ((p.equipment_pickup_items as PickItem[]) ?? []).forEach((item) => {
+          productMap.set(item.product_id, (productMap.get(item.product_id) ?? 0) + item.quantity);
+        });
+      });
+
+      const sorted = Array.from(productMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, top_n);
+
+      // Resolve product names
+      const productIds = sorted.map((s) => s[0]);
+      const { data: products } = await supabase.from("products").select("id, name, sku").in("id", productIds);
+      const nameMap = new Map((products ?? []).map((p) => [p.id as string, { name: p.name as string, sku: p.sku as string | null }]));
+
+      const result = sorted.map(([pid, qty]) => ({
+        product_id: pid,
+        product_name: nameMap.get(pid)?.name ?? pid,
+        product_sku: nameMap.get(pid)?.sku ?? "",
+        total_taken: qty,
+      }));
 
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
     }
