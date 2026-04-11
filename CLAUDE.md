@@ -79,3 +79,29 @@ const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 - `payments:hidden-columns` — PaymentsTable
 
 Use a new unique key for each new table (e.g. `"invoices:hidden-columns"`).
+
+---
+
+## Documentation Maintenance (Required)
+
+The only 3 files that belong at project root are `README.md`, `CLAUDE.md`, and `CHANGELOG.md`. Everything else lives under `docs/`.
+
+### README.md — update when:
+- **Adding a new page/route** → add a row to the Modules table
+- **Adding a DB table** → add it to the relevant Database section
+- **Adding an Edge Function** → add a row to the Edge Functions table
+- **Adding a major dependency** → add to the Tech Stack table
+
+### CHANGELOG.md — update when:
+- **Completing a major feature** → add a new entry at the top under `## [Unreleased]`
+- Format follows Keep a Changelog: `### Added / Changed / Fixed`
+
+### docs/ — reference docs to keep current:
+- `docs/INFRASTRUCTURE.md` — update when adding/removing Edge Functions, changing CI/CD, or modifying backup procedures
+- `docs/MIGRATIONS.md` — update the total migration count when new migrations are added
+- `docs/BACKLOG.md` — remove items when completed, add new backlog items here
+
+### Root-level discipline:
+- **Never** create new root-level `.md` files for one-time work (feature summaries, test reports, deployment guides, sprint plans)
+- One-time docs → `docs/archive/<DESCRIPTIVE_NAME>_YYYY-MM.md`
+- Only `README.md`, `CLAUDE.md`, and `CHANGELOG.md` live at root
