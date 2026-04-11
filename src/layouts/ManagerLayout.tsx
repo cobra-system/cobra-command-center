@@ -38,7 +38,7 @@ const defaultNavItems = [
   { to: "/dashboard", icon: "LayoutDashboard", label: "דשבורד" },
   { to: "/products", icon: "Package", label: "מוצרים" },
   { to: "/orders", icon: "ShoppingCart", label: "הזמנות" },
-  { to: "/equipment", icon: "Boxes", label: "הצטיידויות ובלאי" },
+  { to: "/equipment", icon: "Boxes", label: "חטיבות" },
   { to: "/tasks", icon: "ListTodo", label: "משימות" },
   { to: "/meetings", icon: "Users", label: "פגישות" },
   { to: "/inventory", icon: "Warehouse", label: "מלאי" },

@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
-import { useData } from "@/contexts/AppContext";
+import { useData, useAuth } from "@/contexts/AppContext";
 import { toast } from "sonner";
+import { restockInventoryForReturn } from "@/lib/inventoryUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,6 +60,7 @@ interface Props {
 
 export function NewReturnDialog({ open, onOpenChange, onCreated, preselectedInstallerId }: Props) {
   const { products } = useData();
+  const { user } = useAuth();
   const [saving, setSaving] = useState(false);
   const [installers, setInstallers] = useState<Installer[]>([]);
   const [installerId, setInstallerId] = useState(preselectedInstallerId ?? "");
@@ -91,7 +93,11 @@ export function NewReturnDialog({ open, onOpenChange, onCreated, preselectedInst
   );
 
   const productOptions = useMemo(
-    () => products.map((p) => ({ value: p.id, label: p.name })),
+    () =>
+      products.map((p) => ({
+        value: p.id,
+        label: p.sku ? `${p.name} · ${p.sku}` : p.name,
+      })),
     [products]
   );
 
@@ -157,6 +163,15 @@ export function NewReturnDialog({ open, onOpenChange, onCreated, preselectedInst
 
       if (itemsError) throw itemsError;
 
+      // Restock main center inventory (fire-and-forget)
+      const installerName =
+        installers.find((i) => i.id === installerId)?.name ?? "לא ידוע";
+      restockInventoryForReturn(
+        validItems.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
+        installerName,
+        (user as { name?: string } | null)?.name ?? null
+      ).catch(() => {/* inventory sync errors are non-critical */});
+
       toast.success("ההחזרה נשמרה בהצלחה");
       onOpenChange(false);
       onCreated();
@@ -206,7 +221,7 @@ export function NewReturnDialog({ open, onOpenChange, onCreated, preselectedInst
             <div className="flex items-center justify-between">
               <Label>פריטים מוחזרים</Label>
               <Button type="button" variant="outline" size="sm" onClick={addItem}>
-                <Plus className="h-3.5 w-3.5 me-1" />
+                <Plus className="h-3.5 w-3.5 ms-1" />
                 הוסף פריט
               </Button>
             </div>
@@ -220,7 +235,7 @@ export function NewReturnDialog({ open, onOpenChange, onCreated, preselectedInst
                       onValueChange={(v) => updateItem(idx, "product_id", v)}
                       options={productOptions}
                       placeholder="בחר מוצר..."
-                      searchPlaceholder="חיפוש מוצר..."
+                      searchPlaceholder={'חיפוש לפי שם או מק"ט...'}
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <div>
