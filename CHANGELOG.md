@@ -11,11 +11,18 @@
 
 ## [2026-04-11]
 
+- Merge pull request #116 from cobra-system/claude/audit-documentation-AkkWf (4355cc6)
+- docs: add automated documentation validation system (21b0b9a)
+- docs: audit and restructure all markdown documentation (bfea945)
+
+<!-- last-commit: 4355cc67a09c9161a52c80917a636ac3871433d1 -->
+
+## [2026-04-11]
+
 - merge: resolve conflict in ManagerLayout — keep shipment-groups nav item + equipment label rename from main (8132a12)
 - refactor: move procurement agenda from standalone page to tab in OrdersPage (c6b8068)
 - feat: add 8 missing UI features — PI/vessel fields, customs statuses, payment schedule, shipment groups, procurement agenda, alerts center, audit log (a2aad38)
 
-<!-- last-commit: 8922095b6c6c2bf535b5c1fab71fcf5e83fa0765 -->
 
 ## [2026-04-11]
 
