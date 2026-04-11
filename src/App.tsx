@@ -39,7 +39,6 @@ const WasteManagementPage = lazy(() => import("@/pages/WasteManagementPage"));
 const EquipmentPage = lazy(() => import("@/pages/EquipmentPage"));
 const InstallerDetailPage = lazy(() => import("@/pages/InstallerDetailPage"));
 const ShipmentGroupsPage = lazy(() => import("@/pages/ShipmentGroupsPage"));
-const ProcurementAgendaPage = lazy(() => import("@/pages/ProcurementAgendaPage"));
 const AlertsPage = lazy(() => import("@/pages/AlertsPage"));
 
 const queryClient = new QueryClient({
@@ -123,7 +122,6 @@ function AppRoutes() {
         <Route path="/equipment/installer/:id" element={<InstallerDetailPage />} />
         <Route path="/compliance" element={<Navigate to="/documents" replace />} />
         <Route path="/shipment-groups" element={<ShipmentGroupsPage />} />
-        <Route path="/procurement-agenda" element={<ProcurementAgendaPage />} />
         <Route path="/alerts" element={<AlertsPage />} />
       </Route>
 

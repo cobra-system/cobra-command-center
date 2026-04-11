@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { CalendarClock, ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle, CreditCard, Zap } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle, CreditCard, Zap } from "lucide-react";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import type { ColDef } from "@/hooks/useColumnVisibility";
@@ -55,7 +55,7 @@ interface UrgentOrder {
   pi_number: string | null;
 }
 
-export default function ProcurementAgendaPage() {
+export function ProcurementAgendaTab() {
   const navigate = useNavigate();
   const [pendingPayments, setPendingPayments] = useState<PendingPayment[]>([]);
   const [overdueOrders, setOverdueOrders] = useState<OverdueOrder[]>([]);
@@ -145,17 +145,11 @@ export default function ProcurementAgendaPage() {
   );
 
   return (
-    <div className="space-y-6 p-6" dir="rtl">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <CalendarClock className="h-7 w-7 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">סדר יום ישיבת רכש</h1>
-          <p className="text-sm text-muted-foreground">
-            {new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-          </p>
-        </div>
-      </div>
+    <div className="space-y-6" dir="rtl">
+      {/* Date */}
+      <p className="text-sm text-muted-foreground">
+        {new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+      </p>
 
       {/* Top two-column cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

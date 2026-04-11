@@ -1,4 +1,7 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from "react";
+const ProcurementAgendaTab = lazy(() =>
+  import("@/pages/ProcurementAgendaPage").then(m => ({ default: m.ProcurementAgendaTab }))
+);
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { Plus, Search } from "lucide-react";
@@ -316,6 +319,7 @@ export default function OrdersPage() {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="agenda">סדר יום רכש</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-0">
@@ -381,6 +385,12 @@ export default function OrdersPage() {
             updateOrderStatus={updateOrderStatus}
             updateOrder={updateOrder}
           />
+        </TabsContent>
+
+        <TabsContent value="agenda" className="mt-0">
+          <Suspense fallback={<div className="p-8 text-center text-muted-foreground">טוען...</div>}>
+            <ProcurementAgendaTab />
+          </Suspense>
         </TabsContent>
       </Tabs>
     </div>

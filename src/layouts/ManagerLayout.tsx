@@ -45,7 +45,6 @@ const defaultNavItems = [
   { to: "/equipment", icon: "Boxes", label: "הצטיידויות ובלאי" },
   { to: "/tasks", icon: "ListTodo", label: "משימות" },
   { to: "/meetings", icon: "Users", label: "פגישות" },
-  { to: "/procurement-agenda", icon: "CalendarClock", label: "סדר יום רכש" },
   { to: "/inventory", icon: "Warehouse", label: "מלאי" },
   { to: "/documents", icon: "FileText", label: "מסמכים" },
   { to: "/suppliers", icon: "Truck", label: "ספקים" },
