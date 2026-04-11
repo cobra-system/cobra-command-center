@@ -90,37 +90,45 @@ export default function OrdersPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // only on mount
 
-  // Read filter/sort state from URL params
+  // Filters — URL params (shareable/bookmarkable)
   const search = searchParams.get("q") || "";
   const statusFilter = searchParams.get("status") || "all";
   const priorityFilter = searchParams.get("priority") || "all";
   const paymentFilter = searchParams.get("payment") || "all";
   const workflowFilter = searchParams.get("wf") || "all";
-  const sortField = (searchParams.get("sort") as SortField | null) || null;
-  const sortDir = (searchParams.get("dir") as SortDir) || null;
 
-  // Setters that update URL params
   const setSearch = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v) { n.set("q", v); } else { n.delete("q"); } return n; }, { replace: true }), [setSearchParams]);
   const setStatusFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("status"); } else { n.set("status", v); } return n; }, { replace: true }), [setSearchParams]);
   const setPriorityFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("priority"); } else { n.set("priority", v); } return n; }, { replace: true }), [setSearchParams]);
   const setPaymentFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("payment"); } else { n.set("payment", v); } return n; }, { replace: true }), [setSearchParams]);
   const setWorkflowFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("wf"); } else { n.set("wf", v); } return n; }, { replace: true }), [setSearchParams]);
 
+  // Sort — localStorage only (personal preference, no need to pollute the URL)
+  const [sortField, setSortField] = useState<SortField | null>(() => {
+    try { return (JSON.parse(localStorage.getItem("orders:sort") || "null")?.field as SortField) || null; } catch { return null; }
+  });
+  const [sortDir, setSortDir] = useState<SortDir>(() => {
+    try { return (JSON.parse(localStorage.getItem("orders:sort") || "null")?.dir as SortDir) || null; } catch { return null; }
+  });
+
+  const saveSort = (field: SortField | null, dir: SortDir) => {
+    if (field && dir) { localStorage.setItem("orders:sort", JSON.stringify({ field, dir })); }
+    else { localStorage.removeItem("orders:sort"); }
+  };
+
   const toggleSort = useCallback((field: SortField) => {
-    setSearchParams(prev => {
-      const n = new URLSearchParams(prev);
-      const currentField = prev.get("sort");
-      const currentDir = prev.get("dir");
-      if (currentField === field) {
-        if (currentDir === "asc") { n.set("dir", "desc"); }
-        else { n.delete("sort"); n.delete("dir"); }
-      } else {
-        n.set("sort", field);
-        n.set("dir", "asc");
-      }
-      return n;
-    }, { replace: true });
-  }, [setSearchParams]);
+    if (sortField === field) {
+      if (sortDir === "asc") { setSortDir("desc"); saveSort(field, "desc"); }
+      else { setSortField(null); setSortDir(null); saveSort(null, null); }
+    } else {
+      setSortField(field); setSortDir("asc"); saveSort(field, "asc");
+    }
+  }, [sortField, sortDir]);
+
+  const setSort = useCallback((field: SortField, dir: "asc" | "desc") => {
+    setSortField(field); setSortDir(dir); saveSort(field, dir);
+   
+  }, []);
 
   const archivedOrders = useMemo(() => {
     const q = archiveSearch.toLowerCase();
@@ -330,6 +338,7 @@ export default function OrdersPage() {
             sortField={sortField}
             sortDir={sortDir}
             toggleSort={toggleSort}
+            setSort={setSort}
             allStatuses={allStatuses}
             navigateToSupplier={navigateToSupplier}
             navigateToProduct={navigateToProduct}
@@ -358,6 +367,7 @@ export default function OrdersPage() {
             sortField={null}
             sortDir={null}
             toggleSort={() => {}}
+            setSort={() => {}}
             allStatuses={allStatuses}
             navigateToSupplier={navigateToSupplier}
             navigateToProduct={navigateToProduct}

@@ -10,21 +10,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import ProductFormDialog from "@/components/products/ProductFormDialog";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
+import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "sonner";
 
 type SortKey = "name" | "sku" | "product_type" | "supplier" | "stock_qty" | "incoming_qty" | "purchase_price" | "monthly_order";
 
-const sortableColumns: { key: SortKey; label: string }[] = [
-  { key: "name", label: "שם מוצר" },
-  { key: "sku", label: "מק״ט" },
-  { key: "product_type", label: "סוג" },
-  { key: "supplier", label: "ספק" },
-  { key: "stock_qty", label: "מלאי" },
-  { key: "incoming_qty", label: "בדרך" },
-  { key: "purchase_price", label: "מחיר רכישה" },
-  { key: "monthly_order", label: "הזמנה חודשית" },
-];
+const COLUMN_DEFS = [
+  { id: "name",           label: "שם מוצר",       sortField: "name" },
+  { id: "sku",            label: "מק״ט",           sortField: "sku" },
+  { id: "product_type",   label: "סוג",            sortField: "product_type" },
+  { id: "supplier",       label: "ספק",            sortField: "supplier" },
+  { id: "stock_qty",      label: "מלאי",           sortField: "stock_qty" },
+  { id: "incoming_qty",   label: "בדרך",           sortField: "incoming_qty" },
+  { id: "purchase_price", label: "מחיר רכישה",    sortField: "purchase_price" },
+  { id: "monthly_order",  label: "הזמנה חודשית",  sortField: "monthly_order" },
+] as const;
 
 export default function ProductsPage() {
   const { suppliers, deleteProduct } = useData();
@@ -40,6 +42,8 @@ export default function ProductsPage() {
     sortField: "name",
     filters: { category: "הכל", typeFilter: "all", supplierFilter: "all" },
   });
+  const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility("products:hidden-columns", COLUMN_DEFS);
+  const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 
   const { hasEdit } = usePermissions("products");
   const sortKey = prefs.sortField as SortKey | null;
@@ -133,25 +137,22 @@ export default function ProductsPage() {
       <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
         <table className="w-full text-sm min-w-[600px]">
           <thead>
-            <tr className="border-b bg-muted/50">
+            <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
               <th className="text-right p-2 sm:p-3 font-semibold text-foreground w-8"></th>
-              {sortableColumns.map(col => {
-                const hiddenOnMobile = ["incoming_qty", "purchase_price", "monthly_order"].includes(col.key);
-                return (
-                  <th key={col.key} className={`text-right p-2 sm:p-3 font-semibold text-foreground ${hiddenOnMobile ? "hidden sm:table-cell" : ""}`}>
-                    <button onClick={() => prefs.toggleSort(col.key)} className="flex items-center gap-1 hover:text-accent transition-colors">
-                      {col.label}
-                      <SortIcon col={col.key} />
-                    </button>
-                  </th>
-                );
-              })}
+              {COLUMN_DEFS.map(col => isVisible(col.id) ? (
+                <th key={col.id} className="text-right p-2 sm:p-3 font-semibold text-foreground" onContextMenu={colThContextMenu(col, setColMenu)}>
+                  <button onClick={() => prefs.toggleSort(col.sortField)} className="flex items-center gap-1 hover:text-accent transition-colors">
+                    {col.label}
+                    <SortIcon col={col.sortField} />
+                  </button>
+                </th>
+              ) : null)}
               {hasEdit && <th className="text-right p-2 sm:p-3 font-semibold text-foreground w-10"></th>}
             </tr>
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={hasEdit ? 10 : 9} className="p-8 text-center text-muted-foreground">לא נמצאו מוצרים</td></tr>
+              <tr><td colSpan={1 + visibleCount + (hasEdit ? 1 : 0)} className="p-8 text-center text-muted-foreground">לא נמצאו מוצרים</td></tr>
             ) : filtered.map(p => {
               const isComposite = p.product_type === "מורכב";
               const isExpanded = expandedId === p.id;
@@ -192,36 +193,42 @@ export default function ProductsPage() {
                         </span>
                       )}
                     </td>
-                    <td className="p-2 sm:p-3 font-medium text-foreground">
-                      <div className="flex items-center gap-2">
-                        {p.end_product_image ? (
-                          <img src={p.end_product_image} alt={p.name} className="h-8 w-8 rounded object-cover shrink-0" />
-                        ) : isComposite ? (
-                          <Boxes className="h-3.5 w-3.5 text-accent shrink-0" />
-                        ) : null}
-                        {p.name}
-                      </div>
-                    </td>
-                    <td className="p-2 sm:p-3 text-muted-foreground font-mono text-xs" dir="ltr">{p.sku}</td>
-                    <td className="p-2 sm:p-3">
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        isComposite ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"
-                      }`}>{p.product_type}</span>
-                    </td>
-                    <td className="p-2 sm:p-3">
-                      {p.supplier ? (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); navigateToSupplier(p.supplier!); }}
-                          className="text-primary hover:underline text-sm"
-                        >
-                          {p.supplier}
-                        </button>
-                      ) : <span className="text-muted-foreground">—</span>}
-                    </td>
-                    <td className={`p-2 sm:p-3 font-semibold ${p.stock_qty === 0 ? "text-destructive" : "text-foreground"}`}>{p.stock_qty}</td>
-                    <td className="p-2 sm:p-3 text-muted-foreground hidden sm:table-cell">{p.incoming_qty || "—"}</td>
-                    <td className="p-2 sm:p-3 text-muted-foreground hidden sm:table-cell">{p.purchase_price ? `$${p.purchase_price}` : "—"}</td>
-                    <td className="p-2 sm:p-3 text-muted-foreground hidden sm:table-cell">{p.monthly_order || "—"}</td>
+                    {isVisible("name") && (
+                      <td className="p-2 sm:p-3 font-medium text-foreground">
+                        <div className="flex items-center gap-2">
+                          {p.end_product_image ? (
+                            <img src={p.end_product_image} alt={p.name} className="h-8 w-8 rounded object-cover shrink-0" />
+                          ) : isComposite ? (
+                            <Boxes className="h-3.5 w-3.5 text-accent shrink-0" />
+                          ) : null}
+                          {p.name}
+                        </div>
+                      </td>
+                    )}
+                    {isVisible("sku") && <td className="p-2 sm:p-3 text-muted-foreground font-mono text-xs" dir="ltr">{p.sku}</td>}
+                    {isVisible("product_type") && (
+                      <td className="p-2 sm:p-3">
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          isComposite ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"
+                        }`}>{p.product_type}</span>
+                      </td>
+                    )}
+                    {isVisible("supplier") && (
+                      <td className="p-2 sm:p-3">
+                        {p.supplier ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigateToSupplier(p.supplier!); }}
+                            className="text-primary hover:underline text-sm"
+                          >
+                            {p.supplier}
+                          </button>
+                        ) : <span className="text-muted-foreground">—</span>}
+                      </td>
+                    )}
+                    {isVisible("stock_qty") && <td className={`p-2 sm:p-3 font-semibold ${p.stock_qty === 0 ? "text-destructive" : "text-foreground"}`}>{p.stock_qty}</td>}
+                    {isVisible("incoming_qty") && <td className="p-2 sm:p-3 text-muted-foreground">{p.incoming_qty || "—"}</td>}
+                    {isVisible("purchase_price") && <td className="p-2 sm:p-3 text-muted-foreground">{p.purchase_price ? `$${p.purchase_price}` : "—"}</td>}
+                    {isVisible("monthly_order") && <td className="p-2 sm:p-3 text-muted-foreground">{p.monthly_order || "—"}</td>}
                     {hasEdit && (
                       <td className="p-3" onClick={e => e.stopPropagation()}>
                         <AlertDialog>
@@ -303,6 +310,20 @@ export default function ProductsPage() {
           </tbody>
         </table>
       </div>
+
+      {colMenu && (
+        <ColContextMenu
+          menu={colMenu}
+          sortField={sortKey}
+          sortDir={sortDir}
+          hiddenCols={hiddenCols}
+          onClose={closeMenu}
+          onHide={hide}
+          onShow={show}
+          onSortAsc={field => prefs.savePreferences({ sortField: field, sortDir: "asc" })}
+          onSortDesc={field => prefs.savePreferences({ sortField: field, sortDir: "desc" })}
+        />
+      )}
 
       <ProductFormDialog open={formOpen} onOpenChange={setFormOpen} editProduct={editProduct} />
     </div>

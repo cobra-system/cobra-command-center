@@ -8,6 +8,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { format, isPast } from "date-fns";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
+import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import type { Payment } from "./types";
@@ -22,6 +24,16 @@ interface Props {
   onEdit?: (payment: Payment) => void;
 }
 
+const COLUMN_DEFS = [
+  { id: "supplier",     label: "ספק",          sortField: "supplier" },
+  { id: "amount",       label: "סכום",         sortField: "amount" },
+  { id: "payment_type", label: "סוג",          sortField: "payment_type" },
+  { id: "document",     label: "מסמך" },
+  { id: "due_date",     label: "מועד פירעון",  sortField: "due_date" },
+  { id: "status",       label: "סטטוס",        sortField: "status" },
+  { id: "paid_date",    label: "תאריך תשלום",  sortField: "paid_date" },
+] as const;
+
 export default function PaymentsTable({ payments, search, onRefresh, onEdit }: Props) {
   const { suppliers } = useData();
   const navigate = useNavigate();
@@ -31,6 +43,8 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
     sortDir: "desc",
     filters: { statusFilter: "all", typeFilter: "all" },
   });
+  const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility("payments:hidden-columns", COLUMN_DEFS);
+  const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 
   const sortField = prefs.sortField as SortField | null;
   const sortDir = prefs.sortDir;
@@ -115,73 +129,67 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
       <div className="bg-card rounded-xl border shadow-sm overflow-x-auto" dir="rtl">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b bg-muted/50">
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("supplier")}>
-                <span className="flex items-center gap-1">ספק <SortIcon field="supplier" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("amount")}>
-                <span className="flex items-center gap-1">סכום <SortIcon field="amount" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("payment_type")}>
-                <span className="flex items-center gap-1">סוג <SortIcon field="payment_type" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground">מסמך</th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("due_date")}>
-                <span className="flex items-center gap-1">מועד פירעון <SortIcon field="due_date" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("status")}>
-                <span className="flex items-center gap-1">סטטוס <SortIcon field="status" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("paid_date")}>
-                <span className="flex items-center gap-1">תאריך תשלום <SortIcon field="paid_date" /></span>
-              </th>
+            <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
+              {COLUMN_DEFS.map(col => isVisible(col.id) ? (
+                <th key={col.id} className="text-right p-3 font-semibold text-foreground" onContextMenu={colThContextMenu(col, setColMenu)}>
+                  {col.sortField ? (
+                    <button onClick={() => prefs.toggleSort(col.sortField!)} className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors">
+                      {col.label} <SortIcon field={col.sortField as SortField} />
+                    </button>
+                  ) : col.label}
+                </th>
+              ) : null)}
               {onEdit && <th className="p-3" />}
             </tr>
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">אין תשלומים</td></tr>
+              <tr><td colSpan={visibleCount + (onEdit ? 1 : 0)} className="p-8 text-center text-muted-foreground">אין תשלומים</td></tr>
             ) : filtered.map(p => {
               const displayStatus = getDisplayStatus(p);
               const isOverdue = displayStatus === "מאוחר";
               return (
                 <tr key={p.id} className={`hover:bg-muted/30 ${isOverdue ? "bg-destructive/5" : ""}`}>
-                  <td className="p-3 font-medium text-foreground">{supplierName(p.supplier_id)}</td>
-                  <td className="p-3 text-foreground font-mono" dir="ltr">{currencySymbol[p.currency] || ""}{p.amount.toLocaleString()}</td>
-                  <td className="p-3 text-muted-foreground">{paymentTypeLabels[p.payment_type] || p.payment_type}</td>
-                  <td className="p-3">
-                    {p.document_id ? (
-                      <button
-                        className="text-xs text-accent hover:underline"
-                        onClick={() => navigate(`/documents/${p.document_id}`)}
-                      >
-                        צפה
-                      </button>
-                    ) : <span className="text-muted-foreground">—</span>}
-                  </td>
-                  <td className="p-3 text-muted-foreground text-xs">{p.due_date ? format(new Date(p.due_date), "dd/MM/yy") : "—"}</td>
-                  <td className="p-3">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button className={cn("px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer", payStatusColors[displayStatus] || "bg-muted text-muted-foreground")}>
-                          {displayStatus}
+                  {isVisible("supplier") && <td className="p-3 font-medium text-foreground">{supplierName(p.supplier_id)}</td>}
+                  {isVisible("amount") && <td className="p-3 text-foreground font-mono" dir="ltr">{currencySymbol[p.currency] || ""}{p.amount.toLocaleString()}</td>}
+                  {isVisible("payment_type") && <td className="p-3 text-muted-foreground">{paymentTypeLabels[p.payment_type] || p.payment_type}</td>}
+                  {isVisible("document") && (
+                    <td className="p-3">
+                      {p.document_id ? (
+                        <button
+                          className="text-xs text-accent hover:underline"
+                          onClick={() => navigate(`/documents/${p.document_id}`)}
+                        >
+                          צפה
                         </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-1" align="start">
-                        <div className="flex flex-col gap-0.5">
-                          {p.status !== "שולם" && (
-                            <button
-                              onClick={() => markPaid(p.id)}
-                              className="px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted"
-                            >
-                              ✓ סמן כשולם
-                            </button>
-                          )}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </td>
-                  <td className="p-3 text-muted-foreground text-xs">{p.paid_date ? format(new Date(p.paid_date), "dd/MM/yy") : "—"}</td>
+                      ) : <span className="text-muted-foreground">—</span>}
+                    </td>
+                  )}
+                  {isVisible("due_date") && <td className="p-3 text-muted-foreground text-xs">{p.due_date ? format(new Date(p.due_date), "dd/MM/yy") : "—"}</td>}
+                  {isVisible("status") && (
+                    <td className="p-3">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button className={cn("px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer", payStatusColors[displayStatus] || "bg-muted text-muted-foreground")}>
+                            {displayStatus}
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-1" align="start">
+                          <div className="flex flex-col gap-0.5">
+                            {p.status !== "שולם" && (
+                              <button
+                                onClick={() => markPaid(p.id)}
+                                className="px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted"
+                              >
+                                ✓ סמן כשולם
+                              </button>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </td>
+                  )}
+                  {isVisible("paid_date") && <td className="p-3 text-muted-foreground text-xs">{p.paid_date ? format(new Date(p.paid_date), "dd/MM/yy") : "—"}</td>}
                   {onEdit && (
                     <td className="p-3">
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(p)}>
@@ -195,6 +203,19 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
           </tbody>
         </table>
       </div>
+      {colMenu && (
+        <ColContextMenu
+          menu={colMenu}
+          sortField={prefs.sortField}
+          sortDir={prefs.sortDir}
+          hiddenCols={hiddenCols}
+          onClose={closeMenu}
+          onHide={hide}
+          onShow={show}
+          onSortAsc={field => prefs.savePreferences({ sortField: field, sortDir: "asc" })}
+          onSortDesc={field => prefs.savePreferences({ sortField: field, sortDir: "desc" })}
+        />
+      )}
     </div>
   );
 }

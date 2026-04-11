@@ -8,9 +8,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Loader2, Wrench, Plus, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
+import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { DiagnosticWizard, SimpleIssueForm } from "@/components/ProductIssuesTab";
 
 type SortKey = "reported_date" | "product_id" | "reporter" | "severity" | "status";
+
+const COLUMN_DEFS = [
+  { id: "reported_date", label: "תאריך",      sortField: "reported_date" },
+  { id: "product_id",    label: "מוצר",       sortField: "product_id" },
+  { id: "supplier",      label: "ספק" },
+  { id: "reporter",      label: "מדווח",      sortField: "reporter" },
+  { id: "description",   label: "תיאור" },
+  { id: "severity",      label: "חומרה",      sortField: "severity" },
+  { id: "status",        label: "סטטוס",      sortField: "status" },
+  { id: "ticket_number", label: "מספר פנייה" },
+] as const;
 
 interface Issue {
   id: string;
@@ -50,6 +63,8 @@ export default function IssuesPage() {
     sortDir: "desc",
     filters: { filterProduct: "all", filterStatus: "all", filterSeverity: "all" },
   });
+  const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility("issues:hidden-columns", COLUMN_DEFS);
+  const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 
   const sortKey = prefs.sortField as SortKey | null;
   const sortDir = prefs.sortDir;
@@ -188,54 +203,61 @@ export default function IssuesPage() {
       <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b bg-muted/50">
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("reported_date")}>
-                <span className="flex items-center gap-1">תאריך <SortIcon col="reported_date" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("product_id")}>
-                <span className="flex items-center gap-1">מוצר <SortIcon col="product_id" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground">ספק</th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("reporter")}>
-                <span className="flex items-center gap-1">מדווח <SortIcon col="reporter" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground">תיאור</th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("severity")}>
-                <span className="flex items-center gap-1">חומרה <SortIcon col="severity" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("status")}>
-                <span className="flex items-center gap-1">סטטוס <SortIcon col="status" /></span>
-              </th>
-              <th className="text-right p-3 font-semibold text-foreground">מספר פנייה</th>
+            <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
+              {COLUMN_DEFS.map(col => isVisible(col.id) ? (
+                <th key={col.id} className="text-right p-3 font-semibold text-foreground" onContextMenu={colThContextMenu(col, setColMenu)}>
+                  {col.sortField ? (
+                    <button onClick={() => prefs.toggleSort(col.sortField!)} className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors">
+                      {col.label} <SortIcon col={col.sortField} />
+                    </button>
+                  ) : col.label}
+                </th>
+              ) : null)}
             </tr>
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">אין תקלות להצגה</td></tr>
+              <tr><td colSpan={visibleCount} className="p-6 text-center text-muted-foreground">אין תקלות להצגה</td></tr>
             ) : filtered.map(issue => {
               const supplier = getSupplierForProduct(issue.product_id);
               return (
                 <tr key={issue.id} className="hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => navigate(`/products/${issue.product_id}`)} data-navigate-to={`/products/${issue.product_id}`}>
-                  <td className="p-3 text-xs text-muted-foreground">{new Date(issue.reported_date).toLocaleDateString("he-IL")}</td>
-                  <td className="p-3 text-primary font-medium">{productMap[issue.product_id] || "—"}</td>
-                  <td className="p-3" onClick={supplier ? (e) => navigateToSupplier(issue.product_id, e) : undefined}>
-                    {supplier ? (
-                      <button data-navigate-to={`/suppliers/${supplier.id}`} className="text-primary hover:underline text-sm">{supplier.company}</button>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className="p-3 text-foreground">{issue.reporter}</td>
-                  <td className="p-3 text-foreground max-w-[250px] truncate">{issue.description}</td>
-                  <td className="p-3"><span className={`px-2 py-0.5 rounded text-xs font-medium ${severityColors[issue.severity] || "bg-muted text-muted-foreground"}`}>{issue.severity}</span></td>
-                  <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[issue.status] || "bg-muted text-muted-foreground"}`}>{issue.status}</span></td>
-                  <td className="p-3 text-xs text-muted-foreground font-mono">{issue.ticket_number || "—"}</td>
+                  {isVisible("reported_date") && <td className="p-3 text-xs text-muted-foreground">{new Date(issue.reported_date).toLocaleDateString("he-IL")}</td>}
+                  {isVisible("product_id") && <td className="p-3 text-primary font-medium">{productMap[issue.product_id] || "—"}</td>}
+                  {isVisible("supplier") && (
+                    <td className="p-3" onClick={supplier ? (e) => navigateToSupplier(issue.product_id, e) : undefined}>
+                      {supplier ? (
+                        <button data-navigate-to={`/suppliers/${supplier.id}`} className="text-primary hover:underline text-sm">{supplier.company}</button>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                  )}
+                  {isVisible("reporter") && <td className="p-3 text-foreground">{issue.reporter}</td>}
+                  {isVisible("description") && <td className="p-3 text-foreground max-w-[250px] truncate">{issue.description}</td>}
+                  {isVisible("severity") && <td className="p-3"><span className={`px-2 py-0.5 rounded text-xs font-medium ${severityColors[issue.severity] || "bg-muted text-muted-foreground"}`}>{issue.severity}</span></td>}
+                  {isVisible("status") && <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[issue.status] || "bg-muted text-muted-foreground"}`}>{issue.status}</span></td>}
+                  {isVisible("ticket_number") && <td className="p-3 text-xs text-muted-foreground font-mono">{issue.ticket_number || "—"}</td>}
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
+
+      {colMenu && (
+        <ColContextMenu
+          menu={colMenu}
+          sortField={prefs.sortField}
+          sortDir={prefs.sortDir}
+          hiddenCols={hiddenCols}
+          onClose={closeMenu}
+          onHide={hide}
+          onShow={show}
+          onSortAsc={field => prefs.savePreferences({ sortField: field, sortDir: "asc" })}
+          onSortDesc={field => prefs.savePreferences({ sortField: field, sortDir: "desc" })}
+        />
+      )}
 
       {/* New Issue Dialog */}
       <Dialog open={newIssueOpen} onOpenChange={open => { setNewIssueOpen(open); if (!open) setNewIssueProductId(""); }}>
