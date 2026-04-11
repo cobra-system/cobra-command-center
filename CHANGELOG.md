@@ -11,13 +11,21 @@
 
 ## [2026-04-11]
 
+- Merge pull request #114 from cobra-system/claude/fix-rtl-product-integration-oSfcx (214bdd6)
+- Phase 3: rename חטיבות tab + add MCP tools for complete page control (5369f1a)
+- feat: חטיבות page — bonded entities, inventory sync, waste integration, clean dashboard (f5dd95a)
+- feat: overhaul equipment page - RTL, product integration, division panel, new tracking tab (908597c)
+
+<!-- last-commit: 214bdd68f485064b78e49bd8bc08fbcad43e8fd0 -->
+
+## [2026-04-11]
+
 - Add CLAUDE.md with column visibility pattern instructions (7387288)
 - Add configurable column visibility to all sortable tables (3af0b4c)
 - refactor: sort state — localStorage only, remove URL params (040b8a0)
 - feat: persist sort preference across sessions (localStorage) (2e6dc0f)
 - feat: configurable column visibility for orders table (ce4fb1f)
 
-<!-- last-commit: e6ca3b6f79e9eb6b0e5d845a5282aa8888031d1c -->
 
 ## [2026-04-09]
 

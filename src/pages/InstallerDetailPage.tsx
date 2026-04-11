@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { useData } from "@/contexts/AppContext";
+import { useData, useAuth } from "@/contexts/AppContext";
+import { markItemAsFaulty, unmarkItemAsFaulty } from "@/lib/inventoryUtils";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  ArrowRight,
+  ArrowLeft,
   Package,
   PackageX,
   TrendingDown,
@@ -87,6 +88,7 @@ export default function InstallerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { products } = useData();
+  const { user } = useAuth();
 
   const [installer, setInstaller] = useState<Installer | null>(null);
   const [pickupRows, setPickupRows] = useState<PickupRow[]>([]);
@@ -199,6 +201,12 @@ export default function InstallerDetailPage() {
     // Cycle: null → false → true → null
     const next = current === null ? false : current === false ? true : null;
     setUpdatingFaulty(returnItemId);
+
+    const row = returnRows.find((r) => r.return_item_id === returnItemId);
+    const prod = row ? products.find((p) => p.id === row.product_id) : null;
+    const userName = (user as { name?: string } | null)?.name ?? null;
+    const userId = (user as { id?: string } | null)?.id ?? null;
+
     try {
       const { error } = await supabase
         .from("equipment_return_items")
@@ -208,6 +216,32 @@ export default function InstallerDetailPage() {
         })
         .eq("id", returnItemId);
       if (error) throw error;
+
+      // Waste / inventory side-effects (fire-and-forget)
+      if (row) {
+        if (next === true && current !== true) {
+          // Newly confirmed faulty → deduct from inventory + create waste item
+          markItemAsFaulty({
+            productId: row.product_id,
+            productName: row.product_name,
+            sku: prod?.sku ?? null,
+            quantity: row.quantity,
+            returnItemId,
+            changedBy: userId,
+            changedByName: userName,
+          }).catch(() => {});
+        } else if (current === true && next !== true) {
+          // Un-confirmed faulty → restore inventory + delete waste item
+          unmarkItemAsFaulty({
+            productId: row.product_id,
+            quantity: row.quantity,
+            returnItemId,
+            changedBy: userId,
+            changedByName: userName,
+          }).catch(() => {});
+        }
+      }
+
       setReturnRows((prev) =>
         prev.map((r) =>
           r.return_item_id === returnItemId ? { ...r, is_actually_faulty: next } : r
@@ -266,7 +300,7 @@ export default function InstallerDetailPage() {
             onClick={() => navigate("/equipment")}
             className="h-8 w-8"
           >
-            <ArrowRight className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
