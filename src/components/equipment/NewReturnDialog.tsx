@@ -91,7 +91,11 @@ export function NewReturnDialog({ open, onOpenChange, onCreated, preselectedInst
   );
 
   const productOptions = useMemo(
-    () => products.map((p) => ({ value: p.id, label: p.name })),
+    () =>
+      products.map((p) => ({
+        value: p.id,
+        label: p.sku ? `${p.name} · ${p.sku}` : p.name,
+      })),
     [products]
   );
 
@@ -206,7 +210,7 @@ export function NewReturnDialog({ open, onOpenChange, onCreated, preselectedInst
             <div className="flex items-center justify-between">
               <Label>פריטים מוחזרים</Label>
               <Button type="button" variant="outline" size="sm" onClick={addItem}>
-                <Plus className="h-3.5 w-3.5 me-1" />
+                <Plus className="h-3.5 w-3.5 ms-1" />
                 הוסף פריט
               </Button>
             </div>
@@ -220,7 +224,7 @@ export function NewReturnDialog({ open, onOpenChange, onCreated, preselectedInst
                       onValueChange={(v) => updateItem(idx, "product_id", v)}
                       options={productOptions}
                       placeholder="בחר מוצר..."
-                      searchPlaceholder="חיפוש מוצר..."
+                      searchPlaceholder={'חיפוש לפי שם או מק"ט...'}
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <div>

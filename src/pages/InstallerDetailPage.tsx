@@ -17,7 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  ArrowRight,
+  ArrowLeft,
   Package,
   PackageX,
   TrendingDown,
@@ -266,7 +266,7 @@ export default function InstallerDetailPage() {
             onClick={() => navigate("/equipment")}
             className="h-8 w-8"
           >
-            <ArrowRight className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
             <div className="flex items-center gap-2 flex-wrap">

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
 import { DateInput } from "@/components/ui/date-input";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -77,9 +78,16 @@ export function NewPickupDialog({ open, onOpenChange, onCreated, preselectedInst
   );
 
   const productOptions = useMemo(
-    () => products.map((p) => ({ value: p.id, label: p.name })),
+    () =>
+      products.map((p) => ({
+        value: p.id,
+        label: p.sku ? `${p.name} · ${p.sku}` : p.name,
+      })),
     [products]
   );
+
+  // Map product_id → full product for stock display
+  const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
   const updateItem = (idx: number, field: keyof PickupItemRow, value: string | number) => {
     setItems((prev) =>
@@ -185,58 +193,77 @@ export function NewPickupDialog({ open, onOpenChange, onCreated, preselectedInst
             <div className="flex items-center justify-between">
               <Label>פריטים</Label>
               <Button type="button" variant="outline" size="sm" onClick={addItem}>
-                <Plus className="h-3.5 w-3.5 me-1" />
+                <Plus className="h-3.5 w-3.5 ms-1" />
                 הוסף פריט
               </Button>
             </div>
 
             <div className="space-y-2">
-              {items.map((item, idx) => (
-                <div key={idx} className="flex gap-2 items-start p-2 border rounded-md bg-muted/30">
-                  <div className="flex-1 space-y-2">
-                    <Combobox
-                      value={item.product_id}
-                      onValueChange={(v) => updateItem(idx, "product_id", v)}
-                      options={productOptions}
-                      placeholder="בחר מוצר..."
-                      searchPlaceholder="חיפוש מוצר..."
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">כמות</Label>
-                        <Input
-                          type="number"
-                          min={1}
-                          value={item.quantity}
-                          onChange={(e) => updateItem(idx, "quantity", parseInt(e.target.value) || 1)}
-                          className="h-8"
+              {items.map((item, idx) => {
+                const prod = productById.get(item.product_id);
+                return (
+                  <div key={idx} className="flex gap-2 items-start p-2 border rounded-md bg-muted/30">
+                    <div className="flex-1 space-y-2">
+                      <div className="space-y-1">
+                        <Combobox
+                          value={item.product_id}
+                          onValueChange={(v) => updateItem(idx, "product_id", v)}
+                          options={productOptions}
+                          placeholder="בחר מוצר..."
+                          searchPlaceholder={'חיפוש לפי שם או מק"ט...'}
                         />
+                        {prod && (
+                          <div className="flex gap-2 items-center text-xs text-muted-foreground px-1">
+                            {prod.sku && <span className="font-mono">{prod.sku}</span>}
+                            {prod.category && <span>· {prod.category}</span>}
+                            {typeof prod.stock_qty === "number" && (
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] py-0 h-4 ${prod.stock_qty <= 0 ? "border-red-300 text-red-600" : "border-green-300 text-green-700"}`}
+                              >
+                                מלאי: {prod.stock_qty}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">מספרים סידוריים (מופרדים בפסיק)</Label>
-                        <Input
-                          value={item.serial_numbers}
-                          onChange={(e) => updateItem(idx, "serial_numbers", e.target.value)}
-                          placeholder="SN1, SN2, ..."
-                          className="h-8"
-                          dir="ltr"
-                        />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">כמות</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={item.quantity}
+                            onChange={(e) => updateItem(idx, "quantity", parseInt(e.target.value) || 1)}
+                            className="h-8"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">מספרים סידוריים (מופרדים בפסיק)</Label>
+                          <Input
+                            value={item.serial_numbers}
+                            onChange={(e) => updateItem(idx, "serial_numbers", e.target.value)}
+                            placeholder="SN1, SN2, ..."
+                            className="h-8"
+                            dir="ltr"
+                          />
+                        </div>
                       </div>
                     </div>
+                    {items.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive mt-1"
+                        onClick={() => removeItem(idx)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
-                  {items.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive mt-1"
-                      onClick={() => removeItem(idx)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -246,7 +273,7 @@ export function NewPickupDialog({ open, onOpenChange, onCreated, preselectedInst
             ביטול
           </Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving && <Loader2 className="h-4 w-4 me-2 animate-spin" />}
+            {saving && <Loader2 className="h-4 w-4 ms-2 animate-spin" />}
             שמור
           </Button>
         </DialogFooter>
