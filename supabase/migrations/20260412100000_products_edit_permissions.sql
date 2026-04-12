@@ -35,6 +35,9 @@ $$;
 DROP POLICY IF EXISTS "Managers can insert products" ON public.products;
 DROP POLICY IF EXISTS "Managers can update products" ON public.products;
 DROP POLICY IF EXISTS "Managers can delete products" ON public.products;
+DROP POLICY IF EXISTS "Product editors can insert products" ON public.products;
+DROP POLICY IF EXISTS "Product editors can update products" ON public.products;
+DROP POLICY IF EXISTS "Product editors can delete products" ON public.products;
 
 CREATE POLICY "Product editors can insert products"
   ON public.products FOR INSERT TO authenticated
@@ -52,6 +55,8 @@ CREATE POLICY "Product editors can delete products"
 
 DROP POLICY IF EXISTS "Managers can insert components" ON public.product_components;
 DROP POLICY IF EXISTS "Managers can delete components" ON public.product_components;
+DROP POLICY IF EXISTS "Product or inventory editors can insert components" ON public.product_components;
+DROP POLICY IF EXISTS "Product or inventory editors can delete components" ON public.product_components;
 
 CREATE POLICY "Product or inventory editors can insert components"
   ON public.product_components FOR INSERT TO authenticated
