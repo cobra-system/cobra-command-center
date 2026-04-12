@@ -8,7 +8,7 @@
 import { supabase } from "@/lib/supabase";
 
 const MIGRATION_KEY = "cobra_migrations_applied"
-const CURRENT_VERSION = "20260409_add_product_scope_to_profiles"
+const CURRENT_VERSION = "20260412_products_edit_permissions"
 
 const INTERNATIONAL_TEMPLATE_ID = "b5a990c9-579d-4d9f-8e9a-90a8856ad00b";
 const ISRAEL_TEMPLATE_ID = "c7b881d0-68ae-4e0a-9f1b-a1b9967be11c";
@@ -335,6 +335,37 @@ export async function applyMigrations() {
       });
     } catch {
       console.warn("allowed_product_ids column may need to be added via Supabase dashboard");
+    }
+
+    // Migration 8: Allow product-module editors to write products & product_components
+    const productsPermSqls = [
+      // products table
+      `DROP POLICY IF EXISTS "Managers can insert products" ON public.products;`,
+      `DROP POLICY IF EXISTS "Managers can update products" ON public.products;`,
+      `DROP POLICY IF EXISTS "Managers can delete products" ON public.products;`,
+      `DROP POLICY IF EXISTS "Product editors can insert products" ON public.products;`,
+      `DROP POLICY IF EXISTS "Product editors can update products" ON public.products;`,
+      `DROP POLICY IF EXISTS "Product editors can delete products" ON public.products;`,
+      `CREATE POLICY "Product editors can insert products" ON public.products FOR INSERT TO authenticated WITH CHECK (has_module_edit('products'));`,
+      `CREATE POLICY "Product editors can update products" ON public.products FOR UPDATE TO authenticated USING (has_module_edit('products'));`,
+      `CREATE POLICY "Product editors can delete products" ON public.products FOR DELETE TO authenticated USING (has_module_edit('products'));`,
+      // product_components INSERT & DELETE
+      `DROP POLICY IF EXISTS "Managers can insert components" ON public.product_components;`,
+      `DROP POLICY IF EXISTS "Managers can delete components" ON public.product_components;`,
+      `DROP POLICY IF EXISTS "Product or inventory editors can insert components" ON public.product_components;`,
+      `DROP POLICY IF EXISTS "Product or inventory editors can delete components" ON public.product_components;`,
+      `CREATE POLICY "Product or inventory editors can insert components" ON public.product_components FOR INSERT TO authenticated WITH CHECK (has_module_edit('inventory') OR has_module_edit('products'));`,
+      `CREATE POLICY "Product or inventory editors can delete components" ON public.product_components FOR DELETE TO authenticated USING (has_module_edit('inventory') OR has_module_edit('products'));`,
+    ];
+    for (const sql of productsPermSqls) {
+      try {
+        const { error } = await supabase.rpc("exec_sql" as any, { sql });
+        if (error) {
+          console.warn("products permission migration step failed:", error.message);
+        }
+      } catch {
+        console.warn("products permission migration step may need to be applied via Supabase dashboard");
+      }
     }
 
     localStorage.setItem(MIGRATION_KEY, CURRENT_VERSION)
