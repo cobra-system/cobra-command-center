@@ -7,6 +7,11 @@
 
 ## [2026-04-12]
 
+- feat: add interactive logistics center map page (54006cd)
+
+<!-- last-commit: 831d6d7500bb80aea29cfae0a836762769d493ec -->
+## [2026-04-12]
+
 ### Added
 - Interactive Logistics Center Map page (`/logistics-map`) — visual warehouse floor plan with clickable zones showing live inventory data from the TLV main center
 - Zone-product assignment system: editable product mapping per warehouse zone via `warehouse_zone_products` table
@@ -17,7 +22,6 @@
 
 - Disable swipe gestures on MyTasksPage day navigation (6a47441)
 
-<!-- last-commit: 9fa4f6d0d8244f2889d80c1894abb84b7245c730 -->
 ## [2026-04-12]
 
 - docs: add /alerts route to README modules table (2a02283)
