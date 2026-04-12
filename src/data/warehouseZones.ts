@@ -10,6 +10,7 @@ export interface WarehouseZone {
   zoneType: ZoneType;
   icon?: string;
   isNonProduct?: boolean;
+  capacity?: number; // max units, for utilization bar
 }
 
 // ──────────────────────────────────────────────────────────

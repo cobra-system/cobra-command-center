@@ -45,6 +45,7 @@ interface WarehouseZoneRow {
   icon: string | null;
   is_non_product: boolean;
   sort_order: number;
+  capacity: number | null;
 }
 
 export function useWarehouseInventory() {
@@ -91,6 +92,7 @@ export function useWarehouseInventory() {
           zoneType: row.zone_type as ZoneType,
           icon: row.icon ?? undefined,
           isNonProduct: row.is_non_product,
+          capacity: row.capacity ?? undefined,
         })),
       );
     }

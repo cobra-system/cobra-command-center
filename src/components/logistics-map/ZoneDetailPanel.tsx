@@ -2,9 +2,10 @@ import { Link } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Package, Pencil, ExternalLink, ArrowDown, Settings } from "lucide-react";
+import { AlertTriangle, Package, Pencil, ExternalLink, ArrowDown, Settings, Printer } from "lucide-react";
 import type { WarehouseZone } from "@/data/warehouseZones";
 import type { ZoneInventoryData } from "@/hooks/useWarehouseInventory";
+import { printZoneLabel } from "./PrintMapUtils";
 
 interface ZoneDetailPanelProps {
   zone: WarehouseZone | null;
@@ -41,6 +42,14 @@ export default function ZoneDetailPanel({
             />
             <SheetTitle className="text-lg">{zone.name.replace(/\n/g, " ")}</SheetTitle>
             <div className="mr-auto flex gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => printZoneLabel(zone, inventoryData)}
+                title="הדפס תווית"
+              >
+                <Printer className="w-4 h-4" />
+              </Button>
               {canEdit && (
                 <Button variant="ghost" size="sm" onClick={onZoneConfig}>
                   <Settings className="w-4 h-4 ml-1" />

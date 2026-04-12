@@ -78,6 +78,7 @@ export default function ZoneConfigDialog({
   const [zoneType, setZoneType] = useState<ZoneType>("storage");
   const [isNonProduct, setIsNonProduct] = useState(false);
   const [icon, setIcon] = useState("");
+  const [capacity, setCapacity] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -97,6 +98,7 @@ export default function ZoneConfigDialog({
       setZoneType(zone.zoneType);
       setIsNonProduct(zone.isNonProduct ?? false);
       setIcon(zone.icon ?? "");
+      setCapacity(zone.capacity != null ? String(zone.capacity) : "");
     } else {
       setId("");
       setName("");
@@ -108,6 +110,7 @@ export default function ZoneConfigDialog({
       setZoneType("storage");
       setIsNonProduct(false);
       setIcon("");
+      setCapacity("");
     }
     setShowDeleteConfirm(false);
   }, [open, zone]);
@@ -141,6 +144,7 @@ export default function ZoneConfigDialog({
       zone_type: zoneType,
       icon: icon.trim() || null,
       is_non_product: isNonProduct,
+      capacity: capacity.trim() ? parseInt(capacity, 10) : null,
       updated_at: new Date().toISOString(),
     };
 
@@ -352,6 +356,23 @@ export default function ZoneConfigDialog({
               dir="ltr"
             />
           </div>
+
+          {/* Capacity */}
+          {!isNonProduct && (
+            <div className="space-y-1">
+              <label className="text-sm font-medium">
+                קיבולת מקסימלית{" "}
+                <span className="text-muted-foreground font-normal">(יחידות, אופציונלי)</span>
+              </label>
+              <Input
+                type="number"
+                min={1}
+                value={capacity}
+                onChange={(e) => setCapacity(e.target.value)}
+                placeholder="ללא הגבלה"
+              />
+            </div>
+          )}
 
           {/* Is non-product */}
           <div className="flex items-center gap-2">

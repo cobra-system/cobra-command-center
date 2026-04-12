@@ -125,3 +125,7 @@ $$;
 -- ── Part E: Reload PostgREST schema cache ────────────────────
 
 NOTIFY pgrst, 'reload schema';
+
+-- ── Part F: Add capacity column ──────────────────────────────────────────────
+ALTER TABLE public.warehouse_zones
+  ADD COLUMN IF NOT EXISTS capacity INT DEFAULT NULL;
