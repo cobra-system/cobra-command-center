@@ -106,7 +106,7 @@ export default function SettingsPage() {
         const result = await res.json();
         if (!res.ok) toast.error(result.error || "שגיאה בעדכון");
         else { toast.success("המשתמש עודכן"); await refreshProfiles(); }
-      } catch { toast.error("שגיאה בחיבור לשרת"); }
+      } catch (err) { toast.error("שגיאה בחיבור לשרת: " + (err instanceof Error ? err.message : "נסה שוב")); }
     } else {
       const error = await createEmployee({
         name: empName.trim(),
