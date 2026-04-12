@@ -339,6 +339,31 @@ export async function applyMigrations() {
 
     // Migration 8: Allow product-module editors to write products & product_components
     const productsPermSqls = [
+      // Ensure has_module_edit function exists first
+      `CREATE OR REPLACE FUNCTION public.has_module_edit(module_key text)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT CASE
+    WHEN is_manager() THEN true
+    ELSE EXISTS (
+      SELECT 1
+      FROM public.role_permissions rp
+      JOIN public.profiles p ON p.id = auth.uid()
+      WHERE rp.module_key = has_module_edit.module_key
+        AND rp.permission_level = 'edit'
+        AND rp.role = COALESCE(
+          (SELECT COALESCE(rd.system_key, rd.id::text)
+             FROM public.role_definitions rd
+             WHERE rd.id = p.role_definition_id),
+          p.role::text
+        )
+    )
+  END
+$$;`,
       // products table
       `DROP POLICY IF EXISTS "Managers can insert products" ON public.products;`,
       `DROP POLICY IF EXISTS "Managers can update products" ON public.products;`,

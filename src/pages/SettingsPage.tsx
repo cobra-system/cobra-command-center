@@ -106,7 +106,11 @@ export default function SettingsPage() {
         const result = await res.json();
         if (!res.ok) toast.error(result.error || "שגיאה בעדכון");
         else { toast.success("המשתמש עודכן"); await refreshProfiles(); }
-      } catch { toast.error("שגיאה בחיבור לשרת"); }
+      } catch (err) {
+        console.error("Error updating employee:", err);
+        const errorMsg = err instanceof Error ? err.message : "Unknown error";
+        toast.error(errorMsg || "שגיאה בחיבור לשרת");
+      }
     } else {
       const error = await createEmployee({
         name: empName.trim(),
@@ -152,7 +156,11 @@ export default function SettingsPage() {
       const result = await res.json();
       if (!res.ok) toast.error(result.error || "שגיאה במחיקה");
       else { toast.success("העובד נמחק"); await refreshProfiles(); }
-    } catch { toast.error("שגיאה בחיבור לשרת"); }
+    } catch (err) {
+      console.error("Error deleting employee:", err);
+      const errorMsg = err instanceof Error ? err.message : "Unknown error";
+      toast.error(errorMsg || "שגיאה בחיבור לשרת");
+    }
     setSubmitting(false);
   };
 
