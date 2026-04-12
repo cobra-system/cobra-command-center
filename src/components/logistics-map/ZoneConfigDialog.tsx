@@ -51,6 +51,25 @@ function parseGridString(s: string): [number, number] {
   return [parts[0] ?? 1, parts[1] ?? 3];
 }
 
+async function logZoneChange(
+  zoneId: string,
+  action: "create" | "update" | "delete" | "move",
+  details?: object,
+) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("warehouse_zone_log").insert({
+      zone_id: zoneId,
+      action,
+      changed_by: user?.id ?? null,
+      // Embed email in details so we don't need a complex auth.users join in reads
+      details: { ...(details ?? {}), _user_email: user?.email ?? null },
+    });
+  } catch {
+    // Non-critical — swallow errors silently
+  }
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 interface ZoneConfigDialogProps {
@@ -59,6 +78,8 @@ interface ZoneConfigDialogProps {
   onClose: () => void;
   onSaved: () => void;
 }
+
+export { logZoneChange };
 
 export default function ZoneConfigDialog({
   zone,
@@ -79,6 +100,7 @@ export default function ZoneConfigDialog({
   const [isNonProduct, setIsNonProduct] = useState(false);
   const [icon, setIcon] = useState("");
   const [capacity, setCapacity] = useState<string>("");
+  const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -99,6 +121,7 @@ export default function ZoneConfigDialog({
       setIsNonProduct(zone.isNonProduct ?? false);
       setIcon(zone.icon ?? "");
       setCapacity(zone.capacity != null ? String(zone.capacity) : "");
+      setNotes(zone.notes ?? "");
     } else {
       setId("");
       setName("");
@@ -111,6 +134,7 @@ export default function ZoneConfigDialog({
       setIsNonProduct(false);
       setIcon("");
       setCapacity("");
+      setNotes("");
     }
     setShowDeleteConfirm(false);
   }, [open, zone]);
@@ -145,6 +169,7 @@ export default function ZoneConfigDialog({
       icon: icon.trim() || null,
       is_non_product: isNonProduct,
       capacity: capacity.trim() ? parseInt(capacity, 10) : null,
+      notes: notes.trim() || null,
       updated_at: new Date().toISOString(),
     };
 
@@ -165,6 +190,18 @@ export default function ZoneConfigDialog({
       toast.error(`שגיאה בשמירת האזור: ${error.message}`);
     } else {
       toast.success(isCreate ? "אזור נוצר בהצלחה" : "האזור עודכן בהצלחה");
+      if (isCreate) {
+        logZoneChange(zoneId, "create", { name: name.trim(), color, gridRow: payload.grid_row, gridCol: payload.grid_col });
+      } else {
+        // Build diff of changed fields
+        const changes: Record<string, { old: unknown; new: unknown }> = {};
+        if (zone!.name !== name.trim()) changes.name = { old: zone!.name, new: name.trim() };
+        if (zone!.color !== color) changes.color = { old: zone!.color, new: color };
+        if (zone!.gridRow !== payload.grid_row) changes.gridRow = { old: zone!.gridRow, new: payload.grid_row };
+        if (zone!.gridColumn !== payload.grid_col) changes.gridCol = { old: zone!.gridColumn, new: payload.grid_col };
+        if ((zone!.notes ?? "") !== notes.trim()) changes.notes = { old: zone!.notes ?? "", new: notes.trim() };
+        logZoneChange(zone!.id, "update", { changes });
+      }
       onSaved();
     }
     setSaving(false);
@@ -184,6 +221,7 @@ export default function ZoneConfigDialog({
       setSaving(false);
     } else {
       toast.success("האזור נמחק");
+      logZoneChange(zone.id, "delete", { name: zone.name });
       onSaved();
     }
     setShowDeleteConfirm(false);
@@ -373,6 +411,21 @@ export default function ZoneConfigDialog({
               />
             </div>
           )}
+
+          {/* Notes */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium">
+              הערות{" "}
+              <span className="text-muted-foreground font-normal">(פנימי, אופציונלי)</span>
+            </label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="הערות פנימיות על האזור..."
+              rows={2}
+              className="resize-none"
+            />
+          </div>
 
           {/* Is non-product */}
           <div className="flex items-center gap-2">

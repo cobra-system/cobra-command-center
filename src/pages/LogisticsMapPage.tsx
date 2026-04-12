@@ -1,23 +1,29 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useWarehouseInventory } from "@/hooks/useWarehouseInventory";
+import { useData } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import type { WarehouseZone } from "@/data/warehouseZones";
+import type { ZoneProduct } from "@/hooks/useWarehouseInventory";
 import WarehouseMap from "@/components/logistics-map/WarehouseMap";
 import ZoneDetailPanel from "@/components/logistics-map/ZoneDetailPanel";
 import ZoneEditDialog from "@/components/logistics-map/ZoneEditDialog";
 import ZoneConfigDialog from "@/components/logistics-map/ZoneConfigDialog";
+import ZoneTransferDialog from "@/components/logistics-map/ZoneTransferDialog";
 import PickingListPanel from "@/components/logistics-map/PickingListPanel";
 import MapLegend from "@/components/logistics-map/MapLegend";
 import MapSearchBar from "@/components/logistics-map/MapSearchBar";
 import { printFloorPlan } from "@/components/logistics-map/PrintMapUtils";
+import { logZoneChange } from "@/components/logistics-map/ZoneConfigDialog";
+import { NewOrderDialog } from "@/components/orders/NewOrderDialog";
 import { Button } from "@/components/ui/button";
 import { Map, Plus, Thermometer, PenSquare, ListChecks, Printer } from "lucide-react";
 
 export default function LogisticsMapPage() {
   const { hasEdit } = usePermissions("logistics-map");
   const { zones, zoneInventoryMap, allProducts, loading, refetch } = useWarehouseInventory();
+  const { suppliers, products: appProducts, addOrder } = useData();
 
   // ── Zone detail / edit ──────────────────────────────────────────────────────
   const [selectedZone, setSelectedZone] = useState<WarehouseZone | null>(null);
@@ -27,6 +33,13 @@ export default function LogisticsMapPage() {
   // ── Zone config (create/edit zone props) ────────────────────────────────────
   const [showZoneConfig, setShowZoneConfig] = useState(false);
   const [zoneToEdit, setZoneToEdit] = useState<WarehouseZone | null>(null);
+
+  // ── Zone product transfer ────────────────────────────────────────────────────
+  const [showTransfer, setShowTransfer] = useState(false);
+
+  // ── Quick reorder ────────────────────────────────────────────────────────────
+  const [showReorder, setShowReorder] = useState(false);
+  const [reorderProduct, setReorderProduct] = useState<string | undefined>(undefined);
 
   // ── Map modes ───────────────────────────────────────────────────────────────
   const [heatmapMode, setHeatmapMode] = useState(false);
@@ -72,9 +85,10 @@ export default function LogisticsMapPage() {
     refetch();
   }, [handleCloseZoneConfig, refetch]);
 
-  // Drag & drop save
+  // Drag & drop save — also writes to change log
   const handleZoneMoved = useCallback(
     async (zoneId: string, gridRow: string, gridCol: string) => {
+      const zone = zones.find((z) => z.id === zoneId);
       const { error } = await supabase
         .from("warehouse_zones")
         .update({ grid_row: gridRow, grid_col: gridCol, updated_at: new Date().toISOString() })
@@ -83,30 +97,72 @@ export default function LogisticsMapPage() {
         console.error("[handleZoneMoved]", error);
         toast.error(`שגיאה בשמירת מיקום: ${error.message}`);
       } else {
+        logZoneChange(zoneId, "move", {
+          old_row: zone?.gridRow,
+          old_col: zone?.gridColumn,
+          new_row: gridRow,
+          new_col: gridCol,
+        });
         refetch();
       }
     },
-    [refetch],
+    [refetch, zones],
   );
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
   }, []);
 
-  const toggleHeatmap = useCallback(() => {
-    setHeatmapMode((v) => !v);
-  }, []);
-
-  const toggleEditMode = useCallback(() => {
-    setEditMode((v) => !v);
-    setPickingMode(false);
-  }, []);
-
+  const toggleHeatmap = useCallback(() => setHeatmapMode((v) => !v), []);
+  const toggleEditMode = useCallback(() => { setEditMode((v) => !v); setPickingMode(false); }, []);
   const togglePickingMode = useCallback(() => {
     setPickingMode((v) => !v);
     setSelectedZoneIds(new Set());
     setEditMode(false);
   }, []);
+
+  // ── Reorder handler ─────────────────────────────────────────────────────────
+  const handleReorder = useCallback((lowStockProducts: ZoneProduct[]) => {
+    setReorderProduct(lowStockProducts[0]?.id);
+    setShowDetail(false);
+    setShowReorder(true);
+  }, []);
+
+  // ── Transfer handler ─────────────────────────────────────────────────────────
+  const handleTransfer = useCallback(() => {
+    setShowDetail(false);
+    setShowTransfer(true);
+  }, []);
+
+  // ── Keyboard shortcuts ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.target instanceof Element && e.target.closest("[role='dialog']")) return;
+
+      switch (e.key.toUpperCase()) {
+        case "H":
+          toggleHeatmap();
+          break;
+        case "E":
+          if (hasEdit) toggleEditMode();
+          break;
+        case "P":
+          togglePickingMode();
+          break;
+        case "ESCAPE":
+          if (editMode) { setEditMode(false); setPickingMode(false); }
+          else if (pickingMode) { setPickingMode(false); setSelectedZoneIds(new Set()); }
+          break;
+        case "/":
+          e.preventDefault();
+          document.querySelector<HTMLInputElement>("[data-search-input]")?.focus();
+          break;
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [editMode, pickingMode, hasEdit, toggleHeatmap, toggleEditMode, togglePickingMode]);
 
   // ── Search highlighting ─────────────────────────────────────────────────────
 
@@ -150,10 +206,11 @@ export default function LogisticsMapPage() {
               size="sm"
               variant={heatmapMode ? "default" : "outline"}
               onClick={toggleHeatmap}
-              title="תצוגת מלאי"
+              title="תצוגת מלאי (H)"
             >
               <Thermometer className="w-4 h-4 ml-1" />
               מלאי
+              <kbd className="hidden sm:inline-block text-[9px] opacity-40 mr-1 font-mono border border-current rounded px-0.5">H</kbd>
             </Button>
 
             {/* Picking mode */}
@@ -161,10 +218,11 @@ export default function LogisticsMapPage() {
               size="sm"
               variant={pickingMode ? "default" : "outline"}
               onClick={togglePickingMode}
-              title="מצב ליקוט"
+              title="מצב ליקוט (P)"
             >
               <ListChecks className="w-4 h-4 ml-1" />
               ליקוט
+              <kbd className="hidden sm:inline-block text-[9px] opacity-40 mr-1 font-mono border border-current rounded px-0.5">P</kbd>
             </Button>
 
             {/* Print floor plan */}
@@ -184,10 +242,11 @@ export default function LogisticsMapPage() {
                   size="sm"
                   variant={editMode ? "default" : "outline"}
                   onClick={toggleEditMode}
-                  title="ערוך מפה"
+                  title="ערוך מפה (E)"
                 >
                   <PenSquare className="w-4 h-4 ml-1" />
                   ערוך מפה
+                  <kbd className="hidden sm:inline-block text-[9px] opacity-40 mr-1 font-mono border border-current rounded px-0.5">E</kbd>
                 </Button>
 
                 {/* New zone */}
@@ -256,6 +315,8 @@ export default function LogisticsMapPage() {
         onClose={() => setShowDetail(false)}
         onEdit={() => { setShowDetail(false); setShowEdit(true); }}
         onZoneConfig={() => { setShowDetail(false); handleOpenZoneConfig(selectedZone); }}
+        onReorder={handleReorder}
+        onTransfer={handleTransfer}
         canEdit={hasEdit}
       />
 
@@ -275,6 +336,27 @@ export default function LogisticsMapPage() {
         open={showZoneConfig}
         onClose={handleCloseZoneConfig}
         onSaved={handleZoneConfigSaved}
+      />
+
+      {/* Zone transfer dialog */}
+      <ZoneTransferDialog
+        zone={selectedZone}
+        inventoryData={selectedZone ? zoneInventoryMap.get(selectedZone.id) : undefined}
+        allZones={zones}
+        open={showTransfer}
+        onClose={() => setShowTransfer(false)}
+        onSaved={() => { setShowTransfer(false); refetch(); }}
+      />
+
+      {/* Quick reorder dialog */}
+      <NewOrderDialog
+        suppliers={suppliers}
+        products={appProducts}
+        addOrder={addOrder}
+        open={showReorder}
+        onOpenChange={(o) => setShowReorder(o)}
+        defaultProductId={reorderProduct}
+        hideTrigger
       />
 
       {/* Picking list panel */}

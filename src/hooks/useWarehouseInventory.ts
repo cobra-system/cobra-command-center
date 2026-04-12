@@ -46,6 +46,7 @@ interface WarehouseZoneRow {
   is_non_product: boolean;
   sort_order: number;
   capacity: number | null;
+  notes: string | null;
 }
 
 export function useWarehouseInventory() {
@@ -93,6 +94,7 @@ export function useWarehouseInventory() {
           icon: row.icon ?? undefined,
           isNonProduct: row.is_non_product,
           capacity: row.capacity ?? undefined,
+          notes: row.notes ?? undefined,
         })),
       );
     }

@@ -11,6 +11,7 @@ export interface WarehouseZone {
   icon?: string;
   isNonProduct?: boolean;
   capacity?: number; // max units, for utilization bar
+  notes?: string;
 }
 
 // ──────────────────────────────────────────────────────────

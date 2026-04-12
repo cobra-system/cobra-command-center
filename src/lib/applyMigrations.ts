@@ -8,7 +8,7 @@
 import { supabase } from "@/lib/supabase";
 
 const MIGRATION_KEY = "cobra_migrations_applied"
-const CURRENT_VERSION = "20260412_create_warehouse_zones"
+const CURRENT_VERSION = "20260412_zone_notes_and_log"
 
 const INTERNATIONAL_TEMPLATE_ID = "b5a990c9-579d-4d9f-8e9a-90a8856ad00b";
 const ISRAEL_TEMPLATE_ID = "c7b881d0-68ae-4e0a-9f1b-a1b9967be11c";
@@ -482,6 +482,45 @@ export async function applyMigrations() {
     if (!warehouseZonesCreated) {
       console.error("❌ warehouse_zones table was not created. Please apply migration 20260412100000 via Supabase dashboard.");
       return false;
+    }
+
+    // ── Migration 10: Add notes column to warehouse_zones ─────────────────────
+    try {
+      const { error } = await supabase.rpc("exec_sql" as any, {
+        sql: `ALTER TABLE public.warehouse_zones ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT NULL;`,
+      });
+      if (error) console.warn("Migration 10 (zone notes) warning:", error.message);
+    } catch {
+      console.warn("Migration 10 may need to be applied via Supabase dashboard");
+    }
+
+    // ── Migration 11: Create warehouse_zone_log table ─────────────────────────
+    try {
+      const { error } = await supabase.rpc("exec_sql" as any, {
+        sql: `
+          CREATE TABLE IF NOT EXISTS public.warehouse_zone_log (
+            id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+            zone_id    TEXT        NOT NULL,
+            action     TEXT        NOT NULL CHECK (action IN ('create','update','delete','move')),
+            changed_by UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
+            details    JSONB,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+          );
+          ALTER TABLE public.warehouse_zone_log ENABLE ROW LEVEL SECURITY;
+          DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='warehouse_zone_log' AND policyname='wzl_select') THEN
+              CREATE POLICY "wzl_select" ON public.warehouse_zone_log FOR SELECT TO authenticated USING (true);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='warehouse_zone_log' AND policyname='wzl_insert') THEN
+              CREATE POLICY "wzl_insert" ON public.warehouse_zone_log FOR INSERT TO authenticated WITH CHECK (true);
+            END IF;
+          END $$;
+          CREATE INDEX IF NOT EXISTS idx_wzl_zone_id ON public.warehouse_zone_log (zone_id, created_at DESC);
+        `,
+      });
+      if (error) console.warn("Migration 11 (zone log) warning:", error.message);
+    } catch {
+      console.warn("Migration 11 may need to be applied via Supabase dashboard");
     }
 
     localStorage.setItem(MIGRATION_KEY, CURRENT_VERSION)
