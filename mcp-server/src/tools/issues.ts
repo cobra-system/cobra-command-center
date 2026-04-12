@@ -137,4 +137,207 @@ export function registerIssueTools(server: McpServer) {
       return { content: [{ type: "text" as const, text: `Issue deleted successfully` }] };
     }
   );
+
+  server.tool(
+    "summarize_issues",
+    "סיכום תקלות — Dashboard summary: counts by status and severity, list of open high-priority issues",
+    {
+      product_id: z.string().uuid().optional().describe("Limit summary to a specific product UUID"),
+    },
+    async ({ product_id }) => {
+      let query = supabase
+        .from("product_issues")
+        .select("id, status, severity, product_id, description, reported_date, reporter");
+      if (product_id) query = query.eq("product_id", product_id);
+
+      const { data, error } = await query;
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+
+      const issues = data || [];
+      const byStatus: Record<string, number> = { "פתוח": 0, "בטיפול": 0, "נסגר": 0 };
+      const bySeverity: Record<string, number> = { "נמוך": 0, "בינוני": 0, "גבוה": 0, "קריטי": 0 };
+
+      for (const i of issues) {
+        if (i.status in byStatus) byStatus[i.status]++;
+        if (i.severity in bySeverity) bySeverity[i.severity]++;
+      }
+
+      const openHighPriority = issues
+        .filter(i => i.status === "פתוח" && (i.severity === "קריטי" || i.severity === "גבוה"))
+        .sort((a, b) => new Date(b.reported_date).getTime() - new Date(a.reported_date).getTime())
+        .slice(0, 10);
+
+      const summary = {
+        total: issues.length,
+        by_status: byStatus,
+        by_severity: bySeverity,
+        open_high_priority: openHighPriority,
+      };
+
+      return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "search_issues",
+    "חיפוש תקלות — Search issues by description text, reporter name, product name, or date range",
+    {
+      text: z.string().optional().describe("Free-text search in description"),
+      reporter: z.string().optional().describe("Reporter name (partial match)"),
+      product_name: z.string().optional().describe("Product name (partial match) — resolves to product IDs automatically"),
+      status: z.enum(["פתוח", "בטיפול", "נסגר"]).optional().describe("Filter by status"),
+      severity: z.enum(["נמוך", "בינוני", "גבוה", "קריטי"]).optional().describe("Filter by severity"),
+      from_date: z.string().optional().describe("Start date (YYYY-MM-DD inclusive)"),
+      to_date: z.string().optional().describe("End date (YYYY-MM-DD inclusive)"),
+      limit: z.number().default(50).describe("Max results to return"),
+    },
+    async ({ text, reporter, product_name, status, severity, from_date, to_date, limit }) => {
+      let productIds: string[] | null = null;
+      if (product_name) {
+        const { data: prods, error: pErr } = await supabase
+          .from("products")
+          .select("id")
+          .ilike("name", `%${product_name}%`);
+        if (pErr) return { content: [{ type: "text" as const, text: `Error fetching products: ${pErr.message}` }] };
+        productIds = (prods || []).map((p: { id: string }) => p.id);
+        if (productIds.length === 0) return { content: [{ type: "text" as const, text: JSON.stringify([], null, 2) }] };
+      }
+
+      let query = supabase
+        .from("product_issues")
+        .select("*")
+        .order("reported_date", { ascending: false })
+        .limit(limit);
+
+      if (text) query = query.ilike("description", `%${text}%`);
+      if (reporter) query = query.ilike("reporter", `%${reporter}%`);
+      if (status) query = query.eq("status", status);
+      if (severity) query = query.eq("severity", severity);
+      if (from_date) query = query.gte("reported_date", from_date);
+      if (to_date) query = query.lte("reported_date", to_date);
+      if (productIds) query = query.in("product_id", productIds);
+
+      const { data, error } = await query;
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "close_issue",
+    "סגירת תקלה — Close an issue with a required resolution description (sets resolved_date automatically)",
+    {
+      id: z.string().uuid().describe("Issue UUID"),
+      resolution: z.string().describe("What was done to resolve this issue"),
+    },
+    async ({ id, resolution }) => {
+      const { data, error } = await supabase
+        .from("product_issues")
+        .update({
+          status: "נסגר",
+          resolution,
+          resolved_date: new Date().toISOString().split("T")[0],
+        })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Issue closed:\n${JSON.stringify(data, null, 2)}` }] };
+    }
+  );
+
+  server.tool(
+    "bulk_update_issues",
+    "עדכון מרובה תקלות — Update status or severity for multiple issues matching a filter (e.g. close all open issues for a product)",
+    {
+      product_id: z.string().uuid().optional().describe("Filter: only issues for this product UUID"),
+      current_status: z.enum(["פתוח", "בטיפול", "נסגר"]).optional().describe("Filter: only issues with this current status"),
+      current_severity: z.enum(["נמוך", "בינוני", "גבוה", "קריטי"]).optional().describe("Filter: only issues with this severity"),
+      new_status: z.enum(["פתוח", "בטיפול", "נסגר"]).optional().describe("New status to apply to matched issues"),
+      new_severity: z.enum(["נמוך", "בינוני", "גבוה", "קריטי"]).optional().describe("New severity to apply to matched issues"),
+      resolution: z.string().optional().describe("Resolution text (required when new_status is נסגר)"),
+    },
+    async ({ product_id, current_status, current_severity, new_status, new_severity, resolution }) => {
+      if (!new_status && !new_severity) {
+        return { content: [{ type: "text" as const, text: "Error: at least one of new_status or new_severity must be provided" }] };
+      }
+      if (!product_id && !current_status && !current_severity) {
+        return { content: [{ type: "text" as const, text: "Error: at least one filter (product_id, current_status, or current_severity) must be provided to prevent unintended bulk updates" }] };
+      }
+
+      const updates: Record<string, unknown> = {};
+      if (new_status) updates.status = new_status;
+      if (new_severity) updates.severity = new_severity;
+      if (resolution) updates.resolution = resolution;
+      if (new_status === "נסגר") updates.resolved_date = new Date().toISOString().split("T")[0];
+
+      const matchFilter: Record<string, string> = {};
+      if (product_id) matchFilter.product_id = product_id;
+      if (current_status) matchFilter.status = current_status;
+      if (current_severity) matchFilter.severity = current_severity;
+
+      const { data, error } = await supabase
+        .from("product_issues")
+        .update(updates)
+        .match(matchFilter)
+        .select("id, product_id, status, severity");
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Updated ${(data || []).length} issue(s):\n${JSON.stringify(data, null, 2)}` }] };
+    }
+  );
+
+  server.tool(
+    "get_issue_with_context",
+    "פרטי תקלה עם הקשר — Get issue enriched with product name, type, and supplier contact details",
+    {
+      id: z.string().uuid().describe("Issue UUID"),
+    },
+    async ({ id }) => {
+      const { data: issue, error: iErr } = await supabase
+        .from("product_issues")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (iErr) return { content: [{ type: "text" as const, text: `Error: ${iErr.message}` }] };
+
+      const { data: product } = await supabase
+        .from("products")
+        .select("id, name, product_type, supplier")
+        .eq("id", issue.product_id)
+        .maybeSingle();
+
+      let supplier = null;
+      if (product?.supplier) {
+        const { data: byId } = await supabase
+          .from("suppliers")
+          .select("id, company, contact_name, email")
+          .eq("id", product.supplier)
+          .maybeSingle();
+        if (byId) {
+          supplier = byId;
+        } else {
+          const { data: byName } = await supabase
+            .from("suppliers")
+            .select("id, company, contact_name, email")
+            .eq("company", product.supplier)
+            .maybeSingle();
+          supplier = byName;
+        }
+      }
+
+      const result = {
+        ...issue,
+        product_name: product?.name ?? null,
+        product_type: product?.product_type ?? null,
+        supplier_company: supplier?.company ?? null,
+        supplier_contact: supplier?.contact_name ?? null,
+        supplier_email: supplier?.email ?? null,
+      };
+
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+    }
+  );
 }

@@ -18,6 +18,8 @@
 ## [Unreleased]
 
 ### Added
+- MCP server: 5 new issue tools — `summarize_issues` (KPI counts by status/severity + open high-priority list), `search_issues` (free-text, reporter, product name, date range), `close_issue` (explicit close with required resolution), `bulk_update_issues` (batch status/severity update by filter), `get_issue_with_context` (issue enriched with product name and supplier details)
+- IssuesPage: KPI summary cards (total, open, in-progress, critical, closed) with click-to-filter; colored left-border accent stripe per severity; relative date display; description tooltip; icons on severity and status badges; ticket number chip; result count and clear-filter button in filter bar
 - "בין ספקים" (supplier-to-supplier) shipping type on orders, with a destination supplier selector in the new-order dialog and order detail page; shown in the orders table
 - ReorderPage: live "בדרך" (incoming) quantity computed from actual active orders in real time, refresh button with last-updated timestamp, and "הזמנות פעילות" column showing per-product active order count
 - ProcurementAgendaPage: manual refresh button, last-updated timestamp, and automatic refetch when the browser tab regains focus
