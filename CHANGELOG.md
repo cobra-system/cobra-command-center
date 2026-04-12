@@ -5,6 +5,12 @@
 
 ---
 
+## [2026-04-12]
+
+- docs: add /alerts route to README modules table (2a02283)
+- feat: merge shipment groups into orders, add בין ספקים type, fix procurement sync (ad925ca)
+
+<!-- last-commit: 0d306512e9cc2f3ae5f995cdef540dc19bb180ac -->
 ## [Unreleased]
 
 ### Added
@@ -25,7 +31,6 @@
 - docs: add automated documentation validation system (21b0b9a)
 - docs: audit and restructure all markdown documentation (bfea945)
 
-<!-- last-commit: 4355cc67a09c9161a52c80917a636ac3871433d1 -->
 
 ## [2026-04-11]
 
