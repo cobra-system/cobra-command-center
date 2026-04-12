@@ -7,6 +7,14 @@
 
 ## [2026-04-12]
 
+### Added
+- Interactive Logistics Center Map page (`/logistics-map`) — visual warehouse floor plan with clickable zones showing live inventory data from the TLV main center
+- Zone-product assignment system: editable product mapping per warehouse zone via `warehouse_zone_products` table
+- Search and highlight zones by product name, SKU, or zone name
+- Mobile support with pinch-to-zoom and bottom sheet for zone details
+
+## [2026-04-12]
+
 - Disable swipe gestures on MyTasksPage day navigation (6a47441)
 
 <!-- last-commit: 9fa4f6d0d8244f2889d80c1894abb84b7245c730 -->

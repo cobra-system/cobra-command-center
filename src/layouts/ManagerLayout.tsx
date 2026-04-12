@@ -27,6 +27,7 @@ import {
   ArrowLeft,
   ExternalLink,
   Bell,
+  Map,
   type LucideIcon,
 } from "lucide-react";
 import { useAlertCount } from "@/hooks/useAlertCount";
@@ -48,13 +49,14 @@ const defaultNavItems = [
   { to: "/waste-management", icon: "Recycle", label: "ניהול בלאי" },
   { to: "/reorder", icon: "CalendarClock", label: "תכנון רכש" },
   { to: "/alerts", icon: "Bell", label: "התראות" },
+  { to: "/logistics-map", icon: "Map", label: "מפת מחסן" },
   { to: "/reports", icon: "BarChart3", label: "דוחות" },
   { to: "/settings", icon: "Settings", label: "הגדרות" },
 ];
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard, Package, ShoppingCart, Truck, ListTodo,
-  Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Recycle, Boxes, Bell,
+  Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Recycle, Boxes, Bell, Map,
 };
 
 const NAV_ORDER_KEY = "cobra-nav-order";
