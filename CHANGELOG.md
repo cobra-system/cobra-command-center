@@ -7,10 +7,14 @@
 
 ## [2026-04-12]
 
+- Disable swipe gestures on MyTasksPage day navigation (6a47441)
+
+<!-- last-commit: 9fa4f6d0d8244f2889d80c1894abb84b7245c730 -->
+## [2026-04-12]
+
 - docs: add /alerts route to README modules table (2a02283)
 - feat: merge shipment groups into orders, add בין ספקים type, fix procurement sync (ad925ca)
 
-<!-- last-commit: 0d306512e9cc2f3ae5f995cdef540dc19bb180ac -->
 ## [Unreleased]
 
 ### Added
