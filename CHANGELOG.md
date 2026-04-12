@@ -7,9 +7,14 @@
 
 ## [2026-04-12]
 
+- Merge pull request #124 from cobra-system/claude/fix-product-migration-issues-eZSYh (e567ee8)
+- Fix product migration function dependency and improve error handling (85a9486)
+
+<!-- last-commit: e567ee84a0ff06bbcc3eed889de9b5b928e736fe -->
+## [2026-04-12]
+
 - refactor: reorganize role permissions UI to vertical layout (2e31e0a)
 
-<!-- last-commit: 1a3a89481a7da5e44ce0ddf490c52bd69bcb9108 -->
 ## [2026-04-12]
 
 - Merge pull request #121 from cobra-system/claude/fix-manager-edit-permissions-JkYDl (d99e0e8)
