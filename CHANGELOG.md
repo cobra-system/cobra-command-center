@@ -5,6 +5,15 @@
 
 ---
 
+## [2026-04-12] — Issue Detail Page
+
+### Added
+- עמוד פרטי תקלה (`/issues/:id`) — צפייה ועריכה inline של תיאור, חומרה, סטטוס, פתרון ופרטי מטה-דאטה
+- ציר זמן עדכונים/תגובות לכל תקלה (הוספה ומחיקה למנהל)
+- גלריית מדיה: תמונות + וידאו עד 50MB, lightbox לתמונות, הפעלה בחלון חדש לוידאו
+- לחיצה על שורה בטבלת התקלות מנווטת לעמוד הפרטים במקום לעמוד המוצר
+- טבלות DB חדשות: `issue_updates`, `issue_attachments` עם RLS; bucket `issue-media` ב-Supabase Storage
+
 ## [2026-04-12]
 
 - Merge pull request #124 from cobra-system/claude/fix-product-migration-issues-eZSYh (e567ee8)

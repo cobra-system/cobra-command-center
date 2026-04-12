@@ -285,8 +285,8 @@ export default function IssuesPage() {
                 <tr
                   key={issue.id}
                   className={`hover:bg-muted/30 transition-colors cursor-pointer border-r-2 ${severityBorderColors[issue.severity] || "border-r-border"} ${issue.severity === "קריטי" ? "bg-destructive/5" : ""}`}
-                  onClick={() => navigate(`/products/${issue.product_id}`)}
-                  data-navigate-to={`/products/${issue.product_id}`}
+                  onClick={() => navigate(`/issues/${issue.id}`)}
+                  data-navigate-to={`/issues/${issue.id}`}
                 >
                   {isVisible("reported_date") && (
                     <td className="p-3">
