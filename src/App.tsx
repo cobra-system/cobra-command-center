@@ -39,6 +39,7 @@ const EquipmentPage = lazy(() => import("@/pages/EquipmentPage"));
 const InstallerDetailPage = lazy(() => import("@/pages/InstallerDetailPage"));
 const AlertsPage = lazy(() => import("@/pages/AlertsPage"));
 const LogisticsMapPage = lazy(() => import("@/pages/LogisticsMapPage"));
+const IssueDetailPage = lazy(() => import("@/pages/IssueDetailPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -109,6 +110,7 @@ function AppRoutes() {
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/recurring-tasks" element={<Navigate to="/tasks" replace />} />
         <Route path="/issues" element={<IssuesPage />} />
+        <Route path="/issues/:id" element={<IssueDetailPage />} />
         <Route path="/meetings" element={<Navigate to="/orders" replace />} />
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/workflows" element={<Navigate to="/tasks" replace />} />
