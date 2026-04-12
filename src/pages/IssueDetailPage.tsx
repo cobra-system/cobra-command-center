@@ -8,7 +8,7 @@ import { InlineEditField } from "@/components/InlineEditField";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -139,6 +139,8 @@ export default function IssueDetailPage() {
   const [submittingUpdate, setSubmittingUpdate] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Fetchers ────────────────────────────────────────────────────────────────
@@ -281,6 +283,26 @@ export default function IssueDetailPage() {
     await fetchAttachments();
   };
 
+  const handleDeleteLegacyImage = async () => {
+    if (!issue) return;
+    const { error } = await supabase
+      .from("product_issues")
+      .update({ image_url: null, updated_at: new Date().toISOString() })
+      .eq("id", issue.id);
+    if (error) { toast.error("שגיאה במחיקה"); return; }
+    await fetchIssue();
+  };
+
+  const handleDeleteIssue = async () => {
+    if (!issue) return;
+    setDeleting(true);
+    const { error } = await supabase.from("product_issues").delete().eq("id", issue.id);
+    if (error) { toast.error("שגיאה במחיקת התקלה"); setDeleting(false); return; }
+    logActivity({ action: "issue.delete", entityType: "issue", entityId: issue.id, details: { description: issue.description } });
+    toast.success("התקלה נמחקה");
+    navigate("/issues");
+  };
+
   // ── Derived ─────────────────────────────────────────────────────────────────
 
   const product = issue ? products.find(p => p.id === issue.product_id) : null;
@@ -335,6 +357,17 @@ export default function IssueDetailPage() {
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+            {/* Delete issue button — managers only */}
+            {isManager && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                onClick={() => setDeleteConfirm(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
             {/* Severity badge / popover */}
             {hasEdit ? (
               <Popover>
@@ -650,7 +683,7 @@ export default function IssueDetailPage() {
                   url={issue.image_url}
                   fileType="image"
                   onView={() => setLightboxUrl(issue.image_url!)}
-                  onDelete={null}
+                  onDelete={isManager ? handleDeleteLegacyImage : null}
                 />
               )}
               {/* New attachments */}
@@ -671,6 +704,28 @@ export default function IssueDetailPage() {
           )}
         </div>
       </div>
+
+      {/* ── Delete Issue Confirmation ───────────────────────────────────────── */}
+      <Dialog open={deleteConfirm} onOpenChange={setDeleteConfirm}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>מחיקת תקלה</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            האם למחוק את התקלה <span className="font-medium text-foreground">"{issue.description}"</span>?
+            <br />פעולה זו אינה ניתנת לביטול.
+          </p>
+          <DialogFooter className="gap-2 mt-2">
+            <Button variant="outline" onClick={() => setDeleteConfirm(false)} disabled={deleting}>
+              ביטול
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteIssue} disabled={deleting}>
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin ml-1" /> : <Trash2 className="h-4 w-4 ml-1" />}
+              מחק תקלה
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Lightbox ────────────────────────────────────────────────────────── */}
       <Dialog open={!!lightboxUrl} onOpenChange={() => setLightboxUrl(null)}>
