@@ -7,10 +7,14 @@
 
 ## [2026-04-12]
 
+- refactor: reorganize role permissions UI to vertical layout (2e31e0a)
+
+<!-- last-commit: 1a3a89481a7da5e44ce0ddf490c52bd69bcb9108 -->
+## [2026-04-12]
+
 - Merge pull request #121 from cobra-system/claude/fix-manager-edit-permissions-JkYDl (d99e0e8)
 - fix: allow non-manager users with edit permission to modify products (bd71bd5)
 
-<!-- last-commit: d99e0e8873e55caf60f70f0f9c91c77118afb97f -->
 ## [2026-04-12]
 
 - Merge pull request #120 from cobra-system/claude/improve-error-page-mt0oW (fd52c57)
