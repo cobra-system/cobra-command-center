@@ -5,6 +5,13 @@
 
 ---
 
+## [2026-04-12]
+
+- Merge pull request #125 from cobra-system/claude/issue-detail-page-9GJKX (020abaf)
+- docs: add /issues/:id route to README modules table (03e8ebf)
+- feat: add issue detail page with inline editing, updates timeline, and media gallery (ca4f4b2)
+
+<!-- last-commit: 020abaf33ea5ec9a9cf6a4fd6ad4fa00510add37 -->
 ## [2026-04-12] — Issue Detail Page
 
 ### Added
@@ -19,7 +26,6 @@
 - Merge pull request #124 from cobra-system/claude/fix-product-migration-issues-eZSYh (e567ee8)
 - Fix product migration function dependency and improve error handling (85a9486)
 
-<!-- last-commit: e567ee84a0ff06bbcc3eed889de9b5b928e736fe -->
 ## [2026-04-12]
 
 - refactor: reorganize role permissions UI to vertical layout (2e31e0a)
