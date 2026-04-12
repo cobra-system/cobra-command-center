@@ -49,8 +49,6 @@ export default function MyTasksPage() {
     d.setHours(0, 0, 0, 0);
     return d;
   });
-  const touchStartXRef = useRef<number | null>(null);
-
   // Helper: check if a date string falls on the given target date
   const isOnDate = (dateStr: string | null | undefined, targetDate: Date): boolean => {
     if (!dateStr) return false;
@@ -98,18 +96,6 @@ export default function MyTasksPage() {
   const goToPrevDay = () => setSelectedDate(d => { const n = new Date(d); n.setDate(n.getDate() - 1); return n; });
   const goToNextDay = () => setSelectedDate(d => { const n = new Date(d); n.setDate(n.getDate() + 1); return n; });
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartXRef.current = e.touches[0].clientX;
-  };
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartXRef.current === null) return;
-    const delta = e.changedTouches[0].clientX - touchStartXRef.current;
-    touchStartXRef.current = null;
-    if (Math.abs(delta) < 50) return;
-    // RTL: swipe right (positive delta) = previous day, swipe left (negative delta) = next day
-    if (delta > 0) goToNextDay(); else goToPrevDay();
-  };
-
   const p0Tasks = todo.filter(t => t.priority === "דחוף");
   const otherTasks = todo.filter(t => t.priority !== "דחוף");
 
@@ -148,7 +134,7 @@ export default function MyTasksPage() {
   const offset = circumference - (pct / 100) * circumference;
 
   return (
-    <div className="pb-8" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+    <div className="pb-8">
       {/* Hero section with greeting + progress */}
       <div className="bg-gradient-to-b from-[hsl(var(--employee-header)_/_0.06)] to-transparent px-5 pt-6 pb-2">
         <div className="flex items-start justify-between mb-5">
