@@ -124,8 +124,10 @@ export function RolesProvider({ currentUser, children }: { currentUser: Profile 
       if (!response.ok) return result.error || "שגיאה ביצירת עובד";
       await queryClient.refetchQueries({ queryKey: ["profiles"] });
       return null;
-    } catch {
-      return "שגיאה בחיבור לשרת";
+    } catch (err) {
+      console.error("Error creating employee:", err);
+      const errorMsg = err instanceof Error ? err.message : "Unknown error";
+      return errorMsg || "שגיאה בחיבור לשרת";
     }
   }, [queryClient]);
 

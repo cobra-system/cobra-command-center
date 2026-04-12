@@ -45,7 +45,7 @@ export default function TeamPage() {
   const isManager = currentUser?.role === "MANAGER";
 
   const sortedProfiles = useMemo(() => {
-    let result = [...profiles];
+    const result = [...profiles];
     if (sortKey && sortDir) {
       result.sort((a, b) => {
         let cmp = 0;
@@ -86,7 +86,7 @@ export default function TeamPage() {
       // Update via edge function
       try {
         const sess = await supabase.auth.getSession();
-        const body: Record<string, any> = {
+        const body: Record<string, unknown> = {
           action: "update",
           employee_id: editingId,
           name: name.trim(),
@@ -110,8 +110,10 @@ export default function TeamPage() {
           toast.success("העובד עודכן בהצלחה");
           await refreshProfiles();
         }
-      } catch {
-        toast.error("שגיאה בחיבור לשרת");
+      } catch (err) {
+        console.error("Error updating employee:", err);
+        const errorMsg = err instanceof Error ? err.message : "Unknown error";
+        toast.error(errorMsg || "שגיאה בחיבור לשרת");
       }
     } else {
       const error = await createEmployee({
@@ -166,8 +168,10 @@ export default function TeamPage() {
         toast.success("העובד נמחק");
         await refreshProfiles();
       }
-    } catch {
-      toast.error("שגיאה בחיבור לשרת");
+    } catch (err) {
+      console.error("Error deleting employee:", err);
+      const errorMsg = err instanceof Error ? err.message : "Unknown error";
+      toast.error(errorMsg || "שגיאה בחיבור לשרת");
     }
     setSubmitting(false);
     setDeleteConfirm(null);
