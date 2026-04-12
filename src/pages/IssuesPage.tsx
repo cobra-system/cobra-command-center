@@ -6,7 +6,8 @@ import { useNavigate } from "react-router-dom";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, Wrench, Plus, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Loader2, Wrench, Plus, ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle, CheckCircle2, Clock, Hash, Minus, Circle, Check, X, Filter } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
@@ -49,6 +50,22 @@ const statusColors: Record<string, string> = {
   "נסגר": "bg-success/15 text-success",
 };
 
+const severityBorderColors: Record<string, string> = {
+  "נמוך":   "border-r-border",
+  "בינוני": "border-r-warning",
+  "גבוה":   "border-r-destructive",
+  "קריטי":  "border-r-destructive",
+};
+
+function relativeDate(dateStr: string): string {
+  const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+  if (days === 0) return "היום";
+  if (days === 1) return "אתמול";
+  if (days < 7) return `לפני ${days} ימים`;
+  if (days < 30) return `לפני ${Math.floor(days / 7)} שבועות`;
+  return `לפני ${Math.floor(days / 30)} חודשים`;
+}
+
 export default function IssuesPage() {
   const { products, suppliers } = useData();
   const { hasEdit } = usePermissions("issues");
@@ -71,6 +88,13 @@ export default function IssuesPage() {
   const filterProduct = prefs.filters.filterProduct || "all";
   const filterStatus = prefs.filters.filterStatus || "all";
   const filterSeverity = prefs.filters.filterSeverity || "all";
+
+  const totalCount      = issues.length;
+  const openCount       = issues.filter(i => i.status === "פתוח").length;
+  const inProgressCount = issues.filter(i => i.status === "בטיפול").length;
+  const criticalCount   = issues.filter(i => i.severity === "קריטי").length;
+  const closedCount     = issues.filter(i => i.status === "נסגר").length;
+  const hasActiveFilters = filterProduct !== "all" || filterStatus !== "all" || filterSeverity !== "all";
 
   const refreshIssues = async () => {
     const { data } = await supabase.from("product_issues").select("id, product_id, reported_date, reporter, description, severity, status, ticket_number, diagnostic_source").order("reported_date", { ascending: false });
@@ -171,7 +195,30 @@ export default function IssuesPage() {
         )}
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      {/* KPI Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+        {[
+          { label: 'סה"כ תקלות', value: totalCount,      Icon: Wrench,       color: "text-muted-foreground", bg: "bg-muted/50",       onClick: () => prefs.savePreferences({ filters: { filterProduct: "all", filterStatus: "all", filterSeverity: "all" } }) },
+          { label: "פתוחות",     value: openCount,        Icon: AlertTriangle, color: "text-destructive",      bg: "bg-destructive/10", onClick: () => prefs.setFilter("filterStatus", "פתוח") },
+          { label: "בטיפול",     value: inProgressCount,  Icon: Clock,         color: "text-warning",          bg: "bg-warning/10",     onClick: () => prefs.setFilter("filterStatus", "בטיפול") },
+          { label: "קריטיות",    value: criticalCount,    Icon: AlertTriangle, color: "text-destructive",      bg: "bg-destructive/10", onClick: () => prefs.setFilter("filterSeverity", "קריטי") },
+          { label: "סגורות",     value: closedCount,      Icon: CheckCircle2,  color: "text-success",          bg: "bg-success/10",     onClick: () => prefs.setFilter("filterStatus", "נסגר") },
+        ].map(card => (
+          <div key={card.label} onClick={card.onClick} className="bg-card rounded-xl border p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={`p-1.5 rounded-lg ${card.bg}`}>
+                <card.Icon className={`h-4 w-4 ${card.color}`} />
+              </div>
+              <span className="text-xs text-muted-foreground">{card.label}</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter Bar */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         <Select value={filterProduct} onValueChange={(v) => prefs.setFilter("filterProduct", v)}>
           <SelectTrigger className="w-48"><SelectValue placeholder="כל המוצרים" /></SelectTrigger>
           <SelectContent>
@@ -198,6 +245,19 @@ export default function IssuesPage() {
             <SelectItem value="קריטי">קריטי</SelectItem>
           </SelectContent>
         </Select>
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-muted-foreground hover:text-foreground"
+            onClick={() => prefs.savePreferences({ filters: { filterProduct: "all", filterStatus: "all", filterSeverity: "all" } })}
+          >
+            <X className="h-3.5 w-3.5" />נקה סינון
+          </Button>
+        )}
+        <span className="text-xs text-muted-foreground mr-auto">
+          מציג {filtered.length} מתוך {totalCount} תקלות
+        </span>
       </div>
 
       <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
@@ -216,13 +276,24 @@ export default function IssuesPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <TooltipProvider>
             {filtered.length === 0 ? (
               <tr><td colSpan={visibleCount} className="p-6 text-center text-muted-foreground">אין תקלות להצגה</td></tr>
             ) : filtered.map(issue => {
               const supplier = getSupplierForProduct(issue.product_id);
               return (
-                <tr key={issue.id} className="hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => navigate(`/products/${issue.product_id}`)} data-navigate-to={`/products/${issue.product_id}`}>
-                  {isVisible("reported_date") && <td className="p-3 text-xs text-muted-foreground">{new Date(issue.reported_date).toLocaleDateString("he-IL")}</td>}
+                <tr
+                  key={issue.id}
+                  className={`hover:bg-muted/30 transition-colors cursor-pointer border-r-2 ${severityBorderColors[issue.severity] || "border-r-border"} ${issue.severity === "קריטי" ? "bg-destructive/5" : ""}`}
+                  onClick={() => navigate(`/products/${issue.product_id}`)}
+                  data-navigate-to={`/products/${issue.product_id}`}
+                >
+                  {isVisible("reported_date") && (
+                    <td className="p-3">
+                      <div className="text-xs text-foreground">{new Date(issue.reported_date).toLocaleDateString("he-IL")}</div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">{relativeDate(issue.reported_date)}</div>
+                    </td>
+                  )}
                   {isVisible("product_id") && <td className="p-3 text-primary font-medium">{productMap[issue.product_id] || "—"}</td>}
                   {isVisible("supplier") && (
                     <td className="p-3" onClick={supplier ? (e) => navigateToSupplier(issue.product_id, e) : undefined}>
@@ -234,13 +305,55 @@ export default function IssuesPage() {
                     </td>
                   )}
                   {isVisible("reporter") && <td className="p-3 text-foreground">{issue.reporter}</td>}
-                  {isVisible("description") && <td className="p-3 text-foreground max-w-[250px] truncate">{issue.description}</td>}
-                  {isVisible("severity") && <td className="p-3"><span className={`px-2 py-0.5 rounded text-xs font-medium ${severityColors[issue.severity] || "bg-muted text-muted-foreground"}`}>{issue.severity}</span></td>}
-                  {isVisible("status") && <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[issue.status] || "bg-muted text-muted-foreground"}`}>{issue.status}</span></td>}
-                  {isVisible("ticket_number") && <td className="p-3 text-xs text-muted-foreground font-mono">{issue.ticket_number || "—"}</td>}
+                  {isVisible("description") && (
+                    <td className="p-3 max-w-[250px]">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="truncate block text-foreground cursor-default">{issue.description}</span>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-xs text-xs">{issue.description}</TooltipContent>
+                      </Tooltip>
+                    </td>
+                  )}
+                  {isVisible("severity") && (
+                    <td className="p-3">
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${severityColors[issue.severity] || "bg-muted text-muted-foreground"}`}>
+                        {(issue.severity === "קריטי" || issue.severity === "גבוה")
+                          ? <AlertTriangle className="h-3 w-3" />
+                          : issue.severity === "בינוני"
+                            ? <Minus className="h-3 w-3" />
+                            : <Circle className="h-2.5 w-2.5 fill-current" />}
+                        {issue.severity}
+                      </span>
+                    </td>
+                  )}
+                  {isVisible("status") && (
+                    <td className="p-3">
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[issue.status] || "bg-muted text-muted-foreground"}`}>
+                        {issue.status === "פתוח"
+                          ? <Circle className="h-2.5 w-2.5" />
+                          : issue.status === "בטיפול"
+                            ? <Clock className="h-3 w-3" />
+                            : <Check className="h-3 w-3" />}
+                        {issue.status}
+                      </span>
+                    </td>
+                  )}
+                  {isVisible("ticket_number") && (
+                    <td className="p-3">
+                      {issue.ticket_number ? (
+                        <span className="inline-flex items-center gap-0.5 bg-muted/70 border border-border rounded px-1.5 py-0.5 text-xs font-mono text-muted-foreground">
+                          <Hash className="h-3 w-3" />{issue.ticket_number}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </td>
+                  )}
                 </tr>
               );
             })}
+            </TooltipProvider>
           </tbody>
         </table>
       </div>

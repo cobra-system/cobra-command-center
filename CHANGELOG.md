@@ -7,9 +7,20 @@
 
 ## [2026-04-12]
 
+- Merge pull request #121 from cobra-system/claude/fix-manager-edit-permissions-JkYDl (d99e0e8)
+- fix: allow non-manager users with edit permission to modify products (bd71bd5)
+
+<!-- last-commit: d99e0e8873e55caf60f70f0f9c91c77118afb97f -->
+## [2026-04-12]
+
+- Merge pull request #120 from cobra-system/claude/improve-error-page-mt0oW (fd52c57)
+- Add 5 MCP tools for issue management (1f1e9ab)
+- Improve IssuesPage to professional level (223e373)
+
+## [2026-04-12]
+
 - feat: add interactive logistics center map page (54006cd)
 
-<!-- last-commit: 831d6d7500bb80aea29cfae0a836762769d493ec -->
 ## [2026-04-12]
 
 ### Added
@@ -30,6 +41,8 @@
 ## [Unreleased]
 
 ### Added
+- MCP server: 5 new issue tools — `summarize_issues` (KPI counts by status/severity + open high-priority list), `search_issues` (free-text, reporter, product name, date range), `close_issue` (explicit close with required resolution), `bulk_update_issues` (batch status/severity update by filter), `get_issue_with_context` (issue enriched with product name and supplier details)
+- IssuesPage: KPI summary cards (total, open, in-progress, critical, closed) with click-to-filter; colored left-border accent stripe per severity; relative date display; description tooltip; icons on severity and status badges; ticket number chip; result count and clear-filter button in filter bar
 - "בין ספקים" (supplier-to-supplier) shipping type on orders, with a destination supplier selector in the new-order dialog and order detail page; shown in the orders table
 - ReorderPage: live "בדרך" (incoming) quantity computed from actual active orders in real time, refresh button with last-updated timestamp, and "הזמנות פעילות" column showing per-product active order count
 - ProcurementAgendaPage: manual refresh button, last-updated timestamp, and automatic refetch when the browser tab regains focus
