@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,9 @@ import {
   Check,
   X,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
+import { DIVISION_COLORS, DIVISION_COLOR_FALLBACK } from "@/components/equipment/constants";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -81,12 +84,6 @@ interface Props {
 
 const ROLES = ["מנהל", "רכז", "טכנאי", "תמיכה", "אחר"];
 
-const DIVISION_COLOR: Record<string, string> = {
-  AWACS: "bg-blue-100 text-blue-700 border-blue-200",
-  כפתור: "bg-amber-100 text-amber-700 border-amber-200",
-  DOORE: "bg-green-100 text-green-700 border-green-200",
-};
-
 // ─── Blank contact form ────────────────────────────────────────────────────
 
 const blankForm = () => ({
@@ -100,6 +97,7 @@ const blankForm = () => ({
 // ─── Component ─────────────────────────────────────────────────────────────
 
 export function DivisionPanel({ division, onClose, installers, pickups, returns }: Props) {
+  const navigate = useNavigate();
   const [contacts, setContacts] = useState<DivisionContact[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -223,7 +221,7 @@ export function DivisionPanel({ division, onClose, installers, pickups, returns 
     }
   };
 
-  const colorClass = DIVISION_COLOR[division ?? ""] ?? "bg-gray-100 text-gray-700 border-gray-200";
+  const colorClass = DIVISION_COLORS[division ?? ""] ?? DIVISION_COLOR_FALLBACK;
 
   return (
     <Sheet open={!!division} onOpenChange={(open) => !open && onClose()}>
@@ -237,6 +235,18 @@ export function DivisionPanel({ division, onClose, installers, pickups, returns 
               </Badge>
               <span className="text-muted-foreground font-normal text-sm">פאנל חטיבה</span>
             </SheetTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full mt-2 gap-2 text-sm"
+              onClick={() => {
+                onClose();
+                navigate(`/equipment/division/${encodeURIComponent(division ?? "")}`);
+              }}
+            >
+              <ExternalLink className="h-4 w-4" />
+              צפה בפרטי חטיבה מלאים
+            </Button>
           </SheetHeader>
 
           {/* Stats */}
@@ -398,13 +408,13 @@ export function DivisionPanel({ division, onClose, installers, pickups, returns 
                 אין אנשי קשר עדיין
               </div>
             ) : (
-              <div className="rounded-md border overflow-hidden">
+              <div className="rounded-md border overflow-hidden" dir="rtl">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>שם</TableHead>
-                      <TableHead>תפקיד</TableHead>
-                      <TableHead>טלפון</TableHead>
+                      <TableHead className="text-right">שם</TableHead>
+                      <TableHead className="text-right">תפקיד</TableHead>
+                      <TableHead className="text-right">טלפון</TableHead>
                       <TableHead className="w-16"></TableHead>
                     </TableRow>
                   </TableHeader>
