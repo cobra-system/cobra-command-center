@@ -7,9 +7,15 @@
 
 ## [2026-04-12]
 
+- Merge pull request #120 from cobra-system/claude/improve-error-page-mt0oW (fd52c57)
+- Add 5 MCP tools for issue management (1f1e9ab)
+- Improve IssuesPage to professional level (223e373)
+
+<!-- last-commit: fd52c57b3b81ddbd2c392a750ce5d97a9d95b0a3 -->
+## [2026-04-12]
+
 - feat: add interactive logistics center map page (54006cd)
 
-<!-- last-commit: 831d6d7500bb80aea29cfae0a836762769d493ec -->
 ## [2026-04-12]
 
 ### Added
