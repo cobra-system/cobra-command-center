@@ -2,6 +2,9 @@ import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from "react
 const ProcurementAgendaTab = lazy(() =>
   import("@/pages/ProcurementAgendaPage").then(m => ({ default: m.ProcurementAgendaTab }))
 );
+const ShipmentGroupsTab = lazy(() =>
+  import("@/components/orders/ShipmentGroupsTab").then(m => ({ default: m.ShipmentGroupsTab }))
+);
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { Plus, Search } from "lucide-react";
@@ -224,6 +227,16 @@ export default function OrdersPage() {
     return result;
   }, [orders, statusFilter, priorityFilter, paymentFilter, workflowFilter, search, sortField, sortDir, orderWorkflows]);
 
+  const orderCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    orders.forEach(o => {
+      if (o.status !== "ARRIVED") {
+        counts[o.status] = (counts[o.status] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [orders]);
+
   const navigateToSupplier = (supplierName: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     const s = suppliers.find(s => s.company === supplierName);
@@ -320,6 +333,7 @@ export default function OrdersPage() {
             )}
           </TabsTrigger>
           <TabsTrigger value="agenda">סדר יום רכש</TabsTrigger>
+          <TabsTrigger value="shipment-groups">קבוצות משלוח</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-0">
@@ -338,6 +352,7 @@ export default function OrdersPage() {
             setPaymentFilter={setPaymentFilter}
             workflowFilter={workflowFilter}
             setWorkflowFilter={setWorkflowFilter}
+            orderCounts={orderCounts}
           />
           <OrderTable
             filtered={filtered}
@@ -390,6 +405,12 @@ export default function OrdersPage() {
         <TabsContent value="agenda" className="mt-0">
           <Suspense fallback={<div className="p-8 text-center text-muted-foreground">טוען...</div>}>
             <ProcurementAgendaTab />
+          </Suspense>
+        </TabsContent>
+
+        <TabsContent value="shipment-groups" className="mt-0">
+          <Suspense fallback={<div className="p-8 text-center text-muted-foreground">טוען...</div>}>
+            <ShipmentGroupsTab />
           </Suspense>
         </TabsContent>
       </Tabs>

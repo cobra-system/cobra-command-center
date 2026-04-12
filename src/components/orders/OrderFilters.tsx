@@ -4,10 +4,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Priority } from "@/contexts/AppContext";
 
 const statusFilterOptions = [
-  { value: "all", label: "הכל" },
-  { value: "PENDING", label: "ממתין" },
-  { value: "ORDERED", label: "הוזמן" },
-  { value: "SHIPPED", label: "נשלח" },
+  { value: "all",               label: "הכל" },
+  { value: "PENDING",           label: "ממתין" },
+  { value: "ORDERED",           label: "הוזמן" },
+  { value: "SHIPPED",           label: "נשלח" },
+  { value: "ARRIVED_PORT",      label: "הגיע לנמל" },
+  { value: "CUSTOMS_CLEARANCE", label: "שחרור מכס" },
+  { value: "DELIVERED",         label: "נמסר" },
+  { value: "CANCELLED",         label: "בוטל" },
 ];
 
 const priorities: { value: Priority; label: string }[] = [
@@ -28,6 +32,7 @@ interface OrderFiltersProps {
   setPaymentFilter: (v: string) => void;
   workflowFilter: string;
   setWorkflowFilter: (v: string) => void;
+  orderCounts: Record<string, number>;
 }
 
 export function OrderFilters({
@@ -41,6 +46,7 @@ export function OrderFilters({
   setPaymentFilter,
   workflowFilter,
   setWorkflowFilter,
+  orderCounts,
 }: OrderFiltersProps) {
   return (
     <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
@@ -49,11 +55,23 @@ export function OrderFilters({
         <Input placeholder="חיפוש לפי מוצר או ספק..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
       </div>
       <div className="flex bg-secondary rounded-lg p-1 overflow-x-auto">
-        {statusFilterOptions.map(s => (
-          <button key={s.value} onClick={() => setStatusFilter(s.value)} className={`px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
-            statusFilter === s.value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
-          }`}>{s.label}</button>
-        ))}
+        {statusFilterOptions.map(s => {
+          const count = s.value === "all"
+            ? Object.values(orderCounts).reduce((a, b) => a + b, 0)
+            : (orderCounts[s.value] || 0);
+          return (
+            <button key={s.value} onClick={() => setStatusFilter(s.value)} className={`px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+              statusFilter === s.value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+            }`}>
+              {s.label}
+              {count > 0 && (
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none ${
+                  statusFilter === s.value ? "bg-primary/20 text-primary" : "bg-muted-foreground/20 text-muted-foreground"
+                }`}>{count}</span>
+              )}
+            </button>
+          );
+        })}
       </div>
       <Select value={priorityFilter} onValueChange={setPriorityFilter}>
         <SelectTrigger className="w-[110px] sm:w-[130px]"><SelectValue placeholder="עדיפות" /></SelectTrigger>

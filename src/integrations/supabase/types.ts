@@ -425,6 +425,8 @@ export type Database = {
         Row: {
           contact_name: string | null
           created_at: string
+          destination_supplier_id: string | null
+          destination_supplier_name: string | null
           eta: string | null
           etd: string | null
           id: string
@@ -444,6 +446,8 @@ export type Database = {
         Insert: {
           contact_name?: string | null
           created_at?: string
+          destination_supplier_id?: string | null
+          destination_supplier_name?: string | null
           eta?: string | null
           etd?: string | null
           id?: string
@@ -463,6 +467,8 @@ export type Database = {
         Update: {
           contact_name?: string | null
           created_at?: string
+          destination_supplier_id?: string | null
+          destination_supplier_name?: string | null
           eta?: string | null
           etd?: string | null
           id?: string
@@ -483,6 +489,13 @@ export type Database = {
           {
             foreignKeyName: "orders_supplier_id_fkey"
             columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_destination_supplier_id_fkey"
+            columns: ["destination_supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
             referencedColumns: ["id"]

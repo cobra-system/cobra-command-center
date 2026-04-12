@@ -49,6 +49,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
   const [priority, setPriority] = useState<Priority>("בינוני");
   const [supplierId, setSupplierId] = useState("");
   const [shipping, setShipping] = useState("");
+  const [destinationSupplierId, setDestinationSupplierId] = useState("");
   const [notes, setNotes] = useState("");
   const [etd, setEtd] = useState<Date>();
   const [eta, setEta] = useState<Date>();
@@ -64,7 +65,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
   const componentOptions = allComponents.map(c => ({ value: c.id, label: `${c.name} — ${c.productName}` }));
 
   const resetForm = () => {
-    setPriority("בינוני"); setSupplierId(""); setShipping(""); setNotes("");
+    setPriority("בינוני"); setSupplierId(""); setShipping(""); setDestinationSupplierId(""); setNotes("");
     setEtd(undefined); setEta(undefined); setTrackingNumber("");
     setItems([{ type: "product", name: "", qty: "", price: "", productId: "", componentId: "" }]);
   };
@@ -157,12 +158,15 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
     }
 
     const supplier = suppliers.find(s => s.id === supplierId);
+    const destSupplier = destinationSupplierId ? suppliers.find(s => s.id === destinationSupplierId) : undefined;
 
     await addOrder({
       priority,
       supplier_id: supplierId || undefined,
       supplier_name: supplier?.company || undefined,
       shipping: shipping || undefined,
+      destination_supplier_id: destinationSupplierId || undefined,
+      destination_supplier_name: destSupplier?.company || undefined,
       status: "PENDING",
       order_date: new Date().toISOString(),
       etd: etd?.toISOString(),
@@ -216,7 +220,30 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
             </div>
           </div>
 
-          <div className="space-y-2"><Label>שיטת משלוח</Label><Input value={shipping} onChange={e => setShipping(e.target.value)} placeholder="ימי / אווירי / יבשתי..." /></div>
+          <div className="space-y-2">
+            <Label>שיטת משלוח</Label>
+            <Select value={shipping} onValueChange={setShipping}>
+              <SelectTrigger><SelectValue placeholder="בחר שיטת משלוח..." /></SelectTrigger>
+              <SelectContent>
+                {["ים", "אוויר", "יבשה", "שילוב", "בין ספקים"].map(m => (
+                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {shipping === "בין ספקים" && (
+            <div className="space-y-2">
+              <Label>ספק יעד</Label>
+              <Combobox
+                value={destinationSupplierId}
+                onValueChange={setDestinationSupplierId}
+                options={supplierOptions}
+                placeholder="בחר ספק יעד..."
+                searchPlaceholder="חיפוש ספק..."
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

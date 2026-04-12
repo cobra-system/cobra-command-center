@@ -7,6 +7,16 @@
 
 ## [Unreleased]
 
+### Added
+- "בין ספקים" (supplier-to-supplier) shipping type on orders, with a destination supplier selector in the new-order dialog and order detail page; shown in the orders table
+- ReorderPage: live "בדרך" (incoming) quantity computed from actual active orders in real time, refresh button with last-updated timestamp, and "הזמנות פעילות" column showing per-product active order count
+- ProcurementAgendaPage: manual refresh button, last-updated timestamp, and automatic refetch when the browser tab regains focus
+
+### Changed
+- Shipment Groups merged as a 5th tab inside the Orders page (הזמנות) — no longer a separate page; `/shipment-groups` redirects to `/orders`
+- Status filter bar in Orders now shows all 8 order statuses (not just 4) with count badges
+- Meetings page removed from navigation; `/meetings` redirects to `/orders`
+
 ---
 
 ## [2026-04-11]

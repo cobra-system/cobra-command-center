@@ -1,10 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData } from "@/contexts/AppContext";
+import { supabase } from "@/lib/supabase";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { CalendarClock, AlertTriangle, CheckCircle, ShoppingCart, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { CalendarClock, AlertTriangle, CheckCircle, ShoppingCart, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { InlineEditField } from "@/components/InlineEditField";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
@@ -20,6 +20,7 @@ const COLUMN_DEFS = [
   { id: "name",                label: "מוצר",              sortField: "name" },
   { id: "stock_qty",           label: "מלאי",              sortField: "stock_qty" },
   { id: "incoming_qty",        label: "בדרך",              sortField: "incoming_qty" },
+  { id: "active_orders",       label: "הזמנות פעילות" },
   { id: "monthly_sales_avg",   label: "מכירות/חודש",       sortField: "monthly_sales_avg" },
   { id: "days_until_stockout", label: "ימים לאזילה",       sortField: "days_until_stockout" },
   { id: "lead_time_days",      label: "Lead Time",          sortField: "lead_time_days" },
@@ -39,6 +40,8 @@ interface ReorderRow {
   days_until_stockout: number | null;
   order_by_date: Date | null;
   status: "danger" | "warning" | "ok";
+  has_active_order: boolean;
+  active_order_qty: number;
 }
 
 export default function ReorderPage() {
@@ -55,12 +58,45 @@ export default function ReorderPage() {
   const sortKey = prefs.sortField as SortKey | null;
   const sortDir = prefs.sortDir;
 
+  // Live data from actual orders
+  const [liveIncoming, setLiveIncoming] = useState<Record<string, number>>({});
+  const [activeOrderCount, setActiveOrderCount] = useState<Record<string, number>>({});
+  const [lastFetch, setLastFetch] = useState<Date | null>(null);
+  const [fetching, setFetching] = useState(false);
+
+  const fetchLiveData = useCallback(async () => {
+    setFetching(true);
+    const { data } = await supabase
+      .from("order_items")
+      .select("product_id, qty, orders!inner(status)")
+      .not("product_id", "is", null)
+      .in("orders.status", ["PENDING", "ORDERED", "SHIPPED", "ARRIVED_PORT", "CUSTOMS_CLEARANCE", "DELIVERED"]);
+
+    if (data) {
+      const incoming: Record<string, number> = {};
+      const actives: Record<string, number> = {};
+      for (const item of data as Array<{ product_id: string; qty: number }>) {
+        if (!item.product_id) continue;
+        incoming[item.product_id] = (incoming[item.product_id] || 0) + (item.qty || 0);
+        actives[item.product_id] = (actives[item.product_id] || 0) + 1;
+      }
+      setLiveIncoming(incoming);
+      setActiveOrderCount(actives);
+    }
+    setLastFetch(new Date());
+    setFetching(false);
+  }, []);
+
+  useEffect(() => { fetchLiveData(); }, [fetchLiveData]);
+
   const rows = useMemo<ReorderRow[]>(() => {
     let result = products
       .map(p => {
         const monthlySales = p.monthly_sales_avg ?? p.monthly_sales ?? 0;
         const dailySales = monthlySales / 30;
-        const totalStock = p.stock_qty + p.incoming_qty;
+        // Use live order data if available, fallback to stored field
+        const incoming = liveIncoming[p.id] ?? p.incoming_qty;
+        const totalStock = p.stock_qty + incoming;
         const daysUntilStockout = dailySales > 0 ? Math.floor(totalStock / dailySales) : null;
         const leadTime = p.lead_time_days ?? 30;
         const orderByDate = daysUntilStockout !== null ? addDays(new Date(), daysUntilStockout - leadTime) : null;
@@ -77,7 +113,7 @@ export default function ReorderPage() {
           name: p.name,
           sku: p.sku,
           stock_qty: p.stock_qty,
-          incoming_qty: p.incoming_qty,
+          incoming_qty: incoming,
           monthly_sales_avg: monthlySales,
           lead_time_days: p.lead_time_days,
           reorder_point: p.reorder_point,
@@ -85,6 +121,8 @@ export default function ReorderPage() {
           days_until_stockout: daysUntilStockout,
           order_by_date: orderByDate,
           status,
+          has_active_order: (activeOrderCount[p.id] || 0) > 0,
+          active_order_qty: activeOrderCount[p.id] || 0,
         } as ReorderRow;
       })
       .filter(r => r.daily_sales > 0);
@@ -136,7 +174,7 @@ export default function ReorderPage() {
     }
 
     return result;
-  }, [products, sortKey, sortDir]);
+  }, [products, sortKey, sortDir, liveIncoming, activeOrderCount]);
 
   const dangerCount = rows.filter(r => r.status === "danger").length;
   const warningCount = rows.filter(r => r.status === "warning").length;
@@ -167,9 +205,20 @@ export default function ReorderPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <CalendarClock className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold text-foreground">תכנון רכש חכם</h1>
+        <div className="ms-auto flex items-center gap-2">
+          {lastFetch && (
+            <span className="text-xs text-muted-foreground">
+              עודכן {lastFetch.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
+          <Button variant="outline" size="sm" onClick={fetchLiveData} disabled={fetching}>
+            <RefreshCw className={`h-4 w-4 ml-1 ${fetching ? "animate-spin" : ""}`} />
+            רענן
+          </Button>
+        </div>
       </div>
 
       {/* Summary KPIs */}
@@ -199,9 +248,11 @@ export default function ReorderPage() {
             <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
               {COLUMN_DEFS.map(col => isVisible(col.id) ? (
                 <th key={col.id} className="text-right p-3 font-semibold text-foreground" onContextMenu={colThContextMenu(col, setColMenu)}>
-                  <button onClick={() => prefs.toggleSort(col.sortField)} className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors">
-                    {col.label} <SortIcon col={col.sortField} />
-                  </button>
+                  {col.sortField ? (
+                    <button onClick={() => prefs.toggleSort(col.sortField!)} className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors">
+                      {col.label} <SortIcon col={col.sortField as SortKey} />
+                    </button>
+                  ) : col.label}
                 </th>
               ) : null)}
               {hasEdit && <th className="text-right p-3 font-semibold text-foreground">פעולה</th>}
@@ -224,6 +275,15 @@ export default function ReorderPage() {
                   )}
                   {isVisible("stock_qty") && <td className="p-3 text-foreground font-semibold">{r.stock_qty}</td>}
                   {isVisible("incoming_qty") && <td className="p-3 text-muted-foreground">{r.incoming_qty}</td>}
+                  {isVisible("active_orders") && (
+                    <td className="p-3">
+                      {r.has_active_order ? (
+                        <span className="text-xs font-medium text-success bg-success/15 px-2 py-0.5 rounded-full">
+                          {r.active_order_qty} פעיל{r.active_order_qty > 1 ? "ות" : "ה"}
+                        </span>
+                      ) : <span className="text-muted-foreground">—</span>}
+                    </td>
+                  )}
                   {isVisible("monthly_sales_avg") && <td className="p-3 text-muted-foreground">{r.monthly_sales_avg?.toFixed(0) || "—"}</td>}
                   {isVisible("days_until_stockout") && (
                     <td className="p-3">
@@ -263,10 +323,13 @@ export default function ReorderPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="text-xs h-7 border-destructive/50 text-destructive hover:bg-destructive/10"
+                          className={`text-xs h-7 ${r.has_active_order
+                            ? "border-warning/50 text-warning hover:bg-warning/10"
+                            : "border-destructive/50 text-destructive hover:bg-destructive/10"}`}
                           onClick={() => navigate(`/orders?create=true&product=${r.id}`)}
                         >
-                          <ShoppingCart className="h-3 w-3 ml-1" />הזמן
+                          <ShoppingCart className="h-3 w-3 ml-1" />
+                          {r.has_active_order ? "הזמן שוב" : "הזמן"}
                         </Button>
                       )}
                     </td>
@@ -293,7 +356,7 @@ export default function ReorderPage() {
       )}
 
       <p className="text-xs text-muted-foreground text-center">
-        * החישוב מבוסס על: ימים לאזילה = (מלאי + בדרך) ÷ מכירות יומיות | תאריך הזמנה = היום + ימים לאזילה - Lead Time
+        * החישוב מבוסס על: ימים לאזילה = (מלאי + בדרך) ÷ מכירות יומיות | תאריך הזמנה = היום + ימים לאזילה - Lead Time | "בדרך" מחושב מהזמנות פעילות בזמן אמת
       </p>
     </div>
   );

@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle, CreditCard, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle, CreditCard, Zap, RefreshCw } from "lucide-react";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import type { ColDef } from "@/hooks/useColumnVisibility";
@@ -61,6 +62,8 @@ export function ProcurementAgendaTab() {
   const [overdueOrders, setOverdueOrders] = useState<OverdueOrder[]>([]);
   const [urgentOrders, setUrgentOrders] = useState<UrgentOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(false);
+  const [lastFetch, setLastFetch] = useState<Date | null>(null);
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>(null);
 
@@ -71,40 +74,50 @@ export function ProcurementAgendaTab() {
   );
   const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 
-  useEffect(() => {
-    const fetchAll = async () => {
-      const today = new Date().toISOString();
-      const [paymentsRes, overdueRes, urgentRes] = await Promise.all([
-        supabase
-          .from("order_payments")
-          .select("id, order_id, payment_type, amount, currency, due_date, orders(supplier_name, pi_number)")
-          .eq("status", "ממתין")
-          .not("due_date", "is", null)
-          .order("due_date", { ascending: true })
-          .limit(30),
-        supabase
-          .from("orders")
-          .select("id, supplier_name, eta, status, priority, pi_number")
-          .not("eta", "is", null)
-          .lt("eta", today)
-          .not("status", "in", '("ARRIVED","DELIVERED","CANCELLED")')
-          .order("eta", { ascending: true })
-          .limit(20),
-        supabase
-          .from("orders")
-          .select("id, priority, supplier_name, eta, etd, status, total_price, pi_number")
-          .in("priority", ["דחוף", "גבוה"])
-          .in("status", ["PENDING", "ORDERED", "SHIPPED", "ARRIVED_PORT", "CUSTOMS_CLEARANCE"])
-          .order("priority", { ascending: true })
-          .limit(30),
-      ]);
-      if (paymentsRes.data) setPendingPayments(paymentsRes.data as PendingPayment[]);
-      if (overdueRes.data) setOverdueOrders(overdueRes.data as OverdueOrder[]);
-      if (urgentRes.data) setUrgentOrders(urgentRes.data as UrgentOrder[]);
-      setLoading(false);
-    };
-    fetchAll();
+  const fetchAll = useCallback(async () => {
+    setFetching(true);
+    setLoading(prev => prev); // keep loading true on first run
+    const today = new Date().toISOString();
+    const [paymentsRes, overdueRes, urgentRes] = await Promise.all([
+      supabase
+        .from("order_payments")
+        .select("id, order_id, payment_type, amount, currency, due_date, orders(supplier_name, pi_number)")
+        .eq("status", "ממתין")
+        .not("due_date", "is", null)
+        .order("due_date", { ascending: true })
+        .limit(30),
+      supabase
+        .from("orders")
+        .select("id, supplier_name, eta, status, priority, pi_number")
+        .not("eta", "is", null)
+        .lt("eta", today)
+        .not("status", "in", '("ARRIVED","DELIVERED","CANCELLED")')
+        .order("eta", { ascending: true })
+        .limit(20),
+      supabase
+        .from("orders")
+        .select("id, priority, supplier_name, eta, etd, status, total_price, pi_number")
+        .in("priority", ["דחוף", "גבוה"])
+        .in("status", ["PENDING", "ORDERED", "SHIPPED", "ARRIVED_PORT", "CUSTOMS_CLEARANCE"])
+        .order("priority", { ascending: true })
+        .limit(30),
+    ]);
+    if (paymentsRes.data) setPendingPayments(paymentsRes.data as PendingPayment[]);
+    if (overdueRes.data) setOverdueOrders(overdueRes.data as OverdueOrder[]);
+    if (urgentRes.data) setUrgentOrders(urgentRes.data as UrgentOrder[]);
+    setLastFetch(new Date());
+    setLoading(false);
+    setFetching(false);
   }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Re-fetch when browser tab regains focus
+  useEffect(() => {
+    const onVisibility = () => { if (!document.hidden) fetchAll(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [fetchAll]);
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
@@ -146,10 +159,22 @@ export function ProcurementAgendaTab() {
 
   return (
     <div className="space-y-6" dir="rtl">
-      {/* Date */}
-      <p className="text-sm text-muted-foreground">
-        {new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-      </p>
+      {/* Date + refresh */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <p className="text-sm text-muted-foreground">
+          {new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+        </p>
+        <div className="flex items-center gap-2">
+          {lastFetch && (
+            <span className="text-xs text-muted-foreground">
+              עודכן: {lastFetch.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
+          <Button variant="ghost" size="sm" onClick={fetchAll} disabled={fetching}>
+            <RefreshCw className={`h-4 w-4 ${fetching ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
+      </div>
 
       {/* Top two-column cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

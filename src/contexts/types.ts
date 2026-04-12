@@ -101,6 +101,8 @@ export interface Order {
   booking_number?: string | null;
   tclog_reference?: string | null;
   shipment_group_id?: string | null;
+  destination_supplier_id?: string | null;
+  destination_supplier_name?: string | null;
   updated_at?: string | null;
   items: OrderItem[];
 }

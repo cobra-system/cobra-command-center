@@ -34,11 +34,9 @@ const MyTasksPage = lazy(() => import("@/pages/MyTasksPage"));
 const MyTaskDetailPage = lazy(() => import("@/pages/MyTaskDetailPage"));
 const InventoryPage = lazy(() => import("@/pages/InventoryPage"));
 const IssuesPage = lazy(() => import("@/pages/IssuesPage"));
-const MeetingsPage = lazy(() => import("@/pages/MeetingsPage"));
 const WasteManagementPage = lazy(() => import("@/pages/WasteManagementPage"));
 const EquipmentPage = lazy(() => import("@/pages/EquipmentPage"));
 const InstallerDetailPage = lazy(() => import("@/pages/InstallerDetailPage"));
-const ShipmentGroupsPage = lazy(() => import("@/pages/ShipmentGroupsPage"));
 const AlertsPage = lazy(() => import("@/pages/AlertsPage"));
 
 const queryClient = new QueryClient({
@@ -110,7 +108,7 @@ function AppRoutes() {
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/recurring-tasks" element={<Navigate to="/tasks" replace />} />
         <Route path="/issues" element={<IssuesPage />} />
-        <Route path="/meetings" element={<MeetingsPage />} />
+        <Route path="/meetings" element={<Navigate to="/orders" replace />} />
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/workflows" element={<Navigate to="/tasks" replace />} />
         <Route path="/documents" element={<DocumentsPage />} />
@@ -121,7 +119,7 @@ function AppRoutes() {
         <Route path="/equipment" element={<EquipmentPage />} />
         <Route path="/equipment/installer/:id" element={<InstallerDetailPage />} />
         <Route path="/compliance" element={<Navigate to="/documents" replace />} />
-        <Route path="/shipment-groups" element={<ShipmentGroupsPage />} />
+        <Route path="/shipment-groups" element={<Navigate to="/orders" replace />} />
         <Route path="/alerts" element={<AlertsPage />} />
       </Route>
 

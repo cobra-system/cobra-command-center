@@ -201,7 +201,16 @@ export function OrderTable({
                       </td>
                     )}
                     {isVisible("shipping") && (
-                      <td className="p-3 text-muted-foreground">{order.shipping || "—"}</td>
+                      <td className="p-3 text-muted-foreground">
+                        {order.shipping === "בין ספקים" ? (
+                          <span>
+                            בין ספקים
+                            {order.destination_supplier_name && (
+                              <span className="text-xs block text-muted-foreground/70">→ {order.destination_supplier_name}</span>
+                            )}
+                          </span>
+                        ) : (order.shipping || "—")}
+                      </td>
                     )}
                     {isVisible("status") && (
                       <td className="p-3" onClick={e => e.stopPropagation()}>
