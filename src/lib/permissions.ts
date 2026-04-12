@@ -5,24 +5,25 @@ export interface ModuleDefinition {
   key: string;
   label: string;
   route: string;
+  category: "Core" | "Tasks" | "Documents" | "Warehouse";
 }
 
 export const MODULES: ModuleDefinition[] = [
-  { key: "dashboard", label: "דשבורד", route: "/dashboard" },
-  { key: "products", label: "מוצרים", route: "/products" },
-  { key: "orders", label: "הזמנות", route: "/orders" },
-  { key: "tasks", label: "משימות", route: "/tasks" },
-  { key: "inventory", label: "מלאי", route: "/inventory" },
-  { key: "documents", label: "מסמכים", route: "/documents" },
-  { key: "suppliers", label: "ספקים", route: "/suppliers" },
-  { key: "issues", label: "תקלות", route: "/issues" },
-  { key: "reorder", label: "תכנון רכש", route: "/reorder" },
-  { key: "reports", label: "דוחות", route: "/reports" },
-  { key: "waste", label: "ניהול בלאי", route: "/waste-management" },
-  { key: "equipment", label: "הצטיידויות ובלאי", route: "/equipment" },
-  { key: "shipment-groups", label: "קבוצות משלוח", route: "/shipment-groups" },
-  { key: "alerts", label: "התראות", route: "/alerts" },
-  { key: "logistics-map", label: "מפת מחסן", route: "/logistics-map" },
+  { key: "dashboard", label: "דשבורד", route: "/dashboard", category: "Core" },
+  { key: "products", label: "מוצרים", route: "/products", category: "Core" },
+  { key: "orders", label: "הזמנות", route: "/orders", category: "Core" },
+  { key: "inventory", label: "מלאי", route: "/inventory", category: "Core" },
+  { key: "suppliers", label: "ספקים", route: "/suppliers", category: "Core" },
+  { key: "tasks", label: "משימות", route: "/tasks", category: "Tasks" },
+  { key: "reorder", label: "תכנון רכש", route: "/reorder", category: "Tasks" },
+  { key: "reports", label: "דוחות", route: "/reports", category: "Tasks" },
+  { key: "documents", label: "מסמכים", route: "/documents", category: "Documents" },
+  { key: "issues", label: "תקלות", route: "/issues", category: "Documents" },
+  { key: "alerts", label: "התראות", route: "/alerts", category: "Documents" },
+  { key: "waste", label: "ניהול בלאי", route: "/waste-management", category: "Warehouse" },
+  { key: "equipment", label: "הצטיידויות ובלאי", route: "/equipment", category: "Warehouse" },
+  { key: "shipment-groups", label: "קבוצות משלוח", route: "/shipment-groups", category: "Warehouse" },
+  { key: "logistics-map", label: "מפת מחסן", route: "/logistics-map", category: "Warehouse" },
 ];
 
 export function canView(permissions: RolePermissions, moduleKey: string): boolean {

@@ -2,12 +2,19 @@ import { useData } from "@/contexts/AppContext";
 import { MODULES, type PermissionLevel } from "@/lib/permissions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield } from "lucide-react";
+import { Shield, ChevronRight } from "lucide-react";
 
 const permissionLabels: Record<PermissionLevel, string> = {
   none: "ללא",
   view: "צפייה",
   edit: "עריכה",
+};
+
+const categoryLabels: Record<string, string> = {
+  Core: "פעולות ליבה",
+  Tasks: "משימות ותכנון",
+  Documents: "מסמכים ובעיות",
+  Warehouse: "ניהול מחסן",
 };
 
 export default function RolePermissionsManager() {
@@ -33,6 +40,9 @@ export default function RolePermissionsManager() {
     upsertRolePermission(roleKey, moduleKey, level);
   };
 
+  // Group modules by category
+  const groupedModules = Object.groupBy(MODULES, (mod) => mod.category);
+
   return (
     <Card>
       <CardHeader>
@@ -41,55 +51,63 @@ export default function RolePermissionsManager() {
           הרשאות תפקידים
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground mb-4">
+      <CardContent className="space-y-6">
+        <p className="text-sm text-muted-foreground">
           הגדר עבור כל תפקיד אילו דפים נגישים ומה ניתן לעשות בהם
         </p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b">
-                <th className="text-right py-2 px-2 font-medium text-muted-foreground min-w-[120px]">
-                  תפקיד / מודול
-                </th>
-                {MODULES.map((mod) => (
-                  <th
-                    key={mod.key}
-                    className="text-center py-2 px-1 font-medium text-muted-foreground min-w-[90px]"
-                  >
-                    {mod.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {displayRoles.map((rd) => {
-                const roleKey = getRoleKey(rd.id);
-                return (
-                  <tr key={rd.id} className="border-b last:border-0">
-                    <td className="py-3 px-2 font-medium">{rd.name}</td>
-                    {MODULES.map((mod) => (
-                      <td key={mod.key} className="py-2 px-1 text-center">
-                        <Select
-                          value={getPermission(roleKey, mod.key)}
-                          onValueChange={(val) => handleChange(roleKey, mod.key, val as PermissionLevel)}
-                        >
-                          <SelectTrigger className="h-8 text-xs w-[80px] mx-auto">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">{permissionLabels.none}</SelectItem>
-                            <SelectItem value="view">{permissionLabels.view}</SelectItem>
-                            <SelectItem value="edit">{permissionLabels.edit}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </td>
-                    ))}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+
+        {/* Render each role as a vertical card */}
+        <div className="space-y-4">
+          {displayRoles.map((rd) => {
+            const roleKey = getRoleKey(rd.id);
+            return (
+              <Card key={rd.id} className="border bg-card">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base text-foreground">{rd.name}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Render each category group */}
+                  {Object.entries(groupedModules).map(([category, modules]) => (
+                    <div key={category} className="space-y-2">
+                      <div className="flex items-center gap-2 pb-2">
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        <h4 className="text-sm font-semibold text-foreground">
+                          {categoryLabels[category] || category}
+                        </h4>
+                      </div>
+
+                      {/* Module rows within category */}
+                      <div className="mr-6 space-y-2">
+                        {modules?.map((mod) => (
+                          <div
+                            key={mod.key}
+                            className="flex items-center justify-between rounded px-3 py-2 hover:bg-muted/50 transition-colors"
+                          >
+                            <label className="text-sm font-medium text-foreground cursor-pointer flex-1">
+                              {mod.label}
+                            </label>
+                            <Select
+                              value={getPermission(roleKey, mod.key)}
+                              onValueChange={(val) => handleChange(roleKey, mod.key, val as PermissionLevel)}
+                            >
+                              <SelectTrigger className="h-8 text-xs w-[100px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">{permissionLabels.none}</SelectItem>
+                                <SelectItem value="view">{permissionLabels.view}</SelectItem>
+                                <SelectItem value="edit">{permissionLabels.edit}</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </CardContent>
     </Card>
