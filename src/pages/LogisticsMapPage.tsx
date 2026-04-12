@@ -1,21 +1,25 @@
 import { useState, useCallback } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useWarehouseInventory } from "@/hooks/useWarehouseInventory";
-import { WAREHOUSE_ZONES, type WarehouseZone } from "@/data/warehouseZones";
+import type { WarehouseZone } from "@/data/warehouseZones";
 import WarehouseMap from "@/components/logistics-map/WarehouseMap";
 import ZoneDetailPanel from "@/components/logistics-map/ZoneDetailPanel";
 import ZoneEditDialog from "@/components/logistics-map/ZoneEditDialog";
+import ZoneConfigDialog from "@/components/logistics-map/ZoneConfigDialog";
 import MapLegend from "@/components/logistics-map/MapLegend";
 import MapSearchBar from "@/components/logistics-map/MapSearchBar";
-import { Map } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Map, Plus } from "lucide-react";
 
 export default function LogisticsMapPage() {
   const { hasEdit } = usePermissions("logistics-map");
-  const { zoneInventoryMap, allProducts, loading, refetch } = useWarehouseInventory();
+  const { zones, zoneInventoryMap, allProducts, loading, refetch } = useWarehouseInventory();
 
   const [selectedZone, setSelectedZone] = useState<WarehouseZone | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [showZoneConfig, setShowZoneConfig] = useState(false);
+  const [zoneToEdit, setZoneToEdit] = useState<WarehouseZone | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleZoneClick = useCallback((zone: WarehouseZone) => {
@@ -40,36 +44,47 @@ export default function LogisticsMapPage() {
     refetch();
   }, [refetch]);
 
-  const handleSearch = useCallback(
-    (query: string) => {
-      setSearchQuery(query);
-    },
-    [],
-  );
+  const handleOpenZoneConfig = useCallback((zone: WarehouseZone | null) => {
+    setZoneToEdit(zone);
+    setShowZoneConfig(true);
+  }, []);
+
+  const handleCloseZoneConfig = useCallback(() => {
+    setShowZoneConfig(false);
+    setZoneToEdit(null);
+  }, []);
+
+  const handleZoneConfigSaved = useCallback(() => {
+    handleCloseZoneConfig();
+    refetch();
+  }, [handleCloseZoneConfig, refetch]);
+
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+  }, []);
 
   // Compute highlighted zone IDs based on search query
   const highlightedZoneIds = new Set<string>();
   const searchActive = searchQuery.length > 0;
   if (searchActive) {
     const q = searchQuery.toLowerCase();
-    for (const zone of WAREHOUSE_ZONES) {
-      // Match zone name
+    for (const zone of zones) {
       if (zone.name.toLowerCase().includes(q)) {
         highlightedZoneIds.add(zone.id);
         continue;
       }
-      // Match zone id
       if (zone.id.toLowerCase().includes(q)) {
         highlightedZoneIds.add(zone.id);
         continue;
       }
-      // Match products in zone
       const inv = zoneInventoryMap.get(zone.id);
-      if (inv?.products.some(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.sku.toLowerCase().includes(q),
-      )) {
+      if (
+        inv?.products.some(
+          (p) =>
+            p.name.toLowerCase().includes(q) ||
+            p.sku.toLowerCase().includes(q),
+        )
+      ) {
         highlightedZoneIds.add(zone.id);
       }
     }
@@ -83,8 +98,14 @@ export default function LogisticsMapPage() {
           <Map className="w-6 h-6 text-primary" />
           <h1 className="text-2xl font-bold">מפת מחסן לוגיסטי</h1>
         </div>
-        <div className="sm:mr-auto">
+        <div className="sm:mr-auto flex items-center gap-2">
           <MapSearchBar onSearch={handleSearch} />
+          {hasEdit && (
+            <Button size="sm" onClick={() => handleOpenZoneConfig(null)}>
+              <Plus className="w-4 h-4 ml-1" />
+              אזור חדש
+            </Button>
+          )}
         </div>
       </div>
 
@@ -97,6 +118,7 @@ export default function LogisticsMapPage() {
         <>
           {/* Map */}
           <WarehouseMap
+            zones={zones}
             zoneInventoryMap={zoneInventoryMap}
             highlightedZoneIds={highlightedZoneIds}
             searchActive={searchActive}
@@ -117,10 +139,14 @@ export default function LogisticsMapPage() {
         open={showDetail}
         onClose={handleCloseDetail}
         onEdit={handleOpenEdit}
+        onZoneConfig={() => {
+          setShowDetail(false);
+          handleOpenZoneConfig(selectedZone);
+        }}
         canEdit={hasEdit}
       />
 
-      {/* Zone edit dialog */}
+      {/* Zone products edit dialog */}
       <ZoneEditDialog
         zone={selectedZone}
         inventoryData={
@@ -130,6 +156,14 @@ export default function LogisticsMapPage() {
         open={showEdit}
         onClose={handleCloseEdit}
         onSaved={handleSaved}
+      />
+
+      {/* Zone config dialog (create / edit zone properties) */}
+      <ZoneConfigDialog
+        zone={zoneToEdit}
+        open={showZoneConfig}
+        onClose={handleCloseZoneConfig}
+        onSaved={handleZoneConfigSaved}
       />
     </div>
   );

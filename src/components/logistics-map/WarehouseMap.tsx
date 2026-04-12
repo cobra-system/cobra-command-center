@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback } from "react";
-import { WAREHOUSE_ZONES, type WarehouseZone } from "@/data/warehouseZones";
+import type { WarehouseZone } from "@/data/warehouseZones";
 import type { ZoneInventoryData } from "@/hooks/useWarehouseInventory";
 import ZoneBlock from "./ZoneBlock";
 
 interface WarehouseMapProps {
+  zones: WarehouseZone[];
   zoneInventoryMap: Map<string, ZoneInventoryData>;
   highlightedZoneIds: Set<string>;
   searchActive: boolean;
@@ -11,6 +12,7 @@ interface WarehouseMapProps {
 }
 
 export default function WarehouseMap({
+  zones,
   zoneInventoryMap,
   highlightedZoneIds,
   searchActive,
@@ -71,7 +73,7 @@ export default function WarehouseMap({
             aspectRatio: "24 / 20",
           }}
         >
-          {WAREHOUSE_ZONES.map((zone) => (
+          {zones.map((zone) => (
             <ZoneBlock
               key={zone.id}
               zone={zone}

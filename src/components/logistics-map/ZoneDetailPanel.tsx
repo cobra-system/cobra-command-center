@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Package, Pencil, ExternalLink, ArrowDown } from "lucide-react";
+import { AlertTriangle, Package, Pencil, ExternalLink, ArrowDown, Settings } from "lucide-react";
 import type { WarehouseZone } from "@/data/warehouseZones";
 import type { ZoneInventoryData } from "@/hooks/useWarehouseInventory";
 
@@ -12,6 +12,7 @@ interface ZoneDetailPanelProps {
   open: boolean;
   onClose: () => void;
   onEdit: () => void;
+  onZoneConfig: () => void;
   canEdit: boolean;
 }
 
@@ -21,6 +22,7 @@ export default function ZoneDetailPanel({
   open,
   onClose,
   onEdit,
+  onZoneConfig,
   canEdit,
 }: ZoneDetailPanelProps) {
   if (!zone) return null;
@@ -38,12 +40,20 @@ export default function ZoneDetailPanel({
               style={{ backgroundColor: zone.color }}
             />
             <SheetTitle className="text-lg">{zone.name.replace(/\n/g, " ")}</SheetTitle>
-            {canEdit && !zone.isNonProduct && (
-              <Button variant="ghost" size="sm" onClick={onEdit} className="mr-auto">
-                <Pencil className="w-4 h-4 ml-1" />
-                עריכת מוצרים
-              </Button>
-            )}
+            <div className="mr-auto flex gap-1">
+              {canEdit && (
+                <Button variant="ghost" size="sm" onClick={onZoneConfig}>
+                  <Settings className="w-4 h-4 ml-1" />
+                  ערוך אזור
+                </Button>
+              )}
+              {canEdit && !zone.isNonProduct && (
+                <Button variant="ghost" size="sm" onClick={onEdit}>
+                  <Pencil className="w-4 h-4 ml-1" />
+                  עריכת מוצרים
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Summary */}
