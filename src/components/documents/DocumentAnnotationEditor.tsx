@@ -313,8 +313,23 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
 
       const { error: dbError } = await supabase
         .from("purchase_documents")
-        .update({ file_url: publicUrl })
-        .eq("id", doc.id);
+        .insert({
+          type:            doc.type,
+          document_name:   doc.document_name ? `${doc.document_name} (ערוך)` : null,
+          supplier_id:     doc.supplier_id,
+          product_id:      doc.product_id,
+          order_id:        doc.order_id,
+          quantity:        doc.quantity,
+          unit_price:      doc.unit_price,
+          total_price:     doc.total_price,
+          currency:        doc.currency,
+          status:          doc.status,
+          notes:           doc.notes,
+          folder_id:       doc.folder_id,
+          document_number: doc.document_number,
+          expiry_date:     doc.expiry_date,
+          file_url:        publicUrl,
+        });
       if (dbError) throw dbError;
 
       toast.success("המסמך נשמר בהצלחה עם ההערות");
