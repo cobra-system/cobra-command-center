@@ -7,6 +7,15 @@
 
 ## [2026-04-13]
 
+### Added
+- עמוד פרטי חטיבה (`/equipment/division/:divisionName`) — טכנאים, הצטיידויות, מלאי שטח, אנשי קשר עם CRUD
+- 6 כרטיסי סיכום חטיבה בטאב "חטיבות" עם ניווט לעמוד הפרטים
+- קובץ `constants.ts` עם DIVISIONS ו-DIVISION_COLORS לכל 6 החטיבות
+
+### Changed
+- עמוד הצטיידות (`/equipment`) עוצב מחדש: RTL, טאב חטיבות עם כרטיסים, טאבים 2-3 מקובצים לפי חטיבה, column visibility + מיון לכל טבלה
+- לוח בקרה (טאב 4) — תרשימי RTL, טבלת סיכום חטיבות קליקבילית
+
 - fix: save annotated document as new record instead of overwriting original (0527566)
 
 <!-- last-commit: 925fe27e9f12638fc06f23532b4e8c0141348ad2 -->
