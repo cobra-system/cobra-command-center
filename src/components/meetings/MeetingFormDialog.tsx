@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DateInput } from "@/components/ui/date-input";
 import { Loader2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import MeetingParticipantSelector from "./MeetingParticipantSelector";
-import type { Meeting, SelectedParticipant } from "./types";
+import type { Meeting, MeetingType, SelectedParticipant } from "./types";
 
 interface Props {
   open: boolean;
@@ -36,6 +37,7 @@ async function saveParticipants(meetingId: string, participants: SelectedPartici
 export default function MeetingFormDialog({ open, onOpenChange, onSaved, editingMeeting }: Props) {
   const [title, setTitle] = useState("");
   const [meetingDate, setMeetingDate] = useState<Date>(new Date());
+  const [meetingType, setMeetingType] = useState<MeetingType>("general");
   const [participants, setParticipants] = useState<SelectedParticipant[]>([]);
   const [summary, setSummary] = useState("");
   const [notes, setNotes] = useState("");
@@ -45,6 +47,7 @@ export default function MeetingFormDialog({ open, onOpenChange, onSaved, editing
     if (open && editingMeeting) {
       setTitle(editingMeeting.title);
       setMeetingDate(new Date(editingMeeting.meeting_date));
+      setMeetingType(editingMeeting.type || "general");
       setSummary(editingMeeting.summary || "");
       setNotes(editingMeeting.notes || "");
       // Load existing participants
@@ -68,6 +71,7 @@ export default function MeetingFormDialog({ open, onOpenChange, onSaved, editing
     } else if (!open) {
       setTitle("");
       setMeetingDate(new Date());
+      setMeetingType("general");
       setParticipants([]);
       setSummary("");
       setNotes("");
@@ -84,6 +88,7 @@ export default function MeetingFormDialog({ open, onOpenChange, onSaved, editing
     const payload = {
       title: title.trim(),
       meeting_date: meetingDate.toISOString(),
+      type: meetingType,
       summary: summary.trim() || null,
       notes: notes.trim() || null,
     };
@@ -137,6 +142,20 @@ export default function MeetingFormDialog({ open, onOpenChange, onSaved, editing
           <div className="space-y-1">
             <Label className="text-xs">תאריך</Label>
             <DateInput value={meetingDate} onChange={d => { if (d) setMeetingDate(d); }} />
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs">סוג פגישה</Label>
+            <Select value={meetingType} onValueChange={v => setMeetingType(v as MeetingType)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="general">כללית</SelectItem>
+                <SelectItem value="procurement">ישיבת רכש</SelectItem>
+                <SelectItem value="other">אחר</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1">

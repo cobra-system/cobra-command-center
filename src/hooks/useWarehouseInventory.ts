@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useData } from "@/contexts/AppContext";
 import { useProductScope } from "@/hooks/useProductScope";
 import { supabase } from "@/lib/supabase";
-import { WAREHOUSE_ZONES, type WarehouseZone } from "@/data/warehouseZones";
+import type { WarehouseZone, ZoneType } from "@/data/warehouseZones";
 import type { Product } from "@/contexts/types";
 
 export interface ZoneProduct {
@@ -34,9 +34,25 @@ interface CenterInventoryRow {
   min_stock: number;
 }
 
+interface WarehouseZoneRow {
+  id: string;
+  name: string;
+  color: string;
+  text_color: string;
+  grid_row: string;
+  grid_col: string;
+  zone_type: string;
+  icon: string | null;
+  is_non_product: boolean;
+  sort_order: number;
+  capacity: number | null;
+  notes: string | null;
+}
+
 export function useWarehouseInventory() {
   const { products: allProducts } = useData();
   const { scopedProducts, isScoped, scopedProductIds } = useProductScope();
+  const [zones, setZones] = useState<WarehouseZone[]>([]);
   const [zoneProductRows, setZoneProductRows] = useState<ZoneProductRow[]>([]);
   const [inventory, setInventory] = useState<CenterInventoryRow[]>([]);
   const [mainCenterId, setMainCenterId] = useState<string | null>(null);
@@ -50,7 +66,7 @@ export function useWarehouseInventory() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [centerRes, invRes, zpRes] = await Promise.all([
+    const [centerRes, invRes, zpRes, zonesRes] = await Promise.all([
       supabase
         .from("distribution_centers")
         .select("id")
@@ -59,13 +75,31 @@ export function useWarehouseInventory() {
         .single(),
       supabase.from("center_inventory").select("product_id, quantity, min_stock"),
       supabase.from("warehouse_zone_products").select("zone_id, product_id"),
+      supabase.from("warehouse_zones").select("*").order("sort_order"),
     ]);
 
     const centerId = centerRes.data?.id ?? null;
     setMainCenterId(centerId);
 
+    if (zonesRes.data) {
+      setZones(
+        (zonesRes.data as WarehouseZoneRow[]).map((row) => ({
+          id: row.id,
+          name: row.name,
+          color: row.color,
+          textColor: row.text_color,
+          gridRow: row.grid_row,
+          gridColumn: row.grid_col,
+          zoneType: row.zone_type as ZoneType,
+          icon: row.icon ?? undefined,
+          isNonProduct: row.is_non_product,
+          capacity: row.capacity ?? undefined,
+          notes: row.notes ?? undefined,
+        })),
+      );
+    }
+
     if (invRes.data) {
-      // Filter to main center inventory only
       if (centerId) {
         const { data: mainInv } = await supabase
           .from("center_inventory")
@@ -96,7 +130,7 @@ export function useWarehouseInventory() {
 
   const zoneInventoryMap = new Map<string, ZoneInventoryData>();
 
-  for (const zone of WAREHOUSE_ZONES) {
+  for (const zone of zones) {
     const assignedProductIds = zoneProductRows
       .filter((r) => r.zone_id === zone.id)
       .map((r) => r.product_id);
@@ -132,6 +166,7 @@ export function useWarehouseInventory() {
   }
 
   return {
+    zones,
     zoneInventoryMap,
     allProducts: products,
     mainCenterId,

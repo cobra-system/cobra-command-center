@@ -18,6 +18,7 @@ export default function MapSearchBar({ onSearch }: MapSearchBarProps) {
     <div className="relative w-full max-w-sm">
       <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
       <Input
+        data-search-input
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="חיפוש מוצר, אזור, SKU..."

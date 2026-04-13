@@ -7,10 +7,12 @@ export function registerMeetingTools(server: McpServer) {
     "list_meetings",
     "רשימת פגישות — List all meetings ordered by date, with action item counts",
     {
-      limit: z.number().default(50).describe("Max results"),
+      limit:  z.number().default(50).describe("Max results"),
       search: z.string().optional().describe("Search by title or summary"),
+      type:   z.enum(["procurement", "general", "other"]).optional().describe("Filter by meeting type"),
+      status: z.enum(["open", "closed"]).optional().describe("Filter by meeting status"),
     },
-    async ({ limit, search }) => {
+    async ({ limit, search, type, status }) => {
       let query = supabase
         .from("meetings")
         .select("*")
@@ -18,6 +20,8 @@ export function registerMeetingTools(server: McpServer) {
         .limit(limit);
 
       if (search) query = query.or(`title.ilike.%${search}%,summary.ilike.%${search}%`);
+      if (type)   query = query.eq("type", type);
+      if (status) query = query.eq("status", status);
 
       const { data: meetings, error } = await query;
       if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
@@ -84,12 +88,13 @@ export function registerMeetingTools(server: McpServer) {
     "create_meeting",
     "יצירת פגישה — Create a new meeting",
     {
-      title: z.string().describe("Meeting title"),
+      title:        z.string().describe("Meeting title"),
       meeting_date: z.string().optional().describe("Meeting date/time (ISO 8601, e.g. 2026-04-01T10:00:00Z)"),
-      summary: z.string().optional().describe("Meeting summary"),
-      notes: z.string().optional().describe("Additional notes"),
+      summary:      z.string().optional().describe("Meeting summary"),
+      notes:        z.string().optional().describe("Additional notes"),
+      type:         z.enum(["procurement", "general", "other"]).default("general").describe("Meeting type (default: general)"),
     },
-    async ({ title, meeting_date, summary, notes }) => {
+    async ({ title, meeting_date, summary, notes, type }) => {
       const { data, error } = await supabase
         .from("meetings")
         .insert({
@@ -97,6 +102,7 @@ export function registerMeetingTools(server: McpServer) {
           meeting_date: meeting_date || null,
           summary: summary || null,
           notes: notes || null,
+          type,
         })
         .select()
         .single();
@@ -110,11 +116,13 @@ export function registerMeetingTools(server: McpServer) {
     "update_meeting",
     "עדכון פגישה — Update a meeting's details",
     {
-      id: z.string().uuid().describe("Meeting UUID"),
-      title: z.string().optional().describe("Meeting title"),
+      id:           z.string().uuid().describe("Meeting UUID"),
+      title:        z.string().optional().describe("Meeting title"),
       meeting_date: z.string().optional().describe("Meeting date/time (ISO 8601)"),
-      summary: z.string().optional().describe("Meeting summary"),
-      notes: z.string().optional().describe("Additional notes"),
+      summary:      z.string().optional().describe("Meeting summary"),
+      notes:        z.string().optional().describe("Additional notes"),
+      type:         z.enum(["procurement", "general", "other"]).optional().describe("Meeting type"),
+      status:       z.enum(["open", "closed"]).optional().describe("Meeting status"),
     },
     async ({ id, ...fields }) => {
       const updates: Record<string, unknown> = {};

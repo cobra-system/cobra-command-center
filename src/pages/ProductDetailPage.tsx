@@ -14,6 +14,7 @@ import { useProductScope } from "@/hooks/useProductScope";
 import { toast } from "sonner";
 import { ProductDetailsGrid } from "@/components/product-detail/ProductDetailsGrid";
 import { BOMTable } from "@/components/product-detail/BOMTable";
+import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 import { OrdersHistoryTable } from "@/components/product-detail/OrdersHistoryTable";
 
 export default function ProductDetailPage() {
@@ -128,6 +129,12 @@ export default function ProductDetailPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate("/products")} data-navigate-to="/products"><ArrowRight className="h-5 w-5" /></Button>
+        <PhotoCaptureButton
+          imageUrl={product.end_product_image}
+          storagePath={`products/${product.id}`}
+          onSave={async (url) => { await updateProduct(product.id, { end_product_image: url }); toast.success("תמונת מוצר עודכנה"); }}
+          disabled={!hasEdit}
+        />
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-foreground">{product.name}</h1>
           <p className="text-sm text-muted-foreground font-mono" dir="ltr">{product.sku}</p>

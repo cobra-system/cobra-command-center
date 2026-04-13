@@ -51,6 +51,7 @@ export interface ProductComponent {
   stock_qty?: number | null;
   price?: number | null;
   notes?: string | null;
+  image_url?: string | null;
 }
 
 export interface SupplierContact {

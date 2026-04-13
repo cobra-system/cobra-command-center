@@ -10,15 +10,35 @@
 ### Added
 - עמוד פרטי חטיבה (`/equipment/division/:divisionName`) — טכנאים, הצטיידויות, מלאי שטח, אנשי קשר עם CRUD
 - 6 כרטיסי סיכום חטיבה בטאב "חטיבות" עם ניווט לעמוד הפרטים
-- קובץ `constants.ts` עם DIVISIONS ו-DIVISION_COLORS לכל 6 החטיבות
+- קובץ `constants.ts` עם DIVISIONS, DIVISION_COLORS ו-BONDED_DIVISIONS לכל 6 החטיבות
+- תמיכה בישויות מסחריות (bonded): פרופיל ישות בתיק החטיבה, עמוד מתקין עם תג "ישות מסחרית"
+- תיק מתקין: KPI רביעי "בשטח כעת", טבלת "מלאי שטח" לפי מוצר עם column visibility
 
 ### Changed
 - עמוד הצטיידות (`/equipment`) עוצב מחדש: RTL, טאב חטיבות עם כרטיסים, טאבים 2-3 מקובצים לפי חטיבה, column visibility + מיון לכל טבלה
 - לוח בקרה (טאב 4) — תרשימי RTL, טבלת סיכום חטיבות קליקבילית
 
+- feat: add photo capture for products and BOM components (589661a)
+
+<!-- last-commit: 3d527b59c7ddf85e1e4394aec77562a3cb14350f -->
+
+## [2026-04-13]
+
+- Merge pull request #127 from cobra-system/claude/procurement-meeting-tab-iDhXq (a8bb104)
+- feat: procurement meeting tab with order selection and decision tracking (f71ba11)
+
+## [2026-04-13]
+
+- Merge pull request #122 from cobra-system/claude/edit-logistics-squares-QGGND (be8dc80)
+- feat(logistics-map): zone notes, change log, keyboard shortcuts, reorder, product transfer (5cec58c)
+- feat(logistics-map): heatmap, drag-drop, capacity, picking list, print (56aef99)
+- chore: merge main — keep both migration 8 (products perms) and migration 9 (warehouse_zones) (a58c9ea)
+- feat(logistics-map): editable zones, new zone creation, fix product add bug (8d000f6)
+
+## [2026-04-13]
+
 - fix: save annotated document as new record instead of overwriting original (0527566)
 
-<!-- last-commit: 925fe27e9f12638fc06f23532b4e8c0141348ad2 -->
 ## [2026-04-12]
 
 - Merge pull request #125 from cobra-system/claude/issue-detail-page-9GJKX (020abaf)

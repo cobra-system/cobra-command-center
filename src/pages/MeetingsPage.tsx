@@ -2,11 +2,13 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Users, Plus, Search, Loader2, CalendarDays, ListChecks, Eye, Trash2, Pencil } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Users, Plus, Search, Loader2, CalendarDays, ListChecks, Eye, Trash2, Pencil, ShoppingCart } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { toast } from "sonner";
 import MeetingFormDialog from "@/components/meetings/MeetingFormDialog";
 import MeetingDetailDialog from "@/components/meetings/MeetingDetailDialog";
+import ProcurementMeetingTab from "@/components/meetings/ProcurementMeetingTab";
 import type { Meeting, MeetingActionItem } from "@/components/meetings/types";
 
 export default function MeetingsPage() {
@@ -95,72 +97,101 @@ export default function MeetingsPage() {
         </Button>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-        <Input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="חיפוש פגישות..."
-          className="pr-10"
-        />
-      </div>
+      <Tabs defaultValue="meetings">
+        <TabsList className="w-full max-w-sm">
+          <TabsTrigger value="meetings" className="flex-1 flex items-center gap-1.5">
+            <Users className="h-3.5 w-3.5" />
+            פגישות
+          </TabsTrigger>
+          <TabsTrigger value="procurement" className="flex-1 flex items-center gap-1.5">
+            <ShoppingCart className="h-3.5 w-3.5" />
+            ישיבת רכש
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Meetings list */}
-      {filtered.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          {meetings.length === 0 ? "אין פגישות עדיין. צור פגישה חדשה כדי להתחיל." : "לא נמצאו תוצאות."}
-        </div>
-      ) : (
-        <div className="grid gap-3">
-          {filtered.map(meeting => {
-            const counts = actionCounts[meeting.id];
-            const meetingMenuGroups: ContextMenuGroupItem[][] = [
-              [
-                { label: "פרטי פגישה", icon: Eye, onClick: () => setSelectedMeeting(meeting) },
-                { label: "ערוך פגישה", icon: Pencil, onClick: () => { setEditMeeting(meeting); setEditMeetingOpen(true); } },
-              ],
-              [
-                { label: "מחק פגישה", icon: Trash2, onClick: () => handleDeleteMeeting(meeting.id), variant: "destructive" as const, confirmTitle: "מחיקת פגישה", confirmDescription: `האם למחוק את הפגישה "${meeting.title}"? פעולה זו תמחק גם את כל המשימות והמסמכים המשויכים.` },
-              ],
-            ];
-            return (
-              <EntityContextMenu key={meeting.id} groups={meetingMenuGroups}>
-              <div
-                onClick={() => setSelectedMeeting(meeting)}
-                className="p-4 rounded-xl border bg-card hover:bg-muted/30 transition-colors cursor-pointer shadow-sm"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground">{meeting.title}</h3>
-                    <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <CalendarDays className="h-3.5 w-3.5" />
-                        {new Date(meeting.meeting_date).toLocaleDateString("he-IL")}
-                      </span>
-                      {counts && (
-                        <span className="flex items-center gap-1">
-                          <ListChecks className="h-3.5 w-3.5" />
-                          {counts.total} משימות
-                          {counts.pending > 0 && (
-                            <span className="bg-warning/15 text-warning px-1.5 py-0.5 rounded-full text-[10px] font-medium mr-1">
-                              {counts.pending} פתוחות
+        {/* ── All meetings tab ── */}
+        <TabsContent value="meetings" className="mt-4 space-y-4">
+          {/* Search */}
+          <div className="relative max-w-sm">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="חיפוש פגישות..."
+              className="pr-10"
+            />
+          </div>
+
+          {/* Meetings list */}
+          {filtered.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              {meetings.length === 0 ? "אין פגישות עדיין. צור פגישה חדשה כדי להתחיל." : "לא נמצאו תוצאות."}
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              {filtered.map(meeting => {
+                const counts = actionCounts[meeting.id];
+                const meetingMenuGroups: ContextMenuGroupItem[][] = [
+                  [
+                    { label: "פרטי פגישה", icon: Eye, onClick: () => setSelectedMeeting(meeting) },
+                    { label: "ערוך פגישה", icon: Pencil, onClick: () => { setEditMeeting(meeting); setEditMeetingOpen(true); } },
+                  ],
+                  [
+                    { label: "מחק פגישה", icon: Trash2, onClick: () => handleDeleteMeeting(meeting.id), variant: "destructive" as const, confirmTitle: "מחיקת פגישה", confirmDescription: `האם למחוק את הפגישה "${meeting.title}"? פעולה זו תמחק גם את כל המשימות והמסמכים המשויכים.` },
+                  ],
+                ];
+                return (
+                  <EntityContextMenu key={meeting.id} groups={meetingMenuGroups}>
+                    <div
+                      onClick={() => setSelectedMeeting(meeting)}
+                      className="p-4 rounded-xl border bg-card hover:bg-muted/30 transition-colors cursor-pointer shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-foreground">{meeting.title}</h3>
+                            {meeting.type === "procurement" && (
+                              <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">רכש</span>
+                            )}
+                            {meeting.status === "closed" && (
+                              <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">סגורה</span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <CalendarDays className="h-3.5 w-3.5" />
+                              {new Date(meeting.meeting_date).toLocaleDateString("he-IL")}
                             </span>
+                            {counts && (
+                              <span className="flex items-center gap-1">
+                                <ListChecks className="h-3.5 w-3.5" />
+                                {counts.total} משימות
+                                {counts.pending > 0 && (
+                                  <span className="bg-warning/15 text-warning px-1.5 py-0.5 rounded-full text-[10px] font-medium mr-1">
+                                    {counts.pending} פתוחות
+                                  </span>
+                                )}
+                              </span>
+                            )}
+                          </div>
+                          {meeting.summary && (
+                            <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{meeting.summary}</p>
                           )}
-                        </span>
-                      )}
+                        </div>
+                      </div>
                     </div>
-                    {meeting.summary && (
-                      <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{meeting.summary}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-              </EntityContextMenu>
-            );
-          })}
-        </div>
-      )}
+                  </EntityContextMenu>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ── Procurement tab ── */}
+        <TabsContent value="procurement" className="mt-4">
+          <ProcurementMeetingTab />
+        </TabsContent>
+      </Tabs>
 
       {/* Dialogs */}
       <MeetingFormDialog open={newOpen} onOpenChange={setNewOpen} onSaved={refresh} />
