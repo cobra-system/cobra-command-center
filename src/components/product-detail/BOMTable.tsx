@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SupplierComparisonPanel from "@/components/SupplierComparisonPanel";
 import { InlineEditField } from "@/components/InlineEditField";
+import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 import { toast } from "sonner";
 import type { Product, Supplier, ProductComponent } from "@/contexts/AppContext";
 
@@ -113,6 +114,7 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
+                    <th className="p-3 w-8"></th>
                     <th className="text-right p-3 font-semibold text-foreground">רכיב</th>
                     <th className="text-right p-3 font-semibold text-foreground">מק״ט</th>
                     <th className="text-right p-3 font-semibold text-foreground">ספק</th>
@@ -126,6 +128,14 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
                   {product.components.map(comp =>
                     editingCompId === comp.id ? (
                       <tr key={comp.id} className="bg-accent/5">
+                        <td className="p-2">
+                          <PhotoCaptureButton
+                            imageUrl={comp.image_url}
+                            storagePath={`components/${comp.id}`}
+                            onSave={async (url) => { await onUpdateComponent(comp.id, { image_url: url }); }}
+                            disabled={!canEditStock}
+                          />
+                        </td>
                         <td className="p-2">
                           <Input value={editCompFields.name} onChange={e => setEditCompFields(p => ({ ...p, name: e.target.value }))} className="h-8 text-sm" />
                         </td>
@@ -163,6 +173,14 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
                       </tr>
                     ) : (
                       <tr key={comp.id}>
+                        <td className="p-3">
+                          <PhotoCaptureButton
+                            imageUrl={comp.image_url}
+                            storagePath={`components/${comp.id}`}
+                            onSave={async (url) => { await onUpdateComponent(comp.id, { image_url: url }); }}
+                            disabled={!canEditStock}
+                          />
+                        </td>
                         <td className="p-3 font-medium text-foreground">{comp.name}</td>
                         <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">{comp.sku || "—"}</td>
                         <td className="p-3 text-muted-foreground">
