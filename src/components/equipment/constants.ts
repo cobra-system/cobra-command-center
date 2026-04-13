@@ -17,3 +17,5 @@ export const DIVISION_COLORS: Record<string, string> = {
   "פריזבי קרסו": "bg-purple-100 text-purple-700 border-purple-200",
   לובינסקי: "bg-teal-100 text-teal-700 border-teal-200",
 };
+
+export const BONDED_DIVISIONS = new Set(["דלק מוטורס", "פריזבי קרסו", "לובינסקי"]);

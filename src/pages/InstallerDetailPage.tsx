@@ -26,9 +26,17 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  Layers,
+  Building2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { NewPickupDialog } from "@/components/equipment/NewPickupDialog";
 import { NewReturnDialog } from "@/components/equipment/NewReturnDialog";
+import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import type { ColDef } from "@/hooks/useColumnVisibility";
+import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +48,7 @@ interface Installer {
   status: string;
   coordinator: string | null;
   phone: string | null;
+  entity_type: string | null;
 }
 
 interface PickupRow {
@@ -68,7 +77,20 @@ interface ReturnRow {
   serial_numbers: string[] | null;
 }
 
+// ─── Column Defs ──────────────────────────────────────────────────────────────
+
+const FIELD_INV_COLS: ColDef[] = [
+  { id: "product", label: "מוצר", sortField: "product" },
+  { id: "sku", label: 'מק"ט' },
+  { id: "balance", label: "בשטח", sortField: "balance" },
+];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function SortIcon({ field, currentField, currentDir }: { field: string; currentField: string | null; currentDir: "asc" | "desc" }) {
+  if (currentField !== field) return <ArrowUpDown className="h-3 w-3 opacity-30" />;
+  return currentDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
+}
 
 function returnPctColor(pct: number) {
   if (pct <= 5) return "text-green-600";
@@ -98,6 +120,11 @@ export default function InstallerDetailPage() {
 
   const [showNewPickup, setShowNewPickup] = useState(false);
   const [showNewReturn, setShowNewReturn] = useState(false);
+
+  const [invSortField, setInvSortField] = useState<string | null>("product");
+  const [invSortDir, setInvSortDir] = useState<"asc" | "desc">("asc");
+  const fieldInvColVis = useColumnVisibility("installer-inventory:hidden-columns", FIELD_INV_COLS);
+  const { menu: invMenu, setMenu: setInvMenu, closeMenu: closeInvMenu } = useColMenu();
 
   const productMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -196,6 +223,38 @@ export default function InstallerDetailPage() {
     [returnRows]
   );
   const returnPct = totalTaken > 0 ? Math.round((totalReturned / totalTaken) * 100) : 0;
+  const inField = totalTaken - totalReturned;
+
+  const fieldInventory = useMemo(() => {
+    const map = new Map<string, { taken: number; returned: number }>();
+    pickupRows.forEach((r) => {
+      const cur = map.get(r.product_id) ?? { taken: 0, returned: 0 };
+      cur.taken += r.quantity;
+      map.set(r.product_id, cur);
+    });
+    returnRows.forEach((r) => {
+      const cur = map.get(r.product_id) ?? { taken: 0, returned: 0 };
+      cur.returned += r.quantity;
+      map.set(r.product_id, cur);
+    });
+    const items = [...map.entries()]
+      .map(([productId, { taken, returned }]) => {
+        const prod = products.find((p) => p.id === productId);
+        return {
+          productId,
+          productName: prod?.name ?? productId,
+          sku: prod?.sku ?? null,
+          balance: taken - returned,
+        };
+      })
+      .filter((e) => e.balance > 0);
+
+    return [...items].sort((a, b) => {
+      const dir = invSortDir === "asc" ? 1 : -1;
+      if (invSortField === "balance") return (a.balance - b.balance) * dir;
+      return a.productName.localeCompare(b.productName, "he") * dir;
+    });
+  }, [pickupRows, returnRows, products, invSortField, invSortDir]);
 
   const handleFaultyToggle = async (returnItemId: string, current: boolean | null) => {
     // Cycle: null → false → true → null
@@ -305,8 +364,15 @@ export default function InstallerDetailPage() {
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-bold">{installer.name}</h1>
-              {installer.warehouse_number && (
-                <Badge variant="outline">מחסן {installer.warehouse_number}</Badge>
+              {installer.entity_type === "bonded" ? (
+                <Badge variant="outline" className="text-xs gap-1">
+                  <Building2 className="h-3 w-3" />
+                  ישות מסחרית
+                </Badge>
+              ) : (
+                installer.warehouse_number && (
+                  <Badge variant="outline">מחסן {installer.warehouse_number}</Badge>
+                )
               )}
               <Badge variant="outline" className="text-xs">{installer.division}</Badge>
               <Badge
@@ -315,8 +381,15 @@ export default function InstallerDetailPage() {
                 {installer.status}
               </Badge>
             </div>
-            {installer.coordinator && (
-              <p className="text-sm text-muted-foreground mt-0.5">מתאם: {installer.coordinator}</p>
+            {(installer.coordinator || installer.phone) && (
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {installer.coordinator && <span>מתאם: {installer.coordinator}</span>}
+                {installer.phone && (
+                  <span dir="ltr" className={installer.coordinator ? "ms-3" : ""}>
+                    {installer.phone}
+                  </span>
+                )}
+              </p>
             )}
           </div>
         </div>
@@ -333,7 +406,7 @@ export default function InstallerDetailPage() {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: "פריטים נלקחו", value: totalTaken, icon: Package, color: "text-blue-600", bg: "bg-blue-50" },
           { label: "פריטים הוחזרו", value: totalReturned, icon: PackageX, color: "text-orange-600", bg: "bg-orange-50" },
@@ -341,6 +414,13 @@ export default function InstallerDetailPage() {
             label: "אחוז החזרה",
             value: totalTaken > 0 ? `${returnPct}%` : "—",
             icon: TrendingDown,
+            color: returnPctColor(returnPct),
+            bg: returnPct <= 5 ? "bg-green-50" : returnPct <= 15 ? "bg-yellow-50" : "bg-red-50",
+          },
+          {
+            label: "בשטח כעת",
+            value: inField,
+            icon: Layers,
             color: returnPctColor(returnPct),
             bg: returnPct <= 5 ? "bg-green-50" : returnPct <= 15 ? "bg-yellow-50" : "bg-red-50",
           },
@@ -355,6 +435,69 @@ export default function InstallerDetailPage() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Field inventory breakdown */}
+      <div>
+        <h2 className="font-semibold mb-2 text-sm text-muted-foreground uppercase tracking-wide">
+          מלאי שטח
+        </h2>
+        {fieldInventory.length === 0 ? (
+          <div className="text-center py-6 text-sm text-muted-foreground border rounded-md">
+            אין ציוד בשטח ✅
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr
+                      className="border-b bg-muted/50"
+                      onContextMenu={trContextMenu(fieldInvColVis.hiddenCols, setInvMenu)}
+                    >
+                      {FIELD_INV_COLS.map((col) =>
+                        fieldInvColVis.isVisible(col.id) ? (
+                          <th
+                            key={col.id}
+                            className="text-right p-3 font-semibold text-foreground"
+                            onContextMenu={colThContextMenu(col, setInvMenu)}
+                          >
+                            {col.sortField ? (
+                              <button
+                                onClick={() => {
+                                  if (invSortField === col.sortField) setInvSortDir((d) => (d === "asc" ? "desc" : "asc"));
+                                  else { setInvSortField(col.sortField!); setInvSortDir("asc"); }
+                                }}
+                                className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors"
+                              >
+                                {col.label}
+                                <SortIcon field={col.sortField} currentField={invSortField} currentDir={invSortDir} />
+                              </button>
+                            ) : col.label}
+                          </th>
+                        ) : null
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fieldInventory.map((item) => (
+                      <tr key={item.productId} className="border-b last:border-0 hover:bg-muted/20">
+                        {fieldInvColVis.isVisible("product") && <td className="p-3 font-medium">{item.productName}</td>}
+                        {fieldInvColVis.isVisible("sku") && (
+                          <td className="p-3 font-mono text-xs text-muted-foreground" dir="ltr">{item.sku ?? "—"}</td>
+                        )}
+                        {fieldInvColVis.isVisible("balance") && (
+                          <td className={`p-3 font-bold ${returnPctColor(returnPct)}`}>{item.balance}</td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Pickup history table */}
@@ -465,6 +608,20 @@ export default function InstallerDetailPage() {
         onCreated={fetchData}
         preselectedInstallerId={id}
       />
+
+      {invMenu && (
+        <ColContextMenu
+          menu={invMenu}
+          sortField={invSortField}
+          sortDir={invSortDir}
+          hiddenCols={fieldInvColVis.hiddenCols}
+          onClose={closeInvMenu}
+          onHide={fieldInvColVis.hide}
+          onShow={fieldInvColVis.show}
+          onSortAsc={(field) => { setInvSortField(field); setInvSortDir("asc"); closeInvMenu(); }}
+          onSortDesc={(field) => { setInvSortField(field); setInvSortDir("desc"); closeInvMenu(); }}
+        />
+      )}
     </div>
   );
 }

@@ -42,10 +42,11 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Building2,
 } from "lucide-react";
 import { NewPickupDialog } from "@/components/equipment/NewPickupDialog";
 import { NewReturnDialog } from "@/components/equipment/NewReturnDialog";
-import { DIVISION_COLORS } from "@/components/equipment/constants";
+import { DIVISION_COLORS, BONDED_DIVISIONS } from "@/components/equipment/constants";
 import type { ColDef } from "@/hooks/useColumnVisibility";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import {
@@ -65,6 +66,7 @@ interface Installer {
   status: string;
   coordinator: string | null;
   phone: string | null;
+  entity_type: string | null;
 }
 
 interface PickupItemRaw {
@@ -212,7 +214,7 @@ export default function DivisionDetailPage() {
     try {
       const instRes = await supabase
         .from("installers")
-        .select("id, name, warehouse_number, division, status, coordinator, phone")
+        .select("id, name, warehouse_number, division, status, coordinator, phone, entity_type")
         .eq("division", division)
         .order("name");
 
@@ -431,6 +433,8 @@ export default function DivisionDetailPage() {
   }
 
   const colorClass = DIVISION_COLORS[division] ?? "bg-gray-100 text-gray-700 border-gray-200";
+  const isBonded = BONDED_DIVISIONS.has(division);
+  const bondedInstaller = isBonded ? installers[0] ?? null : null;
 
   if (loading) {
     return (
@@ -472,7 +476,9 @@ export default function DivisionDetailPage() {
       {/* KPI strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "טכנאים פעילים", value: activeCount, icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
+          isBonded
+            ? { label: "סטטוס", value: bondedInstaller?.status ?? "—", icon: Building2, color: "text-blue-600", bg: "bg-blue-50" }
+            : { label: "טכנאים פעילים", value: activeCount, icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
           { label: "יצאו (סה״כ)", value: totalTaken, icon: Package, color: "text-indigo-600", bg: "bg-indigo-50" },
           { label: "הוחזרו (סה״כ)", value: totalReturned, icon: PackageX, color: "text-green-600", bg: "bg-green-50" },
           { label: "בשטח כעת", value: inField, icon: TrendingDown, color: returnPctColor(returnPct), bg: returnPct <= 5 ? "bg-green-50" : returnPct <= 15 ? "bg-yellow-50" : "bg-red-50" },
@@ -489,97 +495,145 @@ export default function DivisionDetailPage() {
         ))}
       </div>
 
-      {/* ── Section A: Technicians ── */}
-      <div>
-        <h2 className="font-semibold mb-3 text-sm text-muted-foreground uppercase tracking-wide">
-          טכנאים
-        </h2>
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr
-                    className="border-b bg-muted/50"
-                    onContextMenu={trContextMenu(techColVis.hiddenCols, setTechMenu)}
-                  >
-                    {TECH_COLS.map((col) =>
-                      techColVis.isVisible(col.id) ? (
-                        <th
-                          key={col.id}
-                          className="text-right p-3 font-semibold text-foreground"
-                          onContextMenu={colThContextMenu(col, setTechMenu)}
-                        >
-                          {col.sortField ? (
-                            <button
-                              onClick={() => toggleTechSort(col.sortField!)}
-                              className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors"
-                            >
-                              {col.label}
-                              <SortIcon field={col.sortField} currentField={techSortField} currentDir={techSortDir} />
-                            </button>
-                          ) : col.label}
-                        </th>
-                      ) : null
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedInstallerStats.length === 0 ? (
-                    <tr>
-                      <td colSpan={techColVis.visibleCount} className="text-center p-8 text-muted-foreground">
-                        אין טכנאים בחטיבה זו
-                      </td>
+      {/* ── Section A: Technicians / Entity Profile ── */}
+      {isBonded && bondedInstaller ? (
+        <div>
+          <h2 className="font-semibold mb-3 text-sm text-muted-foreground uppercase tracking-wide">
+            פרופיל ישות
+          </h2>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                <Badge className={`text-sm px-3 py-1 border ${colorClass}`}>{division}</Badge>
+                <Badge variant="outline" className="text-xs gap-1">
+                  <Building2 className="h-3 w-3" />
+                  ישות מסחרית
+                </Badge>
+                <Badge
+                  className={`text-xs ${
+                    bondedInstaller.status === "פעיל"
+                      ? "bg-green-100 text-green-700 hover:bg-green-100"
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-100"
+                  }`}
+                >
+                  {bondedInstaller.status}
+                </Badge>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                {bondedInstaller.warehouse_number && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">מחסן</p>
+                    <p className="font-medium">{bondedInstaller.warehouse_number}</p>
+                  </div>
+                )}
+                {bondedInstaller.coordinator && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">מתאם</p>
+                    <p className="font-medium">{bondedInstaller.coordinator}</p>
+                  </div>
+                )}
+                {bondedInstaller.phone && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">טלפון</p>
+                    <p className="font-medium" dir="ltr">{bondedInstaller.phone}</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <div>
+          <h2 className="font-semibold mb-3 text-sm text-muted-foreground uppercase tracking-wide">
+            טכנאים
+          </h2>
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr
+                      className="border-b bg-muted/50"
+                      onContextMenu={trContextMenu(techColVis.hiddenCols, setTechMenu)}
+                    >
+                      {TECH_COLS.map((col) =>
+                        techColVis.isVisible(col.id) ? (
+                          <th
+                            key={col.id}
+                            className="text-right p-3 font-semibold text-foreground"
+                            onContextMenu={colThContextMenu(col, setTechMenu)}
+                          >
+                            {col.sortField ? (
+                              <button
+                                onClick={() => toggleTechSort(col.sortField!)}
+                                className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors"
+                              >
+                                {col.label}
+                                <SortIcon field={col.sortField} currentField={techSortField} currentDir={techSortDir} />
+                              </button>
+                            ) : col.label}
+                          </th>
+                        ) : null
+                      )}
                     </tr>
-                  ) : (
-                    sortedInstallerStats.map((inst) => (
-                      <tr
-                        key={inst.id}
-                        className="border-b last:border-0 hover:bg-muted/30 cursor-pointer"
-                        onClick={() => navigate(`/equipment/installer/${inst.id}`)}
-                      >
-                        {techColVis.isVisible("name") && (
-                          <td className="p-3 font-medium">{inst.name}</td>
-                        )}
-                        {techColVis.isVisible("warehouse") && (
-                          <td className="p-3 text-muted-foreground">
-                            {inst.warehouse_number ?? "—"}
-                          </td>
-                        )}
-                        {techColVis.isVisible("coordinator") && (
-                          <td className="p-3 text-muted-foreground">{inst.coordinator ?? "—"}</td>
-                        )}
-                        {techColVis.isVisible("taken") && (
-                          <td className="p-3">{inst.taken}</td>
-                        )}
-                        {techColVis.isVisible("returned") && (
-                          <td className="p-3">{inst.returned}</td>
-                        )}
-                        {techColVis.isVisible("balance") && (
-                          <td className="p-3 font-bold">{inst.balance}</td>
-                        )}
-                        {techColVis.isVisible("status") && (
-                          <td className="p-3">
-                            <Badge
-                              className={`text-xs ${
-                                inst.status === "פעיל"
-                                  ? "bg-green-100 text-green-700 hover:bg-green-100"
-                                  : "bg-gray-100 text-gray-500 hover:bg-gray-100"
-                              }`}
-                            >
-                              {inst.status}
-                            </Badge>
-                          </td>
-                        )}
+                  </thead>
+                  <tbody>
+                    {sortedInstallerStats.length === 0 ? (
+                      <tr>
+                        <td colSpan={techColVis.visibleCount} className="text-center p-8 text-muted-foreground">
+                          אין טכנאים בחטיבה זו
+                        </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                    ) : (
+                      sortedInstallerStats.map((inst) => (
+                        <tr
+                          key={inst.id}
+                          className="border-b last:border-0 hover:bg-muted/30 cursor-pointer"
+                          onClick={() => navigate(`/equipment/installer/${inst.id}`)}
+                        >
+                          {techColVis.isVisible("name") && (
+                            <td className="p-3 font-medium">{inst.name}</td>
+                          )}
+                          {techColVis.isVisible("warehouse") && (
+                            <td className="p-3 text-muted-foreground">
+                              {inst.warehouse_number ?? "—"}
+                            </td>
+                          )}
+                          {techColVis.isVisible("coordinator") && (
+                            <td className="p-3 text-muted-foreground">{inst.coordinator ?? "—"}</td>
+                          )}
+                          {techColVis.isVisible("taken") && (
+                            <td className="p-3">{inst.taken}</td>
+                          )}
+                          {techColVis.isVisible("returned") && (
+                            <td className="p-3">{inst.returned}</td>
+                          )}
+                          {techColVis.isVisible("balance") && (
+                            <td className="p-3 font-bold">{inst.balance}</td>
+                          )}
+                          {techColVis.isVisible("status") && (
+                            <td className="p-3">
+                              <Badge
+                                className={`text-xs ${
+                                  inst.status === "פעיל"
+                                    ? "bg-green-100 text-green-700 hover:bg-green-100"
+                                    : "bg-gray-100 text-gray-500 hover:bg-gray-100"
+                                }`}
+                              >
+                                {inst.status}
+                              </Badge>
+                            </td>
+                          )}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* ── Section B: Pickups ── */}
       <div>
@@ -596,7 +650,7 @@ export default function DivisionDetailPage() {
                     onContextMenu={trContextMenu(pickupColVis.hiddenCols, setPickupMenu)}
                   >
                     {PICKUP_COLS.map((col) =>
-                      pickupColVis.isVisible(col.id) ? (
+                      pickupColVis.isVisible(col.id) && !(isBonded && col.id === "recipient") ? (
                         <th
                           key={col.id}
                           className="text-right p-3 font-semibold text-foreground"
@@ -638,7 +692,7 @@ export default function DivisionDetailPage() {
                             {pickupColVis.isVisible("date") && (
                               <td className="p-3">{format(new Date(p.pickup_date), "dd/MM/yyyy")}</td>
                             )}
-                            {pickupColVis.isVisible("recipient") && (
+                            {pickupColVis.isVisible("recipient") && !isBonded && (
                               <td className="p-3">{installer?.name ?? "—"}</td>
                             )}
                             {pickupColVis.isVisible("taken") && (
@@ -702,7 +756,7 @@ export default function DivisionDetailPage() {
                     onContextMenu={trContextMenu(invColVis.hiddenCols, setInvMenu)}
                   >
                     {INV_COLS.map((col) =>
-                      invColVis.isVisible(col.id) ? (
+                      invColVis.isVisible(col.id) && !(isBonded && col.id === "installer") ? (
                         <th
                           key={col.id}
                           className="text-right p-3 font-semibold text-foreground"
@@ -732,7 +786,7 @@ export default function DivisionDetailPage() {
                   ) : (
                     fieldInventory.map((item, idx) => (
                       <tr key={idx} className="border-b last:border-0 hover:bg-muted/20">
-                        {invColVis.isVisible("installer") && <td className="p-3">{item.installerName}</td>}
+                        {invColVis.isVisible("installer") && !isBonded && <td className="p-3">{item.installerName}</td>}
                         {invColVis.isVisible("product") && <td className="p-3">{item.productName}</td>}
                         {invColVis.isVisible("sku") && (
                           <td className="p-3 font-mono text-xs text-muted-foreground" dir="ltr">
