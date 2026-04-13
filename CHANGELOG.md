@@ -7,13 +7,18 @@
 
 ## [2026-04-13]
 
+- Merge pull request #127 from cobra-system/claude/procurement-meeting-tab-iDhXq (a8bb104)
+- feat: procurement meeting tab with order selection and decision tracking (f71ba11)
+
+<!-- last-commit: a8bb104ff22c058b8173071c8768e8c921aa1f24 -->
+## [2026-04-13]
+
 - Merge pull request #122 from cobra-system/claude/edit-logistics-squares-QGGND (be8dc80)
 - feat(logistics-map): zone notes, change log, keyboard shortcuts, reorder, product transfer (5cec58c)
 - feat(logistics-map): heatmap, drag-drop, capacity, picking list, print (56aef99)
 - chore: merge main — keep both migration 8 (products perms) and migration 9 (warehouse_zones) (a58c9ea)
 - feat(logistics-map): editable zones, new zone creation, fix product add bug (8d000f6)
 
-<!-- last-commit: be8dc80ee84b86b186fb778f2730ea03b3aec40b -->
 ## [2026-04-13]
 
 - fix: save annotated document as new record instead of overwriting original (0527566)
