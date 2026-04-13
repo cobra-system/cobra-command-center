@@ -7,9 +7,21 @@
 
 ## [2026-04-13]
 
+### Added
+- עמוד פרטי חטיבה (`/equipment/division/:divisionName`) — טכנאים, הצטיידויות, מלאי שטח, אנשי קשר עם CRUD
+- 6 כרטיסי סיכום חטיבה בטאב "חטיבות" עם ניווט לעמוד הפרטים
+- קובץ `constants.ts` עם DIVISIONS, DIVISION_COLORS ו-BONDED_DIVISIONS לכל 6 החטיבות
+- תמיכה בישויות מסחריות (bonded): פרופיל ישות בתיק החטיבה, עמוד מתקין עם תג "ישות מסחרית"
+- תיק מתקין: KPI רביעי "בשטח כעת", טבלת "מלאי שטח" לפי מוצר עם column visibility
+
+### Changed
+- עמוד הצטיידות (`/equipment`) עוצב מחדש: RTL, טאב חטיבות עם כרטיסים, טאבים 2-3 מקובצים לפי חטיבה, column visibility + מיון לכל טבלה
+- לוח בקרה (טאב 4) — תרשימי RTL, טבלת סיכום חטיבות קליקבילית
+
 - feat: add photo capture for products and BOM components (589661a)
 
 <!-- last-commit: 3d527b59c7ddf85e1e4394aec77562a3cb14350f -->
+
 ## [2026-04-13]
 
 - Merge pull request #127 from cobra-system/claude/procurement-meeting-tab-iDhXq (a8bb104)
