@@ -7,10 +7,14 @@
 
 ## [2026-04-13]
 
+- feat: add photo capture for products and BOM components (589661a)
+
+<!-- last-commit: 3d527b59c7ddf85e1e4394aec77562a3cb14350f -->
+## [2026-04-13]
+
 - Merge pull request #127 from cobra-system/claude/procurement-meeting-tab-iDhXq (a8bb104)
 - feat: procurement meeting tab with order selection and decision tracking (f71ba11)
 
-<!-- last-commit: a8bb104ff22c058b8173071c8768e8c921aa1f24 -->
 ## [2026-04-13]
 
 - Merge pull request #122 from cobra-system/claude/edit-logistics-squares-QGGND (be8dc80)
