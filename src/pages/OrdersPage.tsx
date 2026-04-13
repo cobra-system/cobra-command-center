@@ -2,6 +2,9 @@ import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from "react
 const ProcurementAgendaTab = lazy(() =>
   import("@/pages/ProcurementAgendaPage").then(m => ({ default: m.ProcurementAgendaTab }))
 );
+const ProcurementMeetingTab = lazy(() =>
+  import("@/components/meetings/ProcurementMeetingTab").then(m => ({ default: m.default }))
+);
 const ShipmentGroupsTab = lazy(() =>
   import("@/components/orders/ShipmentGroupsTab").then(m => ({ default: m.ShipmentGroupsTab }))
 );
@@ -333,6 +336,7 @@ export default function OrdersPage() {
             )}
           </TabsTrigger>
           <TabsTrigger value="agenda">סדר יום רכש</TabsTrigger>
+          <TabsTrigger value="meeting">ישיבת רכש</TabsTrigger>
           <TabsTrigger value="shipment-groups">קבוצות משלוח</TabsTrigger>
         </TabsList>
 
@@ -405,6 +409,12 @@ export default function OrdersPage() {
         <TabsContent value="agenda" className="mt-0">
           <Suspense fallback={<div className="p-8 text-center text-muted-foreground">טוען...</div>}>
             <ProcurementAgendaTab />
+          </Suspense>
+        </TabsContent>
+
+        <TabsContent value="meeting" className="mt-0">
+          <Suspense fallback={<div className="p-8 text-center text-muted-foreground">טוען...</div>}>
+            <ProcurementMeetingTab />
           </Suspense>
         </TabsContent>
 
