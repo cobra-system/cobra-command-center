@@ -52,7 +52,8 @@ export default function ZoneEditDialog({
       .insert({ zone_id: zone.id, product_id: selectedProductId });
 
     if (error) {
-      toast.error("שגיאה בהוספת מוצר לאזור");
+      console.error("[ZoneEditDialog] insert error:", error);
+      toast.error(`שגיאה בהוספת מוצר לאזור: ${error.message}`);
     } else {
       toast.success("מוצר הוסף לאזור");
       setSelectedProductId("");
@@ -71,7 +72,8 @@ export default function ZoneEditDialog({
       .eq("product_id", productId);
 
     if (error) {
-      toast.error("שגיאה בהסרת מוצר מהאזור");
+      console.error("[ZoneEditDialog] delete error:", error);
+      toast.error(`שגיאה בהסרת מוצר מהאזור: ${error.message}`);
     } else {
       toast.success("מוצר הוסר מהאזור");
       onSaved();
