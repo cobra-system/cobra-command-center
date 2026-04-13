@@ -5,13 +5,17 @@
 
 ---
 
+## [2026-04-13]
+
+- fix: save annotated document as new record instead of overwriting original (0527566)
+
+<!-- last-commit: 925fe27e9f12638fc06f23532b4e8c0141348ad2 -->
 ## [2026-04-12]
 
 - Merge pull request #125 from cobra-system/claude/issue-detail-page-9GJKX (020abaf)
 - docs: add /issues/:id route to README modules table (03e8ebf)
 - feat: add issue detail page with inline editing, updates timeline, and media gallery (ca4f4b2)
 
-<!-- last-commit: 020abaf33ea5ec9a9cf6a4fd6ad4fa00510add37 -->
 ## [2026-04-12] — Issue Detail Page
 
 ### Added
