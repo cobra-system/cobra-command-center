@@ -7,6 +7,13 @@
 
 ## [2026-04-13]
 
+- chore: merge main + resolve CHANGELOG conflict (b4644c1)
+- feat: technician profile enhancements + bonded division support (b125eb1)
+- feat: redesign equipment page with division cards and detail page (3a52dbc)
+
+<!-- last-commit: 387ef42a7aea2fd9c6e72c72395d57327bcca853 -->
+## [2026-04-13]
+
 ### Added
 - עמוד פרטי חטיבה (`/equipment/division/:divisionName`) — טכנאים, הצטיידויות, מלאי שטח, אנשי קשר עם CRUD
 - 6 כרטיסי סיכום חטיבה בטאב "חטיבות" עם ניווט לעמוד הפרטים
@@ -20,7 +27,6 @@
 
 - feat: add photo capture for products and BOM components (589661a)
 
-<!-- last-commit: 3d527b59c7ddf85e1e4394aec77562a3cb14350f -->
 
 ## [2026-04-13]
 
