@@ -1,10 +1,28 @@
+export type MeetingType = "procurement" | "general" | "other";
+export type MeetingStatus = "open" | "closed";
+
 export interface Meeting {
   id: string;
   title: string;
   meeting_date: string;
   summary: string | null;
   notes: string | null;
+  type: MeetingType;
+  status: MeetingStatus;
   created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ProcurementDecision = "approved" | "deferred" | "partial" | "pending";
+
+export interface ProcurementMeetingOrder {
+  id: string;
+  meeting_id: string;
+  order_id: string;
+  decision: ProcurementDecision;
+  approved_amount: number | null;
+  notes: string | null;
   created_at: string;
   updated_at: string;
 }
