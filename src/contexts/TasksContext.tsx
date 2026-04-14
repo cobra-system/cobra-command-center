@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { handleError } from "@/lib/errorHandler";
 import { logActivity } from "@/lib/activityLogger";
+import { findOrCreateRecurringInstance, getNextOccurrenceDate } from "@/lib/recurringUtils";
 import type { Session } from "@supabase/supabase-js";
 import type { Task, TaskStatus } from "@/contexts/types";
 
@@ -95,12 +96,30 @@ export function TasksProvider({ session, children }: { session: Session | null; 
   const updateTaskStatus = useCallback(async (taskId: string, status: TaskStatus) => {
     ownMutationIds.current.add(taskId);
     const prevTasks = queryClient.getQueryData<Task[]>(["tasks"]);
+    const task = prevTasks?.find(t => t.id === taskId);
     const completedAt = status === "DONE" ? new Date().toISOString() : null;
     queryClient.setQueryData(["tasks"], (prev: Task[]) => prev.map(t => t.id === taskId ? { ...t, status, completed_at: completedAt } : t));
     const { error } = await supabase.from("tasks").update({ status, completed_at: completedAt }).eq("id", taskId);
     if (error) {
       queryClient.setQueryData(["tasks"], prevTasks);
       handleError(error, "שגיאה בעדכון משימה: " + (error.message || "נסה שוב"));
+      return;
+    }
+
+    // When a recurring task instance is marked DONE, immediately create the next occurrence
+    if (status === "DONE" && task?.recurring_task_id) {
+      const { data: template } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("id", task.recurring_task_id)
+        .eq("status", "TEMPLATE")
+        .single();
+      if (template) {
+        const baseDate = task.due_date ? new Date(task.due_date) : new Date();
+        const nextDate = getNextOccurrenceDate(template as Task, baseDate);
+        await findOrCreateRecurringInstance(template as Task, nextDate);
+        await queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      }
     }
   }, [queryClient]);
 

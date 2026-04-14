@@ -7,6 +7,17 @@
 
 ## [2026-04-14]
 
+### Fixed
+- תיקון שגיאת "Could not find the 'day_of_month' column of 'tasks' in the schema cache" — עמודות המשימות החוזרות לא הוחלו על הדאטאבייס החי. מיגרציה חדשה (`20260414000001`) מוסיפה אותן ומרפרשת את ה-PostgREST schema cache.
+
+### Added
+- **משימה חוזרת — יצירת המופע הבא ברגע הסימון כבוצע**: כאשר מסמנים מופע של משימה חוזרת כ"בוצע", המופע הבא נוצר מיידית בתאריך הרלוונטי (יום מחר / שבוע / חודש הבא בהתאם לתדירות).
+- **משימה חוזרת שלא בוצעה — העברה עם הערה**: כאשר `advance-overdue-tasks` מעביר מופע של משימה חוזרת שלא בוצע ביומה, מתווספת הערה "⚠️ לא בוצע ב-[תאריך]" ומתעדכן `last_generated` בתבנית כדי למנוע כפילות.
+
+### Fixed (טכני)
+- תיקון חוסר התאמה בין ערך `"yearly"` בטופס יצירת משימה לבין `"annual"` שמצפים לו מנוע החזרה (`generate-recurring-tasks`, `recurringUtils.ts`).
+
+---
 - Merge pull request #134 from cobra-system/claude/fix-product-data-sync-IpgCh (5e58d98)
 - fix: live product metrics on detail page, narrow 'בדרך' statuses, add optional table columns (b0f93b7)
 

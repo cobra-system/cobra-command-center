@@ -25,7 +25,7 @@ const frequencyOptions = [
   { value: "weekly", label: "כל שבוע" },
   { value: "biweekly", label: "כל שבועיים" },
   { value: "monthly", label: "כל חודש" },
-  { value: "yearly", label: "כל שנה" },
+  { value: "annual", label: "כל שנה" },
 ];
 
 const dayOfWeekOptions = [
@@ -149,7 +149,7 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
 
     if (isRecurring) {
       // Save as recurring task
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         title: title.trim(),
         description: description.trim() || null,
         frequency,
@@ -185,7 +185,7 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
       }
     } else {
       // Save as one-time task
-      const taskData: any = {
+      const taskData: Record<string, unknown> = {
         title: title.trim(),
         description: description.trim() || null,
         priority,
