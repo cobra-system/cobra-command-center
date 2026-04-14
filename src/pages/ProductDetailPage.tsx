@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
 import { useData, categories, divisions, type ProductComponent } from "@/contexts/AppContext";
+import { useLiveProductMetrics } from "@/hooks/useLiveProductMetrics";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ArrowRight, ExternalLink, Pencil, Trash2 } from "lucide-react";
@@ -38,6 +39,9 @@ export default function ProductDetailPage() {
   const { isScoped, scopedProductIds } = useProductScope();
 
   const product = products.find(p => p.id === id);
+  const productArr = useMemo(() => (product ? [product] : []), [product]);
+  const { metrics } = useLiveProductMetrics(productArr);
+
   if (!product || (isScoped && id && !scopedProductIds.has(id))) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -180,7 +184,7 @@ export default function ProductDetailPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: "מלאי קיים", field: "stock_qty", value: product.stock_qty, danger: product.stock_qty === 0 },
-          { label: "בדרך", field: "incoming_qty", value: product.incoming_qty },
+          { label: "בדרך", field: "incoming_qty", value: metrics[product.id]?.incomingQty ?? product.incoming_qty },
           { label: "מכירות חודשיות", field: "monthly_sales", value: product.monthly_sales ?? "—" },
           { label: "הזמנה חודשית", field: "monthly_order", value: product.monthly_order ?? "—" },
         ].map((item) => (
