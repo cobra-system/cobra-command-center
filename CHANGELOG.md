@@ -7,9 +7,14 @@
 
 ## [2026-04-14]
 
+- Merge pull request #131 from cobra-system/claude/mobile-products-page-YYOju (7a259f4)
+- Make Products page and related components mobile-responsive (a10fb26)
+
+<!-- last-commit: 7a259f4b57cd60614e032eedcf2c5bdaaf38491f -->
+## [2026-04-14]
+
 - feat: smart live routing for בדרך and מחיר רכישה in ProductsPage (3ee8970)
 
-<!-- last-commit: e42cb16cc2199ac3d0e0654fd9761f6d5c1ca206 -->
 ## [2026-04-13]
 
 - chore: merge main + resolve CHANGELOG conflict (b4644c1)
