@@ -7,10 +7,15 @@
 
 ## [2026-04-14]
 
+- Merge pull request #134 from cobra-system/claude/fix-product-data-sync-IpgCh (5e58d98)
+- fix: live product metrics on detail page, narrow 'בדרך' statuses, add optional table columns (b0f93b7)
+
+<!-- last-commit: 5e58d98c48b5e26b0e63bb16a2ec6659e87b2961 -->
+## [2026-04-14]
+
 - Merge pull request #133 from cobra-system/claude/fix-product-assignment-5y8vD (95d97b7)
 - fix: open CORS to * and surface profile-update errors in manage-employee (ce161ef)
 
-<!-- last-commit: 95d97b78edd3644ee9d9c6d918eca9a6abdfa3ec -->
 ## [2026-04-14]
 
 - Merge pull request #131 from cobra-system/claude/mobile-products-page-YYOju (7a259f4)
