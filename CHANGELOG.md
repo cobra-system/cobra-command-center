@@ -5,13 +5,17 @@
 
 ---
 
+## [2026-04-14]
+
+- feat: smart live routing for בדרך and מחיר רכישה in ProductsPage (3ee8970)
+
+<!-- last-commit: e42cb16cc2199ac3d0e0654fd9761f6d5c1ca206 -->
 ## [2026-04-13]
 
 - chore: merge main + resolve CHANGELOG conflict (b4644c1)
 - feat: technician profile enhancements + bonded division support (b125eb1)
 - feat: redesign equipment page with division cards and detail page (3a52dbc)
 
-<!-- last-commit: 387ef42a7aea2fd9c6e72c72395d57327bcca853 -->
 ## [2026-04-13]
 
 ### Added
