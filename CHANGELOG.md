@@ -7,11 +7,15 @@
 
 ## [2026-04-14]
 
+- fix: correct all recurring task logic bugs (9ba306d)
+
+<!-- last-commit: 6f1695b01700ae0b9277310c1f915237a8cf5b3e -->
+## [2026-04-14]
+
 - chore: merge main into fix-recurring-tasks branch (09d38da)
 - chore: merge main into fix-recurring-tasks branch (f9e5559)
 - fix: restore recurring task columns and implement full recurring lifecycle (8454205)
 
-<!-- last-commit: b188f315148e684e3c81e0be68c42744bd3e2f31 -->
 ## [2026-04-14]
 
 ### Fixed
