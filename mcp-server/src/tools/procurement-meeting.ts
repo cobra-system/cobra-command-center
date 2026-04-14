@@ -159,6 +159,105 @@ export function registerProcurementMeetingTools(server: McpServer) {
     }
   );
 
+  // ── get_pending_orders_for_meeting ────────────────────────────────────────
+  server.tool(
+    "get_pending_orders_for_meeting",
+    "הזמנות הממתינות לדיון — Pending orders that can be added to a procurement meeting agenda. Returns two groups: orders with pending payments (ממתין) and PIs awaiting payment approval (no payment schedule yet). Optionally excludes orders already on a specific meeting.",
+    {
+      meeting_id: z.string().uuid().optional().describe("Meeting UUID — if provided, orders already on this meeting's agenda are excluded"),
+    },
+    async ({ meeting_id }) => {
+      // 1. Orders with at least one pending payment
+      const { data: paymentsData } = await supabase
+        .from("order_payments")
+        .select("order_id, id, payment_type, amount, currency, due_date, status")
+        .eq("status", "ממתין");
+
+      const paymentsByOrder: Record<string, Record<string, unknown>[]> = {};
+      for (const p of (paymentsData || []) as Record<string, unknown>[]) {
+        const oid = p.order_id as string;
+        if (!paymentsByOrder[oid]) paymentsByOrder[oid] = [];
+        paymentsByOrder[oid].push(p);
+      }
+      const orderIdsWithPayments = Object.keys(paymentsByOrder);
+
+      // 2. PIs awaiting approval (PENDING/ORDERED with pi_number, no payment rows)
+      const { data: piData } = await supabase
+        .from("orders")
+        .select("id, supplier_name, pi_number, status, total_price, priority, eta, etd, notes")
+        .not("pi_number", "is", null)
+        .in("status", ["PENDING", "ORDERED"]);
+
+      const piOrderIds = ((piData || []) as Record<string, unknown>[])
+        .map(o => o.id as string)
+        .filter(id => !orderIdsWithPayments.includes(id));
+
+      // 3. Fetch full order data for group A
+      let paymentOrders: Record<string, unknown>[] = [];
+      if (orderIdsWithPayments.length > 0) {
+        const { data: ordersData } = await supabase
+          .from("orders")
+          .select("id, supplier_name, pi_number, status, total_price, priority, eta, etd, notes")
+          .in("id", orderIdsWithPayments)
+          .not("status", "in", '("CANCELLED","ARRIVED","DELIVERED")');
+        paymentOrders = (ordersData || []) as Record<string, unknown>[];
+      }
+
+      // 4. Exclude orders already on the meeting (if meeting_id provided)
+      let excludedIds = new Set<string>();
+      if (meeting_id) {
+        const { data: alreadyAdded } = await supabase
+          .from("procurement_meeting_orders")
+          .select("order_id")
+          .eq("meeting_id", meeting_id);
+        excludedIds = new Set(((alreadyAdded || []) as Record<string, unknown>[]).map(r => r.order_id as string));
+      }
+
+      // 5. Build group A: payment pending
+      const priorityOrder: Record<string, number> = { "דחוף": 0, "גבוה": 1, "בינוני": 2, "נמוך": 3 };
+      const groupA = paymentOrders
+        .filter(o => !excludedIds.has(o.id as string))
+        .map(o => {
+          const payments = paymentsByOrder[o.id as string] || [];
+          const totalPending = payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+          return {
+            ...o,
+            pending_payments: payments,
+            total_pending_amount: totalPending,
+            payment_currency: (payments[0] as Record<string, unknown>)?.currency ?? null,
+          };
+        })
+        .sort((a, b) => (priorityOrder[(a as Record<string, unknown>).priority as string] ?? 9) - (priorityOrder[(b as Record<string, unknown>).priority as string] ?? 9));
+
+      // 6. Build group B: PIs awaiting approval
+      const piOrders = piData || [];
+      const groupB = (piOrders as Record<string, unknown>[])
+        .filter(o => piOrderIds.includes(o.id as string) && !excludedIds.has(o.id as string))
+        .sort((a, b) => (priorityOrder[a.priority as string] ?? 9) - (priorityOrder[b.priority as string] ?? 9));
+
+      // 7. Totals by currency for group A
+      const totalByCurrency: Record<string, number> = {};
+      for (const o of groupA) {
+        const cur = (o.payment_currency as string) || "USD";
+        totalByCurrency[cur] = (totalByCurrency[cur] || 0) + (Number(o.total_pending_amount) || 0);
+      }
+
+      const result = {
+        summary: {
+          payment_pending: groupA.length,
+          pi_awaiting_approval: groupB.length,
+          total: groupA.length + groupB.length,
+          total_pending_by_currency: totalByCurrency,
+          ...(meeting_id ? { excluded_already_on_meeting: excludedIds.size } : {}),
+        },
+        payment_pending: groupA,
+        pi_awaiting_approval: groupB,
+      };
+
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+    }
+  );
+
   // ── close_procurement_meeting ─────────────────────────────────────────────
   server.tool(
     "close_procurement_meeting",

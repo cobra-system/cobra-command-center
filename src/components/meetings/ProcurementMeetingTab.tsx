@@ -94,6 +94,13 @@ export default function ProcurementMeetingTab() {
 
   useEffect(() => { fetchMeetings(); }, [fetchMeetings]);
 
+  // ── Auto-select the most recent open meeting on first load ───────────
+  useEffect(() => {
+    if (selectedId || meetings.length === 0) return;
+    const openMeeting = meetings.find(m => m.status === "open");
+    if (openMeeting) setSelectedId(openMeeting.id);
+  }, [meetings, selectedId]);
+
   // ── When a meeting is selected ────────────────────────────────────────
   useEffect(() => {
     if (!selectedId) { setSelectedMeeting(null); return; }
@@ -448,7 +455,7 @@ export default function ProcurementMeetingTab() {
                             selectedOrderIds={selectedOrderIds}
                             onToggle={id => setSelectedOrderIds(prev => {
                               const next = new Set(prev);
-                              next.has(id) ? next.delete(id) : next.add(id);
+                              if (next.has(id)) { next.delete(id); } else { next.add(id); }
                               return next;
                             })}
                           />
@@ -467,7 +474,7 @@ export default function ProcurementMeetingTab() {
                             selectedOrderIds={selectedOrderIds}
                             onToggle={id => setSelectedOrderIds(prev => {
                               const next = new Set(prev);
-                              next.has(id) ? next.delete(id) : next.add(id);
+                              if (next.has(id)) { next.delete(id); } else { next.add(id); }
                               return next;
                             })}
                           />
