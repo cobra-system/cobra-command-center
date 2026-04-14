@@ -21,8 +21,10 @@ export function recurringMatchesDay(rt: RecurringTask, day: Date): boolean {
       return rt.day_of_month === dayOfMonth && day.getMonth() % 3 === 0;
     case "biannual":
       return rt.day_of_month === dayOfMonth && (day.getMonth() === 0 || day.getMonth() === 6);
-    case "annual":
-      return rt.day_of_month === dayOfMonth && day.getMonth() === 0;
+    case "annual": {
+      const targetMonth = rt.month_of_year ?? 0;
+      return rt.day_of_month === dayOfMonth && day.getMonth() === targetMonth;
+    }
     default: return false;
   }
 }
@@ -41,21 +43,37 @@ export function getNextOccurrenceDate(template: RecurringTask, fromDueDate: Date
       base.setDate(base.getDate() + 14);
       break;
     case "monthly": {
-      base.setMonth(base.getMonth() + 1);
       const dom = template.day_of_month ?? base.getDate();
+      base.setDate(1); // avoid overflow when current day > days in next month
+      base.setMonth(base.getMonth() + 1);
       const lastDay = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
       base.setDate(Math.min(dom, lastDay));
       break;
     }
-    case "quarterly":
+    case "quarterly": {
+      const dom3 = template.day_of_month ?? base.getDate();
+      base.setDate(1); // avoid overflow while changing month
       base.setMonth(base.getMonth() + 3);
+      const lastDay3 = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+      base.setDate(Math.min(dom3, lastDay3));
       break;
-    case "biannual":
+    }
+    case "biannual": {
+      const dom6 = template.day_of_month ?? base.getDate();
+      base.setDate(1);
       base.setMonth(base.getMonth() + 6);
+      const lastDay6 = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+      base.setDate(Math.min(dom6, lastDay6));
       break;
-    case "annual":
+    }
+    case "annual": {
+      const domY = template.day_of_month ?? base.getDate();
+      base.setDate(1);
       base.setFullYear(base.getFullYear() + 1);
+      const lastDayY = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+      base.setDate(Math.min(domY, lastDayY));
       break;
+    }
     default:
       base.setDate(base.getDate() + 1);
   }

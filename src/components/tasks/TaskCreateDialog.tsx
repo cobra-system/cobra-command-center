@@ -25,7 +25,24 @@ const frequencyOptions = [
   { value: "weekly", label: "כל שבוע" },
   { value: "biweekly", label: "כל שבועיים" },
   { value: "monthly", label: "כל חודש" },
+  { value: "quarterly", label: "כל רבעון" },
+  { value: "biannual", label: "כל חצי שנה" },
   { value: "annual", label: "כל שנה" },
+];
+
+const monthOptions = [
+  { value: 0, label: "ינואר" },
+  { value: 1, label: "פברואר" },
+  { value: 2, label: "מרץ" },
+  { value: 3, label: "אפריל" },
+  { value: 4, label: "מאי" },
+  { value: 5, label: "יוני" },
+  { value: 6, label: "יולי" },
+  { value: 7, label: "אוגוסט" },
+  { value: 8, label: "ספטמבר" },
+  { value: 9, label: "אוקטובר" },
+  { value: 10, label: "נובמבר" },
+  { value: 11, label: "דצמבר" },
 ];
 
 const dayOfWeekOptions = [
@@ -75,6 +92,7 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
   const [frequency, setFrequency] = useState("weekly");
   const [dayOfWeek, setDayOfWeek] = useState<number>(0);
   const [dayOfMonth, setDayOfMonth] = useState<number>(1);
+  const [monthOfYear, setMonthOfYear] = useState<number>(0);
   const [endDate, setEndDate] = useState<Date>();
 
   // Document attachment
@@ -96,13 +114,15 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
       setFrequency("weekly");
       setDayOfWeek(0);
       setDayOfMonth(1);
+      setMonthOfYear(0);
       setEndDate(undefined);
       setAttachedFile(null);
     }
   }, [open]);
 
   const needsDayOfWeek = frequency === "weekly" || frequency === "biweekly";
-  const needsDayOfMonth = frequency === "monthly" || frequency === "yearly";
+  const needsDayOfMonth = frequency === "monthly" || frequency === "quarterly" || frequency === "biannual" || frequency === "annual";
+  const needsMonthOfYear = frequency === "annual";
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -155,6 +175,7 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
         frequency,
         day_of_week: needsDayOfWeek ? dayOfWeek : null,
         day_of_month: needsDayOfMonth ? dayOfMonth : null,
+        month_of_year: needsMonthOfYear ? monthOfYear : null,
         days_before: 0,
         priority,
         assignee_id: assigneeId || null,
@@ -346,6 +367,19 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
                     onChange={e => setDayOfMonth(Math.min(28, Math.max(1, Number(e.target.value))))}
                     className="w-24"
                   />
+                </div>
+              )}
+
+              {/* Month of year (annual only) */}
+              {needsMonthOfYear && (
+                <div className="space-y-1">
+                  <Label className="text-xs">חודש בשנה</Label>
+                  <Select value={String(monthOfYear)} onValueChange={v => setMonthOfYear(Number(v))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {monthOptions.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
 

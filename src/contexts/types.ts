@@ -187,6 +187,7 @@ export interface Task {
   last_generated?: string | null;
   completed_at?: string | null;
   created_by?: string | null;
+  month_of_year?: number | null;
 }
 
 export interface RoleDefinition {
