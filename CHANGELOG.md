@@ -7,9 +7,13 @@
 
 ## [2026-04-14]
 
+- fix: schema cache error, division page load, pickup edit, RTL, day-view tracking, column visibility (ffd513f)
+
+<!-- last-commit: a0dfa0822692e0728cb7268c2da3c89e12e7d54e -->
+## [2026-04-14]
+
 - fix: correct all recurring task logic bugs (9ba306d)
 
-<!-- last-commit: 6f1695b01700ae0b9277310c1f915237a8cf5b3e -->
 ## [2026-04-14]
 
 - chore: merge main into fix-recurring-tasks branch (09d38da)
