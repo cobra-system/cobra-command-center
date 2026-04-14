@@ -3,6 +3,8 @@
 ## Overview
 This project uses PostgreSQL migrations managed through Supabase. All migration files are stored in `supabase/migrations/`.
 
+**Total migrations: 80** (last: `20260414000001_fix_recurring_task_columns.sql`)
+
 ## How to Apply Migrations
 
 ### Option 1: Using the Migration Runner Script (Recommended for Claude Code)

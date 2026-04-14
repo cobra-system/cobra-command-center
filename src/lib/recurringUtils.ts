@@ -27,6 +27,42 @@ export function recurringMatchesDay(rt: RecurringTask, day: Date): boolean {
   }
 }
 
+/** Returns the due date for the next occurrence of a recurring template after a given base date. */
+export function getNextOccurrenceDate(template: RecurringTask, fromDueDate: Date): Date {
+  const base = new Date(fromDueDate);
+  switch (template.frequency) {
+    case "daily":
+      base.setDate(base.getDate() + 1);
+      break;
+    case "weekly":
+      base.setDate(base.getDate() + 7);
+      break;
+    case "biweekly":
+      base.setDate(base.getDate() + 14);
+      break;
+    case "monthly": {
+      base.setMonth(base.getMonth() + 1);
+      const dom = template.day_of_month ?? base.getDate();
+      const lastDay = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+      base.setDate(Math.min(dom, lastDay));
+      break;
+    }
+    case "quarterly":
+      base.setMonth(base.getMonth() + 3);
+      break;
+    case "biannual":
+      base.setMonth(base.getMonth() + 6);
+      break;
+    case "annual":
+      base.setFullYear(base.getFullYear() + 1);
+      break;
+    default:
+      base.setDate(base.getDate() + 1);
+  }
+  base.setHours(0, 0, 0, 0);
+  return base;
+}
+
 export async function findOrCreateRecurringInstance(
   rt: RecurringTask,
   date: Date
