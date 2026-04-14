@@ -16,6 +16,7 @@ interface RecurringTask {
   is_active: boolean;
   next_due: string | null;
   last_generated: string | null;
+  month_of_year: number | null;
 }
 
 Deno.serve(async (req) => {
@@ -47,7 +48,7 @@ Deno.serve(async (req) => {
     const currentMinute = now.getMinutes();
     const currentTime = `${currentHour.toString().padStart(2, "0")}:${currentMinute.toString().padStart(2, "0")}`;
 
-    const tasksToCreate: any[] = [];
+    const tasksToCreate: Record<string, unknown>[] = [];
 
     for (const task of recurringTasks as RecurringTask[]) {
       // Check if task should be generated based on time
@@ -92,39 +93,45 @@ Deno.serve(async (req) => {
           break;
 
         case "monthly":
-          if (task.day_of_month !== null && targetDayOfMonth === task.day_of_month) {
-            shouldGenerate = true;
+          if (task.day_of_month !== null) {
+            const lastDayM = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate();
+            if (targetDayOfMonth === Math.min(task.day_of_month, lastDayM)) {
+              shouldGenerate = true;
+            }
           }
           break;
 
         case "quarterly":
-          // Every 3 months
-          if (task.day_of_month !== null && targetDayOfMonth === task.day_of_month) {
-            const monthsSinceJan = targetMonth;
-            if (monthsSinceJan % 3 === 0) {
+          // Every 3 months: Jan, Apr, Jul, Oct
+          if (task.day_of_month !== null && targetMonth % 3 === 0) {
+            const lastDayQ = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate();
+            if (targetDayOfMonth === Math.min(task.day_of_month, lastDayQ)) {
               shouldGenerate = true;
             }
           }
           break;
 
         case "biannual":
-          // Every 6 months
-          if (task.day_of_month !== null && targetDayOfMonth === task.day_of_month) {
-            if (targetMonth === 0 || targetMonth === 6) {
+          // Every 6 months: Jan, Jul
+          if (task.day_of_month !== null && (targetMonth === 0 || targetMonth === 6)) {
+            const lastDayB = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate();
+            if (targetDayOfMonth === Math.min(task.day_of_month, lastDayB)) {
               shouldGenerate = true;
             }
           }
           break;
 
-        case "annual":
-          // Once a year - check if we're in the right month
-          if (task.day_of_month !== null && targetDayOfMonth === task.day_of_month) {
-            // For annual, we generate in January or based on next_due
-            if (targetMonth === 0) {
+        case "annual": {
+          // Once a year in the configured month (default: January)
+          const annualMonth = task.month_of_year ?? 0;
+          if (task.day_of_month !== null && targetMonth === annualMonth) {
+            const lastDayA = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate();
+            if (targetDayOfMonth === Math.min(task.day_of_month, lastDayA)) {
               shouldGenerate = true;
             }
           }
           break;
+        }
       }
 
       if (shouldGenerate) {
@@ -166,9 +173,9 @@ Deno.serve(async (req) => {
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     return new Response(
-      JSON.stringify({ error: error?.message || "Unknown error" }),
+      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

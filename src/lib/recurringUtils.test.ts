@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { recurringMatchesDay } from "./recurringUtils";
+import { recurringMatchesDay, getNextOccurrenceDate } from "./recurringUtils";
 import type { Task } from "@/contexts/AppContext";
 
 const makeTemplate = (overrides: Partial<Task> = {}): Task =>
@@ -98,21 +98,102 @@ describe("recurringMatchesDay", () => {
   });
 
   describe("annual", () => {
-    it("matches in January on correct day", () => {
+    it("matches in January on correct day when no month_of_year set", () => {
       const rt = makeTemplate({ frequency: "annual", day_of_month: 1 });
       expect(recurringMatchesDay(rt, new Date("2024-01-01"))).toBe(true);
     });
 
-    it("does not match in other months", () => {
+    it("does not match in other months when no month_of_year set", () => {
       const rt = makeTemplate({ frequency: "annual", day_of_month: 1 });
       expect(recurringMatchesDay(rt, new Date("2024-06-01"))).toBe(false);
+    });
+
+    it("matches in configured month_of_year", () => {
+      const rt = makeTemplate({ frequency: "annual", day_of_month: 15, month_of_year: 3 }); // April
+      expect(recurringMatchesDay(rt, new Date("2024-04-15"))).toBe(true);
+    });
+
+    it("does not match in wrong month when month_of_year set", () => {
+      const rt = makeTemplate({ frequency: "annual", day_of_month: 15, month_of_year: 3 }); // April
+      expect(recurringMatchesDay(rt, new Date("2024-01-15"))).toBe(false);
     });
   });
 
   describe("unknown frequency", () => {
     it("returns false", () => {
-      const rt = makeTemplate({ frequency: "unknown" as any });
+      const rt = makeTemplate({ frequency: "unknown" as unknown as string });
       expect(recurringMatchesDay(rt, new Date("2024-06-10"))).toBe(false);
+    });
+  });
+});
+
+describe("getNextOccurrenceDate", () => {
+  describe("monthly", () => {
+    it("advances by one month", () => {
+      const rt = makeTemplate({ frequency: "monthly", day_of_month: 15 });
+      const next = getNextOccurrenceDate(rt, new Date("2024-06-15"));
+      expect(next.getMonth()).toBe(6); // July
+      expect(next.getDate()).toBe(15);
+    });
+
+    it("clamps to last day of month when day_of_month exceeds month length", () => {
+      const rt = makeTemplate({ frequency: "monthly", day_of_month: 31 });
+      const next = getNextOccurrenceDate(rt, new Date("2024-01-31"));
+      // Feb 2024 has 29 days (leap year)
+      expect(next.getFullYear()).toBe(2024);
+      expect(next.getMonth()).toBe(1); // February
+      expect(next.getDate()).toBe(29);
+    });
+  });
+
+  describe("quarterly", () => {
+    it("advances by three months", () => {
+      const rt = makeTemplate({ frequency: "quarterly", day_of_month: 1 });
+      const next = getNextOccurrenceDate(rt, new Date("2024-01-01"));
+      expect(next.getMonth()).toBe(3); // April
+      expect(next.getDate()).toBe(1);
+    });
+
+    it("clamps day when target month is shorter (Jan 31 → Apr 30)", () => {
+      const rt = makeTemplate({ frequency: "quarterly", day_of_month: 31 });
+      const next = getNextOccurrenceDate(rt, new Date("2024-01-31"));
+      expect(next.getMonth()).toBe(3); // April
+      expect(next.getDate()).toBe(30); // April has 30 days
+    });
+  });
+
+  describe("biannual", () => {
+    it("advances by six months", () => {
+      const rt = makeTemplate({ frequency: "biannual", day_of_month: 10 });
+      const next = getNextOccurrenceDate(rt, new Date("2024-01-10"));
+      expect(next.getMonth()).toBe(6); // July
+      expect(next.getDate()).toBe(10);
+    });
+
+    it("clamps day when target month is shorter", () => {
+      const rt = makeTemplate({ frequency: "biannual", day_of_month: 31 });
+      const next = getNextOccurrenceDate(rt, new Date("2024-07-31"));
+      // Jan 2025 has 31 days — no clamping
+      expect(next.getMonth()).toBe(0);
+      expect(next.getDate()).toBe(31);
+    });
+  });
+
+  describe("annual", () => {
+    it("advances by one year", () => {
+      const rt = makeTemplate({ frequency: "annual", day_of_month: 15 });
+      const next = getNextOccurrenceDate(rt, new Date("2024-01-15"));
+      expect(next.getFullYear()).toBe(2025);
+      expect(next.getMonth()).toBe(0);
+      expect(next.getDate()).toBe(15);
+    });
+
+    it("clamps Feb 29 in leap year to Feb 28 in non-leap year", () => {
+      const rt = makeTemplate({ frequency: "annual", day_of_month: 29 });
+      const next = getNextOccurrenceDate(rt, new Date("2024-02-29")); // leap year
+      expect(next.getFullYear()).toBe(2025);
+      expect(next.getMonth()).toBe(1); // February
+      expect(next.getDate()).toBe(28); // 2025 is not a leap year
     });
   });
 });
