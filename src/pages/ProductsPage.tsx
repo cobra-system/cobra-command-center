@@ -2,6 +2,7 @@ import { useState, useMemo, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, categories, type Product } from "@/contexts/AppContext";
 import { useProductScope } from "@/hooks/useProductScope";
+import { useLiveProductMetrics, type ProductMetrics } from "@/hooks/useLiveProductMetrics";
 import { Search, ChevronDown, ChevronUp, Boxes, Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye, Pencil, Truck, ShoppingCart, ClipboardList, Copy, Hash } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,29 @@ const COLUMN_DEFS = [
   { id: "monthly_order",  label: "הזמנה חודשית",  sortField: "monthly_order" },
 ] as const;
 
+function CompositeIncomingBadge({ m }: { m: ProductMetrics | undefined }) {
+  if (!m?.compositeIncoming) return <span className="text-muted-foreground">—</span>;
+  const { matched, total, minUnits } = m.compositeIncoming;
+  if (total === 0) return <span className="text-muted-foreground">—</span>;
+  if (matched === 0) return <span className="text-muted-foreground">—</span>;
+  if (minUnits != null && minUnits > 0) {
+    return (
+      <span className="text-foreground font-medium">
+        {minUnits}{" "}
+        <span className="text-xs text-muted-foreground font-normal">יח׳</span>
+      </span>
+    );
+  }
+  if (matched > 0) {
+    return (
+      <span className="text-xs text-muted-foreground">
+        {matched}/{total} רכיבים
+      </span>
+    );
+  }
+  return <span className="text-muted-foreground">—</span>;
+}
+
 export default function ProductsPage() {
   const { suppliers, deleteProduct } = useData();
   const { scopedProducts: products } = useProductScope();
@@ -44,6 +68,7 @@ export default function ProductsPage() {
   });
   const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility("products:hidden-columns", COLUMN_DEFS);
   const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
+  const { metrics } = useLiveProductMetrics(products);
 
   const { hasEdit } = usePermissions("products");
   const sortKey = prefs.sortField as SortKey | null;
@@ -226,8 +251,35 @@ export default function ProductsPage() {
                       </td>
                     )}
                     {isVisible("stock_qty") && <td className={`p-2 sm:p-3 font-semibold ${p.stock_qty === 0 ? "text-destructive" : "text-foreground"}`}>{p.stock_qty}</td>}
-                    {isVisible("incoming_qty") && <td className="p-2 sm:p-3 text-muted-foreground">{p.incoming_qty || "—"}</td>}
-                    {isVisible("purchase_price") && <td className="p-2 sm:p-3 text-muted-foreground">{p.purchase_price ? `$${p.purchase_price}` : "—"}</td>}
+                    {isVisible("incoming_qty") && (
+                      <td className="p-2 sm:p-3">
+                        {isComposite ? (
+                          <CompositeIncomingBadge m={metrics[p.id]} />
+                        ) : (
+                          <span className={metrics[p.id]?.incomingQty ? "text-foreground font-medium" : "text-muted-foreground"}>
+                            {metrics[p.id]?.incomingQty || "—"}
+                          </span>
+                        )}
+                      </td>
+                    )}
+                    {isVisible("purchase_price") && (
+                      <td className="p-2 sm:p-3 text-muted-foreground">
+                        {(() => {
+                          const pp = metrics[p.id]?.purchasePrice ?? p.purchase_price;
+                          if (!pp) return "—";
+                          const formatted = `$${pp.toLocaleString()}`;
+                          if (isComposite) {
+                            return (
+                              <span title="מחושב מסכום רכיבים">
+                                {formatted}{" "}
+                                <span className="text-xs opacity-50">(רכיבים)</span>
+                              </span>
+                            );
+                          }
+                          return formatted;
+                        })()}
+                      </td>
+                    )}
                     {isVisible("monthly_order") && <td className="p-2 sm:p-3 text-muted-foreground">{p.monthly_order || "—"}</td>}
                     {hasEdit && (
                       <td className="p-3" onClick={e => e.stopPropagation()}>
@@ -283,6 +335,19 @@ export default function ProductsPage() {
                                     {comp.stock_qty}
                                   </span>
                                 )}
+                                {(() => {
+                                  if (!comp.sku) return null;
+                                  const compProduct = products.find(q => q.sku === comp.sku);
+                                  if (!compProduct) return null;
+                                  const inc = metrics[compProduct.id]?.incomingQty;
+                                  if (!inc) return null;
+                                  return (
+                                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                                      <span className="text-muted-foreground/60 font-normal">בדרך: </span>
+                                      {inc}
+                                    </span>
+                                  );
+                                })()}
                                 {comp.notes && (
                                   <span className="text-muted-foreground/70 truncate max-w-[250px]">
                                     💡 {comp.notes}
