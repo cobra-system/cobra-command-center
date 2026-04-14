@@ -7,6 +7,13 @@
 
 ## [2026-04-14]
 
+- chore: merge main into fix-recurring-tasks branch (09d38da)
+- chore: merge main into fix-recurring-tasks branch (f9e5559)
+- fix: restore recurring task columns and implement full recurring lifecycle (8454205)
+
+<!-- last-commit: b188f315148e684e3c81e0be68c42744bd3e2f31 -->
+## [2026-04-14]
+
 ### Fixed
 - תיקון שגיאת "Could not find the 'day_of_month' column of 'tasks' in the schema cache" — עמודות המשימות החוזרות לא הוחלו על הדאטאבייס החי. מיגרציה חדשה (`20260414000001`) מוסיפה אותן ומרפרשת את ה-PostgREST schema cache.
 
@@ -21,7 +28,6 @@
 - Merge pull request #134 from cobra-system/claude/fix-product-data-sync-IpgCh (5e58d98)
 - fix: live product metrics on detail page, narrow 'בדרך' statuses, add optional table columns (b0f93b7)
 
-<!-- last-commit: 5e58d98c48b5e26b0e63bb16a2ec6659e87b2961 -->
 ## [2026-04-14]
 
 - Merge pull request #133 from cobra-system/claude/fix-product-assignment-5y8vD (95d97b7)
