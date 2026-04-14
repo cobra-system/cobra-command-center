@@ -7,10 +7,15 @@
 
 ## [2026-04-14]
 
+- Merge pull request #133 from cobra-system/claude/fix-product-assignment-5y8vD (95d97b7)
+- fix: open CORS to * and surface profile-update errors in manage-employee (ce161ef)
+
+<!-- last-commit: 95d97b78edd3644ee9d9c6d918eca9a6abdfa3ec -->
+## [2026-04-14]
+
 - Merge pull request #131 from cobra-system/claude/mobile-products-page-YYOju (7a259f4)
 - Make Products page and related components mobile-responsive (a10fb26)
 
-<!-- last-commit: 7a259f4b57cd60614e032eedcf2c5bdaaf38491f -->
 ## [2026-04-14]
 
 - feat: smart live routing for בדרך and מחיר רכישה in ProductsPage (3ee8970)
