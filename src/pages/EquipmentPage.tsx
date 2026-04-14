@@ -117,6 +117,15 @@ const INVENTORY_COLS: ColDef[] = [
   { id: "balance", label: "בשטח", sortField: "balance" },
 ];
 
+const DASHBOARD_COLS: ColDef[] = [
+  { id: "division",  label: "חטיבה",          sortField: "division"  },
+  { id: "active",    label: "טכנאים פעילים",  sortField: "active"    },
+  { id: "taken",     label: "יצאו",            sortField: "taken"     },
+  { id: "returned",  label: "הוחזרו",          sortField: "returned"  },
+  { id: "inField",   label: "בשטח",            sortField: "inField"   },
+  { id: "pct",       label: "% החזרה",         sortField: "pct"       },
+];
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function returnPctColor(pct: number) {
@@ -166,6 +175,9 @@ export default function EquipmentPage() {
   const [selectedMonth, setSelectedMonth] = useState("all");
   const [selectedDivision, setSelectedDivision] = useState("all");
   const [expandedPickupId, setExpandedPickupId] = useState<string | null>(null);
+  // Day-hierarchy expansion state (Tab 2)
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  const [expandedDivInDay, setExpandedDivInDay] = useState<Set<string>>(new Set());
 
   const [showNewInstaller, setShowNewInstaller] = useState(false);
   const [showNewPickup, setShowNewPickup] = useState(false);
@@ -175,11 +187,15 @@ export default function EquipmentPage() {
   const [pickupSortDir, setPickupSortDir] = useState<"asc" | "desc">("desc");
   const [invSortField, setInvSortField] = useState<string | null>("installer");
   const [invSortDir, setInvSortDir] = useState<"asc" | "desc">("asc");
+  const [dashSortField, setDashSortField] = useState<string | null>(null);
+  const [dashSortDir, setDashSortDir] = useState<"asc" | "desc">("asc");
 
   const pickupColVis = useColumnVisibility("equipment-pickups:hidden-columns", PICKUP_COLS);
   const invColVis = useColumnVisibility("equipment-inventory:hidden-columns", INVENTORY_COLS);
+  const dashColVis = useColumnVisibility("equipment-dashboard:hidden-columns", DASHBOARD_COLS);
   const { menu: pickupMenu, setMenu: setPickupMenu, closeMenu: closePickupMenu } = useColMenu();
   const { menu: invMenu, setMenu: setInvMenu, closeMenu: closeInvMenu } = useColMenu();
+  const { menu: dashMenu, setMenu: setDashMenu, closeMenu: closeDashMenu } = useColMenu();
 
   const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const installerMap = useMemo(() => new Map(installers.map((i) => [i.id, i])), [installers]);
@@ -275,15 +291,30 @@ export default function EquipmentPage() {
     });
   }, [filteredPickups, pickupSortField, pickupSortDir, installerMap]);
 
-  const pickupsByDivision = useMemo(() => {
-    const map = new Map<string, PickupRaw[]>();
-    sortedPickups.forEach((p) => {
-      const div = installerMap.get(p.installer_id)?.division ?? "אחר";
-      if (!map.has(div)) map.set(div, []);
-      map.get(div)!.push(p);
+  // ── Dashboard sorted stats ──
+  const sortedDivisionStats = useMemo(() => {
+    return [...divisionStats].sort((a, b) => {
+      if (!dashSortField) return 0;
+      const dir = dashSortDir === "asc" ? 1 : -1;
+      if (dashSortField === "division") return a.division.localeCompare(b.division, "he") * dir;
+      if (dashSortField === "active") return (a.activeCount - b.activeCount) * dir;
+      if (dashSortField === "taken") return (a.totalTaken - b.totalTaken) * dir;
+      if (dashSortField === "returned") return (a.totalReturned - b.totalReturned) * dir;
+      if (dashSortField === "inField") return (a.inField - b.inField) * dir;
+      if (dashSortField === "pct") return (a.returnPct - b.returnPct) * dir;
+      return 0;
     });
-    return map;
-  }, [sortedPickups, installerMap]);
+  }, [divisionStats, dashSortField, dashSortDir]);
+
+  // ── Tab 2: group by day → division ──
+  const pickupsByDay = useMemo(() => {
+    const dayMap = new Map<string, PickupRaw[]>();
+    sortedPickups.forEach((p) => {
+      if (!dayMap.has(p.pickup_date)) dayMap.set(p.pickup_date, []);
+      dayMap.get(p.pickup_date)!.push(p);
+    });
+    return [...dayMap.entries()].sort(([a], [b]) => b.localeCompare(a));
+  }, [sortedPickups]);
 
   // ── Field inventory (all-time balance > 0) ──
   const fieldInventory = useMemo(() => {
@@ -428,6 +459,31 @@ export default function EquipmentPage() {
     }
   }
 
+  function toggleDashSort(field: string) {
+    if (dashSortField === field) {
+      setDashSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setDashSortField(field);
+      setDashSortDir("asc");
+    }
+  }
+
+  function toggleDay(date: string) {
+    setExpandedDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(date)) { next.delete(date); } else { next.add(date); }
+      return next;
+    });
+  }
+
+  function toggleDivInDay(key: string) {
+    setExpandedDivInDay((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) { next.delete(key); } else { next.add(key); }
+      return next;
+    });
+  }
+
   if (loading) {
     return (
       <div className="p-4 md:p-6 space-y-4">
@@ -523,7 +579,7 @@ export default function EquipmentPage() {
           </div>
         </TabsContent>
 
-        {/* ── Tab 2: Pickups grouped by division ── */}
+        {/* ── Tab 2: Pickups by day → division → technician ── */}
         <TabsContent value="pickups" className="mt-4 space-y-4">
           <div className="flex gap-2 flex-wrap">
             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
@@ -554,144 +610,120 @@ export default function EquipmentPage() {
             </Select>
           </div>
 
-          {sortedPickups.length === 0 ? (
+          {pickupsByDay.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground border rounded-md">
               אין הצטיידויות בפרק הזמן שנבחר
             </div>
           ) : (
-            DIVISIONS.filter((div) => {
-              if (selectedDivision !== "all") return div === selectedDivision;
-              return pickupsByDivision.has(div);
-            }).map((div) => {
-              const divPickups = pickupsByDivision.get(div) ?? [];
-              if (divPickups.length === 0) return null;
-              const colorClass =
-                DIVISION_COLORS[div] ?? "bg-gray-100 text-gray-700 border-gray-200";
-              return (
-                <Card key={div}>
-                  <CardContent className="p-0">
-                    <div className="flex items-center gap-2 p-3 border-b">
-                      <Badge className={`border ${colorClass}`}>{div}</Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {divPickups.length} אירועים
-                      </span>
+            <div className="space-y-2">
+              {pickupsByDay.map(([date, dayPickups]) => {
+                const dayExpanded = expandedDays.has(date);
+                const totalDayItems = dayPickups.reduce(
+                  (s, p) => s + p.equipment_pickup_items.reduce((ss, i) => ss + i.quantity, 0),
+                  0
+                );
+                // Group by division
+                const divMap = new Map<string, PickupRaw[]>();
+                dayPickups.forEach((p) => {
+                  const div = installerMap.get(p.installer_id)?.division ?? "אחר";
+                  if (!divMap.has(div)) divMap.set(div, []);
+                  divMap.get(div)!.push(p);
+                });
+                const divCount = divMap.size;
+
+                return (
+                  <Card key={date} className="overflow-hidden">
+                    {/* Day header */}
+                    <div
+                      className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/30 select-none border-b"
+                      onClick={() => toggleDay(date)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold text-sm">
+                          {format(new Date(date), "dd/MM/yy")}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {divCount} חטיבות · {dayPickups.length} אירועים · {totalDayItems} פריטים
+                        </span>
+                      </div>
+                      {dayExpanded
+                        ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                     </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr
-                            className="border-b bg-muted/50"
-                            onContextMenu={trContextMenu(
-                              pickupColVis.hiddenCols,
-                              setPickupMenu
-                            )}
-                          >
-                            {PICKUP_COLS.map((col) =>
-                              pickupColVis.isVisible(col.id) ? (
-                                <th
-                                  key={col.id}
-                                  className="text-right p-3 font-semibold text-foreground"
-                                  onContextMenu={colThContextMenu(col, setPickupMenu)}
-                                >
-                                  {col.sortField ? (
-                                    <button
-                                      onClick={() => togglePickupSort(col.sortField!)}
-                                      className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors"
-                                    >
-                                      {col.label}
-                                      <SortIcon
-                                        field={col.sortField}
-                                        currentField={pickupSortField}
-                                        currentDir={pickupSortDir}
-                                      />
-                                    </button>
-                                  ) : (
-                                    col.label
-                                  )}
-                                </th>
-                              ) : null
-                            )}
-                            <th className="p-3 w-8" />
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {divPickups.map((p) => {
-                            const installer = installerMap.get(p.installer_id);
-                            const taken = p.equipment_pickup_items.reduce(
-                              (s, i) => s + i.quantity,
-                              0
-                            );
-                            const expanded = expandedPickupId === p.id;
-                            return (
-                              <Fragment key={p.id}>
-                                <tr
-                                  className="border-b last:border-0 hover:bg-muted/30 cursor-pointer"
-                                  onClick={() =>
-                                    setExpandedPickupId(expanded ? null : p.id)
-                                  }
-                                >
-                                  {pickupColVis.isVisible("date") && (
-                                    <td className="p-3">
-                                      {format(new Date(p.pickup_date), "dd/MM/yyyy")}
-                                    </td>
-                                  )}
-                                  {pickupColVis.isVisible("recipient") && (
-                                    <td className="p-3">{installer?.name ?? "—"}</td>
-                                  )}
-                                  {pickupColVis.isVisible("taken") && (
-                                    <td className="p-3 font-medium">{taken}</td>
-                                  )}
-                                  {pickupColVis.isVisible("notes") && (
-                                    <td className="p-3 text-xs text-muted-foreground">
-                                      {p.notes ?? "—"}
-                                    </td>
-                                  )}
-                                  <td className="p-3 w-8">
-                                    {expanded ? (
-                                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                    ) : (
-                                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                    )}
-                                  </td>
-                                </tr>
-                                {expanded && (
-                                  <tr>
-                                    <td colSpan={pickupColVis.visibleCount + 1} className="p-0">
-                                      <div className="bg-muted/20 px-6 py-2 space-y-1 border-b">
-                                        {p.equipment_pickup_items.map((item, idx) => (
-                                          <div key={idx} className="flex gap-4 text-xs">
-                                            <span className="font-medium">
-                                              {productMap.get(item.product_id)?.name ??
-                                                item.product_id}
-                                            </span>
-                                            <span className="text-muted-foreground">
-                                              כמות: {item.quantity}
-                                            </span>
-                                            {item.serial_numbers &&
-                                              item.serial_numbers.length > 0 && (
-                                                <span
-                                                  className="text-muted-foreground font-mono"
-                                                  dir="ltr"
-                                                >
-                                                  {item.serial_numbers.join(", ")}
+
+                    {dayExpanded && (
+                      <div className="divide-y">
+                        {[...divMap.entries()].map(([div, divPickups]) => {
+                          const divKey = `${date}:${div}`;
+                          const divExpanded = expandedDivInDay.has(divKey);
+                          const divItems = divPickups.reduce(
+                            (s, p) => s + p.equipment_pickup_items.reduce((ss, i) => ss + i.quantity, 0),
+                            0
+                          );
+                          const colorClass = DIVISION_COLORS[div] ?? "bg-gray-100 text-gray-700 border-gray-200";
+
+                          return (
+                            <div key={divKey}>
+                              {/* Division row */}
+                              <div
+                                className="flex items-center justify-between px-5 py-2.5 cursor-pointer hover:bg-muted/20 select-none bg-muted/10"
+                                onClick={() => toggleDivInDay(divKey)}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <Badge className={`text-xs border ${colorClass}`}>{div}</Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    {divPickups.length} אירועים · {divItems} פריטים
+                                  </span>
+                                </div>
+                                {divExpanded
+                                  ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                                  : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                              </div>
+
+                              {divExpanded && (
+                                <div className="divide-y bg-background">
+                                  {divPickups.map((p) => {
+                                    const installer = installerMap.get(p.installer_id);
+                                    return (
+                                      <div key={p.id} className="px-8 py-2 text-sm">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <span className="font-medium">
+                                            {installer?.name ?? "—"}
+                                            {installer?.warehouse_number
+                                              ? ` (${installer.warehouse_number})`
+                                              : ""}
+                                          </span>
+                                          {p.notes && (
+                                            <span className="text-xs text-muted-foreground">· {p.notes}</span>
+                                          )}
+                                        </div>
+                                        <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+                                          {p.equipment_pickup_items.map((item, idx) => (
+                                            <span key={idx} className="text-xs text-muted-foreground">
+                                              {productMap.get(item.product_id)?.name ?? item.product_id}
+                                              {" "}×{item.quantity}
+                                              {item.serial_numbers && item.serial_numbers.length > 0 && (
+                                                <span className="font-mono ms-1" dir="ltr">
+                                                  ({item.serial_numbers.join(", ")})
                                                 </span>
                                               )}
-                                          </div>
-                                        ))}
+                                            </span>
+                                          ))}
+                                        </div>
                                       </div>
-                                    </td>
-                                  </tr>
-                                )}
-                              </Fragment>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
           )}
         </TabsContent>
 
@@ -937,43 +969,51 @@ export default function EquipmentPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="text-right p-3 font-semibold">חטיבה</th>
-                      <th className="text-right p-3 font-semibold">טכנאים פעילים</th>
-                      <th className="text-right p-3 font-semibold">יצאו</th>
-                      <th className="text-right p-3 font-semibold">הוחזרו</th>
-                      <th className="text-right p-3 font-semibold">בשטח</th>
-                      <th className="text-right p-3 font-semibold">% החזרה</th>
+                    <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(dashColVis.hiddenCols, setDashMenu)}>
+                      {DASHBOARD_COLS.map((col) =>
+                        dashColVis.isVisible(col.id) ? (
+                          <th
+                            key={col.id}
+                            className="text-right p-3 font-semibold text-foreground"
+                            onContextMenu={colThContextMenu(col, setDashMenu)}
+                          >
+                            {col.sortField ? (
+                              <button
+                                onClick={() => toggleDashSort(col.sortField!)}
+                                className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors"
+                              >
+                                {col.label}
+                                <SortIcon field={col.sortField} currentField={dashSortField} currentDir={dashSortDir} />
+                              </button>
+                            ) : col.label}
+                          </th>
+                        ) : null
+                      )}
                     </tr>
                   </thead>
                   <tbody>
-                    {divisionStats.map((stat) => (
+                    {sortedDivisionStats.map((stat) => (
                       <tr
                         key={stat.division}
                         className="border-b last:border-0 hover:bg-muted/20 cursor-pointer"
-                        onClick={() =>
-                          navigate(
-                            `/equipment/division/${encodeURIComponent(stat.division)}`
-                          )
-                        }
+                        onClick={() => navigate(`/equipment/division/${encodeURIComponent(stat.division)}`)}
                       >
-                        <td className="p-3">
-                          <Badge
-                            className={`border ${
-                              DIVISION_COLORS[stat.division] ??
-                              "bg-gray-100 text-gray-700 border-gray-200"
-                            }`}
-                          >
-                            {stat.division}
-                          </Badge>
-                        </td>
-                        <td className="p-3">{stat.activeCount}</td>
-                        <td className="p-3">{stat.totalTaken}</td>
-                        <td className="p-3">{stat.totalReturned}</td>
-                        <td className="p-3 font-bold">{stat.inField}</td>
-                        <td className={`p-3 font-bold ${returnPctColor(stat.returnPct)}`}>
-                          {stat.returnPct}%
-                        </td>
+                        {dashColVis.isVisible("division") && (
+                          <td className="p-3">
+                            <Badge className={`border ${DIVISION_COLORS[stat.division] ?? "bg-gray-100 text-gray-700 border-gray-200"}`}>
+                              {stat.division}
+                            </Badge>
+                          </td>
+                        )}
+                        {dashColVis.isVisible("active") && <td className="p-3">{stat.activeCount}</td>}
+                        {dashColVis.isVisible("taken") && <td className="p-3">{stat.totalTaken}</td>}
+                        {dashColVis.isVisible("returned") && <td className="p-3">{stat.totalReturned}</td>}
+                        {dashColVis.isVisible("inField") && <td className="p-3 font-bold">{stat.inField}</td>}
+                        {dashColVis.isVisible("pct") && (
+                          <td className={`p-3 font-bold ${returnPctColor(stat.returnPct)}`}>
+                            {stat.returnPct}%
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -1041,6 +1081,27 @@ export default function EquipmentPage() {
             setInvSortField(field);
             setInvSortDir("desc");
             closeInvMenu();
+          }}
+        />
+      )}
+      {dashMenu && (
+        <ColContextMenu
+          menu={dashMenu}
+          sortField={dashSortField}
+          sortDir={dashSortDir}
+          hiddenCols={dashColVis.hiddenCols}
+          onClose={closeDashMenu}
+          onHide={dashColVis.hide}
+          onShow={dashColVis.show}
+          onSortAsc={(field) => {
+            setDashSortField(field);
+            setDashSortDir("asc");
+            closeDashMenu();
+          }}
+          onSortDesc={(field) => {
+            setDashSortField(field);
+            setDashSortDir("desc");
+            closeDashMenu();
           }}
         />
       )}
