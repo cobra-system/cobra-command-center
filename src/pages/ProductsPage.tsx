@@ -16,17 +16,22 @@ import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/c
 import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "sonner";
 
-type SortKey = "name" | "sku" | "product_type" | "supplier" | "stock_qty" | "incoming_qty" | "purchase_price" | "monthly_order";
+type SortKey = "name" | "sku" | "product_type" | "supplier" | "stock_qty" | "incoming_qty" | "purchase_price" | "monthly_order" | "sale_price" | "monthly_sales" | "category" | "reorder_point" | "lead_time_days";
 
 const COLUMN_DEFS = [
-  { id: "name",           label: "שם מוצר",       sortField: "name" },
-  { id: "sku",            label: "מק״ט",           sortField: "sku" },
-  { id: "product_type",   label: "סוג",            sortField: "product_type" },
-  { id: "supplier",       label: "ספק",            sortField: "supplier" },
-  { id: "stock_qty",      label: "מלאי",           sortField: "stock_qty" },
-  { id: "incoming_qty",   label: "בדרך",           sortField: "incoming_qty" },
-  { id: "purchase_price", label: "מחיר רכישה",    sortField: "purchase_price" },
-  { id: "monthly_order",  label: "הזמנה חודשית",  sortField: "monthly_order" },
+  { id: "name",           label: "שם מוצר",           sortField: "name" },
+  { id: "sku",            label: "מק״ט",               sortField: "sku" },
+  { id: "product_type",   label: "סוג",                sortField: "product_type" },
+  { id: "supplier",       label: "ספק",                sortField: "supplier" },
+  { id: "stock_qty",      label: "מלאי",               sortField: "stock_qty" },
+  { id: "incoming_qty",   label: "בדרך",               sortField: "incoming_qty" },
+  { id: "purchase_price", label: "מחיר רכישה",        sortField: "purchase_price" },
+  { id: "monthly_order",  label: "הזמנה חודשית",      sortField: "monthly_order" },
+  { id: "sale_price",     label: "מחיר מכירה",        sortField: "sale_price" },
+  { id: "monthly_sales",  label: "מכירות חודשיות",    sortField: "monthly_sales" },
+  { id: "category",       label: "קטגוריה",            sortField: "category" },
+  { id: "reorder_point",  label: "נקודת הזמנה",       sortField: "reorder_point" },
+  { id: "lead_time_days", label: "זמן אספקה (ימים)",  sortField: "lead_time_days" },
 ] as const;
 
 function CompositeIncomingBadge({ m }: { m: ProductMetrics | undefined }) {
@@ -66,7 +71,11 @@ export default function ProductsPage() {
     sortField: "name",
     filters: { category: "הכל", typeFilter: "all", supplierFilter: "all" },
   });
-  const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility("products:hidden-columns", COLUMN_DEFS);
+  const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility(
+    "products:hidden-columns",
+    COLUMN_DEFS,
+    ["sale_price", "monthly_sales", "category", "reorder_point", "lead_time_days"]
+  );
   const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
   const { metrics } = useLiveProductMetrics(products);
 
@@ -400,6 +409,15 @@ export default function ProductsPage() {
                       </td>
                     )}
                     {isVisible("monthly_order") && <td className="p-2 sm:p-3 text-muted-foreground">{p.monthly_order || "—"}</td>}
+                    {isVisible("sale_price") && (
+                      <td className="p-2 sm:p-3 text-muted-foreground">
+                        {p.sale_price ? `$${p.sale_price.toLocaleString()}` : "—"}
+                      </td>
+                    )}
+                    {isVisible("monthly_sales") && <td className="p-2 sm:p-3 text-muted-foreground">{p.monthly_sales || "—"}</td>}
+                    {isVisible("category") && <td className="p-2 sm:p-3 text-muted-foreground">{p.category || "—"}</td>}
+                    {isVisible("reorder_point") && <td className="p-2 sm:p-3 text-muted-foreground">{p.reorder_point ?? "—"}</td>}
+                    {isVisible("lead_time_days") && <td className="p-2 sm:p-3 text-muted-foreground">{p.lead_time_days ?? "—"}</td>}
                     {hasEdit && (
                       <td className="p-3" onClick={e => e.stopPropagation()}>
                         <AlertDialog>
@@ -427,7 +445,7 @@ export default function ProductsPage() {
                   {/* Expanded components */}
                   {isExpanded && hasComponents && (
                     <tr>
-                      <td colSpan={hasEdit ? 10 : 9} className="p-0">
+                      <td colSpan={visibleCount + 1 + (hasEdit ? 1 : 0)} className="p-0">
                         <div className="bg-muted/30 border-t border-b px-6 py-3">
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
@@ -481,7 +499,7 @@ export default function ProductsPage() {
                   )}
                   {isExpanded && isComposite && !hasComponents && (
                     <tr>
-                      <td colSpan={hasEdit ? 10 : 9} className="p-0">
+                      <td colSpan={visibleCount + 1 + (hasEdit ? 1 : 0)} className="p-0">
                         <div className="bg-muted/30 border-t border-b px-6 py-4 text-center text-xs text-muted-foreground">
                           לא הוגדרו רכיבים למוצר זה
                         </div>
