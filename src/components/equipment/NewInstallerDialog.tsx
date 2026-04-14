@@ -71,7 +71,12 @@ export function NewInstallerDialog({ open, onOpenChange, onCreated }: Props) {
       onOpenChange(false);
       onCreated();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "שגיאה בשמירת המתקין");
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("schema cache") || msg.includes("PGRST")) {
+        toast.error("שגיאת מסד נתונים — אנא רענן את הדף ונסה שוב");
+      } else {
+        toast.error(msg || "שגיאה בשמירת המתקין");
+      }
     } finally {
       setSaving(false);
     }
@@ -79,7 +84,7 @@ export function NewInstallerDialog({ open, onOpenChange, onCreated }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" dir="rtl">
         <DialogHeader>
           <DialogTitle>מתקין חדש</DialogTitle>
         </DialogHeader>

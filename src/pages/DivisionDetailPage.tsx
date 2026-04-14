@@ -26,7 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  ArrowLeft,
+  ArrowRight,
   Package,
   PackageX,
   TrendingDown,
@@ -181,6 +181,12 @@ export default function DivisionDetailPage() {
   const [showNewPickup, setShowNewPickup] = useState(false);
   const [showNewReturn, setShowNewReturn] = useState(false);
 
+  // Pickup edit state
+  const [editingPickupId, setEditingPickupId] = useState<string | null>(null);
+  const [pickupEditNotes, setPickupEditNotes] = useState("");
+  const [pickupEditDate, setPickupEditDate] = useState("");
+  const [savingPickupEdit, setSavingPickupEdit] = useState(false);
+
   // Contact form state
   const [showAddForm, setShowAddForm] = useState(false);
   const [form, setForm] = useState(blankForm());
@@ -211,56 +217,69 @@ export default function DivisionDetailPage() {
   const fetchData = useCallback(async () => {
     if (!division) return;
     setLoading(true);
-    try {
+
+    // Fetch installers — if entity_type column causes a schema-cache error, retry without it
+    let divInstallers: Installer[] = [];
+    {
       const instRes = await supabase
         .from("installers")
         .select("id, name, warehouse_number, division, status, coordinator, phone, entity_type")
         .eq("division", division)
         .order("name");
 
-      if (instRes.error) throw instRes.error;
-      const divInstallers = (instRes.data ?? []) as Installer[];
-      const installerIds = divInstallers.map((i) => i.id);
-
-      const [pickRes, retRes, contactRes] = await Promise.all([
-        installerIds.length > 0
-          ? supabase
-              .from("equipment_pickups")
-              .select(
-                "id, installer_id, pickup_date, notes, equipment_pickup_items(id, product_id, quantity, serial_numbers)"
-              )
-              .in("installer_id", installerIds)
-              .order("pickup_date", { ascending: false })
-          : { data: [] as PickupRaw[], error: null },
-        installerIds.length > 0
-          ? supabase
-              .from("equipment_returns")
-              .select(
-                "id, installer_id, return_date, equipment_return_items(id, product_id, quantity, reason, reason_detail, is_actually_faulty, serial_numbers)"
-              )
-              .in("installer_id", installerIds)
-              .order("return_date", { ascending: false })
-          : { data: [] as ReturnRaw[], error: null },
-        supabase
-          .from("division_contacts")
-          .select("*")
-          .eq("division", division)
-          .order("created_at"),
-      ]);
-
-      if (pickRes.error) throw pickRes.error;
-      if (retRes.error) throw retRes.error;
-      if (contactRes.error) throw contactRes.error;
-
-      setInstallers(divInstallers);
-      setPickups((pickRes.data ?? []) as PickupRaw[]);
-      setReturns((retRes.data ?? []) as ReturnRaw[]);
-      setContacts((contactRes.data ?? []) as DivisionContact[]);
-    } catch {
-      toast.error("שגיאה בטעינת נתוני חטיבה");
-    } finally {
-      setLoading(false);
+      if (instRes.error) {
+        if (instRes.error.message?.includes("schema cache") || instRes.error.message?.includes("PGRST")) {
+          const fallback = await supabase
+            .from("installers")
+            .select("id, name, warehouse_number, division, status, coordinator, phone")
+            .eq("division", division)
+            .order("name");
+          divInstallers = (fallback.data ?? []) as Installer[];
+        } else {
+          toast.error("שגיאה בטעינת טכנאים");
+        }
+      } else {
+        divInstallers = (instRes.data ?? []) as Installer[];
+      }
     }
+
+    const installerIds = divInstallers.map((i) => i.id);
+
+    const [pickRes, retRes, contactRes] = await Promise.all([
+      installerIds.length > 0
+        ? supabase
+            .from("equipment_pickups")
+            .select(
+              "id, installer_id, pickup_date, notes, equipment_pickup_items(id, product_id, quantity, serial_numbers)"
+            )
+            .in("installer_id", installerIds)
+            .order("pickup_date", { ascending: false })
+        : { data: [] as PickupRaw[], error: null },
+      installerIds.length > 0
+        ? supabase
+            .from("equipment_returns")
+            .select(
+              "id, installer_id, return_date, equipment_return_items(id, product_id, quantity, reason, reason_detail, is_actually_faulty, serial_numbers)"
+            )
+            .in("installer_id", installerIds)
+            .order("return_date", { ascending: false })
+        : { data: [] as ReturnRaw[], error: null },
+      supabase
+        .from("division_contacts")
+        .select("*")
+        .eq("division", division)
+        .order("created_at"),
+    ]);
+
+    setInstallers(divInstallers);
+    setPickups(pickRes.error ? [] : (pickRes.data ?? []) as PickupRaw[]);
+    setReturns(retRes.error ? [] : (retRes.data ?? []) as ReturnRaw[]);
+    setContacts(contactRes.error ? [] : (contactRes.data ?? []) as DivisionContact[]);
+
+    if (pickRes.error) toast.error("שגיאה בטעינת הצטיידויות");
+    if (retRes.error) toast.error("שגיאה בטעינת החזרות");
+
+    setLoading(false);
   }, [division]);
 
   useEffect(() => {
@@ -432,6 +451,30 @@ export default function DivisionDetailPage() {
     else { setInvSortField(field); setInvSortDir("asc"); }
   }
 
+  function startPickupEdit(p: PickupRaw) {
+    setEditingPickupId(p.id);
+    setPickupEditDate(p.pickup_date);
+    setPickupEditNotes(p.notes ?? "");
+    setExpandedPickupId(p.id);
+  }
+
+  async function savePickupEdit() {
+    if (!editingPickupId) return;
+    setSavingPickupEdit(true);
+    const { error } = await supabase
+      .from("equipment_pickups")
+      .update({ pickup_date: pickupEditDate, notes: pickupEditNotes.trim() || null })
+      .eq("id", editingPickupId);
+    setSavingPickupEdit(false);
+    if (error) {
+      toast.error("שגיאה בעדכון ההצטיידות");
+    } else {
+      toast.success("ההצטיידות עודכנה");
+      setEditingPickupId(null);
+      fetchData();
+    }
+  }
+
   const colorClass = DIVISION_COLORS[division] ?? "bg-gray-100 text-gray-700 border-gray-200";
   const isBonded = BONDED_DIVISIONS.has(division);
   const bondedInstaller = isBonded ? installers[0] ?? null : null;
@@ -454,7 +497,7 @@ export default function DivisionDetailPage() {
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate("/equipment")} className="h-8 w-8">
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowRight className="h-4 w-4" />
           </Button>
           <div className="flex items-center gap-2 flex-wrap">
             <Badge className={`text-sm px-3 py-1 border ${colorClass}`}>{division}</Badge>
@@ -668,13 +711,13 @@ export default function DivisionDetailPage() {
                         </th>
                       ) : null
                     )}
-                    <th className="p-3 w-8" />
+                    <th className="p-3 w-16" />
                   </tr>
                 </thead>
                 <tbody>
                   {sortedPickups.length === 0 ? (
                     <tr>
-                      <td colSpan={pickupColVis.visibleCount + 1} className="text-center p-8 text-muted-foreground">
+                      <td colSpan={pickupColVis.visibleCount + 2} className="text-center p-8 text-muted-foreground">
                         אין הצטיידויות עדיין
                       </td>
                     </tr>
@@ -683,11 +726,12 @@ export default function DivisionDetailPage() {
                       const installer = installerMap.get(p.installer_id);
                       const taken = p.equipment_pickup_items.reduce((s, i) => s + i.quantity, 0);
                       const expanded = expandedPickupId === p.id;
+                      const isEditing = editingPickupId === p.id;
                       return (
                         <Fragment key={p.id}>
                           <tr
                             className="border-b last:border-0 hover:bg-muted/30 cursor-pointer"
-                            onClick={() => setExpandedPickupId(expanded ? null : p.id)}
+                            onClick={() => !isEditing && setExpandedPickupId(expanded ? null : p.id)}
                           >
                             {pickupColVis.isVisible("date") && (
                               <td className="p-3">{format(new Date(p.pickup_date), "dd/MM/yyyy")}</td>
@@ -701,31 +745,78 @@ export default function DivisionDetailPage() {
                             {pickupColVis.isVisible("notes") && (
                               <td className="p-3 text-xs text-muted-foreground">{p.notes ?? "—"}</td>
                             )}
-                            <td className="p-3 w-8">
-                              {expanded ? (
-                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                              )}
+                            <td className="p-3 w-16 text-left" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                  onClick={() => isEditing ? setEditingPickupId(null) : startPickupEdit(p)}
+                                >
+                                  {isEditing ? <X className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+                                </Button>
+                                {!isEditing && (
+                                  expanded
+                                    ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                    : <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                )}
+                              </div>
                             </td>
                           </tr>
                           {expanded && (
                             <tr>
-                              <td colSpan={pickupColVis.visibleCount + 1} className="p-0">
-                                <div className="bg-muted/20 px-6 py-2 space-y-1 border-b">
-                                  {p.equipment_pickup_items.map((item, idx) => (
-                                    <div key={idx} className="flex gap-4 text-xs">
-                                      <span className="font-medium">
-                                        {productMap.get(item.product_id)?.name ?? item.product_id}
-                                      </span>
-                                      <span className="text-muted-foreground">כמות: {item.quantity}</span>
-                                      {item.serial_numbers && item.serial_numbers.length > 0 && (
-                                        <span className="text-muted-foreground font-mono" dir="ltr">
-                                          {item.serial_numbers.join(", ")}
-                                        </span>
-                                      )}
+                              <td colSpan={pickupColVis.visibleCount + 2} className="p-0">
+                                <div className="bg-muted/20 px-6 py-3 border-b space-y-2">
+                                  {isEditing ? (
+                                    <div className="space-y-2 max-w-sm" onClick={(e) => e.stopPropagation()}>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div className="space-y-1">
+                                          <Label className="text-xs">תאריך</Label>
+                                          <Input
+                                            type="date"
+                                            value={pickupEditDate}
+                                            onChange={(e) => setPickupEditDate(e.target.value)}
+                                            className="h-7 text-sm"
+                                            dir="ltr"
+                                          />
+                                        </div>
+                                        <div className="space-y-1">
+                                          <Label className="text-xs">הערות</Label>
+                                          <Input
+                                            value={pickupEditNotes}
+                                            onChange={(e) => setPickupEditNotes(e.target.value)}
+                                            placeholder="הערות..."
+                                            className="h-7 text-sm"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <Button size="sm" className="h-7 text-xs" onClick={savePickupEdit} disabled={savingPickupEdit}>
+                                          {savingPickupEdit ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 me-1" />}
+                                          שמור
+                                        </Button>
+                                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingPickupId(null)} disabled={savingPickupEdit}>
+                                          ביטול
+                                        </Button>
+                                      </div>
                                     </div>
-                                  ))}
+                                  ) : (
+                                    <div className="space-y-1">
+                                      {p.equipment_pickup_items.map((item, idx) => (
+                                        <div key={idx} className="flex gap-4 text-xs">
+                                          <span className="font-medium">
+                                            {productMap.get(item.product_id)?.name ?? item.product_id}
+                                          </span>
+                                          <span className="text-muted-foreground">כמות: {item.quantity}</span>
+                                          {item.serial_numbers && item.serial_numbers.length > 0 && (
+                                            <span className="text-muted-foreground font-mono" dir="ltr">
+                                              {item.serial_numbers.join(", ")}
+                                            </span>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               </td>
                             </tr>
