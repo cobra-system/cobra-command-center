@@ -3,12 +3,9 @@ import { supabase } from "@/lib/supabase";
 import type { Product } from "@/contexts/types";
 
 const ACTIVE_STATUSES = [
-  "PENDING",
-  "ORDERED",
   "SHIPPED",
   "ARRIVED_PORT",
   "CUSTOMS_CLEARANCE",
-  "DELIVERED",
 ] as const;
 
 export interface CompositeIncoming {
