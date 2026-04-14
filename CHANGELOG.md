@@ -5,6 +5,14 @@
 
 ---
 
+## [2026-04-14]
+
+- Merge pull request #137 from cobra-system/claude/add-purchase-agenda-FT9XO (68d3b40)
+- Fix fetchKpis to not hang spinner on network failure (ab5d461)
+- Rebuild ProcurementMeetingTab from scratch (81f2810)
+- Add purchase agenda tab rebuild with column visibility (7c9cf2d)
+
+<!-- last-commit: 68d3b404444a65974094fb94e7b4693c7c3bd37a -->
 ## [2026-04-14] — ישיבת רכש אינטראקטיבית
 
 ### Added
@@ -18,7 +26,6 @@
 
 - fix: schema cache error, division page load, pickup edit, RTL, day-view tracking, column visibility (ffd513f)
 
-<!-- last-commit: a0dfa0822692e0728cb7268c2da3c89e12e7d54e -->
 ## [2026-04-14]
 
 - fix: correct all recurring task logic bugs (9ba306d)
