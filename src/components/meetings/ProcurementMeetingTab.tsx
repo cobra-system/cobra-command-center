@@ -138,37 +138,42 @@ export default function ProcurementMeetingTab() {
   // ── Fetch KPIs ────────────────────────────────────────────────────────────
   const fetchKpis = useCallback(async () => {
     setLoadingKpis(true);
-    const today = new Date().toISOString();
-    const [paymentsRes, overdueRes, urgentRes] = await Promise.all([
-      supabase
-        .from("order_payments")
-        .select("id, amount, currency")
-        .eq("status", "ממתין"),
-      supabase
-        .from("orders")
-        .select("id", { count: "exact", head: true })
-        .not("eta", "is", null)
-        .lt("eta", today)
-        .not("status", "in", '("ARRIVED","DELIVERED","CANCELLED")'),
-      supabase
-        .from("orders")
-        .select("id", { count: "exact", head: true })
-        .in("priority", ["דחוף", "גבוה"])
-        .in("status", ["PENDING", "ORDERED", "SHIPPED", "ARRIVED_PORT", "CUSTOMS_CLEARANCE"]),
-    ]);
+    try {
+      const today = new Date().toISOString();
+      const [paymentsRes, overdueRes, urgentRes] = await Promise.all([
+        supabase
+          .from("order_payments")
+          .select("id, amount, currency")
+          .eq("status", "ממתין"),
+        supabase
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .not("eta", "is", null)
+          .lt("eta", today)
+          .not("status", "in", '("ARRIVED","DELIVERED","CANCELLED")'),
+        supabase
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .in("priority", ["דחוף", "גבוה"])
+          .in("status", ["PENDING", "ORDERED", "SHIPPED", "ARRIVED_PORT", "CUSTOMS_CLEARANCE"]),
+      ]);
 
-    const totals: Record<string, number> = {};
-    for (const p of (paymentsRes.data || [])) {
-      totals[p.currency] = (totals[p.currency] || 0) + (p.amount || 0);
+      const totals: Record<string, number> = {};
+      for (const p of (paymentsRes.data || [])) {
+        totals[p.currency] = (totals[p.currency] || 0) + (p.amount || 0);
+      }
+
+      setKpis({
+        pendingPaymentsCount: paymentsRes.data?.length ?? 0,
+        pendingPaymentsTotals: totals,
+        overdueCount: overdueRes.count ?? 0,
+        urgentCount: urgentRes.count ?? 0,
+      });
+    } catch {
+      // KPIs are non-critical — silently fail, cards show zeros
+    } finally {
+      setLoadingKpis(false);
     }
-
-    setKpis({
-      pendingPaymentsCount: paymentsRes.data?.length ?? 0,
-      pendingPaymentsTotals: totals,
-      overdueCount: overdueRes.count ?? 0,
-      urgentCount: urgentRes.count ?? 0,
-    });
-    setLoadingKpis(false);
   }, []);
 
   // ── Fetch meetings ────────────────────────────────────────────────────────
