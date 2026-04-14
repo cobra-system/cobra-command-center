@@ -51,7 +51,17 @@ Deno.serve(async (req) => {
       if (role_definition_id !== undefined) updates.role_definition_id = role_definition_id;
       if (allowed_product_ids !== undefined) updates.allowed_product_ids = allowed_product_ids;
 
-      await supabaseAdmin.from("profiles").update(updates).eq("id", employee_id);
+      const { error: profileUpdateError } = await supabaseAdmin
+        .from("profiles")
+        .update(updates)
+        .eq("id", employee_id);
+
+      if (profileUpdateError) {
+        return new Response(
+          JSON.stringify({ error: `שגיאה בעדכון פרופיל: ${profileUpdateError.message}` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
       if (role) {
         await supabaseAdmin.from("user_roles").delete().eq("user_id", employee_id);
