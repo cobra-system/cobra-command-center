@@ -38,6 +38,9 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
   const [addCompOpen, setAddCompOpen] = useState(false);
   const [editingCompId, setEditingCompId] = useState<string | null>(null);
   const [editCompFields, setEditCompFields] = useState<Record<string, string>>({});
+  const [mobileEditComp, setMobileEditComp] = useState<ProductComponent | null>(null);
+  const [mobileEditFields, setMobileEditFields] = useState<Record<string, string>>({});
+  const [savingMobileEdit, setSavingMobileEdit] = useState(false);
   const [newComp, setNewComp] = useState(emptyNewComp);
   const [savingComp, setSavingComp] = useState(false);
 
@@ -94,6 +97,38 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
     }
   };
 
+  const openMobileEdit = (comp: ProductComponent) => {
+    setMobileEditComp(comp);
+    setMobileEditFields({
+      name: comp.name || "",
+      sku: comp.sku || "",
+      supplier: comp.supplier || "",
+      origin: comp.origin || "",
+      stock_qty: comp.stock_qty?.toString() || "",
+      price: comp.price?.toString() || "",
+      notes: comp.notes || "",
+    });
+  };
+
+  const handleSaveMobileEdit = async () => {
+    if (!mobileEditComp) return;
+    setSavingMobileEdit(true);
+    try {
+      await onUpdateComponent(mobileEditComp.id, {
+        name: mobileEditFields.name,
+        sku: mobileEditFields.sku || null,
+        supplier: mobileEditFields.supplier || null,
+        origin: mobileEditFields.origin || null,
+        stock_qty: mobileEditFields.stock_qty ? Number(mobileEditFields.stock_qty) : null,
+        price: mobileEditFields.price ? Number(mobileEditFields.price) : null,
+        notes: mobileEditFields.notes || null,
+      });
+      setMobileEditComp(null);
+    } finally {
+      setSavingMobileEdit(false);
+    }
+  };
+
   return (
     <>
       {product.product_type === "מורכב" && (
@@ -110,7 +145,55 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
             )}
           </div>
           {product.components && product.components.length > 0 ? (
-            <div className="overflow-x-auto">
+            <>
+              {/* Mobile card list */}
+              <div className="md:hidden space-y-2">
+                {product.components.map(comp => (
+                  <div key={comp.id} className="bg-muted/30 rounded-lg p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="shrink-0">
+                        <PhotoCaptureButton
+                          imageUrl={comp.image_url}
+                          storagePath={`components/${comp.id}`}
+                          onSave={async (url) => { await onUpdateComponent(comp.id, { image_url: url }); }}
+                          disabled={!canEditStock}
+                        />
+                      </div>
+                      <span className="flex-1 font-medium text-sm text-foreground truncate">{comp.name}</span>
+                      {hasEdit && (
+                        <div className="flex gap-1 shrink-0">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openMobileEdit(comp)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => onDeleteComponent(comp.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-3 mt-2 text-xs text-muted-foreground">
+                      {comp.sku && <span className="font-mono" dir="ltr">{comp.sku}</span>}
+                      {comp.supplier && (
+                        <span>
+                          ספק:{" "}
+                          {(() => {
+                            const s = suppliers.find(s => s.company === comp.supplier);
+                            return s ? (
+                              <button onClick={() => navigate(`/suppliers/${s.id}`)} className="text-primary hover:underline">{comp.supplier}</button>
+                            ) : comp.supplier;
+                          })()}
+                        </span>
+                      )}
+                      <span>מלאי: {comp.stock_qty ?? "—"}</span>
+                      {comp.price != null && <span>${comp.price}</span>}
+                      {comp.notes && <span className="truncate max-w-[200px]">💡 {comp.notes}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
@@ -228,7 +311,8 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
                   )}
                 </tbody>
               </table>
-            </div>
+              </div>
+            </>
           ) : (
             <p className="text-sm text-muted-foreground py-4 text-center">לא הוגדרו רכיבים למוצר זה</p>
           )}
@@ -281,6 +365,50 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
             </div>
             <Button onClick={handleAddComponent} className="w-full" disabled={savingComp || !newComp.name.trim()}>
               {savingComp ? "שומר..." : "הוסף רכיב"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mobile edit dialog */}
+      <Dialog open={!!mobileEditComp} onOpenChange={open => { if (!open) setMobileEditComp(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader><DialogTitle>עריכת רכיב</DialogTitle></DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">שם רכיב *</Label>
+                <Input value={mobileEditFields.name || ""} onChange={e => setMobileEditFields(p => ({ ...p, name: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">מק״ט</Label>
+                <Input value={mobileEditFields.sku || ""} onChange={e => setMobileEditFields(p => ({ ...p, sku: e.target.value.toUpperCase() }))} dir="ltr" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">ספק</Label>
+                <Select value={mobileEditFields.supplier || "__none__"} onValueChange={v => setMobileEditFields(p => ({ ...p, supplier: v === "__none__" ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder="בחר ספק" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">ללא</SelectItem>
+                    {suppliers.map(s => <SelectItem key={s.id} value={s.company}>{s.company}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">מלאי</Label>
+                <Input type="number" value={mobileEditFields.stock_qty || ""} onChange={e => setMobileEditFields(p => ({ ...p, stock_qty: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">מחיר ($)</Label>
+                <Input type="number" value={mobileEditFields.price || ""} onChange={e => setMobileEditFields(p => ({ ...p, price: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">הערות</Label>
+              <Input value={mobileEditFields.notes || ""} onChange={e => setMobileEditFields(p => ({ ...p, notes: e.target.value }))} />
+            </div>
+            <Button onClick={handleSaveMobileEdit} className="w-full" disabled={savingMobileEdit || !mobileEditFields.name?.trim()}>
+              {savingMobileEdit ? "שומר..." : "שמור שינויים"}
             </Button>
           </div>
         </DialogContent>

@@ -127,45 +127,54 @@ export default function ProductDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/products")} data-navigate-to="/products"><ArrowRight className="h-5 w-5" /></Button>
-        <PhotoCaptureButton
-          imageUrl={product.end_product_image}
-          storagePath={`products/${product.id}`}
-          onSave={async (url) => { await updateProduct(product.id, { end_product_image: url }); toast.success("תמונת מוצר עודכנה"); }}
-          disabled={!hasEdit}
-        />
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold text-foreground">{product.name}</h1>
-          <p className="text-sm text-muted-foreground font-mono" dir="ltr">{product.sku}</p>
+      <div className="space-y-2">
+        {/* Row 1: back + photo + name + badges */}
+        <div className="flex items-center gap-2 min-w-0">
+          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => navigate("/products")} data-navigate-to="/products"><ArrowRight className="h-5 w-5" /></Button>
+          <div className="shrink-0">
+            <PhotoCaptureButton
+              imageUrl={product.end_product_image}
+              storagePath={`products/${product.id}`}
+              onSave={async (url) => { await updateProduct(product.id, { end_product_image: url }); toast.success("תמונת מוצר עודכנה"); }}
+              disabled={!hasEdit}
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate">{product.name}</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground font-mono" dir="ltr">{product.sku}</p>
+          </div>
+          <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-medium ${stockStatus.className}`}>{stockStatus.label}</span>
+          <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-medium ${
+            product.product_type === "מורכב" ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"
+          }`}>{product.product_type}</span>
         </div>
-        {product.end_product_url && (
-          <Button variant="outline" size="sm" asChild>
-            <a href={product.end_product_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4 ml-1" />אתר המוצר</a>
-          </Button>
-        )}
-        {hasEdit && <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4 ml-1" />עריכה</Button>}
-        {hasEdit && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" size="sm" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4 ml-1" />מחק</Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>מחיקת מוצר</AlertDialogTitle>
-                <AlertDialogDescription>האם למחוק את "{product.name}"? פעולה זו לא ניתנת לביטול.</AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>ביטול</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteProduct} className="bg-destructive text-destructive-foreground">מחק</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
-        <span className={`px-3 py-1 rounded-full text-xs font-medium ${stockStatus.className}`}>{stockStatus.label}</span>
-        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-          product.product_type === "מורכב" ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"
-        }`}>{product.product_type}</span>
+
+        {/* Row 2: action buttons */}
+        <div className="flex flex-wrap items-center gap-2 pr-1">
+          {product.end_product_url && (
+            <Button variant="outline" size="sm" asChild>
+              <a href={product.end_product_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4 ml-1" />אתר המוצר</a>
+            </Button>
+          )}
+          {hasEdit && <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4 ml-1" />עריכה</Button>}
+          {hasEdit && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4 ml-1" />מחק</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>מחיקת מוצר</AlertDialogTitle>
+                  <AlertDialogDescription>האם למחוק את "{product.name}"? פעולה זו לא ניתנת לביטול.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>ביטול</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteProduct} className="bg-destructive text-destructive-foreground">מחק</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
       </div>
 
       <ProductEditDialog open={editOpen} onOpenChange={setEditOpen} product={product} onSave={handleSaveEdit} />
