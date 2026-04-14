@@ -1318,6 +1318,8 @@ export type Database = {
           coordinator: string | null
           status: string
           notes: string | null
+          entity_type: string
+          center_id: string | null
           created_at: string
           updated_at: string
         }
@@ -1330,6 +1332,8 @@ export type Database = {
           coordinator?: string | null
           status?: string
           notes?: string | null
+          entity_type?: string
+          center_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -1342,10 +1346,20 @@ export type Database = {
           coordinator?: string | null
           status?: string
           notes?: string | null
+          entity_type?: string
+          center_id?: string | null
           created_at?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "installers_center_id_fkey"
+            columns: ["center_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_centers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       equipment_pickups: {
         Row: {
