@@ -446,6 +446,21 @@ export default function ProcurementMeetingTab() {
     }
   }
 
+  // Group all pending payments from agenda items by due_date
+  const paymentsByDate: Record<string, Record<string, number>> = {};
+  for (const a of agendaOrders) {
+    for (const p of a.pendingPayments) {
+      const key = p.due_date || "__none__";
+      if (!paymentsByDate[key]) paymentsByDate[key] = {};
+      paymentsByDate[key][p.currency] = (paymentsByDate[key][p.currency] || 0) + p.amount;
+    }
+  }
+  const sortedPaymentDates = Object.keys(paymentsByDate).sort((a, b) => {
+    if (a === "__none__") return 1;
+    if (b === "__none__") return -1;
+    return a.localeCompare(b);
+  });
+
   const isClosed = selectedMeeting?.status === "closed";
 
   const SortIcon = ({ field }: { field: PendingSortField }) => {
@@ -758,6 +773,25 @@ export default function ProcurementMeetingTab() {
                       {fmtAmount(total, cur)}
                     </span>
                   ))}
+                </div>
+              )}
+
+              {/* Payments by date */}
+              {agendaOrders.length > 0 && sortedPaymentDates.length > 0 && (
+                <div className="mt-3 pt-3 border-t">
+                  <p className="text-sm font-semibold mb-2">תשלומים נדרשים לפי תאריך:</p>
+                  <div className="space-y-1">
+                    {sortedPaymentDates.map(dateKey => (
+                      <div key={dateKey} className="flex flex-wrap items-center gap-3 text-sm">
+                        <span className="text-muted-foreground w-24 shrink-0">
+                          {dateKey === "__none__" ? "ללא תאריך" : fmtDate(dateKey)}
+                        </span>
+                        {Object.entries(paymentsByDate[dateKey]).map(([cur, total]) => (
+                          <span key={cur} className="font-medium">{fmtAmount(total, cur)}</span>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
