@@ -5,12 +5,16 @@
 
 ---
 
+## [2026-04-16]
+
+- Show payment totals grouped by due date in procurement agenda (8cce188)
+
+<!-- last-commit: 0b60a18ae0f76e01e3fa5e43d502d3a345f46781 -->
 ## [2026-04-14]
 
 - Merge pull request #138 from cobra-system/claude/fix-schema-cache-column-WVTcd (04df9f7)
 - fix: re-assert center_id column on installers to resolve schema cache error (0caa07b)
 
-<!-- last-commit: 04df9f77a42cb0d969e5146b7ee85bf003e36b40 -->
 ## [2026-04-14]
 
 - Merge pull request #137 from cobra-system/claude/add-purchase-agenda-FT9XO (68d3b40)
