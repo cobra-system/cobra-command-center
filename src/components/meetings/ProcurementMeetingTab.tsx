@@ -946,22 +946,31 @@ function AgendaOrderRow({
             <PriorityBadge priority={item.order.priority as Priority} />
           </div>
           <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
-            {item.order.total_price != null && (
-              <span>סה"כ: {fmtAmount(item.order.total_price)}</span>
-            )}
-            {item.order.eta && (
-              <span>ETA: {fmtDate(item.order.eta)}</span>
-            )}
-            {item.pendingPayments.length > 0 ? (
-              <span className="text-warning">
-                ממתין לתשלום: {fmtAmount(totalPending, paymentCurrency)}
+            {/* Primary amount: approved_amount > pending payment > total_price fallback */}
+            {item.approvedAmount !== "" ? (
+              <span className="text-green-600 dark:text-green-400 font-medium">
+                לאישור: {fmtAmount(Number(item.approvedAmount), paymentCurrency)}
+              </span>
+            ) : item.pendingPayments.length > 0 ? (
+              <span className="text-warning font-medium">
+                לתשלום: {fmtAmount(totalPending, paymentCurrency)}
                 {item.pendingPayments.map(p => (
-                  <span key={p.id} className="mr-1">
+                  <span key={p.id} className="mr-1 font-normal opacity-80">
                     ({p.payment_type}{p.due_date ? ` — ${fmtDate(p.due_date)}` : ""})
                   </span>
                 ))}
               </span>
-            ) : (
+            ) : item.order.total_price != null ? (
+              <span>סה"כ הזמנה: {fmtAmount(item.order.total_price)}</span>
+            ) : null}
+            {/* Secondary: show total_price when pending payments exist, for context */}
+            {item.pendingPayments.length > 0 && item.order.total_price != null && (
+              <span className="opacity-50">(סה"כ הזמנה: {fmtAmount(item.order.total_price)})</span>
+            )}
+            {item.order.eta && (
+              <span>ETA: {fmtDate(item.order.eta)}</span>
+            )}
+            {item.pendingPayments.length === 0 && item.approvedAmount === "" && (
               <span className="text-blue-500">PI ממתינה לאישור — אין לוח תשלומים</span>
             )}
           </div>
