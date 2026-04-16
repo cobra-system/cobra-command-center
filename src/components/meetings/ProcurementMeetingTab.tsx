@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Loader2, Plus, ShoppingCart, CheckCircle, XCircle,
   ChevronDown, ChevronUp, Lock, CreditCard, AlertTriangle,
-  Zap, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw,
+  Zap, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw, Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
@@ -49,17 +49,26 @@ interface OrderPayment {
   status: string;
 }
 
+interface PiDocRef {
+  id: string;
+  order_id: string;
+  document_name: string | null;
+  document_number: string | null;
+  file_url: string;
+}
+
 interface AgendaOrder {
   meetingOrderId: string;
   order: Order;
   pendingPayments: OrderPayment[];
+  piDocs: PiDocRef[];
   decision: ProcurementDecision;
   approvedAmount: string;
   notes: string;
   saving: boolean;
 }
 
-type PendingOrderRow = Order & { pendingPayments: OrderPayment[] };
+type PendingOrderRow = Order & { pendingPayments: OrderPayment[]; piDocs: PiDocRef[] };
 
 interface KPIs {
   pendingPaymentsCount: number;
@@ -262,9 +271,28 @@ export default function ProcurementMeetingTab() {
 
     const alreadyIds = new Set((alreadyRes.data || []).map((r: Record<string, unknown>) => r.order_id as string));
 
-    const rows: PendingOrderRow[] = ((ordersRes.data || []) as Order[])
-      .filter(o => !alreadyIds.has(o.id))
-      .map(o => ({ ...o, pendingPayments: paymentsByOrder[o.id] || [] }));
+    const filteredOrders = ((ordersRes.data || []) as Order[]).filter(o => !alreadyIds.has(o.id));
+    const filteredOrderIds = filteredOrders.map(o => o.id);
+
+    let pendingPiDocs: PiDocRef[] = [];
+    if (filteredOrderIds.length > 0) {
+      const { data: piDocData } = await supabase
+        .from("purchase_documents")
+        .select("id, order_id, document_name, file_url, document_number")
+        .in("order_id", filteredOrderIds)
+        .eq("type", "PI")
+        .not("file_url", "is", null);
+      pendingPiDocs = (piDocData || []) as PiDocRef[];
+    }
+
+    const pendingPiDocsByOrder: Record<string, PiDocRef[]> = {};
+    for (const d of pendingPiDocs) {
+      if (!pendingPiDocsByOrder[d.order_id]) pendingPiDocsByOrder[d.order_id] = [];
+      pendingPiDocsByOrder[d.order_id].push(d);
+    }
+
+    const rows: PendingOrderRow[] = filteredOrders
+      .map(o => ({ ...o, pendingPayments: paymentsByOrder[o.id] || [], piDocs: pendingPiDocsByOrder[o.id] || [] }));
 
     rows.sort((a, b) => {
       const aHas = a.pendingPayments.length > 0 ? 0 : 1;
@@ -293,13 +321,23 @@ export default function ProcurementMeetingTab() {
 
     const orderIds = (data as Record<string, unknown>[]).map(r => (r.orders as Record<string, unknown>).id as string);
     let payments: OrderPayment[] = [];
+    let piDocs: PiDocRef[] = [];
     if (orderIds.length > 0) {
-      const { data: pData } = await supabase
-        .from("order_payments")
-        .select("id, order_id, payment_type, amount, currency, due_date, status")
-        .in("order_id", orderIds)
-        .eq("status", "ממתין");
-      payments = (pData || []) as OrderPayment[];
+      const [pRes, docRes] = await Promise.all([
+        supabase
+          .from("order_payments")
+          .select("id, order_id, payment_type, amount, currency, due_date, status")
+          .in("order_id", orderIds)
+          .eq("status", "ממתין"),
+        supabase
+          .from("purchase_documents")
+          .select("id, order_id, document_name, file_url, document_number")
+          .in("order_id", orderIds)
+          .eq("type", "PI")
+          .not("file_url", "is", null),
+      ]);
+      payments = (pRes.data || []) as OrderPayment[];
+      piDocs   = (docRes.data || []) as PiDocRef[];
     }
 
     const paysByOrder: Record<string, OrderPayment[]> = {};
@@ -308,12 +346,19 @@ export default function ProcurementMeetingTab() {
       paysByOrder[p.order_id].push(p);
     }
 
+    const piDocsByOrder: Record<string, PiDocRef[]> = {};
+    for (const d of piDocs) {
+      if (!piDocsByOrder[d.order_id]) piDocsByOrder[d.order_id] = [];
+      piDocsByOrder[d.order_id].push(d);
+    }
+
     const agenda: AgendaOrder[] = (data as Record<string, unknown>[]).map(r => {
       const order = r.orders as Order;
       return {
         meetingOrderId: r.id as string,
         order,
         pendingPayments: paysByOrder[order.id] || [],
+        piDocs: piDocsByOrder[order.id] || [],
         decision: (r.decision as ProcurementDecision) || "pending",
         approvedAmount: r.approved_amount != null ? String(r.approved_amount) : "",
         notes: (r.notes as string) || "",
@@ -869,7 +914,23 @@ function PendingRow({
         </td>
       )}
       {isVisible("pi_number") && (
-        <td className="p-2 text-muted-foreground font-mono text-xs">{order.pi_number || "—"}</td>
+        <td className="p-2" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground font-mono text-xs">{order.pi_number || "—"}</span>
+            {order.piDocs.map(doc => (
+              <a
+                key={doc.id}
+                href={doc.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={doc.document_name || doc.document_number || "פתח קובץ PI"}
+                className="text-muted-foreground hover:text-primary transition-colors shrink-0"
+              >
+                <Printer className="h-3.5 w-3.5" />
+              </a>
+            ))}
+          </div>
+        </td>
       )}
       {isVisible("total_price") && (
         <td className="p-2 text-sm">{fmtAmount(order.total_price ?? null)}</td>
@@ -942,6 +1003,20 @@ function AgendaOrderRow({
             {item.order.pi_number && (
               <span className="text-xs text-muted-foreground">PI: {item.order.pi_number}</span>
             )}
+            {item.piDocs.map(doc => (
+              <a
+                key={doc.id}
+                href={doc.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={doc.document_name || doc.document_number || "פתח קובץ PI להדפסה"}
+                onClick={e => e.stopPropagation()}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              >
+                <Printer className="h-3 w-3" />
+                {item.piDocs.length > 1 ? (doc.document_number || doc.document_name || "PI") : "הדפס PI"}
+              </a>
+            ))}
             <OrderStatusBadge status={item.order.status as OrderStatus} />
             <PriorityBadge priority={item.order.priority as Priority} />
           </div>
