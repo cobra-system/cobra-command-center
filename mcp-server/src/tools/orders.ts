@@ -193,6 +193,7 @@ export function registerOrderTools(server: McpServer) {
     "עדכון הזמנה — Update order status, dates, shipping fields, notes, etc.",
     {
       id: z.string().uuid().describe("Order UUID"),
+      supplier_id: z.string().uuid().optional().describe("Supplier UUID — use to reassign order to a different supplier"),
       status: ORDER_STATUS_ENUM.optional().describe("New status"),
       priority: z.enum(["דחוף", "גבוה", "בינוני", "נמוך"]).optional().describe("New priority"),
       order_date: z.string().optional().describe("Order date (YYYY-MM-DD)"),

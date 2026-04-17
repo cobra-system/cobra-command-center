@@ -76,7 +76,6 @@ export function registerProcurementMeetingTools(server: McpServer) {
             pi_number,
             status,
             total_price,
-            currency,
             priority,
             eta,
             etd,
@@ -154,6 +153,191 @@ export function registerProcurementMeetingTools(server: McpServer) {
         content: [{
           type: "text" as const,
           text: JSON.stringify({ meeting_id, summary, orders: result }, null, 2),
+        }],
+      };
+    }
+  );
+
+  // ── get_meeting_summary ───────────────────────────────────────────────────
+  server.tool(
+    "get_meeting_summary",
+    "סיכום ישיבת רכש — Get a full summary of a procurement meeting: approved/deferred orders, amounts, and bank details. Replaces 10+ individual tool calls.",
+    {
+      meeting_id: z.string().uuid().describe("Meeting UUID"),
+    },
+    async ({ meeting_id }) => {
+      // 1. Fetch meeting
+      const { data: meeting, error: meetingErr } = await supabase
+        .from("meetings")
+        .select("id, title, meeting_date, status, type")
+        .eq("id", meeting_id)
+        .single();
+
+      if (meetingErr) return { content: [{ type: "text" as const, text: `Error: ${meetingErr.message}` }] };
+      if (!meeting) return { content: [{ type: "text" as const, text: "Meeting not found" }] };
+
+      // 2. Fetch all meeting orders with order details
+      const { data: meetingOrders, error: ordersErr } = await supabase
+        .from("procurement_meeting_orders")
+        .select(`
+          id, decision, approved_amount, notes,
+          orders!inner(id, supplier_id, supplier_name, pi_number, total_price, status, eta)
+        `)
+        .eq("meeting_id", meeting_id)
+        .order("created_at", { ascending: true });
+
+      if (ordersErr) return { content: [{ type: "text" as const, text: `Error: ${ordersErr.message}` }] };
+
+      const rows = (meetingOrders || []) as Record<string, unknown>[];
+      const orderIds = rows.map(r => ((r.orders as Record<string, unknown>).id as string));
+      const supplierIds = [...new Set(rows.map(r => ((r.orders as Record<string, unknown>).supplier_id as string)).filter(Boolean))];
+
+      // 3. Fetch pending payments for all orders
+      let pendingPayments: Record<string, unknown>[] = [];
+      if (orderIds.length > 0) {
+        const { data: pays } = await supabase
+          .from("order_payments")
+          .select("order_id, payment_type, amount, currency, due_date, status, percentage")
+          .in("order_id", orderIds)
+          .eq("status", "ממתין");
+        pendingPayments = (pays || []) as Record<string, unknown>[];
+      }
+
+      const paysByOrder: Record<string, Record<string, unknown>[]> = {};
+      for (const p of pendingPayments) {
+        const oid = p.order_id as string;
+        if (!paysByOrder[oid]) paysByOrder[oid] = [];
+        paysByOrder[oid].push(p);
+      }
+
+      // 4. Fetch bank details for all suppliers
+      let bankDetails: Record<string, unknown>[] = [];
+      if (supplierIds.length > 0) {
+        const { data: banks } = await supabase
+          .from("supplier_bank_details")
+          .select("supplier_id, beneficiary_name, bank_name, swift_code, account_number, currency")
+          .in("supplier_id", supplierIds);
+        bankDetails = (banks || []) as Record<string, unknown>[];
+      }
+      const bankBySupplier: Record<string, Record<string, unknown>> = {};
+      for (const b of bankDetails) {
+        bankBySupplier[b.supplier_id as string] = b;
+      }
+
+      // 5. Build approved / deferred lists
+      const approved: Record<string, unknown>[] = [];
+      const deferred: Record<string, unknown>[] = [];
+      let totalApproved = 0;
+      let totalDeferred = 0;
+
+      for (const r of rows) {
+        const order = r.orders as Record<string, unknown>;
+        const oid = order.id as string;
+        const sid = order.supplier_id as string;
+        const pays = paysByOrder[oid] || [];
+        const pendingTotal = pays.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+        const approvedAmt = r.approved_amount != null
+          ? Number(r.approved_amount)
+          : (r.decision === "approved" ? pendingTotal : null);
+        const currency = (pays[0] as Record<string, unknown> | undefined)?.currency ?? "USD";
+
+        if (r.decision === "approved" || r.decision === "partial") {
+          const amt = approvedAmt ?? 0;
+          totalApproved += amt;
+          approved.push({
+            order_id:        oid,
+            supplier_name:   order.supplier_name,
+            pi_number:       order.pi_number,
+            approved_amount: amt,
+            currency,
+            payment_type:    (pays[0] as Record<string, unknown> | undefined)?.payment_type ?? null,
+            bank_details:    bankBySupplier[sid] ?? null,
+          });
+        } else if (r.decision === "deferred") {
+          const amt = pendingTotal || Number(order.total_price) || 0;
+          totalDeferred += amt;
+          deferred.push({
+            order_id:      oid,
+            supplier_name: order.supplier_name,
+            pi_number:     order.pi_number,
+            amount:        amt,
+            currency,
+            reason:        r.notes ?? null,
+          });
+        }
+      }
+
+      const result = {
+        meeting: {
+          id:     (meeting as Record<string, unknown>).id,
+          title:  (meeting as Record<string, unknown>).title,
+          date:   (meeting as Record<string, unknown>).meeting_date,
+          status: (meeting as Record<string, unknown>).status,
+        },
+        approved,
+        deferred,
+        pending: rows.filter(r => r.decision === "pending").map(r => {
+          const order = r.orders as Record<string, unknown>;
+          return { order_id: order.id, supplier_name: order.supplier_name, pi_number: order.pi_number };
+        }),
+        totals: {
+          approved: totalApproved,
+          deferred: totalDeferred,
+          orders_count: rows.length,
+          approved_count: approved.length,
+          deferred_count: deferred.length,
+          pending_count:  rows.filter(r => r.decision === "pending").length,
+        },
+      };
+
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+    }
+  );
+
+  // ── bulk_update_meeting_decisions ─────────────────────────────────────────
+  server.tool(
+    "bulk_update_meeting_decisions",
+    "עדכון החלטות ישיבת רכש בבת אחת — Update multiple order decisions in a single call",
+    {
+      meeting_id: z.string().uuid().describe("Meeting UUID"),
+      decisions: z.array(z.object({
+        order_id:        z.string().uuid().describe("Order UUID"),
+        decision:        z.enum(["approved", "deferred", "partial", "pending"]).describe("Decision"),
+        approved_amount: z.number().optional().describe("Amount approved (for partial/approved)"),
+        notes:           z.string().optional().describe("Decision notes"),
+      })).describe("Array of decisions to apply"),
+    },
+    async ({ meeting_id, decisions }) => {
+      const results: Record<string, unknown>[] = [];
+      const errors: string[] = [];
+
+      for (const d of decisions) {
+        const updates: Record<string, unknown> = {
+          decision:    d.decision,
+          updated_at:  new Date().toISOString(),
+        };
+        if (d.approved_amount !== undefined) updates.approved_amount = d.approved_amount;
+        if (d.notes !== undefined) updates.notes = d.notes;
+
+        const { data, error } = await supabase
+          .from("procurement_meeting_orders")
+          .update(updates)
+          .eq("meeting_id", meeting_id)
+          .eq("order_id", d.order_id)
+          .select("id, order_id, decision, approved_amount")
+          .single();
+
+        if (error) {
+          errors.push(`order ${d.order_id}: ${error.message}`);
+        } else {
+          results.push(data as Record<string, unknown>);
+        }
+      }
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({ updated: results.length, errors, results }, null, 2),
         }],
       };
     }

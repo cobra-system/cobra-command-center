@@ -5,6 +5,24 @@
 
 ---
 
+## [2026-04-16] — כלי MCP לרכש ומלאי
+
+### Added
+- **`get_product_inventory_full`**: מלאי מלא למוצר — מלאי לפי מרכז, הזמנות בדרך, צריכה חודשית (6 חודשים), ימי runway, והמלצת הזמנה חוזרת.
+- **`get_reorder_dashboard`**: לוח מחוונים רוחבי — כל המוצרים ממוינים לפי דחיפות (critical/high/medium/low), עם כמות מוצעת ושיטת משלוח.
+- **`import_stock_snapshot`**: ייבוא מלאי מ-SAP — UPSERT לפי SKU + שם מרכז לטבלת `center_inventory`.
+- **`get_meeting_summary`**: סיכום ישיבה מלא בקריאה אחת — מאושר/נדחה, סכומים, פרטי בנק. מחליף 10+ קריאות.
+- **`bulk_update_meeting_decisions`**: עדכון החלטות מרובות בישיבה בבת אחת.
+- **`get_supplier_bank_details`**: פרטי בנק לספק מתוך טבלת `supplier_bank_details`.
+- **`sync_email_to_order`**: סנכרון אימייל להזמנה — append חכם לנוטס + עדכון שדות shipping.
+- **`get_order_timeline`**: ציר זמן מלא להזמנה — יצירה, תשלומים, ישיבות, מסמכים, שינויי הערות.
+- **Migration `20260416000000_supplier_bank_details`**: טבלת `supplier_bank_details` עם נתוני seed לספקים ידועים.
+
+### Fixed
+- **`get_meeting_orders`**: תוקנה שגיאה `column orders_1.currency does not exist` — הוסרה עמודת `currency` מה-select.
+- **`update_order`**: נוסף פרמטר `supplier_id` לאפשר שינוי ספק בהזמנה קיימת.
+- **UI ישיבת רכש — הצגת סכומים**: `AgendaOrderRow` מציג כעת `approved_amount` → סכום ממתין → `total_price` (fallback) במקום תמיד `total_price`.
+
 ## [2026-04-16]
 
 - Show payment totals grouped by due date in procurement agenda (8cce188)
