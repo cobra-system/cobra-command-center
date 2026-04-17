@@ -5,6 +5,11 @@
 
 ---
 
+## [2026-04-17]
+
+- feat: add procurement MCP tools and fix meeting order bugs (c6bd0be)
+
+<!-- last-commit: 1a150ca07bf2d95b292d59eac6cca930ffb6b446 -->
 ## [2026-04-16] — כלי MCP לרכש ומלאי
 
 ### Added
@@ -27,7 +32,6 @@
 
 - Show payment totals grouped by due date in procurement agenda (8cce188)
 
-<!-- last-commit: 0b60a18ae0f76e01e3fa5e43d502d3a345f46781 -->
 ## [2026-04-14]
 
 - Merge pull request #138 from cobra-system/claude/fix-schema-cache-column-WVTcd (04df9f7)
