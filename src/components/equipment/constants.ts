@@ -19,3 +19,5 @@ export const DIVISION_COLORS: Record<string, string> = {
 };
 
 export const BONDED_DIVISIONS = new Set(["דלק מוטורס", "פריזבי קרסו", "לובינסקי"]);
+
+export const SALES_DIVISIONS = new Set(["AWACS", "כפתור", "DOORE"]);

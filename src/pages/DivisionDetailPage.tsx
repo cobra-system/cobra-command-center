@@ -32,7 +32,7 @@ import {
   TrendingDown,
   Users,
   ChevronDown,
-  ChevronRight,
+  ChevronLeft,
   Plus,
   Pencil,
   Trash2,
@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { NewPickupDialog } from "@/components/equipment/NewPickupDialog";
 import { NewReturnDialog } from "@/components/equipment/NewReturnDialog";
+import { NewInstallerDialog } from "@/components/equipment/NewInstallerDialog";
 import { DIVISION_COLORS, BONDED_DIVISIONS } from "@/components/equipment/constants";
 import type { ColDef } from "@/hooks/useColumnVisibility";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
@@ -98,6 +99,7 @@ interface ReturnRaw {
   id: string;
   installer_id: string;
   return_date: string;
+  notes: string | null;
   equipment_return_items: ReturnItemRaw[];
 }
 
@@ -136,6 +138,12 @@ const INV_COLS: ColDef[] = [
   { id: "product", label: "מוצר", sortField: "product" },
   { id: "sku", label: 'מק"ט' },
   { id: "balance", label: "בשטח", sortField: "balance" },
+];
+
+const RETURN_COLS: ColDef[] = [
+  { id: "date", label: "תאריך", sortField: "date" },
+  { id: "recipient", label: "מחזיר", sortField: "recipient" },
+  { id: "returned", label: "הוחזרו", sortField: "returned" },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -181,11 +189,28 @@ export default function DivisionDetailPage() {
   const [showNewPickup, setShowNewPickup] = useState(false);
   const [showNewReturn, setShowNewReturn] = useState(false);
 
-  // Pickup edit state
-  const [editingPickupId, setEditingPickupId] = useState<string | null>(null);
-  const [pickupEditNotes, setPickupEditNotes] = useState("");
-  const [pickupEditDate, setPickupEditDate] = useState("");
-  const [savingPickupEdit, setSavingPickupEdit] = useState(false);
+  // Installer edit/delete state
+  const [editingInstallerData, setEditingInstallerData] = useState<Installer | null>(null);
+  const [showEditInstaller, setShowEditInstaller] = useState(false);
+  const [deletingInstallerId, setDeletingInstallerId] = useState<string | null>(null);
+
+  // Pickup edit/delete state (full dialog)
+  const [editingPickupData, setEditingPickupData] = useState<PickupRaw | null>(null);
+  const [showEditPickup, setShowEditPickup] = useState(false);
+  const [deletingPickupId, setDeletingPickupId] = useState<string | null>(null);
+
+  // Return edit/delete/expand state
+  const [expandedReturnId, setExpandedReturnId] = useState<string | null>(null);
+  const [editingReturnId, setEditingReturnId] = useState<string | null>(null);
+  const [returnEditDate, setReturnEditDate] = useState("");
+  const [returnEditNotes, setReturnEditNotes] = useState("");
+  const [savingReturnEdit, setSavingReturnEdit] = useState(false);
+  const [deletingReturnId, setDeletingReturnId] = useState<string | null>(null);
+
+  // Bonded entity inline edit state
+  const [showEditBonded, setShowEditBonded] = useState(false);
+  const [bondedEditForm, setBondedEditForm] = useState({ warehouse_number: "", coordinator: "", phone: "", status: "פעיל" });
+  const [savingBondedEdit, setSavingBondedEdit] = useState(false);
 
   // Contact form state
   const [showAddForm, setShowAddForm] = useState(false);
@@ -202,14 +227,18 @@ export default function DivisionDetailPage() {
   const [pickupSortDir, setPickupSortDir] = useState<"asc" | "desc">("desc");
   const [invSortField, setInvSortField] = useState<string | null>("installer");
   const [invSortDir, setInvSortDir] = useState<"asc" | "desc">("asc");
+  const [returnSortField, setReturnSortField] = useState<string | null>("date");
+  const [returnSortDir, setReturnSortDir] = useState<"asc" | "desc">("desc");
 
   // Column visibility
   const techColVis = useColumnVisibility("division-technicians:hidden-columns", TECH_COLS);
   const pickupColVis = useColumnVisibility("division-pickups:hidden-columns", PICKUP_COLS);
   const invColVis = useColumnVisibility("division-inventory:hidden-columns", INV_COLS);
+  const returnColVis = useColumnVisibility("division-returns:hidden-columns", RETURN_COLS);
   const { menu: techMenu, setMenu: setTechMenu, closeMenu: closeTechMenu } = useColMenu();
   const { menu: pickupMenu, setMenu: setPickupMenu, closeMenu: closePickupMenu } = useColMenu();
   const { menu: invMenu, setMenu: setInvMenu, closeMenu: closeInvMenu } = useColMenu();
+  const { menu: returnMenu, setMenu: setReturnMenu, closeMenu: closeReturnMenu } = useColMenu();
 
   const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const installerMap = useMemo(() => new Map(installers.map((i) => [i.id, i])), [installers]);
@@ -259,7 +288,7 @@ export default function DivisionDetailPage() {
         ? supabase
             .from("equipment_returns")
             .select(
-              "id, installer_id, return_date, equipment_return_items(id, product_id, quantity, reason, reason_detail, is_actually_faulty, serial_numbers)"
+              "id, installer_id, return_date, notes, equipment_return_items(id, product_id, quantity, reason, reason_detail, is_actually_faulty, serial_numbers)"
             )
             .in("installer_id", installerIds)
             .order("return_date", { ascending: false })
@@ -391,6 +420,91 @@ export default function DivisionDetailPage() {
     });
   }, [pickups, returns, installerMap, productMap, invSortField, invSortDir]);
 
+  // ── Sorted returns ──
+  const sortedReturns = useMemo(() => {
+    return [...returns].sort((a, b) => {
+      const dir = returnSortDir === "asc" ? 1 : -1;
+      if (returnSortField === "date") return a.return_date.localeCompare(b.return_date) * dir;
+      if (returnSortField === "recipient") {
+        const aName = installerMap.get(a.installer_id)?.name ?? "";
+        const bName = installerMap.get(b.installer_id)?.name ?? "";
+        return aName.localeCompare(bName, "he") * dir;
+      }
+      if (returnSortField === "returned") {
+        const aRet = a.equipment_return_items.reduce((s, i) => s + i.quantity, 0);
+        const bRet = b.equipment_return_items.reduce((s, i) => s + i.quantity, 0);
+        return (aRet - bRet) * dir;
+      }
+      return 0;
+    });
+  }, [returns, returnSortField, returnSortDir, installerMap]);
+
+  // ── Installer CRUD ──
+  async function handleDeleteInstaller(id: string) {
+    setDeletingInstallerId(id);
+    const { error } = await supabase.from("installers").delete().eq("id", id);
+    setDeletingInstallerId(null);
+    if (error) toast.error("שגיאה במחיקת הטכנאי");
+    else { toast.success("הטכנאי נמחק"); fetchData(); }
+  }
+
+  // ── Pickup delete ──
+  async function handleDeletePickup(id: string) {
+    setDeletingPickupId(id);
+    await supabase.from("equipment_pickup_items").delete().eq("pickup_id", id);
+    const { error } = await supabase.from("equipment_pickups").delete().eq("id", id);
+    setDeletingPickupId(null);
+    if (error) toast.error("שגיאה במחיקת ההצטיידות");
+    else { toast.success("ההצטיידות נמחקה"); fetchData(); }
+  }
+
+  // ── Return edit/delete ──
+  function startReturnEdit(r: ReturnRaw) {
+    setEditingReturnId(r.id);
+    setReturnEditDate(r.return_date);
+    setReturnEditNotes(r.notes ?? "");
+    setExpandedReturnId(r.id);
+  }
+
+  async function saveReturnEdit() {
+    if (!editingReturnId) return;
+    setSavingReturnEdit(true);
+    const { error } = await supabase
+      .from("equipment_returns")
+      .update({ return_date: returnEditDate, notes: returnEditNotes.trim() || null })
+      .eq("id", editingReturnId);
+    setSavingReturnEdit(false);
+    if (error) toast.error("שגיאה בעדכון ההחזרה");
+    else { toast.success("ההחזרה עודכנה"); setEditingReturnId(null); fetchData(); }
+  }
+
+  async function handleDeleteReturn(id: string) {
+    setDeletingReturnId(id);
+    await supabase.from("equipment_return_items").delete().eq("return_id", id);
+    const { error } = await supabase.from("equipment_returns").delete().eq("id", id);
+    setDeletingReturnId(null);
+    if (error) toast.error("שגיאה במחיקת ההחזרה");
+    else { toast.success("ההחזרה נמחקה"); fetchData(); }
+  }
+
+  // ── Bonded entity edit ──
+  async function saveBondedEdit() {
+    if (!bondedInstaller) return;
+    setSavingBondedEdit(true);
+    const { error } = await supabase
+      .from("installers")
+      .update({
+        warehouse_number: bondedEditForm.warehouse_number ? parseInt(bondedEditForm.warehouse_number) : null,
+        coordinator: bondedEditForm.coordinator.trim() || null,
+        phone: bondedEditForm.phone.trim() || null,
+        status: bondedEditForm.status,
+      })
+      .eq("id", bondedInstaller.id);
+    setSavingBondedEdit(false);
+    if (error) toast.error("שגיאה בעדכון");
+    else { toast.success("עודכן"); setShowEditBonded(false); fetchData(); }
+  }
+
   // ── Contact CRUD ──
   const handleAddContact = async () => {
     if (!form.name.trim()) { toast.error("יש להזין שם"); return; }
@@ -450,29 +564,9 @@ export default function DivisionDetailPage() {
     if (invSortField === field) setInvSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setInvSortField(field); setInvSortDir("asc"); }
   }
-
-  function startPickupEdit(p: PickupRaw) {
-    setEditingPickupId(p.id);
-    setPickupEditDate(p.pickup_date);
-    setPickupEditNotes(p.notes ?? "");
-    setExpandedPickupId(p.id);
-  }
-
-  async function savePickupEdit() {
-    if (!editingPickupId) return;
-    setSavingPickupEdit(true);
-    const { error } = await supabase
-      .from("equipment_pickups")
-      .update({ pickup_date: pickupEditDate, notes: pickupEditNotes.trim() || null })
-      .eq("id", editingPickupId);
-    setSavingPickupEdit(false);
-    if (error) {
-      toast.error("שגיאה בעדכון ההצטיידות");
-    } else {
-      toast.success("ההצטיידות עודכנה");
-      setEditingPickupId(null);
-      fetchData();
-    }
+  function toggleReturnSort(field: string) {
+    if (returnSortField === field) setReturnSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setReturnSortField(field); setReturnSortDir("desc"); }
   }
 
   const colorClass = DIVISION_COLORS[division] ?? "bg-gray-100 text-gray-700 border-gray-200";
@@ -541,47 +635,103 @@ export default function DivisionDetailPage() {
       {/* ── Section A: Technicians / Entity Profile ── */}
       {isBonded && bondedInstaller ? (
         <div>
-          <h2 className="font-semibold mb-3 text-sm text-muted-foreground uppercase tracking-wide">
-            פרופיל ישות
-          </h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+              פרופיל ישות
+            </h2>
+            {!showEditBonded && (
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => {
+                setBondedEditForm({
+                  warehouse_number: bondedInstaller.warehouse_number ? String(bondedInstaller.warehouse_number) : "",
+                  coordinator: bondedInstaller.coordinator ?? "",
+                  phone: bondedInstaller.phone ?? "",
+                  status: bondedInstaller.status ?? "פעיל",
+                });
+                setShowEditBonded(true);
+              }}>
+                <Pencil className="h-3 w-3 me-1" />
+                עריכה
+              </Button>
+            )}
+          </div>
           <Card>
             <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-4 flex-wrap">
-                <Badge className={`text-sm px-3 py-1 border ${colorClass}`}>{division}</Badge>
-                <Badge variant="outline" className="text-xs gap-1">
-                  <Building2 className="h-3 w-3" />
-                  ישות מסחרית
-                </Badge>
-                <Badge
-                  className={`text-xs ${
-                    bondedInstaller.status === "פעיל"
-                      ? "bg-green-100 text-green-700 hover:bg-green-100"
-                      : "bg-gray-100 text-gray-500 hover:bg-gray-100"
-                  }`}
-                >
-                  {bondedInstaller.status}
-                </Badge>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                {bondedInstaller.warehouse_number && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-0.5">מחסן</p>
-                    <p className="font-medium">{bondedInstaller.warehouse_number}</p>
+              {showEditBonded ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">מחסן</Label>
+                      <Input value={bondedEditForm.warehouse_number} onChange={(e) => setBondedEditForm((f) => ({ ...f, warehouse_number: e.target.value }))} className="h-7 text-sm" type="number" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">סטטוס</Label>
+                      <Select value={bondedEditForm.status} onValueChange={(v) => setBondedEditForm((f) => ({ ...f, status: v }))}>
+                        <SelectTrigger className="h-7 text-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="פעיל">פעיל</SelectItem>
+                          <SelectItem value="לא פעיל">לא פעיל</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                )}
-                {bondedInstaller.coordinator && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-0.5">מתאם</p>
-                    <p className="font-medium">{bondedInstaller.coordinator}</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">מתאם</Label>
+                      <Input value={bondedEditForm.coordinator} onChange={(e) => setBondedEditForm((f) => ({ ...f, coordinator: e.target.value }))} className="h-7 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">טלפון</Label>
+                      <Input value={bondedEditForm.phone} onChange={(e) => setBondedEditForm((f) => ({ ...f, phone: e.target.value }))} className="h-7 text-sm" dir="ltr" />
+                    </div>
                   </div>
-                )}
-                {bondedInstaller.phone && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-0.5">טלפון</p>
-                    <p className="font-medium" dir="ltr">{bondedInstaller.phone}</p>
+                  <div className="flex gap-2 justify-end">
+                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowEditBonded(false)} disabled={savingBondedEdit}>ביטול</Button>
+                    <Button size="sm" className="h-7 text-xs" onClick={saveBondedEdit} disabled={savingBondedEdit}>
+                      {savingBondedEdit ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 me-1" />}
+                      שמור
+                    </Button>
                   </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 mb-4 flex-wrap">
+                    <Badge className={`text-sm px-3 py-1 border ${colorClass}`}>{division}</Badge>
+                    <Badge variant="outline" className="text-xs gap-1">
+                      <Building2 className="h-3 w-3" />
+                      ישות מסחרית
+                    </Badge>
+                    <Badge
+                      className={`text-xs ${
+                        bondedInstaller.status === "פעיל"
+                          ? "bg-green-100 text-green-700 hover:bg-green-100"
+                          : "bg-gray-100 text-gray-500 hover:bg-gray-100"
+                      }`}
+                    >
+                      {bondedInstaller.status}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                    {bondedInstaller.warehouse_number && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">מחסן</p>
+                        <p className="font-medium">{bondedInstaller.warehouse_number}</p>
+                      </div>
+                    )}
+                    {bondedInstaller.coordinator && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">מתאם</p>
+                        <p className="font-medium">{bondedInstaller.coordinator}</p>
+                      </div>
+                    )}
+                    {bondedInstaller.phone && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">טלפון</p>
+                        <p className="font-medium" dir="ltr">{bondedInstaller.phone}</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -618,12 +768,13 @@ export default function DivisionDetailPage() {
                           </th>
                         ) : null
                       )}
+                      <th className="p-3 w-20" />
                     </tr>
                   </thead>
                   <tbody>
                     {sortedInstallerStats.length === 0 ? (
                       <tr>
-                        <td colSpan={techColVis.visibleCount} className="text-center p-8 text-muted-foreground">
+                        <td colSpan={techColVis.visibleCount + 1} className="text-center p-8 text-muted-foreground">
                           אין טכנאים בחטיבה זו
                         </td>
                       </tr>
@@ -667,6 +818,29 @@ export default function DivisionDetailPage() {
                               </Badge>
                             </td>
                           )}
+                          <td className="p-3 w-20" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-1 justify-end">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                onClick={() => { setEditingInstallerData(inst); setShowEditInstaller(true); }}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                onClick={() => handleDeleteInstaller(inst.id)}
+                                disabled={deletingInstallerId === inst.id}
+                              >
+                                {deletingInstallerId === inst.id
+                                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  : <Trash2 className="h-3.5 w-3.5" />}
+                              </Button>
+                            </div>
+                          </td>
                         </tr>
                       ))
                     )}
@@ -726,12 +900,11 @@ export default function DivisionDetailPage() {
                       const installer = installerMap.get(p.installer_id);
                       const taken = p.equipment_pickup_items.reduce((s, i) => s + i.quantity, 0);
                       const expanded = expandedPickupId === p.id;
-                      const isEditing = editingPickupId === p.id;
                       return (
                         <Fragment key={p.id}>
                           <tr
                             className="border-b last:border-0 hover:bg-muted/30 cursor-pointer"
-                            onClick={() => !isEditing && setExpandedPickupId(expanded ? null : p.id)}
+                            onClick={() => setExpandedPickupId(expanded ? null : p.id)}
                           >
                             {pickupColVis.isVisible("date") && (
                               <td className="p-3">{format(new Date(p.pickup_date), "dd/MM/yyyy")}</td>
@@ -745,27 +918,161 @@ export default function DivisionDetailPage() {
                             {pickupColVis.isVisible("notes") && (
                               <td className="p-3 text-xs text-muted-foreground">{p.notes ?? "—"}</td>
                             )}
-                            <td className="p-3 w-16 text-left" onClick={(e) => e.stopPropagation()}>
-                              <div className="flex items-center gap-1">
+                            <td className="p-3 w-24" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center gap-1 justify-end">
                                 <Button
                                   size="icon"
                                   variant="ghost"
                                   className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                                  onClick={() => isEditing ? setEditingPickupId(null) : startPickupEdit(p)}
+                                  onClick={() => { setEditingPickupData(p); setShowEditPickup(true); }}
                                 >
-                                  {isEditing ? <X className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+                                  <Pencil className="h-3.5 w-3.5" />
                                 </Button>
-                                {!isEditing && (
-                                  expanded
-                                    ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                    : <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                )}
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 text-destructive hover:text-destructive"
+                                  onClick={() => handleDeletePickup(p.id)}
+                                  disabled={deletingPickupId === p.id}
+                                >
+                                  {deletingPickupId === p.id
+                                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    : <Trash2 className="h-3.5 w-3.5" />}
+                                </Button>
+                                {expanded
+                                  ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                  : <ChevronLeft className="h-4 w-4 text-muted-foreground" />}
                               </div>
                             </td>
                           </tr>
                           {expanded && (
                             <tr>
                               <td colSpan={pickupColVis.visibleCount + 2} className="p-0">
+                                <div className="bg-muted/20 px-6 py-3 border-b space-y-1">
+                                  {p.equipment_pickup_items.map((item, idx) => (
+                                    <div key={idx} className="flex gap-4 text-xs">
+                                      <span className="font-medium">
+                                        {productMap.get(item.product_id)?.name ?? item.product_id}
+                                      </span>
+                                      <span className="text-muted-foreground">כמות: {item.quantity}</span>
+                                      {item.serial_numbers && item.serial_numbers.length > 0 && (
+                                        <span className="text-muted-foreground font-mono" dir="ltr">
+                                          {item.serial_numbers.join(", ")}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Section C: Returns ── */}
+      <div>
+        <h2 className="font-semibold mb-3 text-sm text-muted-foreground uppercase tracking-wide">
+          החזרות
+        </h2>
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr
+                    className="border-b bg-muted/50"
+                    onContextMenu={trContextMenu(returnColVis.hiddenCols, setReturnMenu)}
+                  >
+                    {RETURN_COLS.map((col) =>
+                      returnColVis.isVisible(col.id) && !(isBonded && col.id === "recipient") ? (
+                        <th
+                          key={col.id}
+                          className="text-right p-3 font-semibold text-foreground"
+                          onContextMenu={colThContextMenu(col, setReturnMenu)}
+                        >
+                          {col.sortField ? (
+                            <button
+                              onClick={() => toggleReturnSort(col.sortField!)}
+                              className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors"
+                            >
+                              {col.label}
+                              <SortIcon field={col.sortField} currentField={returnSortField} currentDir={returnSortDir} />
+                            </button>
+                          ) : col.label}
+                        </th>
+                      ) : null
+                    )}
+                    <th className="p-3 w-24" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedReturns.length === 0 ? (
+                    <tr>
+                      <td colSpan={returnColVis.visibleCount + 2} className="text-center p-8 text-muted-foreground">
+                        אין החזרות עדיין
+                      </td>
+                    </tr>
+                  ) : (
+                    sortedReturns.map((r) => {
+                      const installer = installerMap.get(r.installer_id);
+                      const totalReturned = r.equipment_return_items.reduce((s, i) => s + i.quantity, 0);
+                      const expanded = expandedReturnId === r.id;
+                      const isEditing = editingReturnId === r.id;
+                      return (
+                        <Fragment key={r.id}>
+                          <tr
+                            className="border-b last:border-0 hover:bg-muted/30 cursor-pointer"
+                            onClick={() => !isEditing && setExpandedReturnId(expanded ? null : r.id)}
+                          >
+                            {returnColVis.isVisible("date") && (
+                              <td className="p-3">{format(new Date(r.return_date), "dd/MM/yyyy")}</td>
+                            )}
+                            {returnColVis.isVisible("recipient") && !isBonded && (
+                              <td className="p-3">{installer?.name ?? "—"}</td>
+                            )}
+                            {returnColVis.isVisible("returned") && (
+                              <td className="p-3 font-medium">{totalReturned}</td>
+                            )}
+                            <td className="p-3 w-24" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center gap-1 justify-end">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                  onClick={() => isEditing ? setEditingReturnId(null) : startReturnEdit(r)}
+                                >
+                                  {isEditing ? <X className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 text-destructive hover:text-destructive"
+                                  onClick={() => handleDeleteReturn(r.id)}
+                                  disabled={deletingReturnId === r.id}
+                                >
+                                  {deletingReturnId === r.id
+                                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    : <Trash2 className="h-3.5 w-3.5" />}
+                                </Button>
+                                {!isEditing && (
+                                  expanded
+                                    ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                    : <ChevronLeft className="h-4 w-4 text-muted-foreground" />
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                          {expanded && (
+                            <tr>
+                              <td colSpan={returnColVis.visibleCount + 2} className="p-0">
                                 <div className="bg-muted/20 px-6 py-3 border-b space-y-2">
                                   {isEditing ? (
                                     <div className="space-y-2 max-w-sm" onClick={(e) => e.stopPropagation()}>
@@ -774,8 +1081,8 @@ export default function DivisionDetailPage() {
                                           <Label className="text-xs">תאריך</Label>
                                           <Input
                                             type="date"
-                                            value={pickupEditDate}
-                                            onChange={(e) => setPickupEditDate(e.target.value)}
+                                            value={returnEditDate}
+                                            onChange={(e) => setReturnEditDate(e.target.value)}
                                             className="h-7 text-sm"
                                             dir="ltr"
                                           />
@@ -783,31 +1090,32 @@ export default function DivisionDetailPage() {
                                         <div className="space-y-1">
                                           <Label className="text-xs">הערות</Label>
                                           <Input
-                                            value={pickupEditNotes}
-                                            onChange={(e) => setPickupEditNotes(e.target.value)}
+                                            value={returnEditNotes}
+                                            onChange={(e) => setReturnEditNotes(e.target.value)}
                                             placeholder="הערות..."
                                             className="h-7 text-sm"
                                           />
                                         </div>
                                       </div>
                                       <div className="flex gap-2">
-                                        <Button size="sm" className="h-7 text-xs" onClick={savePickupEdit} disabled={savingPickupEdit}>
-                                          {savingPickupEdit ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 me-1" />}
+                                        <Button size="sm" className="h-7 text-xs" onClick={saveReturnEdit} disabled={savingReturnEdit}>
+                                          {savingReturnEdit ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 me-1" />}
                                           שמור
                                         </Button>
-                                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingPickupId(null)} disabled={savingPickupEdit}>
+                                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingReturnId(null)} disabled={savingReturnEdit}>
                                           ביטול
                                         </Button>
                                       </div>
                                     </div>
                                   ) : (
                                     <div className="space-y-1">
-                                      {p.equipment_pickup_items.map((item, idx) => (
+                                      {r.equipment_return_items.map((item, idx) => (
                                         <div key={idx} className="flex gap-4 text-xs">
                                           <span className="font-medium">
                                             {productMap.get(item.product_id)?.name ?? item.product_id}
                                           </span>
                                           <span className="text-muted-foreground">כמות: {item.quantity}</span>
+                                          <Badge variant="outline" className="text-[10px] h-4 py-0">{item.reason}</Badge>
                                           {item.serial_numbers && item.serial_numbers.length > 0 && (
                                             <span className="text-muted-foreground font-mono" dir="ltr">
                                               {item.serial_numbers.join(", ")}
@@ -832,7 +1140,7 @@ export default function DivisionDetailPage() {
         </Card>
       </div>
 
-      {/* ── Section C: Field Inventory ── */}
+      {/* ── Section D: Field Inventory ── */}
       <div>
         <h2 className="font-semibold mb-3 text-sm text-muted-foreground uppercase tracking-wide">
           מלאי בשטח
@@ -895,7 +1203,7 @@ export default function DivisionDetailPage() {
         </Card>
       </div>
 
-      {/* ── Section D: Contacts ── */}
+      {/* ── Section E: Contacts ── */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
@@ -1026,7 +1334,31 @@ export default function DivisionDetailPage() {
 
       {/* Dialogs */}
       <NewPickupDialog open={showNewPickup} onOpenChange={setShowNewPickup} onCreated={fetchData} />
+      <NewPickupDialog
+        open={showEditPickup}
+        onOpenChange={(open) => { setShowEditPickup(open); if (!open) setEditingPickupData(null); }}
+        onCreated={fetchData}
+        editingPickup={editingPickupData ? {
+          id: editingPickupData.id,
+          installer_id: editingPickupData.installer_id,
+          pickup_date: editingPickupData.pickup_date,
+          notes: editingPickupData.notes,
+          items: editingPickupData.equipment_pickup_items.map((i) => ({
+            id: i.id,
+            product_id: i.product_id,
+            quantity: i.quantity,
+            serial_numbers: i.serial_numbers,
+          })),
+        } : null}
+      />
       <NewReturnDialog open={showNewReturn} onOpenChange={setShowNewReturn} onCreated={fetchData} />
+      <NewInstallerDialog
+        open={showEditInstaller}
+        onOpenChange={(open) => { setShowEditInstaller(open); if (!open) setEditingInstallerData(null); }}
+        onCreated={fetchData}
+        installer={editingInstallerData ?? undefined}
+        onUpdated={() => { setEditingInstallerData(null); fetchData(); }}
+      />
 
       {/* Context menus */}
       {techMenu && (
@@ -1066,6 +1398,19 @@ export default function DivisionDetailPage() {
           onShow={invColVis.show}
           onSortAsc={(field) => { setInvSortField(field); setInvSortDir("asc"); closeInvMenu(); }}
           onSortDesc={(field) => { setInvSortField(field); setInvSortDir("desc"); closeInvMenu(); }}
+        />
+      )}
+      {returnMenu && (
+        <ColContextMenu
+          menu={returnMenu}
+          sortField={returnSortField}
+          sortDir={returnSortDir}
+          hiddenCols={returnColVis.hiddenCols}
+          onClose={closeReturnMenu}
+          onHide={returnColVis.hide}
+          onShow={returnColVis.show}
+          onSortAsc={(field) => { setReturnSortField(field); setReturnSortDir("asc"); closeReturnMenu(); }}
+          onSortDesc={(field) => { setReturnSortField(field); setReturnSortDir("desc"); closeReturnMenu(); }}
         />
       )}
     </div>

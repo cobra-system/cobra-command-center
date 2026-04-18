@@ -5,6 +5,21 @@
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- RTL layout across all equipment page tabs (tabs order, chevron directions, navigation icons)
+- Dialog RTL direction now explicit (not relying on inherited CSS)
+
+### Added
+- Edit and delete for technicians (installers) in division detail page
+- Full edit of pickup items via dialog (products linked via Combobox)
+- Delete pickup with cascade
+- Returns section in division detail page with edit/delete
+- Visual grouping of sales divisions vs bonded divisions on equipment overview
+
+---
+
 ## [2026-04-17]
 
 - feat: add procurement MCP tools and fix meeting order bugs (c6bd0be)
