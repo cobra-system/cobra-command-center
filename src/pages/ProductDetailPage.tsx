@@ -2,6 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
 import { useData, categories, divisions, type ProductComponent } from "@/contexts/AppContext";
 import { useLiveProductMetrics } from "@/hooks/useLiveProductMetrics";
+import { usePickupMonthlyAvg } from "@/hooks/usePickupMonthlyAvg";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ArrowRight, ExternalLink, Pencil, Trash2 } from "lucide-react";
@@ -41,6 +42,7 @@ export default function ProductDetailPage() {
   const product = products.find(p => p.id === id);
   const productArr = useMemo(() => (product ? [product] : []), [product]);
   const { metrics } = useLiveProductMetrics(productArr);
+  const { avgByProduct } = usePickupMonthlyAvg();
 
   if (!product || (isScoped && id && !scopedProductIds.has(id))) {
     return (
@@ -59,7 +61,7 @@ export default function ProductDetailPage() {
     : { label: "תקין", className: "bg-success/15 text-success" };
 
   const handleInlineSave = async (field: string, value: string) => {
-    const numericFields = ["purchase_price", "sale_price", "monthly_sales", "monthly_order", "stock_qty", "incoming_qty"];
+    const numericFields = ["purchase_price", "sale_price", "monthly_order", "stock_qty"];
     const updates: Record<string, string | number | null> = {};
     const finalValue = field === "sku" ? value.toUpperCase() : value;
     updates[field] = numericFields.includes(field) ? (finalValue ? Number(finalValue) : null) : (finalValue || null);
@@ -72,7 +74,7 @@ export default function ProductDetailPage() {
     }
   };
 
-  const details: { label: string; field: string; value: string | number | undefined | null; isSupplierLink?: boolean; options?: { value: string; label: string }[]; multiSelect?: boolean }[] = [
+  const details: { label: string; field: string; value: string | number | undefined | null; isSupplierLink?: boolean; options?: { value: string; label: string }[]; multiSelect?: boolean; readOnly?: boolean }[] = [
     { label: "קטגוריה", field: "category", value: product.category, options: categoryOptions },
     { label: "חטיבות", field: "division", value: product.division, options: divisionOptions, multiSelect: true },
     { label: "מק״ט", field: "sku", value: product.sku },
@@ -82,10 +84,10 @@ export default function ProductDetailPage() {
     { label: "שיטת משלוח", field: "shipping", value: product.shipping, options: shippingOptions },
     { label: "מחיר רכישה", field: "purchase_price", value: product.purchase_price },
     { label: "מחיר מכירה", field: "sale_price", value: product.sale_price },
-    { label: "מכירות חודשיות", field: "monthly_sales", value: product.monthly_sales },
+    { label: "מכירות חודשיות", field: "monthly_sales", value: avgByProduct.get(product.id) ?? undefined, readOnly: true },
     { label: "הזמנה חודשית", field: "monthly_order", value: product.monthly_order },
     { label: "מלאי קיים", field: "stock_qty", value: product.stock_qty },
-    { label: "בדרך", field: "incoming_qty", value: product.incoming_qty },
+    { label: 'עול"ב', field: "incoming_qty", value: metrics[product.id]?.incomingQty ?? product.incoming_qty, readOnly: true },
     { label: "הערות", field: "notes", value: product.notes },
   ];
 
@@ -193,8 +195,8 @@ export default function ProductDetailPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: "מלאי קיים", field: "stock_qty", value: product.stock_qty, danger: product.stock_qty === 0 },
-          { label: "בדרך", field: "incoming_qty", value: metrics[product.id]?.incomingQty ?? product.incoming_qty },
-          { label: "מכירות חודשיות", field: "monthly_sales", value: product.monthly_sales ?? "—" },
+          { label: 'עול"ב', field: "incoming_qty", value: metrics[product.id]?.incomingQty ?? product.incoming_qty },
+          { label: "מכירות חודשיות", field: "monthly_sales", value: avgByProduct.get(product.id) ?? "—" },
           { label: "הזמנה חודשית", field: "monthly_order", value: product.monthly_order ?? "—" },
         ].map((item) => (
           <div key={item.label} className="bg-card rounded-xl border p-4 text-center">

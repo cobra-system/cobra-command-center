@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useData, categories, type Product } from "@/contexts/AppContext";
 import { useProductScope } from "@/hooks/useProductScope";
 import { useLiveProductMetrics, type ProductMetrics } from "@/hooks/useLiveProductMetrics";
+import { usePickupMonthlyAvg } from "@/hooks/usePickupMonthlyAvg";
 import { Search, ChevronDown, ChevronUp, Boxes, Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye, Pencil, Truck, ShoppingCart, ClipboardList, Copy, Hash } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Input } from "@/components/ui/input";
@@ -24,7 +25,7 @@ const COLUMN_DEFS = [
   { id: "product_type",   label: "סוג",                sortField: "product_type" },
   { id: "supplier",       label: "ספק",                sortField: "supplier" },
   { id: "stock_qty",      label: "מלאי",               sortField: "stock_qty" },
-  { id: "incoming_qty",   label: "בדרך",               sortField: "incoming_qty" },
+  { id: "incoming_qty",   label: 'עול"ב',              sortField: "incoming_qty" },
   { id: "purchase_price", label: "מחיר רכישה",        sortField: "purchase_price" },
   { id: "monthly_order",  label: "הזמנה חודשית",      sortField: "monthly_order" },
   { id: "sale_price",     label: "מחיר מכירה",        sortField: "sale_price" },
@@ -78,6 +79,7 @@ export default function ProductsPage() {
   );
   const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
   const { metrics } = useLiveProductMetrics(products);
+  const { avgByProduct } = usePickupMonthlyAvg();
 
   const { hasEdit } = usePermissions("products");
   const sortKey = prefs.sortField as SortKey | null;
@@ -239,7 +241,7 @@ export default function ProductsPage() {
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <span className={`font-bold ${p.stock_qty === 0 ? "text-destructive" : "text-foreground"}`}>{p.stock_qty}</span>
-                      {p.incoming_qty ? <span className="text-xs text-muted-foreground">+{p.incoming_qty}</span> : null}
+                      {(metrics[p.id]?.incomingQty ?? 0) > 0 ? <span className="text-xs text-muted-foreground">+{metrics[p.id]?.incomingQty}</span> : null}
                     </div>
                     <span className="text-xs text-muted-foreground">מלאי</span>
                   </div>
@@ -414,7 +416,7 @@ export default function ProductsPage() {
                         {p.sale_price ? `$${p.sale_price.toLocaleString()}` : "—"}
                       </td>
                     )}
-                    {isVisible("monthly_sales") && <td className="p-2 sm:p-3 text-muted-foreground">{p.monthly_sales || "—"}</td>}
+                    {isVisible("monthly_sales") && <td className="p-2 sm:p-3 text-muted-foreground">{avgByProduct.get(p.id) ?? "—"}</td>}
                     {isVisible("category") && <td className="p-2 sm:p-3 text-muted-foreground">{p.category || "—"}</td>}
                     {isVisible("reorder_point") && <td className="p-2 sm:p-3 text-muted-foreground">{p.reorder_point ?? "—"}</td>}
                     {isVisible("lead_time_days") && <td className="p-2 sm:p-3 text-muted-foreground">{p.lead_time_days ?? "—"}</td>}
@@ -480,7 +482,7 @@ export default function ProductsPage() {
                                   if (!inc) return null;
                                   return (
                                     <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                                      <span className="text-muted-foreground/60 font-normal">בדרך: </span>
+                                      <span className="text-muted-foreground/60 font-normal">עול"ב: </span>
                                       {inc}
                                     </span>
                                   );

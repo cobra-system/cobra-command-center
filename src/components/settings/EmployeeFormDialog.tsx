@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronUp, Package, Search } from "lucide-react";
 import type { Product } from "@/contexts/types";
+import { DIVISIONS } from "@/components/equipment/constants";
 
 interface EmployeeFormDialogProps {
   open: boolean;
@@ -23,6 +24,8 @@ interface EmployeeFormDialogProps {
   setEmpRoleDefId: (v: string) => void;
   empAllowedProductIds: string[];
   setEmpAllowedProductIds: (v: string[]) => void;
+  empDivision: string;
+  setEmpDivision: (v: string) => void;
   nonManagerRoleDefinitions: Array<{ id: string; name: string; system_key?: string }>;
   products: Product[];
   submitting: boolean;
@@ -44,6 +47,8 @@ export default function EmployeeFormDialog({
   setEmpRoleDefId,
   empAllowedProductIds,
   setEmpAllowedProductIds,
+  empDivision,
+  setEmpDivision,
   nonManagerRoleDefinitions,
   products,
   submitting,
@@ -121,6 +126,16 @@ export default function EmployeeFormDialog({
                 {nonManagerRoleDefinitions.map(rd => (
                   <SelectItem key={rd.id} value={rd.id}>{rd.name}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>חטיבה</Label>
+            <Select value={empDivision} onValueChange={setEmpDivision}>
+              <SelectTrigger><SelectValue placeholder="ללא חטיבה" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">ללא חטיבה</SelectItem>
+                {DIVISIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>

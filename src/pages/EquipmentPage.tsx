@@ -1,7 +1,7 @@
 import { Fragment, useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { useData } from "@/contexts/AppContext";
+import { useData, useAuth } from "@/contexts/AppContext";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -18,16 +18,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   ChevronDown,
-  ChevronRight,
+  ChevronLeft,
   Package,
   PackageX,
   TrendingDown,
   Users,
-  ArrowRight,
   Plus,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Building2,
 } from "lucide-react";
 import {
   BarChart,
@@ -41,7 +41,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { DIVISIONS, DIVISION_COLORS } from "@/components/equipment/constants";
+import { DIVISIONS, DIVISION_COLORS, BONDED_DIVISIONS, SALES_DIVISIONS } from "@/components/equipment/constants";
 import type { ColDef } from "@/hooks/useColumnVisibility";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import {
@@ -165,6 +165,14 @@ function SortIcon({
 export default function EquipmentPage() {
   const navigate = useNavigate();
   const { products } = useData();
+  const { currentUser } = useAuth();
+
+  // Division managers bypass the overview and go directly to their division
+  useEffect(() => {
+    if (currentUser?.division) {
+      navigate(`/equipment/division/${encodeURIComponent(currentUser.division)}`, { replace: true });
+    }
+  }, [currentUser, navigate]);
 
   const [installers, setInstallers] = useState<Installer[]>([]);
   const [pickups, setPickups] = useState<PickupRaw[]>([]);
@@ -519,7 +527,7 @@ export default function EquipmentPage() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl">
         <TabsList>
           <TabsTrigger value="divisions">חטיבות</TabsTrigger>
           <TabsTrigger value="pickups">מעקב הצטיידויות</TabsTrigger>
@@ -528,54 +536,117 @@ export default function EquipmentPage() {
         </TabsList>
 
         {/* ── Tab 1: Division Cards ── */}
-        <TabsContent value="divisions" className="mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {divisionStats.map((stat) => {
-              const colorClass =
-                DIVISION_COLORS[stat.division] ?? "bg-gray-100 text-gray-700 border-gray-200";
-              return (
-                <Card
-                  key={stat.division}
-                  className="cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() =>
-                    navigate(`/equipment/division/${encodeURIComponent(stat.division)}`)
-                  }
-                >
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Badge className={`text-sm px-3 py-1 border ${colorClass}`}>
-                        {stat.division}
-                      </Badge>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <p className="text-xs text-muted-foreground">טכנאים פעילים</p>
-                        <p className="font-bold text-lg">{stat.activeCount}</p>
+        <TabsContent value="divisions" className="mt-4 space-y-6">
+          {/* Sales divisions */}
+          <div>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+              <Users className="h-3.5 w-3.5" />
+              חטיבות מכירות
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {divisionStats.filter((s) => SALES_DIVISIONS.has(s.division)).map((stat) => {
+                const colorClass =
+                  DIVISION_COLORS[stat.division] ?? "bg-gray-100 text-gray-700 border-gray-200";
+                return (
+                  <Card
+                    key={stat.division}
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() =>
+                      navigate(`/equipment/division/${encodeURIComponent(stat.division)}`)
+                    }
+                  >
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Badge className={`text-sm px-3 py-1 border ${colorClass}`}>
+                          {stat.division}
+                        </Badge>
+                        <ChevronLeft className="h-4 w-4 text-muted-foreground" />
                       </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">בשטח כעת</p>
-                        <p className="font-bold text-lg">{stat.inField}</p>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <p className="text-xs text-muted-foreground">טכנאים פעילים</p>
+                          <p className="font-bold text-lg">{stat.activeCount}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">בשטח כעת</p>
+                          <p className="font-bold text-lg">{stat.inField}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">יצאו (סה"כ)</p>
+                          <p className="font-semibold">{stat.totalTaken}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">הוחזרו (סה"כ)</p>
+                          <p className="font-semibold">{stat.totalReturned}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">יצאו (סה"כ)</p>
-                        <p className="font-semibold">{stat.totalTaken}</p>
+                      <div className="flex items-center gap-2 pt-1 border-t">
+                        <p className="text-xs text-muted-foreground">אחוז החזרה:</p>
+                        <span className={`text-sm font-bold ${returnPctColor(stat.returnPct)}`}>
+                          {stat.returnPct}%
+                        </span>
                       </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">הוחזרו (סה"כ)</p>
-                        <p className="font-semibold">{stat.totalReturned}</p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Bonded divisions */}
+          <div>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+              <Building2 className="h-3.5 w-3.5" />
+              חטיבות בונד
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {divisionStats.filter((s) => BONDED_DIVISIONS.has(s.division)).map((stat) => {
+                const colorClass =
+                  DIVISION_COLORS[stat.division] ?? "bg-gray-100 text-gray-700 border-gray-200";
+                return (
+                  <Card
+                    key={stat.division}
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() =>
+                      navigate(`/equipment/division/${encodeURIComponent(stat.division)}`)
+                    }
+                  >
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Badge className={`text-sm px-3 py-1 border ${colorClass}`}>
+                          {stat.division}
+                        </Badge>
+                        <ChevronLeft className="h-4 w-4 text-muted-foreground" />
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2 pt-1 border-t">
-                      <p className="text-xs text-muted-foreground">אחוז החזרה:</p>
-                      <span className={`text-sm font-bold ${returnPctColor(stat.returnPct)}`}>
-                        {stat.returnPct}%
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="flex items-center gap-1.5 col-span-1">
+                          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                          <p className="text-xs text-muted-foreground">ישות מסחרית</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">בשטח כעת</p>
+                          <p className="font-bold text-lg">{stat.inField}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">יצאו (סה"כ)</p>
+                          <p className="font-semibold">{stat.totalTaken}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">הוחזרו (סה"כ)</p>
+                          <p className="font-semibold">{stat.totalReturned}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 pt-1 border-t">
+                        <p className="text-xs text-muted-foreground">אחוז החזרה:</p>
+                        <span className={`text-sm font-bold ${returnPctColor(stat.returnPct)}`}>
+                          {stat.returnPct}%
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           </div>
         </TabsContent>
 
@@ -648,7 +719,7 @@ export default function EquipmentPage() {
                       </div>
                       {dayExpanded
                         ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                        : <ChevronLeft className="h-4 w-4 text-muted-foreground" />}
                     </div>
 
                     {dayExpanded && (
@@ -677,7 +748,7 @@ export default function EquipmentPage() {
                                 </div>
                                 {divExpanded
                                   ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                                  : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                                  : <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground" />}
                               </div>
 
                               {divExpanded && (

@@ -124,6 +124,7 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 - `equipment_pickup_items` — פריטי הצטיידות (מוצר, כמות, סריאלים)
 - `equipment_returns` — החזרות בלאי (header)
 - `equipment_return_items` — פריטי החזרה (סיבה, מצב, תוית)
+- `division_products` — מוצרי חטיבה (מלאי שטח ידני, דרישה לרבעון, צריכה חודשית מחושבת)
 
 ### ניהול פסולת
 - `waste_items` — פריטי פסולת/בלאי (מוצר, כמות, מקור, המלצות)
@@ -132,7 +133,7 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 - `warehouse_zone_products` — שיוך מוצרים לאזורים במחסן (zone_id, product_id)
 
 ### ניהול משתמשים
-- `profiles` — פרופילי משתמשים (שם, תפקיד, PIN)
+- `profiles` — פרופילי משתמשים (שם, תפקיד, חטיבה — לניהול גישה מנהל חטיבה)
 - `user_roles` — תפקידים
 - `role_definitions` — הגדרות תפקידים ורשאות
 - `role_permissions` — הרשאות גרנולריות לפי תפקיד ומודול

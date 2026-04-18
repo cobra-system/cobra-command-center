@@ -11,6 +11,7 @@ interface ProductDetailsGridProps {
     isSupplierLink?: boolean;
     options?: Array<{ value: string; label: string }>;
     multiSelect?: boolean;
+    readOnly?: boolean;
   }>;
   suppliers: Array<{ id: string; company: string }>;
   hasEdit: boolean;
@@ -56,7 +57,7 @@ export function ProductDetailsGrid({ details, suppliers, hasEdit, onInlineSave }
                   : "text"
               }
               onSave={(v) => onInlineSave(d.field, v)}
-              disabled={!hasEdit}
+              disabled={!hasEdit || !!d.readOnly}
               options={d.options}
               multiSelect={d.multiSelect}
             />

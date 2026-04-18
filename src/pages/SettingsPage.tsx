@@ -32,6 +32,7 @@ export default function SettingsPage() {
   const [empPassword, setEmpPassword] = useState("");
   const [empRoleDefId, setEmpRoleDefId] = useState<string>("");
   const [empAllowedProductIds, setEmpAllowedProductIds] = useState<string[]>([]);
+  const [empDivision, setEmpDivision] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
 
   // Manager profile edit
@@ -67,7 +68,7 @@ export default function SettingsPage() {
     if (error) { toast.error(error.message); } else { toast.success("הסיסמה שונתה בהצלחה"); setNewPassword(""); setConfirmPassword(""); }
   };
 
-  const resetEmpForm = () => { setEmpName(""); setEmpEmail(""); setEmpPassword(""); setEmpRoleDefId(""); setEmpAllowedProductIds([]); setEditingId(null); };
+  const resetEmpForm = () => { setEmpName(""); setEmpEmail(""); setEmpPassword(""); setEmpRoleDefId(""); setEmpAllowedProductIds([]); setEmpDivision(""); setEditingId(null); };
 
   const handleEmpSubmit = async () => {
     if (editingId) {
@@ -92,6 +93,7 @@ export default function SettingsPage() {
           role: resolvedRole,
           role_definition_id: selectedRd?.id ?? null,
           allowed_product_ids: empAllowedProductIds.length > 0 ? empAllowedProductIds : null,
+          division: empDivision || null,
         };
         if (empPassword.trim().length >= 6) body.password = empPassword.trim();
         const res = await fetch(`${SUPABASE_URL}/functions/v1/manage-employee`, {
@@ -119,6 +121,7 @@ export default function SettingsPage() {
         password: empPassword,
         role_definition_id: selectedRd?.id,
         allowed_product_ids: empAllowedProductIds.length > 0 ? empAllowedProductIds : undefined,
+        division: empDivision || undefined,
       });
       if (error) toast.error(error);
       else toast.success(`${empName} נוסף בהצלחה`);
@@ -128,13 +131,14 @@ export default function SettingsPage() {
     setEmployeeOpen(false);
   };
 
-  const handleEmpEdit = (profile: { id: string; name: string; role: Role; role_definition_id?: string | null; allowed_product_ids?: string[] | null }) => {
+  const handleEmpEdit = (profile: { id: string; name: string; role: Role; role_definition_id?: string | null; allowed_product_ids?: string[] | null; division?: string | null }) => {
     setEditingId(profile.id);
     setEmpName(profile.name);
     const matchingRd = nonManagerRoleDefinitions.find(rd => rd.id === profile.role_definition_id)
       ?? nonManagerRoleDefinitions.find(rd => rd.system_key === profile.role);
     setEmpRoleDefId(matchingRd?.id ?? "");
     setEmpAllowedProductIds(profile.allowed_product_ids ?? []);
+    setEmpDivision(profile.division ?? "");
     setEmpPassword("");
     setEmpEmail("");
     setEmployeeOpen(true);
@@ -293,6 +297,8 @@ export default function SettingsPage() {
           setEmpRoleDefId={setEmpRoleDefId}
           empAllowedProductIds={empAllowedProductIds}
           setEmpAllowedProductIds={setEmpAllowedProductIds}
+          empDivision={empDivision}
+          setEmpDivision={setEmpDivision}
           products={products}
           onEmpSubmit={handleEmpSubmit}
           onEmpReset={resetEmpForm}
