@@ -13,6 +13,7 @@ interface Employee {
   role: Role;
   role_definition_id?: string | null;
   allowed_product_ids?: string[] | null;
+  division?: string | null;
 }
 
 interface UserManagementTableProps {
@@ -33,6 +34,8 @@ interface UserManagementTableProps {
   setEmpRoleDefId: (v: string) => void;
   empAllowedProductIds: string[];
   setEmpAllowedProductIds: (v: string[]) => void;
+  empDivision: string;
+  setEmpDivision: (v: string) => void;
   products: Product[];
   onEmpSubmit: () => void;
   onEmpReset: () => void;
@@ -59,6 +62,8 @@ export default function UserManagementTable({
   setEmpRoleDefId,
   empAllowedProductIds,
   setEmpAllowedProductIds,
+  empDivision,
+  setEmpDivision,
   products,
   onEmpSubmit,
   onEmpReset,
@@ -84,13 +89,14 @@ export default function UserManagementTable({
               <tr className="border-b bg-muted/50">
                 <th className="text-right p-3 font-semibold text-foreground">שם</th>
                 <th className="text-right p-3 font-semibold text-foreground">תפקיד</th>
+                <th className="text-right p-3 font-semibold text-foreground">חטיבה</th>
                 <th className="text-right p-3 font-semibold text-foreground">גישה למוצרים</th>
                 <th className="text-right p-3 font-semibold text-foreground">פעולות</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {employees.length === 0 ? (
-                <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">אין משתמשים</td></tr>
+                <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">אין משתמשים</td></tr>
               ) : employees.map(u => {
                 const rd = nonManagerRoleDefinitions.find(r => r.id === u.role_definition_id)
                   ?? nonManagerRoleDefinitions.find(r => r.system_key === u.role);
@@ -99,6 +105,7 @@ export default function UserManagementTable({
                   <tr key={u.id} className="hover:bg-muted/30 transition-colors">
                     <td className="p-3 font-medium text-foreground">{u.name}</td>
                     <td className="p-3 text-muted-foreground">{displayRole}</td>
+                    <td className="p-3 text-muted-foreground">{u.division ?? "—"}</td>
                     <td className="p-3">
                       {u.allowed_product_ids && u.allowed_product_ids.length > 0 ? (
                         <Badge variant="outline" className="text-xs gap-1">
@@ -150,6 +157,8 @@ export default function UserManagementTable({
         setEmpRoleDefId={setEmpRoleDefId}
         empAllowedProductIds={empAllowedProductIds}
         setEmpAllowedProductIds={setEmpAllowedProductIds}
+        empDivision={empDivision}
+        setEmpDivision={setEmpDivision}
         nonManagerRoleDefinitions={nonManagerRoleDefinitions}
         products={products}
         submitting={submitting}

@@ -12,6 +12,7 @@ export interface Profile {
   role: Role;
   role_definition_id?: string | null;
   allowed_product_ids?: string[] | null;
+  division?: string | null;
 }
 
 export interface Product {

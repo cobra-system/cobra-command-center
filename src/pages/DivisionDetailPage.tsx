@@ -1,7 +1,7 @@
 import { Fragment, useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { useData } from "@/contexts/AppContext";
+import { useData, useAuth } from "@/contexts/AppContext";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -47,7 +47,9 @@ import {
 import { NewPickupDialog } from "@/components/equipment/NewPickupDialog";
 import { NewReturnDialog } from "@/components/equipment/NewReturnDialog";
 import { NewInstallerDialog } from "@/components/equipment/NewInstallerDialog";
+import { Combobox } from "@/components/ui/combobox";
 import { DIVISION_COLORS, BONDED_DIVISIONS } from "@/components/equipment/constants";
+import { canEdit } from "@/lib/permissions";
 import type { ColDef } from "@/hooks/useColumnVisibility";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import {
@@ -114,6 +116,17 @@ interface DivisionContact {
   created_at: string;
 }
 
+interface DivisionProduct {
+  id: string;
+  product_id: string;
+  field_stock: number;
+  field_stock_updated_at: string | null;
+  quarterly_demand: number | null;
+  quarterly_demand_updated_at: string | null;
+  notes: string | null;
+  products: { id: string; name: string; sku: string; category: string };
+}
+
 // ─── Column Defs ─────────────────────────────────────────────────────────────
 
 const TECH_COLS: ColDef[] = [
@@ -146,6 +159,14 @@ const RETURN_COLS: ColDef[] = [
   { id: "returned", label: "הוחזרו", sortField: "returned" },
 ];
 
+const DP_COLS: ColDef[] = [
+  { id: "product", label: "מוצר" },
+  { id: "field_stock", label: "מלאי בשטח", sortField: "field_stock" },
+  { id: "monthly_avg", label: "צריכה חודשית" },
+  { id: "quarterly_demand", label: "דרישה לרבעון", sortField: "quarterly_demand" },
+  { id: "last_pickup", label: "שינוי אחרון", sortField: "last_pickup" },
+];
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function returnPctColor(pct: number) {
@@ -175,9 +196,17 @@ const blankForm = () => ({ name: "", role: "אחר", phone: "", email: "", notes
 export default function DivisionDetailPage() {
   const { divisionName } = useParams<{ divisionName: string }>();
   const navigate = useNavigate();
-  const { products } = useData();
+  const { products, currentUserPermissions } = useData();
+  const { currentUser } = useAuth();
 
   const division = divisionName ? decodeURIComponent(divisionName) : "";
+
+  // Division managers can only access their own division
+  useEffect(() => {
+    if (currentUser?.division && currentUser.division !== division) {
+      navigate(`/equipment/division/${encodeURIComponent(currentUser.division)}`, { replace: true });
+    }
+  }, [currentUser, division, navigate]);
 
   const [installers, setInstallers] = useState<Installer[]>([]);
   const [pickups, setPickups] = useState<PickupRaw[]>([]);
@@ -206,6 +235,15 @@ export default function DivisionDetailPage() {
   const [returnEditNotes, setReturnEditNotes] = useState("");
   const [savingReturnEdit, setSavingReturnEdit] = useState(false);
   const [deletingReturnId, setDeletingReturnId] = useState<string | null>(null);
+
+  // Division products state
+  const [divisionProducts, setDivisionProducts] = useState<DivisionProduct[]>([]);
+  const [dpSortField, setDpSortField] = useState<string | null>("product");
+  const [dpSortDir, setDpSortDir] = useState<"asc" | "desc">("asc");
+  const [editingDpId, setEditingDpId] = useState<string | null>(null);
+  const [dpEditField, setDpEditField] = useState<"field_stock" | "quarterly_demand">("field_stock");
+  const [dpEditVal, setDpEditVal] = useState<string>("");
+  const [savingDp, setSavingDp] = useState(false);
 
   // Bonded entity inline edit state
   const [showEditBonded, setShowEditBonded] = useState(false);
@@ -239,6 +277,8 @@ export default function DivisionDetailPage() {
   const { menu: pickupMenu, setMenu: setPickupMenu, closeMenu: closePickupMenu } = useColMenu();
   const { menu: invMenu, setMenu: setInvMenu, closeMenu: closeInvMenu } = useColMenu();
   const { menu: returnMenu, setMenu: setReturnMenu, closeMenu: closeReturnMenu } = useColMenu();
+  const dpColVis = useColumnVisibility("division-products:hidden-columns", DP_COLS);
+  const { menu: dpMenu, setMenu: setDpMenu, closeMenu: closeDpMenu } = useColMenu();
 
   const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const installerMap = useMemo(() => new Map(installers.map((i) => [i.id, i])), [installers]);
@@ -300,10 +340,16 @@ export default function DivisionDetailPage() {
         .order("created_at"),
     ]);
 
+    const dpRes = await supabase
+      .from("division_products")
+      .select("id, product_id, field_stock, field_stock_updated_at, quarterly_demand, quarterly_demand_updated_at, notes, products(id, name, sku, category)")
+      .eq("division", division);
+
     setInstallers(divInstallers);
     setPickups(pickRes.error ? [] : (pickRes.data ?? []) as PickupRaw[]);
     setReturns(retRes.error ? [] : (retRes.data ?? []) as ReturnRaw[]);
     setContacts(contactRes.error ? [] : (contactRes.data ?? []) as DivisionContact[]);
+    setDivisionProducts(dpRes.error ? [] : (dpRes.data ?? []) as unknown as DivisionProduct[]);
 
     if (pickRes.error) toast.error("שגיאה בטעינת הצטיידויות");
     if (retRes.error) toast.error("שגיאה בטעינת החזרות");
@@ -439,6 +485,50 @@ export default function DivisionDetailPage() {
     });
   }, [returns, returnSortField, returnSortDir, installerMap]);
 
+  // ── Division products computed values ──
+  const divisionInstallerIds = useMemo(
+    () => new Set(installers.map((i) => i.id)),
+    [installers]
+  );
+
+  const monthlyAvgByProduct = useMemo(() => {
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - 3);
+    const totals = new Map<string, number>();
+    for (const p of pickups) {
+      if (!divisionInstallerIds.has(p.installer_id)) continue;
+      if (new Date(p.pickup_date) < cutoff) continue;
+      for (const item of p.equipment_pickup_items) {
+        totals.set(item.product_id, (totals.get(item.product_id) ?? 0) + item.quantity);
+      }
+    }
+    return new Map([...totals.entries()].map(([pid, t]) => [pid, Math.round((t / 3) * 10) / 10]));
+  }, [pickups, divisionInstallerIds]);
+
+  const lastPickupByProduct = useMemo(() => {
+    const latest = new Map<string, string>();
+    for (const p of pickups) {
+      if (!divisionInstallerIds.has(p.installer_id)) continue;
+      for (const item of p.equipment_pickup_items) {
+        const cur = latest.get(item.product_id);
+        if (!cur || p.pickup_date > cur) latest.set(item.product_id, p.pickup_date);
+      }
+    }
+    return latest;
+  }, [pickups, divisionInstallerIds]);
+
+  const sortedDivisionProducts = useMemo(() => {
+    return [...divisionProducts].sort((a, b) => {
+      const dir = dpSortDir === "asc" ? 1 : -1;
+      if (dpSortField === "field_stock") return (a.field_stock - b.field_stock) * dir;
+      if (dpSortField === "quarterly_demand") return ((a.quarterly_demand ?? 0) - (b.quarterly_demand ?? 0)) * dir;
+      if (dpSortField === "last_pickup") {
+        return (lastPickupByProduct.get(a.product_id) ?? "").localeCompare(lastPickupByProduct.get(b.product_id) ?? "") * dir;
+      }
+      return a.products.name.localeCompare(b.products.name, "he") * dir;
+    });
+  }, [divisionProducts, dpSortField, dpSortDir, lastPickupByProduct]);
+
   // ── Installer CRUD ──
   async function handleDeleteInstaller(id: string) {
     setDeletingInstallerId(id);
@@ -503,6 +593,50 @@ export default function DivisionDetailPage() {
     setSavingBondedEdit(false);
     if (error) toast.error("שגיאה בעדכון");
     else { toast.success("עודכן"); setShowEditBonded(false); fetchData(); }
+  }
+
+  // ── Division products CRUD ──
+  async function saveDpField(dpId: string, field: "field_stock" | "quarterly_demand", rawVal: string) {
+    const value = parseInt(rawVal) || 0;
+    setSavingDp(true);
+    const updates: Record<string, unknown> = { [field]: value };
+    if (field === "field_stock") updates.field_stock_updated_at = new Date().toISOString();
+    else updates.quarterly_demand_updated_at = new Date().toISOString();
+    const { error } = await supabase.from("division_products").update(updates).eq("id", dpId);
+    if (error) toast.error("שגיאה בשמירה");
+    else setDivisionProducts((prev) =>
+      prev.map((dp) => dp.id === dpId ? { ...dp, ...updates } as unknown as DivisionProduct : dp)
+    );
+    setEditingDpId(null);
+    setSavingDp(false);
+  }
+
+  async function addProductToDivision(productId: string) {
+    const { error } = await supabase.from("division_products").insert({ division, product_id: productId });
+    if (error) toast.error("שגיאה בהוספת מוצר");
+    else { fetchData(); toast.success("מוצר נוסף"); }
+  }
+
+  async function removeProductFromDivision(dpId: string) {
+    const { error } = await supabase.from("division_products").delete().eq("id", dpId);
+    if (error) toast.error("שגיאה במחיקה");
+    else setDivisionProducts((prev) => prev.filter((dp) => dp.id !== dpId));
+  }
+
+  async function importFromHistory() {
+    const allIds = new Set(
+      pickups
+        .filter((p) => divisionInstallerIds.has(p.installer_id))
+        .flatMap((p) => p.equipment_pickup_items.map((i) => i.product_id))
+    );
+    const existing = new Set(divisionProducts.map((dp) => dp.product_id));
+    const newIds = [...allIds].filter((id) => !existing.has(id));
+    if (!newIds.length) { toast.info("כל המוצרים כבר ברשימה"); return; }
+    const { error } = await supabase
+      .from("division_products")
+      .insert(newIds.map((id) => ({ division, product_id: id })));
+    if (error) toast.error("שגיאה בייבוא");
+    else { fetchData(); toast.success(`${newIds.length} מוצרים יובאו`); }
   }
 
   // ── Contact CRUD ──
@@ -851,6 +985,210 @@ export default function DivisionDetailPage() {
           </Card>
         </div>
       )}
+
+      {/* ── Section: Division Products ── */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">מוצרי החטיבה</h2>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={importFromHistory}
+              disabled={pickups.length === 0}
+            >
+              ייבא מהיסטוריה
+            </Button>
+            {canEdit(currentUserPermissions, "equipment") && (
+              <div className="w-56">
+                <Combobox
+                  value=""
+                  onValueChange={(pid) => { if (pid) addProductToDivision(pid); }}
+                  options={products
+                    .filter((p) => !divisionProducts.some((dp) => dp.product_id === p.id))
+                    .map((p) => ({ value: p.id, label: p.sku ? `${p.name} · ${p.sku}` : p.name }))}
+                  placeholder="הוסף מוצר..."
+                  searchPlaceholder="חיפוש מוצר..."
+                />
+              </div>
+            )}
+          </div>
+        </div>
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr
+                    className="border-b bg-muted/50"
+                    onContextMenu={trContextMenu(dpColVis.hiddenCols, setDpMenu)}
+                  >
+                    {DP_COLS.map((col) =>
+                      dpColVis.isVisible(col.id) ? (
+                        <th
+                          key={col.id}
+                          className="text-right p-3 font-semibold text-foreground"
+                          onContextMenu={colThContextMenu(col, setDpMenu)}
+                        >
+                          {col.sortField ? (
+                            <button
+                              onClick={() => {
+                                if (dpSortField === col.sortField) setDpSortDir((d) => (d === "asc" ? "desc" : "asc"));
+                                else { setDpSortField(col.sortField!); setDpSortDir("asc"); }
+                              }}
+                              className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors"
+                            >
+                              {col.label}
+                              <SortIcon field={col.sortField} currentField={dpSortField} currentDir={dpSortDir} />
+                            </button>
+                          ) : col.label}
+                        </th>
+                      ) : null
+                    )}
+                    <th className="p-3 w-10" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {sortedDivisionProducts.length === 0 ? (
+                    <tr>
+                      <td colSpan={dpColVis.visibleCount + 1} className="text-center p-8 text-muted-foreground">
+                        לא נוספו מוצרים — הוסף ידנית או ייבא מהיסטוריה
+                      </td>
+                    </tr>
+                  ) : sortedDivisionProducts.map((dp) => {
+                    const monthlyAvg = monthlyAvgByProduct.get(dp.product_id) ?? 0;
+                    const lastDate = lastPickupByProduct.get(dp.product_id);
+                    const isEditingStock = editingDpId === dp.id && dpEditField === "field_stock";
+                    const isEditingDemand = editingDpId === dp.id && dpEditField === "quarterly_demand";
+                    return (
+                      <tr key={dp.id} className="hover:bg-muted/30 transition-colors">
+                        {dpColVis.isVisible("product") && (
+                          <td className="p-3">
+                            <div className="font-medium">{dp.products.name}</div>
+                            <div className="flex gap-2 mt-0.5">
+                              {dp.products.sku && (
+                                <span className="font-mono text-xs text-muted-foreground">{dp.products.sku}</span>
+                              )}
+                              {dp.products.category && (
+                                <span className="text-xs text-muted-foreground">· {dp.products.category}</span>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                        {dpColVis.isVisible("field_stock") && (
+                          <td className="p-3">
+                            {isEditingStock ? (
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  value={dpEditVal}
+                                  onChange={(e) => setDpEditVal(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") saveDpField(dp.id, "field_stock", dpEditVal);
+                                    if (e.key === "Escape") setEditingDpId(null);
+                                  }}
+                                  onBlur={() => saveDpField(dp.id, "field_stock", dpEditVal)}
+                                  className="h-7 w-20"
+                                  autoFocus
+                                  disabled={savingDp}
+                                />
+                              </div>
+                            ) : (
+                              <div
+                                className={canEdit(currentUserPermissions, "equipment") ? "cursor-pointer hover:text-accent" : ""}
+                                onClick={() => {
+                                  if (!canEdit(currentUserPermissions, "equipment")) return;
+                                  setEditingDpId(dp.id);
+                                  setDpEditField("field_stock");
+                                  setDpEditVal(String(dp.field_stock));
+                                }}
+                              >
+                                <span className="font-medium">{dp.field_stock}</span>
+                                {dp.field_stock_updated_at && (
+                                  <div className="text-[10px] text-muted-foreground">
+                                    עודכן: {format(new Date(dp.field_stock_updated_at), "dd/MM/yy")}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        )}
+                        {dpColVis.isVisible("monthly_avg") && (
+                          <td className="p-3">
+                            <Badge
+                              variant="outline"
+                              className={`text-xs ${monthlyAvg > 0 ? "border-green-300 text-green-700" : "border-muted text-muted-foreground"}`}
+                            >
+                              {monthlyAvg}
+                            </Badge>
+                          </td>
+                        )}
+                        {dpColVis.isVisible("quarterly_demand") && (
+                          <td className="p-3">
+                            {isEditingDemand ? (
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  value={dpEditVal}
+                                  onChange={(e) => setDpEditVal(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") saveDpField(dp.id, "quarterly_demand", dpEditVal);
+                                    if (e.key === "Escape") setEditingDpId(null);
+                                  }}
+                                  onBlur={() => saveDpField(dp.id, "quarterly_demand", dpEditVal)}
+                                  className="h-7 w-20"
+                                  autoFocus
+                                  disabled={savingDp}
+                                />
+                              </div>
+                            ) : (
+                              <div
+                                className={canEdit(currentUserPermissions, "equipment") ? "cursor-pointer hover:text-accent" : ""}
+                                onClick={() => {
+                                  if (!canEdit(currentUserPermissions, "equipment")) return;
+                                  setEditingDpId(dp.id);
+                                  setDpEditField("quarterly_demand");
+                                  setDpEditVal(String(dp.quarterly_demand ?? ""));
+                                }}
+                              >
+                                <span className="font-medium">{dp.quarterly_demand ?? "—"}</span>
+                                {dp.quarterly_demand_updated_at && (
+                                  <div className="text-[10px] text-muted-foreground">
+                                    עודכן: {format(new Date(dp.quarterly_demand_updated_at), "dd/MM/yy")}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        )}
+                        {dpColVis.isVisible("last_pickup") && (
+                          <td className="p-3 text-muted-foreground text-xs">
+                            {lastDate ? format(new Date(lastDate), "dd/MM/yy") : "—"}
+                          </td>
+                        )}
+                        <td className="p-3">
+                          {canEdit(currentUserPermissions, "equipment") && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => removeProductFromDivision(dp.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* ── Section B: Pickups ── */}
       <div>
@@ -1411,6 +1749,19 @@ export default function DivisionDetailPage() {
           onShow={returnColVis.show}
           onSortAsc={(field) => { setReturnSortField(field); setReturnSortDir("asc"); closeReturnMenu(); }}
           onSortDesc={(field) => { setReturnSortField(field); setReturnSortDir("desc"); closeReturnMenu(); }}
+        />
+      )}
+      {dpMenu && (
+        <ColContextMenu
+          menu={dpMenu}
+          sortField={dpSortField}
+          sortDir={dpSortDir}
+          hiddenCols={dpColVis.hiddenCols}
+          onClose={closeDpMenu}
+          onHide={dpColVis.hide}
+          onShow={dpColVis.show}
+          onSortAsc={(field) => { setDpSortField(field); setDpSortDir("asc"); closeDpMenu(); }}
+          onSortDesc={(field) => { setDpSortField(field); setDpSortDir("desc"); closeDpMenu(); }}
         />
       )}
     </div>

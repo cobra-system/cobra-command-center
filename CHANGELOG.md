@@ -7,11 +7,17 @@
 
 ## [Unreleased]
 
+### Added
+- Division manager profiles: `division` field on `profiles` links a user account to a specific division; managers auto-redirect to their division page on login and cannot access other divisions via URL
+- Division select field in Settings user management (create/edit employee)
+- Division product intelligence table in each division detail page: tracks field stock (manually updated), monthly consumption (auto-computed from pickup history), quarterly demand (manually set), and last change date
+- `division_products` DB table with per-division product entries and RLS policies
+
 ### Fixed
 - RTL layout across all equipment page tabs (tabs order, chevron directions, navigation icons)
 - Dialog RTL direction now explicit (not relying on inherited CSS)
 
-### Added
+### Added (previous release)
 - Edit and delete for technicians (installers) in division detail page
 - Full edit of pickup items via dialog (products linked via Combobox)
 - Delete pickup with cascade

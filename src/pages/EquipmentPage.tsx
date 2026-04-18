@@ -1,7 +1,7 @@
 import { Fragment, useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { useData } from "@/contexts/AppContext";
+import { useData, useAuth } from "@/contexts/AppContext";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -165,6 +165,14 @@ function SortIcon({
 export default function EquipmentPage() {
   const navigate = useNavigate();
   const { products } = useData();
+  const { currentUser } = useAuth();
+
+  // Division managers bypass the overview and go directly to their division
+  useEffect(() => {
+    if (currentUser?.division) {
+      navigate(`/equipment/division/${encodeURIComponent(currentUser.division)}`, { replace: true });
+    }
+  }, [currentUser, navigate]);
 
   const [installers, setInstallers] = useState<Installer[]>([]);
   const [pickups, setPickups] = useState<PickupRaw[]>([]);

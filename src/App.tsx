@@ -87,6 +87,7 @@ function RootRedirect() {
   if (loading) return null;
   if (!currentUser) return <Navigate to="/login" replace />;
   if (currentUser.role === "MANAGER") return <Navigate to="/dashboard" replace />;
+  if (currentUser.division) return <Navigate to={`/equipment/division/${encodeURIComponent(currentUser.division)}`} replace />;
   return <Navigate to="/my-tasks" replace />;
 }
 
