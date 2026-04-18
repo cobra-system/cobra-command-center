@@ -5,6 +5,13 @@
 
 ---
 
+## [2026-04-18]
+
+- feat(products): rename 'בדרך'→'עול"ב', make incoming/sales computed read-only (aa6b9cc)
+- feat: division manager profiles + division product intelligence table (cb26e4c)
+- fix: RTL equipment page + edit/delete for installers, pickups, returns (b7a58af)
+
+<!-- last-commit: bf8e948abdd71af30bc53f78b00a2ba55205d428 -->
 ## [Unreleased]
 
 ### Added
@@ -30,7 +37,6 @@
 
 - feat: add procurement MCP tools and fix meeting order bugs (c6bd0be)
 
-<!-- last-commit: 1a150ca07bf2d95b292d59eac6cca930ffb6b446 -->
 ## [2026-04-16] — כלי MCP לרכש ומלאי
 
 ### Added
