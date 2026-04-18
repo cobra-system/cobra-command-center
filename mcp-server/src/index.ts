@@ -29,6 +29,9 @@ import { registerProcurementAgendaTools } from "./tools/procurement-agenda.js";
 import { registerEquipmentTools } from "./tools/equipment.js";
 import { registerProcurementMeetingTools } from "./tools/procurement-meeting.js";
 import { registerProcurementInventoryTools } from "./tools/procurement-inventory.js";
+import { registerDivisionTools } from "./tools/divisions.js";
+import { registerWarehouseTools } from "./tools/warehouse.js";
+import { registerWasteTools } from "./tools/waste.js";
 
 const server = new McpServer({
   name: "cobra-command-center",
@@ -65,6 +68,9 @@ registerProcurementAgendaTools(server);
 registerEquipmentTools(server);
 registerProcurementMeetingTools(server);
 registerProcurementInventoryTools(server);
+registerDivisionTools(server);
+registerWarehouseTools(server);
+registerWasteTools(server);
 
 // Start the server with stdio transport
 const transport = new StdioServerTransport();
