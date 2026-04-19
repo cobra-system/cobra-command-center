@@ -5,13 +5,18 @@
 
 ---
 
+## [2026-04-19]
+
+- feat(mcp): update existing tools to cover recent schema changes (bb5954a)
+- feat(mcp): add MCP tools for division_products, warehouse zones, and waste_items (5833b6a)
+
+<!-- last-commit: 3be726641f36861d94cae1d1ce141a72c8b21d50 -->
 ## [2026-04-18]
 
 - feat(products): rename 'בדרך'→'עול"ב', make incoming/sales computed read-only (aa6b9cc)
 - feat: division manager profiles + division product intelligence table (cb26e4c)
 - fix: RTL equipment page + edit/delete for installers, pickups, returns (b7a58af)
 
-<!-- last-commit: bf8e948abdd71af30bc53f78b00a2ba55205d428 -->
 ## [Unreleased]
 
 ### Added
