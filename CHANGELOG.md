@@ -7,10 +7,15 @@
 
 ## [2026-04-19]
 
+- Merge pull request #143 from cobra-system/claude/remove-dashboard-widgets-MDzes (3bc7f2a)
+- Remove active-workflows banner and inventory/severity charts from dashboard (7a69e66)
+
+<!-- last-commit: 3bc7f2a9f1a95cd1931cad30374a42dfdbe6d85d -->
+## [2026-04-19]
+
 - feat(waste): add photo capture to waste management page (826dc7f)
 - feat(wear): add photo capture to wear control inspection (1d577cf)
 
-<!-- last-commit: c87edb7d0f85c13e32b40acbaf939f28967de4bc -->
 ## [2026-04-19]
 
 - feat(mcp): update existing tools to cover recent schema changes (bb5954a)
