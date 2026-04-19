@@ -43,7 +43,18 @@ import {
   ArrowUp,
   ArrowDown,
   Building2,
+  Warehouse,
+  AlertTriangle,
+  ArrowLeftRight,
+  Phone,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { NewPickupDialog } from "@/components/equipment/NewPickupDialog";
 import { NewReturnDialog } from "@/components/equipment/NewReturnDialog";
 import { NewInstallerDialog } from "@/components/equipment/NewInstallerDialog";
@@ -127,7 +138,40 @@ interface DivisionProduct {
   products: { id: string; name: string; sku: string; category: string };
 }
 
+interface DistributionCenter {
+  id: string;
+  name: string;
+  type: string;
+  city: string | null;
+  address: string | null;
+  is_main: boolean;
+  division: string | null;
+}
+
+interface CenterInventoryItem {
+  id: string;
+  center_id: string;
+  product_id: string;
+  quantity: number;
+  min_stock: number;
+}
+
+interface CenterContact {
+  id: string;
+  center_id: string;
+  name: string;
+  role: string | null;
+  phone: string | null;
+}
+
 // ─── Column Defs ─────────────────────────────────────────────────────────────
+
+const WAREHOUSE_COLS: ColDef[] = [
+  { id: "product", label: "מוצר", sortField: "product" },
+  { id: "sku", label: 'מק"ט' },
+  { id: "quantity", label: "כמות", sortField: "quantity" },
+  { id: "min_stock", label: "מינימום" },
+];
 
 const TECH_COLS: ColDef[] = [
   { id: "name", label: "שם", sortField: "name" },
@@ -236,6 +280,21 @@ export default function DivisionDetailPage() {
   const [savingReturnEdit, setSavingReturnEdit] = useState(false);
   const [deletingReturnId, setDeletingReturnId] = useState<string | null>(null);
 
+  // Center inventory state (bonded divisions)
+  const [divCenter, setDivCenter] = useState<DistributionCenter | null>(null);
+  const [allCenters, setAllCenters] = useState<DistributionCenter[]>([]);
+  const [divCenterInventory, setDivCenterInventory] = useState<CenterInventoryItem[]>([]);
+  const [divCenterContacts, setDivCenterContacts] = useState<CenterContact[]>([]);
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferFrom, setTransferFrom] = useState("");
+  const [transferTo, setTransferTo] = useState("");
+  const [transferProduct, setTransferProduct] = useState("");
+  const [transferQty, setTransferQty] = useState("");
+  const [transferNotes, setTransferNotes] = useState("");
+  const [savingTransfer, setSavingTransfer] = useState(false);
+  const [warehouseSortField, setWarehouseSortField] = useState<string | null>("product");
+  const [warehouseSortDir, setWarehouseSortDir] = useState<"asc" | "desc">("asc");
+
   // Division products state
   const [divisionProducts, setDivisionProducts] = useState<DivisionProduct[]>([]);
   const [dpSortField, setDpSortField] = useState<string | null>("product");
@@ -279,6 +338,8 @@ export default function DivisionDetailPage() {
   const { menu: returnMenu, setMenu: setReturnMenu, closeMenu: closeReturnMenu } = useColMenu();
   const dpColVis = useColumnVisibility("division-products:hidden-columns", DP_COLS);
   const { menu: dpMenu, setMenu: setDpMenu, closeMenu: closeDpMenu } = useColMenu();
+  const warehouseColVis = useColumnVisibility("division-warehouse:hidden-columns", WAREHOUSE_COLS);
+  const { menu: warehouseMenu, setMenu: setWarehouseMenu, closeMenu: closeWarehouseMenu } = useColMenu();
 
   const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const installerMap = useMemo(() => new Map(installers.map((i) => [i.id, i])), [installers]);
@@ -353,6 +414,25 @@ export default function DivisionDetailPage() {
 
     if (pickRes.error) toast.error("שגיאה בטעינת הצטיידויות");
     if (retRes.error) toast.error("שגיאה בטעינת החזרות");
+
+    // Fetch center inventory for bonded divisions
+    if (BONDED_DIVISIONS.has(division)) {
+      const [{ data: allC }, { data: centerData }] = await Promise.all([
+        supabase.from("distribution_centers").select("*").order("is_main", { ascending: false }).order("name"),
+        supabase.from("distribution_centers").select("*").eq("division", division).maybeSingle(),
+      ]);
+      setAllCenters((allC ?? []) as DistributionCenter[]);
+      const center = (centerData ?? null) as DistributionCenter | null;
+      setDivCenter(center);
+      if (center) {
+        const [{ data: inv }, { data: centContacts }] = await Promise.all([
+          supabase.from("center_inventory").select("*").eq("center_id", center.id),
+          supabase.from("center_contacts").select("*").eq("center_id", center.id),
+        ]);
+        setDivCenterInventory((inv ?? []) as CenterInventoryItem[]);
+        setDivCenterContacts((centContacts ?? []) as CenterContact[]);
+      }
+    }
 
     setLoading(false);
   }, [division]);
@@ -702,6 +782,60 @@ export default function DivisionDetailPage() {
     if (returnSortField === field) setReturnSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setReturnSortField(field); setReturnSortDir("desc"); }
   }
+
+  const handleUpdateCenterInventory = async (productId: string, qty: number) => {
+    if (!divCenter) return;
+    const existing = divCenterInventory.find(i => i.product_id === productId);
+    const oldQty = existing?.quantity ?? 0;
+    if (existing) {
+      await supabase.from("center_inventory").update({ quantity: qty } as never).eq("id", existing.id);
+    } else {
+      await supabase.from("center_inventory").insert({ center_id: divCenter.id, product_id: productId, quantity: qty } as never);
+    }
+    await supabase.from("inventory_change_log").insert({
+      product_id: productId, center_id: divCenter.id,
+      old_quantity: oldQty, new_quantity: qty,
+      change_type: "manual", changed_by: currentUser?.name || null,
+    } as never);
+    fetchData();
+  };
+
+  const handleTransfer = async () => {
+    if (!transferFrom || !transferTo || !transferProduct || !transferQty) return;
+    const qty = parseInt(transferQty);
+    if (qty <= 0) return;
+    setSavingTransfer(true);
+    const { data: allInv } = await supabase
+      .from("center_inventory").select("*")
+      .eq("product_id", transferProduct).in("center_id", [transferFrom, transferTo]);
+    const sourceInv = allInv?.find(i => i.center_id === transferFrom);
+    if (!sourceInv || sourceInv.quantity < qty) {
+      toast.error("אין מספיק מלאי במרכז המקור");
+      setSavingTransfer(false);
+      return;
+    }
+    const destInv = allInv?.find(i => i.center_id === transferTo);
+    await supabase.from("center_inventory").update({ quantity: sourceInv.quantity - qty } as never).eq("id", sourceInv.id);
+    if (destInv) {
+      await supabase.from("center_inventory").update({ quantity: destInv.quantity + qty } as never).eq("id", destInv.id);
+    } else {
+      await supabase.from("center_inventory").insert({ center_id: transferTo, product_id: transferProduct, quantity: qty } as never);
+    }
+    await supabase.from("inventory_transfers").insert({
+      from_center_id: transferFrom, to_center_id: transferTo,
+      product_id: transferProduct, quantity: qty,
+      notes: transferNotes || null, transferred_by: currentUser?.name || null,
+    } as never);
+    await supabase.from("inventory_change_log").insert([
+      { product_id: transferProduct, center_id: transferFrom, old_quantity: sourceInv.quantity, new_quantity: sourceInv.quantity - qty, change_type: "transfer_out", changed_by: currentUser?.name || null },
+      { product_id: transferProduct, center_id: transferTo, old_quantity: destInv?.quantity ?? 0, new_quantity: (destInv?.quantity ?? 0) + qty, change_type: "transfer_in", changed_by: currentUser?.name || null },
+    ] as never);
+    setSavingTransfer(false);
+    setShowTransfer(false);
+    setTransferFrom(""); setTransferTo(""); setTransferProduct(""); setTransferQty(""); setTransferNotes("");
+    toast.success(`הועברו ${qty} יחידות`);
+    fetchData();
+  };
 
   const colorClass = DIVISION_COLORS[division] ?? "bg-gray-100 text-gray-700 border-gray-200";
   const isBonded = BONDED_DIVISIONS.has(division);
@@ -1670,7 +1804,217 @@ export default function DivisionDetailPage() {
         )}
       </div>
 
+      {/* ── Section F: Center Inventory (bonded divisions only) ── */}
+      {isBonded && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+              <Warehouse className="h-3.5 w-3.5" />
+              מלאי מחסן
+            </h2>
+            {divCenter && canEdit(currentUserPermissions, "inventory") && (
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => {
+                setTransferFrom(divCenter.id);
+                setShowTransfer(true);
+              }}>
+                <ArrowLeftRight className="h-3 w-3 me-1" />
+                העבר מלאי
+              </Button>
+            )}
+          </div>
+
+          {!divCenter ? (
+            <div className="text-center py-8 border rounded-md text-sm text-muted-foreground">
+              אין מרכז הפצה מקושר לחטיבה זו
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Center meta */}
+              <Card>
+                <CardContent className="p-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                  <Warehouse className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="font-medium">{divCenter.name}</span>
+                  {divCenter.city && <span className="text-muted-foreground">{divCenter.city}</span>}
+                  {divCenter.address && <span className="text-muted-foreground">{divCenter.address}</span>}
+                </CardContent>
+              </Card>
+
+              {/* Low stock alerts */}
+              {(() => {
+                const low = divCenterInventory.filter(i => i.min_stock > 0 && i.quantity < i.min_stock);
+                return low.length > 0 ? (
+                  <Card className="border-destructive/50 bg-destructive/5">
+                    <CardContent className="py-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                        <span className="font-semibold text-destructive text-sm">מלאי נמוך ({low.length})</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {low.map(i => (
+                          <Badge key={i.id} variant="destructive" className="text-xs">
+                            {productMap.get(i.product_id)?.name ?? "מוצר"}: {i.quantity}/{i.min_stock}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : null;
+              })()}
+
+              {/* Inventory table */}
+              {divCenterInventory.length === 0 ? (
+                <div className="text-center py-6 border rounded-md text-sm text-muted-foreground">
+                  אין מלאי רשום במרכז זה
+                </div>
+              ) : (
+                <div className="overflow-x-auto border rounded-md">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(warehouseColVis.hiddenCols, setWarehouseMenu)}>
+                        {WAREHOUSE_COLS.map(col => warehouseColVis.isVisible(col.id) ? (
+                          <th key={col.id} className="text-right p-3 font-semibold text-foreground" onContextMenu={colThContextMenu(col, setWarehouseMenu)}>
+                            {col.sortField ? (
+                              <button
+                                onClick={() => {
+                                  if (warehouseSortField === col.sortField) setWarehouseSortDir(d => d === "asc" ? "desc" : "asc");
+                                  else { setWarehouseSortField(col.sortField!); setWarehouseSortDir("asc"); }
+                                }}
+                                className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors"
+                              >
+                                {col.label} <SortIcon field={col.sortField} currentField={warehouseSortField} currentDir={warehouseSortDir} />
+                              </button>
+                            ) : col.label}
+                          </th>
+                        ) : null)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...divCenterInventory]
+                        .sort((a, b) => {
+                          const dir = warehouseSortDir === "asc" ? 1 : -1;
+                          if (warehouseSortField === "product") return (productMap.get(a.product_id)?.name ?? "").localeCompare(productMap.get(b.product_id)?.name ?? "", "he") * dir;
+                          if (warehouseSortField === "quantity") return (a.quantity - b.quantity) * dir;
+                          return 0;
+                        })
+                        .map(item => {
+                          const prod = productMap.get(item.product_id);
+                          const isLow = item.min_stock > 0 && item.quantity < item.min_stock;
+                          return (
+                            <tr key={item.id} className="border-b hover:bg-muted/30">
+                              {warehouseColVis.isVisible("product") && (
+                                <td className="p-3 font-medium">{prod?.name ?? "—"}</td>
+                              )}
+                              {warehouseColVis.isVisible("sku") && (
+                                <td className="p-3 text-muted-foreground font-mono text-xs">{prod?.sku ?? "—"}</td>
+                              )}
+                              {warehouseColVis.isVisible("quantity") && (
+                                <td className="p-3">
+                                  {canEdit(currentUserPermissions, "inventory") ? (
+                                    <input
+                                      type="number"
+                                      key={`qty-${item.id}-${item.quantity}`}
+                                      defaultValue={item.quantity}
+                                      onBlur={e => {
+                                        const val = parseInt(e.target.value) || 0;
+                                        if (val !== item.quantity) handleUpdateCenterInventory(item.product_id, val);
+                                      }}
+                                      className={`h-8 w-16 text-center rounded border bg-background text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary ${isLow ? "border-destructive text-destructive" : "border-border"}`}
+                                    />
+                                  ) : (
+                                    <span className={isLow ? "font-bold text-destructive" : ""}>{item.quantity}</span>
+                                  )}
+                                  {isLow && <AlertTriangle className="h-3.5 w-3.5 text-destructive inline ms-1" />}
+                                </td>
+                              )}
+                              {warehouseColVis.isVisible("min_stock") && (
+                                <td className="p-3 text-muted-foreground">{item.min_stock || "—"}</td>
+                              )}
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Center contacts */}
+              {divCenterContacts.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">אנשי קשר במרכז</p>
+                  <div className="flex flex-wrap gap-2">
+                    {divCenterContacts.map(c => (
+                      <div key={c.id} className="flex items-center gap-1.5 text-sm border rounded-md px-2 py-1.5 bg-muted/30">
+                        <span className="font-medium">{c.name}</span>
+                        {c.role && <span className="text-muted-foreground text-xs">· {c.role}</span>}
+                        {c.phone && (
+                          <a href={`tel:${c.phone}`} className="text-muted-foreground hover:text-foreground">
+                            <Phone className="h-3 w-3" />
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Dialogs */}
+      <Dialog open={showTransfer} onOpenChange={setShowTransfer}>
+        <DialogContent dir="rtl" className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>העבר מלאי בין מרכזים</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-xs">ממרכז</Label>
+              <Select value={transferFrom} onValueChange={setTransferFrom}>
+                <SelectTrigger><SelectValue placeholder="בחר מרכז מקור" /></SelectTrigger>
+                <SelectContent>
+                  {allCenters.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">למרכז</Label>
+              <Select value={transferTo} onValueChange={setTransferTo}>
+                <SelectTrigger><SelectValue placeholder="בחר מרכז יעד" /></SelectTrigger>
+                <SelectContent>
+                  {allCenters.filter(c => c.id !== transferFrom).map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">מוצר</Label>
+              <Select value={transferProduct} onValueChange={setTransferProduct}>
+                <SelectTrigger><SelectValue placeholder="בחר מוצר" /></SelectTrigger>
+                <SelectContent>
+                  {divCenterInventory.filter(i => i.quantity > 0).map(i => {
+                    const p = productMap.get(i.product_id);
+                    return p ? <SelectItem key={i.id} value={i.product_id}>{p.name}</SelectItem> : null;
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">כמות</Label>
+              <Input type="number" value={transferQty} onChange={e => setTransferQty(e.target.value)} placeholder="0" className="h-8" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">הערות</Label>
+              <Input value={transferNotes} onChange={e => setTransferNotes(e.target.value)} placeholder="הערות..." className="h-8" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowTransfer(false)} disabled={savingTransfer}>ביטול</Button>
+            <Button onClick={handleTransfer} disabled={savingTransfer}>
+              {savingTransfer ? <Loader2 className="h-4 w-4 animate-spin" /> : "העבר"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <NewPickupDialog open={showNewPickup} onOpenChange={setShowNewPickup} onCreated={fetchData} />
       <NewPickupDialog
         open={showEditPickup}
@@ -1762,6 +2106,19 @@ export default function DivisionDetailPage() {
           onShow={dpColVis.show}
           onSortAsc={(field) => { setDpSortField(field); setDpSortDir("asc"); closeDpMenu(); }}
           onSortDesc={(field) => { setDpSortField(field); setDpSortDir("desc"); closeDpMenu(); }}
+        />
+      )}
+      {warehouseMenu && (
+        <ColContextMenu
+          menu={warehouseMenu}
+          sortField={warehouseSortField}
+          sortDir={warehouseSortDir}
+          hiddenCols={warehouseColVis.hiddenCols}
+          onClose={closeWarehouseMenu}
+          onHide={warehouseColVis.hide}
+          onShow={warehouseColVis.show}
+          onSortAsc={(field) => { setWarehouseSortField(field); setWarehouseSortDir("asc"); closeWarehouseMenu(); }}
+          onSortDesc={(field) => { setWarehouseSortField(field); setWarehouseSortDir("desc"); closeWarehouseMenu(); }}
         />
       )}
     </div>

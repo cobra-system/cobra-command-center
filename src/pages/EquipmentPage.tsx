@@ -1,5 +1,5 @@
 import { Fragment, useState, useEffect, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useData, useAuth } from "@/contexts/AppContext";
 import { format } from "date-fns";
@@ -28,6 +28,9 @@ import {
   ArrowUp,
   ArrowDown,
   Building2,
+  Warehouse,
+  AlertTriangle,
+  ArrowLeftRight,
 } from "lucide-react";
 import {
   BarChart,
@@ -50,7 +53,6 @@ import {
   colThContextMenu,
   trContextMenu,
 } from "@/components/ui/ColContextMenu";
-import InventoryPage from "@/pages/InventoryPage";
 import { NewInstallerDialog } from "@/components/equipment/NewInstallerDialog";
 import { NewPickupDialog } from "@/components/equipment/NewPickupDialog";
 import { NewReturnDialog } from "@/components/equipment/NewReturnDialog";
@@ -100,6 +102,35 @@ interface ReturnRaw {
   return_date: string;
   logged_by: string | null;
   equipment_return_items: ReturnItemRaw[];
+}
+
+interface DistributionCenter {
+  id: string;
+  name: string;
+  type: string;
+  city: string | null;
+  address: string | null;
+  is_main: boolean;
+  division: string | null;
+}
+
+interface CenterInventoryItem {
+  id: string;
+  center_id: string;
+  product_id: string;
+  quantity: number;
+  min_stock: number;
+}
+
+interface InventoryTransfer {
+  id: string;
+  from_center_id: string | null;
+  to_center_id: string | null;
+  product_id: string | null;
+  quantity: number;
+  notes: string | null;
+  transferred_by: string | null;
+  created_at: string;
 }
 
 // ─── Column Defs ─────────────────────────────────────────────────────────────
@@ -165,6 +196,7 @@ function SortIcon({
 
 export default function EquipmentPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { products } = useData();
   const { currentUser } = useAuth();
 
@@ -180,7 +212,13 @@ export default function EquipmentPage() {
   const [returns, setReturns] = useState<ReturnRaw[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [activeTab, setActiveTab] = useState("divisions");
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "divisions");
+
+  // Center inventory state (warehouses tab)
+  const [centers, setCenters] = useState<DistributionCenter[]>([]);
+  const [centerInventory, setCenterInventory] = useState<CenterInventoryItem[]>([]);
+  const [centerTransfers, setCenterTransfers] = useState<InventoryTransfer[]>([]);
+  const [centersLoading, setCentersLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState("all");
   const [selectedDivision, setSelectedDivision] = useState("all");
   const [expandedPickupId, setExpandedPickupId] = useState<string | null>(null);
@@ -246,6 +284,23 @@ export default function EquipmentPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (activeTab !== "warehouses") return;
+    async function fetchCenters() {
+      setCentersLoading(true);
+      const [{ data: c }, { data: inv }, { data: tr }] = await Promise.all([
+        supabase.from("distribution_centers").select("*").order("is_main", { ascending: false }).order("name"),
+        supabase.from("center_inventory").select("*"),
+        supabase.from("inventory_transfers").select("*").order("created_at", { ascending: false }).limit(20),
+      ]);
+      setCenters((c ?? []) as DistributionCenter[]);
+      setCenterInventory((inv ?? []) as CenterInventoryItem[]);
+      setCenterTransfers((tr ?? []) as InventoryTransfer[]);
+      setCentersLoading(false);
+    }
+    fetchCenters();
+  }, [activeTab]);
 
   const monthOptions = useMemo(() => buildMonthOptions(pickups, returns), [pickups, returns]);
 
@@ -1096,9 +1151,151 @@ export default function EquipmentPage() {
           </Card>
         </TabsContent>
 
-        {/* ── Tab 5: Distribution centers (warehouse inventory) ── */}
-        <TabsContent value="warehouses" className="mt-4">
-          <InventoryPage />
+        {/* ── Tab 5: Division-aware warehouse overview ── */}
+        <TabsContent value="warehouses" className="mt-4 space-y-6">
+          {centersLoading ? (
+            <div className="space-y-3">
+              {[...Array(3)].map((_, i) => <div key={i} className="h-28 rounded-xl bg-muted animate-pulse" />)}
+            </div>
+          ) : (
+            <>
+              {/* Bonded division warehouse cards */}
+              <div>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+                  <Warehouse className="h-3.5 w-3.5" />
+                  מחסני חטיבות בונד
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[...BONDED_DIVISIONS].map(div => {
+                    const center = centers.find(c => c.division === div);
+                    const inv = center ? centerInventory.filter(i => i.center_id === center.id) : [];
+                    const totalQty = inv.reduce((s, i) => s + i.quantity, 0);
+                    const lowCount = inv.filter(i => i.min_stock > 0 && i.quantity < i.min_stock).length;
+                    const colorClass = DIVISION_COLORS[div] ?? "bg-gray-100 text-gray-700 border-gray-200";
+                    return (
+                      <Card
+                        key={div}
+                        className="cursor-pointer hover:shadow-md transition-shadow"
+                        onClick={() => navigate(`/equipment/division/${encodeURIComponent(div)}`)}
+                      >
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Badge className={`text-sm px-3 py-1 border ${colorClass}`}>{div}</Badge>
+                            <ChevronLeft className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          {center ? (
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div>
+                                <p className="text-xs text-muted-foreground">מוצרים שונים</p>
+                                <p className="font-bold text-lg">{inv.length}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">כמות כוללת</p>
+                                <p className="font-bold text-lg">{totalQty}</p>
+                              </div>
+                              {lowCount > 0 && (
+                                <div className="col-span-2 flex items-center gap-1.5 text-destructive text-xs font-medium">
+                                  <AlertTriangle className="h-3.5 w-3.5" />
+                                  {lowCount} מוצרים מתחת למינימום
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">אין מרכז הפצה מקושר</p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Main center */}
+              {(() => {
+                const mainCenter = centers.find(c => c.is_main);
+                if (!mainCenter) return null;
+                const mainInv = centerInventory.filter(i => i.center_id === mainCenter.id);
+                const mainTotal = mainInv.reduce((s, i) => s + i.quantity, 0);
+                const mainLow = mainInv.filter(i => i.min_stock > 0 && i.quantity < i.min_stock).length;
+                return (
+                  <div>
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+                      <Building2 className="h-3.5 w-3.5" />
+                      מרכז הפצה ראשי
+                    </h3>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3 mb-3">
+                          <Warehouse className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-semibold">{mainCenter.name}</p>
+                            {mainCenter.city && <p className="text-xs text-muted-foreground">{mainCenter.city}</p>}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <p className="text-xs text-muted-foreground">מוצרים שונים</p>
+                            <p className="font-bold text-xl">{mainInv.length}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">כמות כוללת</p>
+                            <p className="font-bold text-xl">{mainTotal}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">מתחת למינימום</p>
+                            <p className={`font-bold text-xl ${mainLow > 0 ? "text-destructive" : ""}`}>{mainLow}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                );
+              })()}
+
+              {/* Recent transfers */}
+              {centerTransfers.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+                    <ArrowLeftRight className="h-3.5 w-3.5" />
+                    העברות אחרונות
+                  </h3>
+                  <Card>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b bg-muted/50">
+                              <th className="text-right p-3 font-semibold">תאריך</th>
+                              <th className="text-right p-3 font-semibold">ממרכז</th>
+                              <th className="text-right p-3 font-semibold">למרכז</th>
+                              <th className="text-right p-3 font-semibold">מוצר</th>
+                              <th className="text-right p-3 font-semibold">כמות</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {centerTransfers.map(tr => {
+                              const fromCenter = centers.find(c => c.id === tr.from_center_id);
+                              const toCenter = centers.find(c => c.id === tr.to_center_id);
+                              const prod = products.find(p => p.id === tr.product_id);
+                              return (
+                                <tr key={tr.id} className="border-b hover:bg-muted/30">
+                                  <td className="p-3 text-muted-foreground">{tr.created_at.slice(0, 10)}</td>
+                                  <td className="p-3">{fromCenter?.name ?? "—"}</td>
+                                  <td className="p-3">{toCenter?.name ?? "—"}</td>
+                                  <td className="p-3">{prod?.name ?? "—"}</td>
+                                  <td className="p-3 font-medium">{tr.quantity}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </>
+          )}
         </TabsContent>
       </Tabs>
 
