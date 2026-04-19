@@ -50,6 +50,7 @@ import {
   colThContextMenu,
   trContextMenu,
 } from "@/components/ui/ColContextMenu";
+import InventoryPage from "@/pages/InventoryPage";
 import { NewInstallerDialog } from "@/components/equipment/NewInstallerDialog";
 import { NewPickupDialog } from "@/components/equipment/NewPickupDialog";
 import { NewReturnDialog } from "@/components/equipment/NewReturnDialog";
@@ -533,6 +534,7 @@ export default function EquipmentPage() {
           <TabsTrigger value="pickups">מעקב הצטיידויות</TabsTrigger>
           <TabsTrigger value="inventory">מלאי שטח</TabsTrigger>
           <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>
+          <TabsTrigger value="warehouses">מחסנים</TabsTrigger>
         </TabsList>
 
         {/* ── Tab 1: Division Cards ── */}
@@ -1092,6 +1094,11 @@ export default function EquipmentPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── Tab 5: Distribution centers (warehouse inventory) ── */}
+        <TabsContent value="warehouses" className="mt-4">
+          <InventoryPage />
         </TabsContent>
       </Tabs>
 
