@@ -340,4 +340,136 @@ export function registerIssueTools(server: McpServer) {
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
     }
   );
+
+  // ═══════════════════════════════════════════════════════════════
+  // Issue Updates (Comments) — עדכונים / הערות על תקלה
+  // ═══════════════════════════════════════════════════════════════
+
+  server.tool(
+    "list_issue_updates",
+    "הערות תקלה — List comments/updates posted on an issue",
+    {
+      issue_id: z.string().uuid().describe("Issue UUID"),
+    },
+    async ({ issue_id }) => {
+      const { data, error } = await supabase
+        .from("issue_updates")
+        .select("*")
+        .eq("issue_id", issue_id)
+        .order("created_at", { ascending: true });
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "create_issue_update",
+    "הוספת הערה לתקלה — Post a comment/update to an issue",
+    {
+      issue_id: z.string().uuid().describe("Issue UUID"),
+      content: z.string().describe("Update text / comment body"),
+      author_name: z.string().optional().describe("Author display name"),
+      user_id: z.string().uuid().optional().describe("Author user UUID"),
+    },
+    async ({ issue_id, content, author_name, user_id }) => {
+      const { data, error } = await supabase
+        .from("issue_updates")
+        .insert({
+          issue_id,
+          content,
+          author_name: author_name ?? null,
+          user_id: user_id ?? null,
+        })
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "delete_issue_update",
+    "מחיקת הערה מתקלה — Delete a comment from an issue",
+    {
+      id: z.string().uuid().describe("issue_updates record UUID"),
+    },
+    async ({ id }) => {
+      const { error } = await supabase
+        .from("issue_updates")
+        .delete()
+        .eq("id", id);
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify({ success: true, deleted_id: id }) }] };
+    }
+  );
+
+  // ═══════════════════════════════════════════════════════════════
+  // Issue Attachments (Media) — קבצים מצורפים לתקלה
+  // ═══════════════════════════════════════════════════════════════
+
+  server.tool(
+    "list_issue_attachments",
+    "קבצים מצורפים לתקלה — List media attachments (images/videos) for an issue",
+    {
+      issue_id: z.string().uuid().describe("Issue UUID"),
+    },
+    async ({ issue_id }) => {
+      const { data, error } = await supabase
+        .from("issue_attachments")
+        .select("*")
+        .eq("issue_id", issue_id)
+        .order("created_at", { ascending: true });
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "create_issue_attachment",
+    "הוספת קובץ מצורף לתקלה — Attach a media file (image or video) to an issue",
+    {
+      issue_id: z.string().uuid().describe("Issue UUID"),
+      file_url: z.string().describe("Public URL of the uploaded file"),
+      file_type: z.enum(["image", "video"]).describe("Media type"),
+      file_name: z.string().optional().describe("Original file name"),
+      created_by: z.string().uuid().optional().describe("Uploader user UUID"),
+    },
+    async ({ issue_id, file_url, file_type, file_name, created_by }) => {
+      const { data, error } = await supabase
+        .from("issue_attachments")
+        .insert({
+          issue_id,
+          file_url,
+          file_type,
+          file_name: file_name ?? null,
+          created_by: created_by ?? null,
+        })
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "delete_issue_attachment",
+    "מחיקת קובץ מצורף מתקלה — Delete a media attachment from an issue",
+    {
+      id: z.string().uuid().describe("issue_attachments record UUID"),
+    },
+    async ({ id }) => {
+      const { error } = await supabase
+        .from("issue_attachments")
+        .delete()
+        .eq("id", id);
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify({ success: true, deleted_id: id }) }] };
+    }
+  );
 }

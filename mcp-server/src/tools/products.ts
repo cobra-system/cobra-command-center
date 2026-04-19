@@ -249,8 +249,9 @@ export function registerProductTools(server: McpServer) {
       price: z.number().optional().describe("Component price"),
       stock_qty: z.number().optional().describe("Stock quantity"),
       notes: z.string().optional().describe("Notes"),
+      image_url: z.string().optional().describe("Photo URL for this component"),
     },
-    async ({ product_id, name, sku, supplier, origin, price, stock_qty, notes }) => {
+    async ({ product_id, name, sku, supplier, origin, price, stock_qty, notes, image_url }) => {
       const { data, error } = await supabase
         .from("product_components")
         .insert({
@@ -262,6 +263,7 @@ export function registerProductTools(server: McpServer) {
           price: price ?? null,
           stock_qty: stock_qty ?? null,
           notes: notes ?? null,
+          image_url: image_url ?? null,
         })
         .select()
         .single();
@@ -283,6 +285,7 @@ export function registerProductTools(server: McpServer) {
       price: z.number().optional().describe("Price"),
       stock_qty: z.number().optional().describe("Stock quantity"),
       notes: z.string().optional().describe("Notes"),
+      image_url: z.string().nullable().optional().describe("Photo URL for this component (null to clear)"),
     },
     async ({ id, ...fields }) => {
       const updates: Record<string, unknown> = {};

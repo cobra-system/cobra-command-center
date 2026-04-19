@@ -124,6 +124,8 @@ export function registerOrderTools(server: McpServer) {
       booking_number: z.string().optional().describe("Shipping line booking number or BL number"),
       tclog_reference: z.string().optional().describe("tclog freight forwarder reference number"),
       shipment_group_id: z.string().uuid().optional().describe("Shipment group UUID to link this order to a shared shipment"),
+      destination_supplier_id: z.string().uuid().optional().describe("Destination supplier UUID for supplier-to-supplier transfers"),
+      destination_supplier_name: z.string().optional().describe("Destination supplier display name"),
       items: z.array(z.object({
         name: z.string().describe("Item name"),
         qty: z.number().describe("Quantity"),
@@ -133,7 +135,8 @@ export function registerOrderTools(server: McpServer) {
     },
     async ({ supplier_id, supplier_name, status, priority, order_date, total_price, contact_name,
              payment_status, notes, eta, etd, tracking_number, pi_number, vessel_name,
-             booking_number, tclog_reference, shipment_group_id, items }) => {
+             booking_number, tclog_reference, shipment_group_id,
+             destination_supplier_id, destination_supplier_name, items }) => {
       let resolvedSupplierName = supplier_name || null;
       if (supplier_id && !supplier_name) {
         const { data: sup } = await supabase.from("suppliers").select("company").eq("id", supplier_id).single();
@@ -160,6 +163,8 @@ export function registerOrderTools(server: McpServer) {
           booking_number: booking_number || null,
           tclog_reference: tclog_reference || null,
           shipment_group_id: shipment_group_id || null,
+          destination_supplier_id: destination_supplier_id || null,
+          destination_supplier_name: destination_supplier_name || null,
         })
         .select()
         .single();
@@ -213,6 +218,8 @@ export function registerOrderTools(server: McpServer) {
       booking_number: z.string().optional().describe("Booking/BL number"),
       tclog_reference: z.string().optional().describe("tclog reference number"),
       shipment_group_id: z.string().uuid().nullable().optional().describe("Shipment group UUID (pass null to unlink)"),
+      destination_supplier_id: z.string().uuid().nullable().optional().describe("Destination supplier UUID for transfers (pass null to clear)"),
+      destination_supplier_name: z.string().nullable().optional().describe("Destination supplier name (pass null to clear)"),
     },
     async ({ id, notes, notes_change_reason, ...fields }) => {
       const updates: Record<string, unknown> = {};
