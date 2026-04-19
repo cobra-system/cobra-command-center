@@ -7,11 +7,17 @@
 
 ## [2026-04-19]
 
+- Merge main and resolve MIGRATIONS.md conflict (cc13d3e)
+- Integrate inventory as native part of divisions management (b1576f2)
+- Move inventory page under equipment/divisions management (d9b625c)
+
+<!-- last-commit: 0354844f2a5877a7e6a7fc8e41fe7088e6db7437 -->
+## [2026-04-19]
+
 - Merge pull request #145 from cobra-system/claude/organize-product-data-Dmzkc (2662a0c)
 - fix(mcp): remove computed fields from product write tools (d98e9a4)
 - feat(products): add field tooltips and distinguish computed vs editable data (8556a9f)
 
-<!-- last-commit: 2662a0c606da627f126d0491891b473a5f5b2169 -->
 ## [2026-04-19]
 
 - Merge pull request #143 from cobra-system/claude/remove-dashboard-widgets-MDzes (3bc7f2a)
