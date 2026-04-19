@@ -282,4 +282,90 @@ export function registerSupplierTools(server: McpServer) {
       return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
     }
   );
+
+  // ═══════════════════════════════════════════════════════════════
+  // Supplier Bank Details — פרטי בנק לספק
+  // ═══════════════════════════════════════════════════════════════
+
+  server.tool(
+    "create_supplier_bank_details",
+    "הוספת פרטי בנק לספק — Create wire transfer bank details for a supplier",
+    {
+      supplier_id: z.string().uuid().describe("Supplier UUID"),
+      beneficiary_name: z.string().describe("Beneficiary name (company receiving the wire)"),
+      bank_name: z.string().optional().describe("Bank name"),
+      swift_code: z.string().optional().describe("SWIFT / BIC code"),
+      account_number: z.string().optional().describe("Bank account number or IBAN"),
+      bank_address: z.string().optional().describe("Bank address"),
+      currency: z.string().optional().describe("Currency code (e.g. 'USD', 'EUR', 'CNY')"),
+      notes: z.string().optional().describe("Additional notes"),
+    },
+    async ({ supplier_id, beneficiary_name, bank_name, swift_code, account_number, bank_address, currency, notes }) => {
+      const { data, error } = await supabase
+        .from("supplier_bank_details")
+        .insert({
+          supplier_id,
+          beneficiary_name,
+          bank_name: bank_name ?? null,
+          swift_code: swift_code ?? null,
+          account_number: account_number ?? null,
+          bank_address: bank_address ?? null,
+          currency: currency ?? null,
+          notes: notes ?? null,
+        })
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "update_supplier_bank_details",
+    "עדכון פרטי בנק לספק — Update wire transfer bank details",
+    {
+      id: z.string().uuid().describe("supplier_bank_details record UUID"),
+      beneficiary_name: z.string().optional().describe("Beneficiary name"),
+      bank_name: z.string().nullable().optional().describe("Bank name"),
+      swift_code: z.string().nullable().optional().describe("SWIFT / BIC code"),
+      account_number: z.string().nullable().optional().describe("Account number or IBAN"),
+      bank_address: z.string().nullable().optional().describe("Bank address"),
+      currency: z.string().nullable().optional().describe("Currency code"),
+      notes: z.string().nullable().optional().describe("Notes"),
+    },
+    async ({ id, ...fields }) => {
+      const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      for (const [k, v] of Object.entries(fields)) {
+        if (v !== undefined) patch[k] = v;
+      }
+
+      const { data, error } = await supabase
+        .from("supplier_bank_details")
+        .update(patch)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "delete_supplier_bank_details",
+    "מחיקת פרטי בנק לספק — Delete bank details record",
+    {
+      id: z.string().uuid().describe("supplier_bank_details record UUID"),
+    },
+    async ({ id }) => {
+      const { error } = await supabase
+        .from("supplier_bank_details")
+        .delete()
+        .eq("id", id);
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify({ success: true, deleted_id: id }) }] };
+    }
+  );
 }

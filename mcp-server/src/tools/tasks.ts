@@ -8,7 +8,7 @@ export function registerTaskTools(server: McpServer) {
     "רשימת תבניות משימות חוזרות — List recurring task TEMPLATES (not individual instances). Use list_task_instances for actual to-do items.",
     {
       is_active: z.boolean().optional().describe("Filter by active/inactive"),
-      frequency: z.enum(["daily", "weekly", "monthly"]).optional().describe("Filter by frequency: daily, weekly, monthly"),
+      frequency: z.enum(["daily", "weekly", "monthly", "annual"]).optional().describe("Filter by frequency: daily, weekly, monthly, annual"),
       limit: z.number().default(50).describe("Max results"),
     },
     async ({ is_active, frequency, limit }) => {
@@ -34,14 +34,15 @@ export function registerTaskTools(server: McpServer) {
     {
       title: z.string().describe("Task title"),
       description: z.string().optional().describe("Task description"),
-      frequency: z.enum(["daily", "weekly", "monthly"]).describe("How often the task recurs"),
+      frequency: z.enum(["daily", "weekly", "monthly", "annual"]).describe("How often the task recurs"),
       priority: z.enum(["דחוף", "גבוה", "בינוני", "נמוך"]).optional().describe("Priority: דחוף (urgent), גבוה (high), בינוני (medium), נמוך (low)"),
       assignee_name: z.string().optional().describe("Person assigned to this task"),
       day_of_week: z.number().min(0).max(6).optional().describe("Day of week (0=Sunday) for weekly tasks"),
-      day_of_month: z.number().min(1).max(31).optional().describe("Day of month for monthly tasks"),
+      day_of_month: z.number().min(1).max(31).optional().describe("Day of month for monthly/annual tasks"),
+      month_of_year: z.number().min(0).max(11).optional().describe("Month of year (0=January) for annual tasks"),
       category: z.string().optional().describe("Task category"),
     },
-    async ({ title, description, frequency, priority, assignee_name, day_of_week, day_of_month, category }) => {
+    async ({ title, description, frequency, priority, assignee_name, day_of_week, day_of_month, month_of_year, category }) => {
       const { data, error } = await supabase
         .from("tasks")
         .insert({
@@ -52,6 +53,7 @@ export function registerTaskTools(server: McpServer) {
           assignee_name: assignee_name || null,
           day_of_week: day_of_week ?? null,
           day_of_month: day_of_month ?? null,
+          month_of_year: month_of_year ?? null,
           category: category || null,
           is_active: true,
           status: "TEMPLATE",
@@ -115,6 +117,10 @@ export function registerTaskTools(server: McpServer) {
       status: z.string().optional().describe("Task status"),
       milestone: z.string().optional().describe("Goal/milestone name"),
       notes: z.string().optional().describe("Task notes"),
+      frequency: z.enum(["daily", "weekly", "monthly", "annual"]).optional().describe("Recurrence frequency"),
+      day_of_week: z.number().min(0).max(6).optional().describe("Day of week (0=Sunday) for weekly tasks"),
+      day_of_month: z.number().min(1).max(31).optional().describe("Day of month for monthly/annual tasks"),
+      month_of_year: z.number().min(0).max(11).optional().describe("Month of year (0=January) for annual tasks"),
     },
     async ({ id, ...fields }) => {
       const updates: Record<string, unknown> = {};

@@ -45,18 +45,20 @@ export function registerTeamTools(server: McpServer) {
 
   server.tool(
     "update_team_member",
-    "עדכון חבר צוות — Update a team member's profile (name, role, pin)",
+    "עדכון חבר צוות — Update a team member's profile (name, role, pin, division)",
     {
       id: z.string().uuid().describe("Profile UUID"),
       name: z.string().optional().describe("Display name"),
       role: z.string().optional().describe("Role (e.g. 'manager', 'worker', 'driver', or custom role key)"),
       pin: z.string().regex(/^\d{4}$/).optional().describe("4-digit PIN code (numbers only, exactly 4 digits)"),
+      division: z.string().nullable().optional().describe("Division for division manager role: 'AWACS' | 'כפתור' | 'DOORE' | 'דלק מוטורס' | 'פריזבי קרסו' | 'לובינסקי'. Pass null to clear."),
     },
-    async ({ id, name, role, pin }) => {
+    async ({ id, name, role, pin, division }) => {
       const updates: Record<string, unknown> = {};
       if (name !== undefined) updates.name = name;
       if (role !== undefined) updates.role = role;
       if (pin !== undefined) updates.pin = pin;
+      if (division !== undefined) updates.division = division;
 
       if (Object.keys(updates).length === 0) {
         return { content: [{ type: "text" as const, text: "No fields to update" }] };
