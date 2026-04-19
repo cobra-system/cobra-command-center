@@ -47,6 +47,7 @@ import {
   MessageSquare,
   ToggleRight,
 } from "lucide-react";
+import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 
 interface WasteItem {
   id: string;
@@ -59,6 +60,7 @@ interface WasteItem {
   created_by_name: string | null;
   created_at: string;
   updated_at: string;
+  photo_url: string | null;
 }
 
 interface EditingRow {
@@ -257,6 +259,17 @@ export default function WasteManagementPage() {
     }
     setItems((prev) =>
       prev.map((i) => (i.id === item.id ? { ...i, in_use: !i.in_use } : i))
+    );
+  };
+
+  const handlePhotoSave = async (itemId: string, url: string) => {
+    const { error } = await supabase
+      .from("waste_items")
+      .update({ photo_url: url })
+      .eq("id", itemId);
+    if (error) { toast.error("שגיאה בשמירת תמונה"); return; }
+    setItems((prev) =>
+      prev.map((i) => (i.id === itemId ? { ...i, photo_url: url } : i))
     );
   };
 
@@ -476,31 +489,39 @@ export default function WasteManagementPage() {
                       )}
                     </div>
 
-                    {/* Quick toggle + delete */}
-                    {hasEdit && (
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <div className="flex items-center gap-1.5">
-                          <Checkbox
-                            checked={item.in_use}
-                            onCheckedChange={() => handleInlineToggle(item)}
-                          />
-                          <span className="text-xs text-muted-foreground">
-                            {item.in_use ? "כן" : "לא"}
-                          </span>
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-muted-foreground/50 hover:text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(item.id);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
+                    {/* Quick toggle + photo + delete */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <PhotoCaptureButton
+                        imageUrl={item.photo_url}
+                        storagePath={`waste-items/${item.id}`}
+                        onSave={(url) => handlePhotoSave(item.id, url)}
+                        disabled={!hasEdit}
+                      />
+                      {hasEdit && (
+                        <>
+                          <div className="flex items-center gap-1.5">
+                            <Checkbox
+                              checked={item.in_use}
+                              onCheckedChange={() => handleInlineToggle(item)}
+                            />
+                            <span className="text-xs text-muted-foreground">
+                              {item.in_use ? "כן" : "לא"}
+                            </span>
+                          </div>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-muted-foreground/50 hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(item.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -798,6 +819,7 @@ export default function WasteManagementPage() {
                 בשימוש
               </TableHead>
               <TableHead className="font-semibold">המלצות</TableHead>
+              <TableHead className="font-semibold text-center w-16">תמונה</TableHead>
               {hasEdit && (
                 <TableHead className="font-semibold text-center w-24">
                   פעולות
@@ -876,6 +898,7 @@ export default function WasteManagementPage() {
                     className="h-9"
                   />
                 </TableCell>
+                <TableCell className="text-center" />
                 <TableCell>
                   <div className="flex items-center justify-center gap-1">
                     <Button
@@ -972,6 +995,15 @@ export default function WasteManagementPage() {
                       className="h-9"
                     />
                   </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex justify-center">
+                      <PhotoCaptureButton
+                        imageUrl={item.photo_url}
+                        storagePath={`waste-items/${item.id}`}
+                        onSave={(url) => handlePhotoSave(item.id, url)}
+                      />
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-center gap-1">
                       <Button
@@ -1038,6 +1070,16 @@ export default function WasteManagementPage() {
                   <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
                     {item.recommendations || "—"}
                   </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex justify-center">
+                      <PhotoCaptureButton
+                        imageUrl={item.photo_url}
+                        storagePath={`waste-items/${item.id}`}
+                        onSave={(url) => handlePhotoSave(item.id, url)}
+                        disabled={!hasEdit}
+                      />
+                    </div>
+                  </TableCell>
                   {hasEdit && (
                     <TableCell>
                       <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1070,7 +1112,7 @@ export default function WasteManagementPage() {
             {filteredItems.length === 0 && !editingRow && (
               <TableRow>
                 <TableCell
-                  colSpan={isManager ? 7 : 6}
+                  colSpan={isManager ? 8 : 7}
                   className="text-center py-12 text-muted-foreground"
                 >
                   <Recycle className="h-12 w-12 mx-auto mb-3 opacity-20" />

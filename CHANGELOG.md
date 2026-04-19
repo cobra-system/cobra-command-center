@@ -7,10 +7,26 @@
 
 ## [2026-04-19]
 
+- Merge pull request #145 from cobra-system/claude/organize-product-data-Dmzkc (2662a0c)
+- fix(mcp): remove computed fields from product write tools (d98e9a4)
+- feat(products): add field tooltips and distinguish computed vs editable data (8556a9f)
+
+<!-- last-commit: 2662a0c606da627f126d0491891b473a5f5b2169 -->
+## [2026-04-19]
+
+- Merge pull request #143 from cobra-system/claude/remove-dashboard-widgets-MDzes (3bc7f2a)
+- Remove active-workflows banner and inventory/severity charts from dashboard (7a69e66)
+
+## [2026-04-19]
+
+- feat(waste): add photo capture to waste management page (826dc7f)
+- feat(wear): add photo capture to wear control inspection (1d577cf)
+
+## [2026-04-19]
+
 - feat(mcp): update existing tools to cover recent schema changes (bb5954a)
 - feat(mcp): add MCP tools for division_products, warehouse zones, and waste_items (5833b6a)
 
-<!-- last-commit: 3be726641f36861d94cae1d1ce141a72c8b21d50 -->
 ## [2026-04-18]
 
 - feat(products): rename 'בדרך'→'עול"ב', make incoming/sales computed read-only (aa6b9cc)

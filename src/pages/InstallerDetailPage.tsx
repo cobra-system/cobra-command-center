@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { NewPickupDialog } from "@/components/equipment/NewPickupDialog";
 import { NewReturnDialog } from "@/components/equipment/NewReturnDialog";
+import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import type { ColDef } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
@@ -75,6 +76,7 @@ interface ReturnRow {
   is_actually_faulty: boolean | null;
   logged_by: string | null;
   serial_numbers: string[] | null;
+  photo_url: string | null;
 }
 
 // ─── Column Defs ──────────────────────────────────────────────────────────────
@@ -146,7 +148,7 @@ export default function InstallerDetailPage() {
         supabase
           .from("equipment_returns")
           .select(
-            "id, return_date, logged_by, equipment_return_items(id, product_id, quantity, reason, reason_detail, sticker_label, is_actually_faulty, serial_numbers)"
+            "id, return_date, logged_by, equipment_return_items(id, product_id, quantity, reason, reason_detail, sticker_label, is_actually_faulty, serial_numbers, photo_url)"
           )
           .eq("installer_id", id)
           .order("return_date", { ascending: false }),
@@ -160,7 +162,7 @@ export default function InstallerDetailPage() {
 
       type PickupItemRaw = { id: string; product_id: string; quantity: number; serial_numbers: string[] | null };
       type PickupRaw = { id: string; pickup_date: string; notes: string | null; created_by: string | null; equipment_pickup_items: PickupItemRaw[] };
-      type ReturnItemRaw = { id: string; product_id: string; quantity: number; reason: string; reason_detail: string | null; sticker_label: string | null; is_actually_faulty: boolean | null; serial_numbers: string[] | null };
+      type ReturnItemRaw = { id: string; product_id: string; quantity: number; reason: string; reason_detail: string | null; sticker_label: string | null; is_actually_faulty: boolean | null; serial_numbers: string[] | null; photo_url: string | null };
       type ReturnRaw = { id: string; return_date: string; logged_by: string | null; equipment_return_items: ReturnItemRaw[] };
 
       // Flatten pickup items
@@ -198,6 +200,7 @@ export default function InstallerDetailPage() {
             is_actually_faulty: item.is_actually_faulty,
             logged_by: ret.logged_by,
             serial_numbers: item.serial_numbers,
+            photo_url: item.photo_url,
           });
         });
       });
@@ -311,6 +314,17 @@ export default function InstallerDetailPage() {
     } finally {
       setUpdatingFaulty(null);
     }
+  };
+
+  const handlePhotoSave = async (returnItemId: string, url: string) => {
+    const { error } = await supabase
+      .from("equipment_return_items")
+      .update({ photo_url: url })
+      .eq("id", returnItemId);
+    if (error) { toast.error("שגיאה בשמירת תמונה"); return; }
+    setReturnRows((prev) =>
+      prev.map((r) => r.return_item_id === returnItemId ? { ...r, photo_url: url } : r)
+    );
   };
 
   const FaultyCell = ({ row }: { row: ReturnRow }) => {
@@ -562,6 +576,7 @@ export default function InstallerDetailPage() {
                   <TableHead className="text-center">כמות</TableHead>
                   <TableHead>סיבה</TableHead>
                   <TableHead className="hidden md:table-cell">מדבקה</TableHead>
+                  <TableHead className="text-center">תמונה</TableHead>
                   <TableHead className="text-center">באמת פגום?</TableHead>
                 </TableRow>
               </TableHeader>
@@ -583,6 +598,15 @@ export default function InstallerDetailPage() {
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
                       {row.sticker_label ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex justify-center">
+                        <PhotoCaptureButton
+                          imageUrl={row.photo_url}
+                          storagePath={`wear-return-items/${row.return_item_id}`}
+                          onSave={(url) => handlePhotoSave(row.return_item_id, url)}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell className="text-center">
                       <FaultyCell row={row} />

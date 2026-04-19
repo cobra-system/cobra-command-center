@@ -54,22 +54,20 @@ export function registerProductTools(server: McpServer) {
 
   server.tool(
     "update_product",
-    "עדכון מוצר — Update product fields (stock, prices, notes, etc.)",
+    "עדכון מוצר — Update editable product fields. NOTE: incoming_qty is computed live from active orders; monthly_sales is computed from pickup history — do not set these manually.",
     {
       id: z.string().uuid().describe("Product UUID"),
-      stock_qty: z.number().optional().describe("Current stock quantity"),
-      incoming_qty: z.number().optional().describe("Incoming quantity"),
-      sale_price: z.number().optional().describe("Sale price"),
-      purchase_price: z.number().optional().describe("Purchase price"),
+      stock_qty: z.number().optional().describe("Physical stock quantity (manually maintained)"),
+      sale_price: z.number().optional().describe("Sale price ($)"),
+      purchase_price: z.number().optional().describe("Purchase price ($) — for composite products this is calculated automatically from component prices"),
       notes: z.string().optional().describe("Product notes"),
       description: z.string().optional().describe("Product description"),
       reorder_point: z.number().optional().describe("Reorder point threshold"),
-      monthly_sales: z.number().optional().describe("Monthly sales figure"),
-      monthly_order: z.number().optional().describe("Monthly order quantity"),
-      monthly_sales_avg: z.number().optional().describe("Monthly sales average"),
+      monthly_order: z.number().optional().describe("Planned monthly order quantity (manually set)"),
+      monthly_sales_avg: z.number().optional().describe("Manual monthly sales average — fallback used only when no pickup history exists"),
       lead_time_days: z.number().optional().describe("Lead time in days"),
       supplier_origin: z.string().optional().describe("Supplier origin country"),
-      shipping: z.string().optional().describe("Shipping method/info"),
+      shipping: z.string().optional().describe("Shipping method"),
       end_product_image: z.string().optional().describe("End product image URL"),
       end_product_url: z.string().optional().describe("End product URL"),
     },
@@ -97,26 +95,26 @@ export function registerProductTools(server: McpServer) {
 
   server.tool(
     "create_product",
-    "יצירת מוצר חדש — Create a new product",
+    "יצירת מוצר חדש — Create a new product. incoming_qty and monthly_sales are computed automatically and cannot be set on creation.",
     {
       name: z.string().describe("Product name"),
       sku: z.string().optional().describe("SKU / part number"),
       category: z.string().optional().describe("Product category"),
       division: z.string().optional().describe("Division"),
-      product_type: z.string().optional().describe("Product type"),
+      product_type: z.string().optional().describe("Product type: מוגמר (finished) or מורכב (composite)"),
       supplier: z.string().optional().describe("Supplier name"),
-      purchase_price: z.number().optional().describe("Purchase price"),
-      sale_price: z.number().optional().describe("Sale price"),
-      stock_qty: z.number().default(0).describe("Current stock quantity"),
-      incoming_qty: z.number().default(0).describe("Incoming quantity"),
+      purchase_price: z.number().optional().describe("Purchase price ($)"),
+      sale_price: z.number().optional().describe("Sale price ($)"),
+      stock_qty: z.number().default(0).describe("Initial physical stock quantity"),
       notes: z.string().optional().describe("Product notes"),
       description: z.string().optional().describe("Product description"),
       lead_time_days: z.number().optional().describe("Lead time in days"),
       supplier_origin: z.string().optional().describe("Supplier origin country"),
-      shipping: z.string().optional().describe("Shipping method/info"),
+      shipping: z.string().optional().describe("Shipping method"),
       reorder_point: z.number().optional().describe("Reorder point threshold"),
+      monthly_order: z.number().optional().describe("Planned monthly order quantity"),
     },
-    async ({ name, sku, category, division, product_type, supplier, purchase_price, sale_price, stock_qty, incoming_qty, notes, description, lead_time_days, supplier_origin, shipping, reorder_point }) => {
+    async ({ name, sku, category, division, product_type, supplier, purchase_price, sale_price, stock_qty, notes, description, lead_time_days, supplier_origin, shipping, reorder_point, monthly_order }) => {
       const { data, error } = await supabase
         .from("products")
         .insert({
@@ -129,13 +127,13 @@ export function registerProductTools(server: McpServer) {
           purchase_price: purchase_price ?? null,
           sale_price: sale_price ?? null,
           stock_qty,
-          incoming_qty,
           notes: notes || null,
           description: description || null,
           lead_time_days: lead_time_days ?? null,
           supplier_origin: supplier_origin || null,
           shipping: shipping || null,
           reorder_point: reorder_point ?? null,
+          monthly_order: monthly_order ?? null,
         })
         .select()
         .single();
