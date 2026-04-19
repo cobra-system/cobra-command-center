@@ -7,10 +7,15 @@
 
 ## [2026-04-19]
 
+- feat(waste): add photo capture to waste management page (826dc7f)
+- feat(wear): add photo capture to wear control inspection (1d577cf)
+
+<!-- last-commit: c87edb7d0f85c13e32b40acbaf939f28967de4bc -->
+## [2026-04-19]
+
 - feat(mcp): update existing tools to cover recent schema changes (bb5954a)
 - feat(mcp): add MCP tools for division_products, warehouse zones, and waste_items (5833b6a)
 
-<!-- last-commit: 3be726641f36861d94cae1d1ce141a72c8b21d50 -->
 ## [2026-04-18]
 
 - feat(products): rename 'בדרך'→'עול"ב', make incoming/sales computed read-only (aa6b9cc)
