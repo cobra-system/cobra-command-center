@@ -50,11 +50,9 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
         shipping: product.shipping || "",
         purchase_price: product.purchase_price ?? "",
         sale_price: product.sale_price ?? "",
-        monthly_sales: product.monthly_sales ?? "",
         monthly_order: product.monthly_order ?? "",
         monthly_sales_avg: product.monthly_sales_avg ?? "",
         stock_qty: product.stock_qty ?? 0,
-        incoming_qty: product.incoming_qty ?? 0,
         reorder_point: product.reorder_point ?? "",
         lead_time_days: product.lead_time_days ?? "",
         end_product_url: product.end_product_url || "",
@@ -70,7 +68,7 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
     setSaving(true);
     try {
       const updates: Record<string, any> = {};
-      const numericFields = ["purchase_price", "sale_price", "monthly_sales", "monthly_order", "monthly_sales_avg", "stock_qty", "incoming_qty", "reorder_point", "lead_time_days"];
+      const numericFields = ["purchase_price", "sale_price", "monthly_order", "monthly_sales_avg", "stock_qty", "reorder_point", "lead_time_days"];
       const textFields = ["name", "sku", "category", "division", "product_type", "description", "supplier", "shipping", "end_product_url", "end_product_image", "notes"];
 
       for (const key of textFields) {
@@ -86,9 +84,7 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
         const val = fields[key];
         updates[key] = val === "" || val === null || val === undefined ? null : Number(val);
       }
-      // stock_qty and incoming_qty default to 0
       updates.stock_qty = updates.stock_qty ?? 0;
-      updates.incoming_qty = updates.incoming_qty ?? 0;
 
       await onSave(product.id, updates);
       onOpenChange(false);
@@ -209,12 +205,13 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
             <h3 className="text-sm font-semibold text-foreground mb-2">מלאי והזמנות</h3>
             <div className="grid grid-cols-2 gap-3">
               {numField("stock_qty", "מלאי קיים")}
-              {numField("incoming_qty", "בדרך")}
-              {numField("monthly_sales", "מכירות חודשיות")}
               {numField("monthly_order", "הזמנה חודשית")}
-              {numField("monthly_sales_avg", "ממוצע מכירות חודשי")}
               {numField("reorder_point", "נקודת הזמנה מחדש")}
+              {numField("monthly_sales_avg", "ממוצע מכירות ידני (גיבוי)")}
             </div>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              מלאי בדרך ומכירות חודשיות מחושבים אוטומטית מהזמנות ומהיסטוריית הוצאות המלאי.
+            </p>
           </div>
 
           {/* Links */}
