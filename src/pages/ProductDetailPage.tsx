@@ -5,7 +5,8 @@ import { useLiveProductMetrics } from "@/hooks/useLiveProductMetrics";
 import { usePickupMonthlyAvg } from "@/hooks/usePickupMonthlyAvg";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowRight, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { ArrowRight, ExternalLink, Info, Pencil, Trash2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import ProductIssuesTab from "@/components/ProductIssuesTab";
 import ProductLicensesTab from "@/components/ProductLicensesTab";
 import DocumentsSection from "@/components/DocumentsSection";
@@ -74,21 +75,21 @@ export default function ProductDetailPage() {
     }
   };
 
-  const details: { label: string; field: string; value: string | number | undefined | null; isSupplierLink?: boolean; options?: { value: string; label: string }[]; multiSelect?: boolean; readOnly?: boolean }[] = [
-    { label: "קטגוריה", field: "category", value: product.category, options: categoryOptions },
-    { label: "חטיבות", field: "division", value: product.division, options: divisionOptions, multiSelect: true },
-    { label: "מק״ט", field: "sku", value: product.sku },
-    { label: "סוג מוצר", field: "product_type", value: product.product_type, options: productTypeOptions },
-    { label: "תיאור", field: "description", value: product.description },
-    { label: "ספק", field: "supplier", value: product.supplier, isSupplierLink: true, options: supplierOptions },
-    { label: "שיטת משלוח", field: "shipping", value: product.shipping, options: shippingOptions },
-    { label: "מחיר רכישה", field: "purchase_price", value: product.purchase_price },
-    { label: "מחיר מכירה", field: "sale_price", value: product.sale_price },
-    { label: "מכירות חודשיות", field: "monthly_sales", value: avgByProduct.get(product.id) ?? undefined, readOnly: true },
-    { label: "הזמנה חודשית", field: "monthly_order", value: product.monthly_order },
-    { label: "מלאי קיים", field: "stock_qty", value: product.stock_qty },
-    { label: 'עול"ב', field: "incoming_qty", value: metrics[product.id]?.incomingQty ?? product.incoming_qty, readOnly: true },
-    { label: "הערות", field: "notes", value: product.notes },
+  const details: { label: string; field: string; value: string | number | undefined | null; isSupplierLink?: boolean; options?: { value: string; label: string }[]; multiSelect?: boolean; readOnly?: boolean; tooltip?: string; isComputed?: boolean }[] = [
+    { label: "קטגוריה", field: "category", value: product.category, options: categoryOptions, tooltip: "הקטגוריה שהמוצר שייך אליה" },
+    { label: "חטיבות", field: "division", value: product.division, options: divisionOptions, multiSelect: true, tooltip: "החטיבות הארגוניות שמשתמשות במוצר" },
+    { label: "מק״ט", field: "sku", value: product.sku, tooltip: "קוד מוצר ייחודי (SKU)" },
+    { label: "סוג מוצר", field: "product_type", value: product.product_type, options: productTypeOptions, tooltip: "מוגמר = מוצר בסיסי, מורכב = הרכבה מרכיבים" },
+    { label: "תיאור", field: "description", value: product.description, tooltip: "תיאור חופשי של המוצר" },
+    { label: "ספק", field: "supplier", value: product.supplier, isSupplierLink: true, options: supplierOptions, tooltip: "הספק הראשי שממנו מזמינים את המוצר" },
+    { label: "שיטת משלוח", field: "shipping", value: product.shipping, options: shippingOptions, tooltip: "אופן המשלוח המועדף מהספק" },
+    { label: "מחיר רכישה", field: "purchase_price", value: product.purchase_price, tooltip: product.product_type === "מורכב" ? "מחושב אוטומטית — סכום מחירי הרכיבים" : "מחיר קנייה מהספק ($)" },
+    { label: "מחיר מכירה", field: "sale_price", value: product.sale_price, tooltip: "מחיר מכירה ללקוח הסופי ($)" },
+    { label: "מכירות חודשיות", field: "monthly_sales", value: avgByProduct.get(product.id) ?? undefined, readOnly: true, isComputed: true, tooltip: "מחושב אוטומטית — ממוצע כמויות שהוצאו מהמלאי בחודשים האחרונים" },
+    { label: "הזמנה חודשית", field: "monthly_order", value: product.monthly_order, tooltip: "כמות ההזמנה החודשית המתוכננת — מוגדרת ידנית" },
+    { label: "מלאי קיים", field: "stock_qty", value: product.stock_qty, tooltip: "כמות יחידות פיזיות במחסן — מוגדרת ידנית" },
+    { label: 'עול"ב', field: "incoming_qty", value: metrics[product.id]?.incomingQty ?? product.incoming_qty, readOnly: true, isComputed: true, tooltip: 'מחושב אוטומטית — סכום כמויות מהזמנות פעילות (נשלח / הגיע לנמל / שחרור מכס)' },
+    { label: "הערות", field: "notes", value: product.notes, tooltip: "הערות חופשיות על המוצר" },
   ];
 
   const handleSaveEdit = async (id: string, updates: Record<string, unknown>) => {
@@ -192,19 +193,31 @@ export default function ProductDetailPage() {
         onInlineSave={handleInlineSave}
       />
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          { label: "מלאי קיים", field: "stock_qty", value: product.stock_qty, danger: product.stock_qty === 0 },
-          { label: 'עול"ב', field: "incoming_qty", value: metrics[product.id]?.incomingQty ?? product.incoming_qty },
-          { label: "מכירות חודשיות", field: "monthly_sales", value: avgByProduct.get(product.id) ?? "—" },
-          { label: "הזמנה חודשית", field: "monthly_order", value: product.monthly_order ?? "—" },
-        ].map((item) => (
-          <div key={item.label} className="bg-card rounded-xl border p-4 text-center">
-            <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
-            <p className={`text-2xl font-bold ${item.danger ? "text-destructive" : "text-foreground"}`}>{item.value}</p>
-          </div>
-        ))}
-      </div>
+      <TooltipProvider delayDuration={200}>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {[
+            { label: "מלאי קיים", value: product.stock_qty, danger: product.stock_qty === 0, tooltip: "כמות יחידות פיזיות במחסן" },
+            { label: 'עול"ב', value: metrics[product.id]?.incomingQty ?? product.incoming_qty, tooltip: 'מחושב מהזמנות פעילות (נשלח / הגיע לנמל / שחרור מכס)' },
+            { label: "מכירות חודשיות", value: avgByProduct.get(product.id) ?? "—", tooltip: "ממוצע מכירות חודשי מחושב מהיסטוריית הוצאות המלאי" },
+            { label: "הזמנה חודשית", value: product.monthly_order ?? "—", tooltip: "כמות הזמנה חודשית מתוכננת — מוגדרת ידנית" },
+          ].map((item) => (
+            <div key={item.label} className="bg-card rounded-xl border p-4 text-center">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p className="text-xs text-muted-foreground mb-1 inline-flex items-center gap-1 cursor-help">
+                    {item.label}
+                    <Info className="h-3 w-3 opacity-40 hover:opacity-80 transition-opacity" />
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[200px] text-xs text-right leading-relaxed">
+                  {item.tooltip}
+                </TooltipContent>
+              </Tooltip>
+              <p className={`text-2xl font-bold ${item.danger ? "text-destructive" : "text-foreground"}`}>{item.value}</p>
+            </div>
+          ))}
+        </div>
+      </TooltipProvider>
 
       <BOMTable
         product={product}
