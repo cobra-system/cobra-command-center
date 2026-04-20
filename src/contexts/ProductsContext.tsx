@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useCallback, type ReactNode } from "react";
+import React, { createContext, useContext, useCallback, useMemo, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { handleError } from "@/lib/errorHandler";
 import { logActivity } from "@/lib/activityLogger";
 import type { Product, ProductComponent } from "@/contexts/types";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ProductsState {
   products: Product[];
@@ -27,8 +28,9 @@ export function useProducts() {
 
 export function ProductsProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
+  const { currentUser } = useAuth();
 
-  const { data: products = [] } = useQuery({
+  const { data: rawProducts = [] } = useQuery({
     queryKey: ["products"],
     queryFn: async () => {
       const { data: prods } = await supabase.from("products").select("*, product_components(*)").order("category").limit(500);
@@ -39,6 +41,18 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
       })) as Product[];
     },
   });
+
+  // Client-side division filtering (backup to RLS)
+  const products = useMemo(() => {
+    // If user is manager or has no division, return all products
+    if (!currentUser || currentUser.role === "MANAGER" || !currentUser.division) {
+      return rawProducts;
+    }
+    // Non-managers see only products where division includes their division
+    return rawProducts.filter(p =>
+      p.division?.split(",").map(d => d.trim()).includes(currentUser.division)
+    );
+  }, [rawProducts, currentUser]);
 
   const refreshProducts = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ["products"] });

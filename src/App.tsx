@@ -67,11 +67,18 @@ function RequirePermission() {
   if (loading) return null;
   if (!currentUser) return <Navigate to="/login" replace />;
   if (currentUser.role === "MANAGER") return <ManagerLayout />;
+
+  // Non-managers cannot access these manager-only modules
+  const managerOnlyPaths = ["/dashboard", "/suppliers", "/reports"];
+  if (managerOnlyPaths.some(path => location.pathname.startsWith(path))) {
+    return <Navigate to="/my-tasks" replace />;
+  }
+
   const moduleKey = getModuleKeyFromRoute(location.pathname);
   if (!moduleKey || !canView(currentUserPermissions, moduleKey)) {
     return <Navigate to="/my-tasks" replace />;
   }
-  return currentUser.role === "MANAGER" ? <ManagerLayout /> : <EmployeeLayout />;
+  return <EmployeeLayout />;
 }
 
 function RequireAuth() {
