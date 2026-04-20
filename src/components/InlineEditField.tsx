@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -24,6 +25,8 @@ interface InlineEditFieldProps {
   tooltip?: string;
   /** If true, marks the field as auto-computed (implies disabled) */
   isComputed?: boolean;
+  /** Optional function to generate navigation links for multiSelect items */
+  getItemLink?: (item: string) => string;
 }
 
 export function InlineEditField({
@@ -39,6 +42,7 @@ export function InlineEditField({
   multiSelect = false,
   tooltip,
   isComputed = false,
+  getItemLink,
 }: InlineEditFieldProps) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(String(value ?? ""));
@@ -225,9 +229,21 @@ export function InlineEditField({
       const items = String(value).split(",").map(v => v.trim()).filter(Boolean);
       return (
         <span className="flex flex-wrap gap-1">
-          {items.map(item => (
-            <Badge key={item} variant="secondary" className="text-xs">{item}</Badge>
-          ))}
+          {items.map(item => {
+            const href = getItemLink?.(item);
+            return href ? (
+              <Link
+                key={item}
+                to={href}
+                onClick={e => e.stopPropagation()}
+                className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground font-semibold hover:bg-primary/20 hover:text-primary transition-colors"
+              >
+                {item}
+              </Link>
+            ) : (
+              <Badge key={item} variant="secondary" className="text-xs">{item}</Badge>
+            );
+          })}
         </span>
       );
     }

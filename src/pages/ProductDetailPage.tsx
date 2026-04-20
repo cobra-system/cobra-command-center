@@ -14,6 +14,7 @@ import ComplianceTab from "@/components/documents/ComplianceTab";
 import ProductEditDialog from "@/components/products/ProductEditDialog";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useProductScope } from "@/hooks/useProductScope";
+import { useProductSupplierPayments } from "@/hooks/useProductSupplierPayments";
 import { toast } from "sonner";
 import { ProductDetailsGrid } from "@/components/product-detail/ProductDetailsGrid";
 import { BOMTable } from "@/components/product-detail/BOMTable";
@@ -44,6 +45,11 @@ export default function ProductDetailPage() {
   const productArr = useMemo(() => (product ? [product] : []), [product]);
   const { metrics } = useLiveProductMetrics(productArr);
   const { avgByProduct } = usePickupMonthlyAvg();
+  const relatedOrders = useMemo(
+    () => product ? orders.filter(o => o.items.some(item => item.name === product.name || item.product_id === product.id)) : [],
+    [orders, product]
+  );
+  const supplierPayments = useProductSupplierPayments(product?.id ?? "", relatedOrders);
 
   if (!product || (isScoped && id && !scopedProductIds.has(id))) {
     return (
@@ -53,7 +59,6 @@ export default function ProductDetailPage() {
       </div>
     );
   }
-  const relatedOrders = orders.filter(o => o.items.some(item => item.name === product.name || item.product_id === product.id));
 
   const stockStatus = product.stock_qty === 0
     ? { label: "אזל מהמלאי", className: "bg-destructive/15 text-destructive" }
@@ -195,12 +200,22 @@ export default function ProductDetailPage() {
       />
 
       <TooltipProvider delayDuration={200}>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {[
             { label: "מלאי קיים", value: product.stock_qty, danger: product.stock_qty === 0, tooltip: "כמות יחידות פיזיות במחסן" },
             { label: 'עול"ב', value: metrics[product.id]?.incomingQty ?? product.incoming_qty, tooltip: 'מחושב מהזמנות פעילות (נשלח / הגיע לנמל / שחרור מכס)' },
             { label: "מכירות חודשיות (לפי הצטיידות)", value: avgByProduct.get(product.id) ?? "—", tooltip: "ממוצע מכירות חודשי מחושב מהיסטוריית הוצאות המלאי" },
             { label: "הזמנה חודשית", value: product.monthly_order ?? "—", tooltip: "כמות הזמנה חודשית מתוכננת — מוגדרת ידנית" },
+            {
+              label: "תשלומים לספק החודש",
+              value: supplierPayments.loading ? "..." : supplierPayments.monthly > 0 ? `$${supplierPayments.monthly.toLocaleString("en", { maximumFractionDigits: 0 })}` : "—",
+              tooltip: "סה\"כ תשלומים ששולמו לספק עבור הזמנות של מוצר זה בחודש הנוכחי (יחסי לשווי המוצר בהזמנה)",
+            },
+            {
+              label: "תשלומים לספק ברבעון",
+              value: supplierPayments.loading ? "..." : supplierPayments.quarterly > 0 ? `$${supplierPayments.quarterly.toLocaleString("en", { maximumFractionDigits: 0 })}` : "—",
+              tooltip: "סה\"כ תשלומים ששולמו לספק עבור הזמנות של מוצר זה ברבעון הנוכחי (יחסי לשווי המוצר בהזמנה)",
+            },
           ].map((item) => (
             <div key={item.label} className="bg-card rounded-xl border p-4 text-center">
               <Tooltip>

@@ -54,9 +54,15 @@ export function registerProductTools(server: McpServer) {
 
   server.tool(
     "update_product",
-    "עדכון מוצר — Update editable product fields. NOTE: incoming_qty is computed live from active orders; monthly_sales is computed from pickup history — do not set these manually.",
+    "עדכון מוצר — Update editable product fields including name, sku, category, division, product_type, and supplier. NOTE: incoming_qty is computed live from active orders; monthly_sales is computed from pickup history — do not set these manually.",
     {
       id: z.string().uuid().describe("Product UUID"),
+      name: z.string().optional().describe("Product name"),
+      sku: z.string().optional().describe("SKU / part number"),
+      category: z.string().optional().describe("Product category"),
+      division: z.string().optional().describe("Comma-separated divisions assigned to this product (e.g. \"AWCAS, כפתור\")"),
+      product_type: z.string().optional().describe("Product type: מוגמר (finished) or מורכב (composite)"),
+      supplier: z.string().optional().describe("Supplier name"),
       stock_qty: z.number().optional().describe("Physical stock quantity (manually maintained)"),
       sale_price: z.number().optional().describe("Sale price ($)"),
       purchase_price: z.number().optional().describe("Purchase price ($) — for composite products this is calculated automatically from component prices"),
@@ -321,6 +327,106 @@ export function registerProductTools(server: McpServer) {
 
       if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
       return { content: [{ type: "text" as const, text: "Component deleted successfully" }] };
+    }
+  );
+
+  server.tool(
+    "assign_product_division",
+    "שיוך חטיבה למוצר — Assign or update which divisions a product belongs to. Accepts a comma-separated list of division names. Updating division here will auto-sync all related orders via DB trigger.",
+    {
+      id: z.string().uuid().describe("Product UUID"),
+      division: z.string().describe(
+        "Comma-separated division names to assign, e.g. \"AWCAS, כפתור\". Use empty string to clear all divisions."
+      ),
+    },
+    async ({ id, division }) => {
+      const { data, error } = await supabase
+        .from("products")
+        .update({ division: division || null })
+        .eq("id", id)
+        .select("id, name, sku, division")
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return {
+        content: [{
+          type: "text" as const,
+          text: `Division updated (related orders will auto-sync via trigger):\n${JSON.stringify(data, null, 2)}`,
+        }],
+      };
+    }
+  );
+
+  server.tool(
+    "get_product_supplier_payments",
+    "תשלומים לספק עבור מוצר — Calculate total payments made to the supplier for a product, attributed proportionally by the product's share of each order's total value. Returns monthly (current month) and quarterly (current quarter) totals.",
+    {
+      product_id: z.string().uuid().describe("Product UUID"),
+    },
+    async ({ product_id }) => {
+      // Fetch all order_items containing this product with their orders and payments
+      const { data: items, error: itemsError } = await supabase
+        .from("order_items")
+        .select("order_id, qty, price, orders!inner(id, total_price, supplier_name, order_payments(amount, currency, paid_date, status))")
+        .eq("product_id", product_id);
+
+      if (itemsError) return { content: [{ type: "text" as const, text: `Error: ${itemsError.message}` }] };
+      if (!items || items.length === 0) {
+        return { content: [{ type: "text" as const, text: "No orders found for this product." }] };
+      }
+
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+      const startOfQuarter = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1).toISOString().split("T")[0];
+
+      let monthly = 0;
+      let quarterly = 0;
+      let currency = "USD";
+      const breakdown: Record<string, unknown>[] = [];
+
+      for (const item of items as Record<string, unknown>[]) {
+        const order = item.orders as Record<string, unknown>;
+        const orderTotal = Number(order.total_price) || 0;
+        const itemValue = (Number(item.qty) || 1) * (Number(item.price) || 0);
+        const proportion = orderTotal > 0 ? itemValue / orderTotal : 1;
+
+        const payments = (order.order_payments as Record<string, unknown>[]) || [];
+        for (const p of payments) {
+          if (p.status !== "שולם" || !p.paid_date) continue;
+          const amount = Number(p.amount) || 0;
+          const attributed = amount * proportion;
+          currency = (p.currency as string) || "USD";
+
+          if ((p.paid_date as string) >= startOfMonth) monthly += attributed;
+          if ((p.paid_date as string) >= startOfQuarter) quarterly += attributed;
+          breakdown.push({
+            order_id: item.order_id,
+            supplier: order.supplier_name,
+            paid_date: p.paid_date,
+            payment_amount: amount,
+            product_proportion: Math.round(proportion * 100) + "%",
+            attributed_amount: Math.round(attributed * 100) / 100,
+            currency,
+          });
+        }
+      }
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({
+            product_id,
+            currency,
+            monthly_total: Math.round(monthly * 100) / 100,
+            quarterly_total: Math.round(quarterly * 100) / 100,
+            period: {
+              month_from: startOfMonth,
+              quarter_from: startOfQuarter,
+            },
+            breakdown,
+          }, null, 2),
+        }],
+      };
     }
   );
 }

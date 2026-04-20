@@ -518,4 +518,38 @@ export function registerOrderTools(server: McpServer) {
       return { content: [{ type: "text" as const, text: `${data.length} items added:\n${JSON.stringify(data, null, 2)}` }] };
     }
   );
+
+  server.tool(
+    "list_orders_by_division",
+    "הזמנות לפי חטיבה — List all orders assigned to a specific division. Useful for division managers to see only their relevant orders.",
+    {
+      division: z.string().describe("Division name, e.g. \"AWCAS\" or \"כפתור\""),
+      status: z.string().optional().describe("Filter by order status: PENDING, ORDERED, SHIPPED, ARRIVED_PORT, CUSTOMS_CLEARANCE, DELIVERED, ARRIVED, CANCELLED"),
+      limit: z.number().default(50).describe("Max results"),
+    },
+    async ({ division, status, limit }) => {
+      let query = supabase
+        .from("orders")
+        .select("id, supplier_name, status, division, total_price, order_date, eta, pi_number, created_at, order_items(name, qty)")
+        .eq("division", division)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+      if (status) query = query.eq("status", status);
+
+      const { data, error } = await query;
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({
+            division,
+            total: data?.length ?? 0,
+            orders: data,
+          }, null, 2),
+        }],
+      };
+    }
+  );
 }

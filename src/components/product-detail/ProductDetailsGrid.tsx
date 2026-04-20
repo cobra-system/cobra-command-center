@@ -64,6 +64,11 @@ export function ProductDetailsGrid({ details, suppliers, hasEdit, onInlineSave }
               multiSelect={d.multiSelect}
               tooltip={d.tooltip}
               isComputed={d.isComputed}
+              getItemLink={
+                d.field === "division"
+                  ? (item) => `/equipment/division/${encodeURIComponent(item)}`
+                  : undefined
+              }
             />
           );
         })}
