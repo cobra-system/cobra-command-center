@@ -5,13 +5,17 @@
 
 ---
 
+## [2026-04-20]
+
+- Update product field labels and visibility (49536b2)
+
+<!-- last-commit: d753f120b6f413755928cfb859b7fd72692a8c49 -->
 ## [2026-04-19]
 
 - Merge main and resolve MIGRATIONS.md conflict (cc13d3e)
 - Integrate inventory as native part of divisions management (b1576f2)
 - Move inventory page under equipment/divisions management (d9b625c)
 
-<!-- last-commit: 0354844f2a5877a7e6a7fc8e41fe7088e6db7437 -->
 ## [2026-04-19]
 
 - Merge pull request #145 from cobra-system/claude/organize-product-data-Dmzkc (2662a0c)
