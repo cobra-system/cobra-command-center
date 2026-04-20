@@ -27,9 +27,18 @@ interface Installer {
 }
 
 interface PickupItemRow {
+  id?: string;
   product_id: string;
   quantity: number;
   serial_numbers: string;
+}
+
+interface EditingPickup {
+  id: string;
+  installer_id: string;
+  pickup_date: string;
+  notes: string | null;
+  items: Array<{ id: string; product_id: string; quantity: number; serial_numbers: string[] | null }>;
 }
 
 const emptyItem = (): PickupItemRow => ({
@@ -43,11 +52,13 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   onCreated: () => void;
   preselectedInstallerId?: string;
+  editingPickup?: EditingPickup | null;
 }
 
-export function NewPickupDialog({ open, onOpenChange, onCreated, preselectedInstallerId }: Props) {
+export function NewPickupDialog({ open, onOpenChange, onCreated, preselectedInstallerId, editingPickup }: Props) {
   const { products } = useData();
   const { user } = useAuth();
+  const isEdit = !!editingPickup;
   const [saving, setSaving] = useState(false);
   const [installers, setInstallers] = useState<Installer[]>([]);
   const [installerId, setInstallerId] = useState(preselectedInstallerId ?? "");
@@ -63,12 +74,29 @@ export function NewPickupDialog({ open, onOpenChange, onCreated, preselectedInst
         .eq("status", "פעיל")
         .order("name")
         .then(({ data }) => setInstallers(data ?? []));
-      setInstallerId(preselectedInstallerId ?? "");
-      setPickupDate(new Date());
-      setNotes("");
-      setItems([emptyItem()]);
+
+      if (editingPickup) {
+        setInstallerId(editingPickup.installer_id);
+        setPickupDate(new Date(editingPickup.pickup_date));
+        setNotes(editingPickup.notes ?? "");
+        setItems(
+          editingPickup.items.length > 0
+            ? editingPickup.items.map((i) => ({
+                id: i.id,
+                product_id: i.product_id,
+                quantity: i.quantity,
+                serial_numbers: i.serial_numbers ? i.serial_numbers.join(", ") : "",
+              }))
+            : [emptyItem()]
+        );
+      } else {
+        setInstallerId(preselectedInstallerId ?? "");
+        setPickupDate(new Date());
+        setNotes("");
+        setItems([emptyItem()]);
+      }
     }
-  }, [open, preselectedInstallerId]);
+  }, [open, preselectedInstallerId, editingPickup]);
 
   const installerOptions = useMemo(
     () =>
@@ -88,7 +116,6 @@ export function NewPickupDialog({ open, onOpenChange, onCreated, preselectedInst
     [products]
   );
 
-  // Map product_id → full product for stock display
   const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
   const updateItem = (idx: number, field: keyof PickupItemRow, value: string | number) => {
@@ -119,45 +146,83 @@ export function NewPickupDialog({ open, onOpenChange, onCreated, preselectedInst
 
     setSaving(true);
     try {
-      const { data: pickup, error: pickupError } = await supabase
-        .from("equipment_pickups")
-        .insert({
-          installer_id: installerId,
-          pickup_date: pickupDate.toISOString().split("T")[0],
-          notes: notes.trim() || null,
-        })
-        .select("id")
-        .single();
+      if (isEdit && editingPickup) {
+        // Update header
+        const { error: updateError } = await supabase
+          .from("equipment_pickups")
+          .update({
+            installer_id: installerId,
+            pickup_date: pickupDate.toISOString().split("T")[0],
+            notes: notes.trim() || null,
+          })
+          .eq("id", editingPickup.id);
+        if (updateError) throw updateError;
 
-      if (pickupError || !pickup) throw pickupError ?? new Error("שגיאה ביצירת ההצטיידות");
+        // Replace all items: delete old, insert new
+        const { error: deleteError } = await supabase
+          .from("equipment_pickup_items")
+          .delete()
+          .eq("pickup_id", editingPickup.id);
+        if (deleteError) throw deleteError;
 
-      const itemRows = validItems.map((item) => ({
-        pickup_id: pickup.id,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        serial_numbers: item.serial_numbers.trim()
-          ? item.serial_numbers.split(",").map((s) => s.trim()).filter(Boolean)
-          : null,
-      }));
+        const itemRows = validItems.map((item) => ({
+          pickup_id: editingPickup.id,
+          product_id: item.product_id,
+          quantity: item.quantity,
+          serial_numbers: item.serial_numbers.trim()
+            ? item.serial_numbers.split(",").map((s) => s.trim()).filter(Boolean)
+            : null,
+        }));
 
-      const { error: itemsError } = await supabase
-        .from("equipment_pickup_items")
-        .insert(itemRows);
+        const { error: insertError } = await supabase
+          .from("equipment_pickup_items")
+          .insert(itemRows);
+        if (insertError) throw insertError;
 
-      if (itemsError) throw itemsError;
+        toast.success("ההצטיידות עודכנה בהצלחה");
+        onOpenChange(false);
+        onCreated();
+      } else {
+        // Create new pickup
+        const { data: pickup, error: pickupError } = await supabase
+          .from("equipment_pickups")
+          .insert({
+            installer_id: installerId,
+            pickup_date: pickupDate.toISOString().split("T")[0],
+            notes: notes.trim() || null,
+          })
+          .select("id")
+          .single();
 
-      // Deduct from main center inventory (fire-and-forget, non-blocking)
-      const installerName =
-        installers.find((i) => i.id === installerId)?.name ?? "לא ידוע";
-      deductInventoryForPickup(
-        validItems.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
-        installerName,
-        (user as { name?: string } | null)?.name ?? null
-      ).catch(() => {/* inventory sync errors are non-critical */});
+        if (pickupError || !pickup) throw pickupError ?? new Error("שגיאה ביצירת ההצטיידות");
 
-      toast.success("ההצטיידות נשמרה בהצלחה");
-      onOpenChange(false);
-      onCreated();
+        const itemRows = validItems.map((item) => ({
+          pickup_id: pickup.id,
+          product_id: item.product_id,
+          quantity: item.quantity,
+          serial_numbers: item.serial_numbers.trim()
+            ? item.serial_numbers.split(",").map((s) => s.trim()).filter(Boolean)
+            : null,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from("equipment_pickup_items")
+          .insert(itemRows);
+
+        if (itemsError) throw itemsError;
+
+        const installerName =
+          installers.find((i) => i.id === installerId)?.name ?? "לא ידוע";
+        deductInventoryForPickup(
+          validItems.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
+          installerName,
+          (user as { name?: string } | null)?.name ?? null
+        ).catch(() => {/* inventory sync errors are non-critical */});
+
+        toast.success("ההצטיידות נשמרה בהצלחה");
+        onOpenChange(false);
+        onCreated();
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "שגיאה בשמירת ההצטיידות");
     } finally {
@@ -167,9 +232,9 @@ export function NewPickupDialog({ open, onOpenChange, onCreated, preselectedInst
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
         <DialogHeader>
-          <DialogTitle>הצטיידות חדשה</DialogTitle>
+          <DialogTitle>{isEdit ? "עריכת הצטיידות" : "הצטיידות חדשה"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">

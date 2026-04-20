@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useCallback, type ReactNode } from "react";
+import React, { createContext, useContext, useCallback, useMemo, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { handleError } from "@/lib/errorHandler";
 import { logActivity } from "@/lib/activityLogger";
 import type { Order, OrderItem, OrderStatus } from "@/contexts/types";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface OrdersState {
   orders: Order[];
@@ -25,8 +26,9 @@ export function useOrders() {
 
 export function OrdersProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
+  const { currentUser } = useAuth();
 
-  const { data: orders = [] } = useQuery({
+  const { data: rawOrders = [] } = useQuery({
     queryKey: ["orders"],
     queryFn: async () => {
       const { data: ords } = await supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(500);
@@ -43,6 +45,16 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       return [] as Order[];
     },
   });
+
+  // Client-side division filtering (backup to RLS)
+  const orders = useMemo(() => {
+    // If user is manager or has no division, return all orders
+    if (!currentUser || currentUser.role === "MANAGER" || !currentUser.division) {
+      return rawOrders;
+    }
+    // Non-managers see only orders where division matches their division
+    return rawOrders.filter(order => order.division === currentUser.division);
+  }, [rawOrders, currentUser]);
 
   const refreshOrders = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ["orders"] });

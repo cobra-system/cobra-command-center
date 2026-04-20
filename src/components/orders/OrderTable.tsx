@@ -12,6 +12,7 @@ import type { Priority } from "@/contexts/AppContext";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import type { ColDef } from "@/hooks/useColumnVisibility";
+import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 
 export type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment" | "workflow" | "tracking_number" | "updated_at" | "pi_number";
 export type SortDir = "asc" | "desc" | null;
@@ -360,6 +361,14 @@ export function OrderTable({
                     {isVisible("updated_at") && (
                       <td className="p-3 text-muted-foreground text-xs">{order.updated_at ? new Date(order.updated_at).toLocaleDateString("he-IL") : "—"}</td>
                     )}
+                    <td className="p-3" onClick={e => e.stopPropagation()}>
+                      <PhotoCaptureButton
+                        imageUrl={order.order_image}
+                        storagePath={`orders/${order.id}`}
+                        onSave={async (url) => { await updateOrder(order.id, { order_image: url }); }}
+                        disabled={!hasEdit}
+                      />
+                    </td>
                     <td className="p-3" onClick={e => e.stopPropagation()}>
                       <button
                         className="p-1 rounded hover:bg-muted transition-colors"

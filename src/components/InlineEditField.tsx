@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface InlineEditFieldProps {
@@ -19,6 +21,12 @@ interface InlineEditFieldProps {
   options?: { value: string; label: string }[];
   /** If true, allows selecting multiple values (comma-separated) */
   multiSelect?: boolean;
+  /** Tooltip text shown on hover of an info icon next to the label */
+  tooltip?: string;
+  /** If true, marks the field as auto-computed (implies disabled) */
+  isComputed?: boolean;
+  /** Optional function to generate navigation links for multiSelect items */
+  getItemLink?: (item: string) => string;
 }
 
 export function InlineEditField({
@@ -32,6 +40,9 @@ export function InlineEditField({
   disabled = false,
   options,
   multiSelect = false,
+  tooltip,
+  isComputed = false,
+  getItemLink,
 }: InlineEditFieldProps) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(String(value ?? ""));
@@ -62,11 +73,32 @@ export function InlineEditField({
     if (e.key === "Escape") { setEditValue(String(value ?? "")); setEditing(false); }
   };
 
+  const labelEl = label ? (
+    <p className={cn("text-xs flex items-center gap-1", isComputed ? "text-muted-foreground/70" : "text-muted-foreground")}>
+      {isComputed && <RefreshCw className="h-3 w-3 shrink-0" />}
+      {label}
+      {tooltip && (
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="h-3 w-3 shrink-0 cursor-help opacity-50 hover:opacity-100 transition-opacity" />
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-[220px] text-xs text-right leading-relaxed">
+              {tooltip}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+    </p>
+  ) : null;
+
   if (disabled) {
     return (
       <div className={cn("space-y-1", className)}>
-        {label && <p className="text-xs text-muted-foreground">{label}</p>}
-        <p className="text-sm font-medium text-foreground">{displayValue ?? value ?? "—"}</p>
+        {labelEl}
+        <p className={cn("text-sm font-medium", isComputed ? "text-foreground/70" : "text-foreground")}>
+          {displayValue ?? value ?? "—"}
+        </p>
       </div>
     );
   }
@@ -119,7 +151,7 @@ export function InlineEditField({
     if (options) {
       return (
         <div className={cn("space-y-1", className)}>
-          {label && <p className="text-xs text-muted-foreground">{label}</p>}
+          {labelEl}
           <Select
             value={editValue}
             onValueChange={(v) => {
@@ -150,7 +182,7 @@ export function InlineEditField({
     if (type === "textarea") {
       return (
         <div className={cn("space-y-1", className)}>
-          {label && <p className="text-xs text-muted-foreground">{label}</p>}
+          {labelEl}
           <Textarea
             ref={textareaRef}
             value={editValue}
@@ -197,9 +229,21 @@ export function InlineEditField({
       const items = String(value).split(",").map(v => v.trim()).filter(Boolean);
       return (
         <span className="flex flex-wrap gap-1">
-          {items.map(item => (
-            <Badge key={item} variant="secondary" className="text-xs">{item}</Badge>
-          ))}
+          {items.map(item => {
+            const href = getItemLink?.(item);
+            return href ? (
+              <Link
+                key={item}
+                to={href}
+                onClick={e => e.stopPropagation()}
+                className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground font-semibold hover:bg-primary/20 hover:text-primary transition-colors"
+              >
+                {item}
+              </Link>
+            ) : (
+              <Badge key={item} variant="secondary" className="text-xs">{item}</Badge>
+            );
+          })}
         </span>
       );
     }
@@ -212,7 +256,7 @@ export function InlineEditField({
       onClick={handleActivate}
       title="לחץ לעריכה"
     >
-      {label && <p className="text-xs text-muted-foreground">{label}</p>}
+      {labelEl}
       <div className={cn("text-sm font-medium text-foreground group-hover:bg-muted/50 group-hover:rounded px-1 -mx-1 transition-colors", type === "textarea" && "whitespace-pre-wrap")}>
         {renderDisplay()}
       </div>

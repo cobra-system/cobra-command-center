@@ -11,6 +11,9 @@ interface ProductDetailsGridProps {
     isSupplierLink?: boolean;
     options?: Array<{ value: string; label: string }>;
     multiSelect?: boolean;
+    readOnly?: boolean;
+    tooltip?: string;
+    isComputed?: boolean;
   }>;
   suppliers: Array<{ id: string; company: string }>;
   hasEdit: boolean;
@@ -51,14 +54,21 @@ export function ProductDetailsGrid({ details, suppliers, hasEdit, onInlineSave }
                   : undefined
               }
               type={
-                ["purchase_price", "sale_price", "monthly_sales", "monthly_order", "stock_qty", "incoming_qty"].includes(d.field)
+                ["purchase_price", "sale_price", "monthly_sales", "monthly_order", "stock_qty", "incoming_qty", "monthly_sales_avg"].includes(d.field)
                   ? "number"
                   : "text"
               }
               onSave={(v) => onInlineSave(d.field, v)}
-              disabled={!hasEdit}
+              disabled={!hasEdit || !!d.readOnly}
               options={d.options}
               multiSelect={d.multiSelect}
+              tooltip={d.tooltip}
+              isComputed={d.isComputed}
+              getItemLink={
+                d.field === "division"
+                  ? (item) => `/equipment/division/${encodeURIComponent(item)}`
+                  : undefined
+              }
             />
           );
         })}

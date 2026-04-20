@@ -12,6 +12,7 @@ export interface Profile {
   role: Role;
   role_definition_id?: string | null;
   allowed_product_ids?: string[] | null;
+  division?: string | null;
 }
 
 export interface Product {
@@ -51,6 +52,7 @@ export interface ProductComponent {
   stock_qty?: number | null;
   price?: number | null;
   notes?: string | null;
+  image_url?: string | null;
 }
 
 export interface SupplierContact {
@@ -104,6 +106,7 @@ export interface Order {
   destination_supplier_id?: string | null;
   destination_supplier_name?: string | null;
   updated_at?: string | null;
+  order_image?: string | null;
   items: OrderItem[];
 }
 
@@ -186,6 +189,7 @@ export interface Task {
   last_generated?: string | null;
   completed_at?: string | null;
   created_by?: string | null;
+  month_of_year?: number | null;
 }
 
 export interface RoleDefinition {

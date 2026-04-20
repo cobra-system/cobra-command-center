@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -21,13 +21,27 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 
+interface InstallerData {
+  id: string;
+  name: string;
+  warehouse_number: number | null;
+  division: string;
+  phone: string | null;
+  coordinator: string | null;
+  notes?: string | null;
+  status?: string;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: () => void;
+  installer?: InstallerData;
+  onUpdated?: () => void;
 }
 
-export function NewInstallerDialog({ open, onOpenChange, onCreated }: Props) {
+export function NewInstallerDialog({ open, onOpenChange, onCreated, installer, onUpdated }: Props) {
+  const isEdit = !!installer;
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [warehouseNumber, setWarehouseNumber] = useState("");
@@ -35,6 +49,7 @@ export function NewInstallerDialog({ open, onOpenChange, onCreated }: Props) {
   const [phone, setPhone] = useState("");
   const [coordinator, setCoordinator] = useState("");
   const [notes, setNotes] = useState("");
+  const [status, setStatus] = useState("פעיל");
 
   const reset = () => {
     setName("");
@@ -43,7 +58,24 @@ export function NewInstallerDialog({ open, onOpenChange, onCreated }: Props) {
     setPhone("");
     setCoordinator("");
     setNotes("");
+    setStatus("פעיל");
   };
+
+  useEffect(() => {
+    if (open) {
+      if (installer) {
+        setName(installer.name);
+        setWarehouseNumber(installer.warehouse_number ? String(installer.warehouse_number) : "");
+        setDivision(installer.division);
+        setPhone(installer.phone ?? "");
+        setCoordinator(installer.coordinator ?? "");
+        setNotes(installer.notes ?? "");
+        setStatus(installer.status ?? "פעיל");
+      } else {
+        reset();
+      }
+    }
+  }, [open, installer]);
 
   const handleClose = (open: boolean) => {
     if (!open) reset();
@@ -57,21 +89,40 @@ export function NewInstallerDialog({ open, onOpenChange, onCreated }: Props) {
     }
     setSaving(true);
     try {
-      const { error } = await supabase.from("installers").insert({
+      const payload = {
         name: name.trim(),
         warehouse_number: warehouseNumber ? parseInt(warehouseNumber) : null,
         division,
         phone: phone.trim() || null,
         coordinator: coordinator.trim() || null,
         notes: notes.trim() || null,
-      });
-      if (error) throw error;
-      toast.success("המתקין נוסף בהצלחה");
-      reset();
-      onOpenChange(false);
-      onCreated();
+        status,
+      };
+
+      if (isEdit && installer) {
+        const { error } = await supabase
+          .from("installers")
+          .update(payload)
+          .eq("id", installer.id);
+        if (error) throw error;
+        toast.success("הטכנאי עודכן בהצלחה");
+        handleClose(false);
+        onUpdated?.();
+      } else {
+        const { error } = await supabase.from("installers").insert(payload);
+        if (error) throw error;
+        toast.success("המתקין נוסף בהצלחה");
+        reset();
+        onOpenChange(false);
+        onCreated();
+      }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "שגיאה בשמירת המתקין");
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("schema cache") || msg.includes("PGRST")) {
+        toast.error("שגיאת מסד נתונים — אנא רענן את הדף ונסה שוב");
+      } else {
+        toast.error(msg || (isEdit ? "שגיאה בעדכון המתקין" : "שגיאה בשמירת המתקין"));
+      }
     } finally {
       setSaving(false);
     }
@@ -79,9 +130,9 @@ export function NewInstallerDialog({ open, onOpenChange, onCreated }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" dir="rtl">
         <DialogHeader>
-          <DialogTitle>מתקין חדש</DialogTitle>
+          <DialogTitle>{isEdit ? "עריכת טכנאי" : "מתקין חדש"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -137,6 +188,19 @@ export function NewInstallerDialog({ open, onOpenChange, onCreated }: Props) {
                 placeholder="שם המתאם"
               />
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>סטטוס</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="פעיל">פעיל</SelectItem>
+                <SelectItem value="לא פעיל">לא פעיל</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1.5">

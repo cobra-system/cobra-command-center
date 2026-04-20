@@ -56,11 +56,8 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
       shipping: p?.shipping || "",
       purchase_price: String(p?.purchase_price ?? ""),
       sale_price: String(p?.sale_price ?? ""),
-      monthly_sales: String(p?.monthly_sales ?? ""),
       monthly_order: String(p?.monthly_order ?? ""),
       stock_qty: String(p?.stock_qty ?? 0),
-      incoming_qty: String(p?.incoming_qty ?? 0),
-      reorder_point: String(p?.reorder_point ?? ""),
       lead_time_days: String(p?.lead_time_days ?? ""),
       notes: p?.notes || "",
       description: p?.description || "",
@@ -105,11 +102,8 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
       shipping: form.shipping || null,
       purchase_price: numOrNull(form.purchase_price),
       sale_price: numOrNull(form.sale_price),
-      monthly_sales: numOrNull(form.monthly_sales),
       monthly_order: numOrNull(form.monthly_order),
       stock_qty: Number(form.stock_qty) || 0,
-      incoming_qty: Number(form.incoming_qty) || 0,
-      reorder_point: numOrNull(form.reorder_point),
       lead_time_days: numOrNull(form.lead_time_days),
       notes: form.notes || null,
       description: form.description || null,
@@ -247,14 +241,10 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
               <Label>מלאי</Label>
               <Input type="number" value={form.stock_qty} onChange={e => setField("stock_qty", e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label>בדרך</Label>
-              <Input type="number" value={form.incoming_qty} onChange={e => setField("incoming_qty", e.target.value)} />
             </div>
             <div className="space-y-1">
               <Label>מחיר רכישה</Label>
@@ -266,18 +256,10 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>הזמנה חודשית</Label>
               <Input type="number" value={form.monthly_order} onChange={e => setField("monthly_order", e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label>מכירות חודשיות</Label>
-              <Input type="number" value={form.monthly_sales} onChange={e => setField("monthly_sales", e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label>נק׳ הזמנה מחדש</Label>
-              <Input type="number" value={form.reorder_point} onChange={e => setField("reorder_point", e.target.value)} />
             </div>
             <div className="space-y-1">
               <Label>זמן אספקה (ימים)</Label>

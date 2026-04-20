@@ -33,7 +33,36 @@ export function OrdersHistoryTable({ relatedOrders, product, hasEdit }: OrdersHi
         )}
       </div>
       {relatedOrders.length > 0 ? (
-        <div className="overflow-x-auto">
+        <>
+          {/* Mobile card list */}
+          <div className="md:hidden space-y-2">
+            {relatedOrders.map(order => {
+              const relevantItem = order.items.find(i => i.name === product.name || i.product_id === product.id);
+              return (
+                <div
+                  key={order.id}
+                  className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => navigate(`/orders/${order.id}`)}
+                  data-navigate-to={`/orders/${order.id}`}
+                >
+                  <PriorityBadge priority={order.priority as Priority} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{order.supplier_name || "—"}</p>
+                    <p className="text-xs text-muted-foreground">כמות: {relevantItem?.qty || "—"}</p>
+                  </div>
+                  <div className="shrink-0 text-left">
+                    <OrderStatusBadge status={order.status as OrderStatus} />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {order.eta ? new Date(order.eta).toLocaleDateString("he-IL") : "—"}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
@@ -66,7 +95,8 @@ export function OrdersHistoryTable({ relatedOrders, product, hasEdit }: OrdersHi
               })}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       ) : (
         <p className="text-sm text-muted-foreground py-4 text-center">אין הזמנות קשורות למוצר זה</p>
       )}

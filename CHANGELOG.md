@@ -5,11 +5,207 @@
 
 ---
 
+## [2026-04-20]
+
+- Merge pull request #149 from cobra-system/claude/fix-consumption-average-pwunu (2d1714a)
+- Add MCP tools: assign_product_division, get_product_supplier_payments, list_orders_by_division (836b283)
+- Add supplier payment stats to product detail + auto-assign order division (ab65b30)
+- Implement division-based data filtering with RLS enforcement (07a9803)
+- Fix consumption average + division improvements (34db6b5)
+
+<!-- last-commit: 2d1714a6f3fd9ba38e04166efd39aded1b4dd366 -->
+## [2026-04-20]
+
+- Implement order archiving, dashboard status distribution, and image uploads (1b7d588)
+
+## [2026-04-20]
+
+- Update product field labels and visibility (49536b2)
+
+## [2026-04-19]
+
+- Merge main and resolve MIGRATIONS.md conflict (cc13d3e)
+- Integrate inventory as native part of divisions management (b1576f2)
+- Move inventory page under equipment/divisions management (d9b625c)
+
+## [2026-04-19]
+
+- Merge pull request #145 from cobra-system/claude/organize-product-data-Dmzkc (2662a0c)
+- fix(mcp): remove computed fields from product write tools (d98e9a4)
+- feat(products): add field tooltips and distinguish computed vs editable data (8556a9f)
+
+## [2026-04-19]
+
+- Merge pull request #143 from cobra-system/claude/remove-dashboard-widgets-MDzes (3bc7f2a)
+- Remove active-workflows banner and inventory/severity charts from dashboard (7a69e66)
+
+## [2026-04-19]
+
+- feat(waste): add photo capture to waste management page (826dc7f)
+- feat(wear): add photo capture to wear control inspection (1d577cf)
+
+## [2026-04-19]
+
+- feat(mcp): update existing tools to cover recent schema changes (bb5954a)
+- feat(mcp): add MCP tools for division_products, warehouse zones, and waste_items (5833b6a)
+
+## [2026-04-18]
+
+- feat(products): rename 'בדרך'→'עול"ב', make incoming/sales computed read-only (aa6b9cc)
+- feat: division manager profiles + division product intelligence table (cb26e4c)
+- fix: RTL equipment page + edit/delete for installers, pickups, returns (b7a58af)
+
+## [Unreleased]
+
+### Added
+- Division manager profiles: `division` field on `profiles` links a user account to a specific division; managers auto-redirect to their division page on login and cannot access other divisions via URL
+- Division select field in Settings user management (create/edit employee)
+- Division product intelligence table in each division detail page: tracks field stock (manually updated), monthly consumption (auto-computed from pickup history), quarterly demand (manually set), and last change date
+- `division_products` DB table with per-division product entries and RLS policies
+
+### Fixed
+- RTL layout across all equipment page tabs (tabs order, chevron directions, navigation icons)
+- Dialog RTL direction now explicit (not relying on inherited CSS)
+
+### Added (previous release)
+- Edit and delete for technicians (installers) in division detail page
+- Full edit of pickup items via dialog (products linked via Combobox)
+- Delete pickup with cascade
+- Returns section in division detail page with edit/delete
+- Visual grouping of sales divisions vs bonded divisions on equipment overview
+
+---
+
+## [2026-04-17]
+
+- feat: add procurement MCP tools and fix meeting order bugs (c6bd0be)
+
+## [2026-04-16] — כלי MCP לרכש ומלאי
+
+### Added
+- **`get_product_inventory_full`**: מלאי מלא למוצר — מלאי לפי מרכז, הזמנות בדרך, צריכה חודשית (6 חודשים), ימי runway, והמלצת הזמנה חוזרת.
+- **`get_reorder_dashboard`**: לוח מחוונים רוחבי — כל המוצרים ממוינים לפי דחיפות (critical/high/medium/low), עם כמות מוצעת ושיטת משלוח.
+- **`import_stock_snapshot`**: ייבוא מלאי מ-SAP — UPSERT לפי SKU + שם מרכז לטבלת `center_inventory`.
+- **`get_meeting_summary`**: סיכום ישיבה מלא בקריאה אחת — מאושר/נדחה, סכומים, פרטי בנק. מחליף 10+ קריאות.
+- **`bulk_update_meeting_decisions`**: עדכון החלטות מרובות בישיבה בבת אחת.
+- **`get_supplier_bank_details`**: פרטי בנק לספק מתוך טבלת `supplier_bank_details`.
+- **`sync_email_to_order`**: סנכרון אימייל להזמנה — append חכם לנוטס + עדכון שדות shipping.
+- **`get_order_timeline`**: ציר זמן מלא להזמנה — יצירה, תשלומים, ישיבות, מסמכים, שינויי הערות.
+- **Migration `20260416000000_supplier_bank_details`**: טבלת `supplier_bank_details` עם נתוני seed לספקים ידועים.
+
+### Fixed
+- **`get_meeting_orders`**: תוקנה שגיאה `column orders_1.currency does not exist` — הוסרה עמודת `currency` מה-select.
+- **`update_order`**: נוסף פרמטר `supplier_id` לאפשר שינוי ספק בהזמנה קיימת.
+- **UI ישיבת רכש — הצגת סכומים**: `AgendaOrderRow` מציג כעת `approved_amount` → סכום ממתין → `total_price` (fallback) במקום תמיד `total_price`.
+
+## [2026-04-16]
+
+- Show payment totals grouped by due date in procurement agenda (8cce188)
+
+## [2026-04-14]
+
+- Merge pull request #138 from cobra-system/claude/fix-schema-cache-column-WVTcd (04df9f7)
+- fix: re-assert center_id column on installers to resolve schema cache error (0caa07b)
+
+## [2026-04-14]
+
+- Merge pull request #137 from cobra-system/claude/add-purchase-agenda-FT9XO (68d3b40)
+- Fix fetchKpis to not hang spinner on network failure (ab5d461)
+- Rebuild ProcurementMeetingTab from scratch (81f2810)
+- Add purchase agenda tab rebuild with column visibility (7c9cf2d)
+
+## [2026-04-14] — ישיבת רכש אינטראקטיבית
+
+### Added
+- **טאב "סדר יום רכש" — ניהול ישיבת רכש אינטראקטיבי**: הטאב מציג כעת את `ProcurementMeetingTab` — ממשק בחירת הזמנות לישיבה, תיעוד החלטות (אושר / נדחה / חלקי / ממתין), מעקב אחרי סכום מאושר לתשלום, וסגירת ישיבה. המשתמש בוחר בעצמו אילו הזמנות נכנסות לדיון.
+- **בחירה אוטומטית של ישיבה פתוחה**: בטעינת הטאב תיבחר אוטומטית הישיבה הפתוחה האחרונה אם קיימת.
+- **כלי MCP חדש `get_pending_orders_for_meeting`**: מחזיר הזמנות ממתינות לדיון — קבוצה א׳ עם תשלומים ממתינים, קבוצה ב׳ עם PI ללא לוח תשלומים. תומך בסינון לפי `meeting_id` להחרגת הזמנות שכבר נוספו לישיבה. מאפשר ל-Claude לענות על "מה יש לנו בקנה".
+
+---
+
+## [2026-04-14]
+
+- fix: schema cache error, division page load, pickup edit, RTL, day-view tracking, column visibility (ffd513f)
+
+## [2026-04-14]
+
+- fix: correct all recurring task logic bugs (9ba306d)
+
+## [2026-04-14]
+
+- chore: merge main into fix-recurring-tasks branch (09d38da)
+- chore: merge main into fix-recurring-tasks branch (f9e5559)
+- fix: restore recurring task columns and implement full recurring lifecycle (8454205)
+
+## [2026-04-14]
+
+### Fixed
+- תיקון שגיאת "Could not find the 'day_of_month' column of 'tasks' in the schema cache" — עמודות המשימות החוזרות לא הוחלו על הדאטאבייס החי. מיגרציה חדשה (`20260414000001`) מוסיפה אותן ומרפרשת את ה-PostgREST schema cache.
+
+### Added
+- **משימה חוזרת — יצירת המופע הבא ברגע הסימון כבוצע**: כאשר מסמנים מופע של משימה חוזרת כ"בוצע", המופע הבא נוצר מיידית בתאריך הרלוונטי (יום מחר / שבוע / חודש הבא בהתאם לתדירות).
+- **משימה חוזרת שלא בוצעה — העברה עם הערה**: כאשר `advance-overdue-tasks` מעביר מופע של משימה חוזרת שלא בוצע ביומה, מתווספת הערה "⚠️ לא בוצע ב-[תאריך]" ומתעדכן `last_generated` בתבנית כדי למנוע כפילות.
+
+### Fixed (טכני)
+- תיקון חוסר התאמה בין ערך `"yearly"` בטופס יצירת משימה לבין `"annual"` שמצפים לו מנוע החזרה (`generate-recurring-tasks`, `recurringUtils.ts`).
+
+---
+- Merge pull request #134 from cobra-system/claude/fix-product-data-sync-IpgCh (5e58d98)
+- fix: live product metrics on detail page, narrow 'בדרך' statuses, add optional table columns (b0f93b7)
+
+## [2026-04-14]
+
+- Merge pull request #133 from cobra-system/claude/fix-product-assignment-5y8vD (95d97b7)
+- fix: open CORS to * and surface profile-update errors in manage-employee (ce161ef)
+
+## [2026-04-14]
+
+- Merge pull request #131 from cobra-system/claude/mobile-products-page-YYOju (7a259f4)
+- Make Products page and related components mobile-responsive (a10fb26)
+
+## [2026-04-14]
+
+- feat: smart live routing for בדרך and מחיר רכישה in ProductsPage (3ee8970)
+
+## [2026-04-13]
+
+- chore: merge main + resolve CHANGELOG conflict (b4644c1)
+- feat: technician profile enhancements + bonded division support (b125eb1)
+- feat: redesign equipment page with division cards and detail page (3a52dbc)
+
+## [2026-04-13]
+
+### Added
+- עמוד פרטי חטיבה (`/equipment/division/:divisionName`) — טכנאים, הצטיידויות, מלאי שטח, אנשי קשר עם CRUD
+- 6 כרטיסי סיכום חטיבה בטאב "חטיבות" עם ניווט לעמוד הפרטים
+- קובץ `constants.ts` עם DIVISIONS, DIVISION_COLORS ו-BONDED_DIVISIONS לכל 6 החטיבות
+- תמיכה בישויות מסחריות (bonded): פרופיל ישות בתיק החטיבה, עמוד מתקין עם תג "ישות מסחרית"
+- תיק מתקין: KPI רביעי "בשטח כעת", טבלת "מלאי שטח" לפי מוצר עם column visibility
+
+### Changed
+- עמוד הצטיידות (`/equipment`) עוצב מחדש: RTL, טאב חטיבות עם כרטיסים, טאבים 2-3 מקובצים לפי חטיבה, column visibility + מיון לכל טבלה
+- לוח בקרה (טאב 4) — תרשימי RTL, טבלת סיכום חטיבות קליקבילית
+
+- feat: add photo capture for products and BOM components (589661a)
+
+
+## [2026-04-13]
+
+- Merge pull request #127 from cobra-system/claude/procurement-meeting-tab-iDhXq (a8bb104)
+- feat: procurement meeting tab with order selection and decision tracking (f71ba11)
+
+## [2026-04-13]
+
+- Merge pull request #122 from cobra-system/claude/edit-logistics-squares-QGGND (be8dc80)
+- feat(logistics-map): zone notes, change log, keyboard shortcuts, reorder, product transfer (5cec58c)
+- feat(logistics-map): heatmap, drag-drop, capacity, picking list, print (56aef99)
+- chore: merge main — keep both migration 8 (products perms) and migration 9 (warehouse_zones) (a58c9ea)
+- feat(logistics-map): editable zones, new zone creation, fix product add bug (8d000f6)
+
 ## [2026-04-13]
 
 - fix: save annotated document as new record instead of overwriting original (0527566)
 
-<!-- last-commit: 925fe27e9f12638fc06f23532b4e8c0141348ad2 -->
 ## [2026-04-12]
 
 - Merge pull request #125 from cobra-system/claude/issue-detail-page-9GJKX (020abaf)

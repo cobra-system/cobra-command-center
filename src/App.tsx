@@ -32,11 +32,11 @@ const ReorderPage = lazy(() => import("@/pages/ReorderPage"));
 const ReportsPage = lazy(() => import("@/pages/ReportsPage"));
 const MyTasksPage = lazy(() => import("@/pages/MyTasksPage"));
 const MyTaskDetailPage = lazy(() => import("@/pages/MyTaskDetailPage"));
-const InventoryPage = lazy(() => import("@/pages/InventoryPage"));
 const IssuesPage = lazy(() => import("@/pages/IssuesPage"));
 const WasteManagementPage = lazy(() => import("@/pages/WasteManagementPage"));
 const EquipmentPage = lazy(() => import("@/pages/EquipmentPage"));
 const InstallerDetailPage = lazy(() => import("@/pages/InstallerDetailPage"));
+const DivisionDetailPage = lazy(() => import("@/pages/DivisionDetailPage"));
 const AlertsPage = lazy(() => import("@/pages/AlertsPage"));
 const LogisticsMapPage = lazy(() => import("@/pages/LogisticsMapPage"));
 const IssueDetailPage = lazy(() => import("@/pages/IssueDetailPage"));
@@ -67,11 +67,18 @@ function RequirePermission() {
   if (loading) return null;
   if (!currentUser) return <Navigate to="/login" replace />;
   if (currentUser.role === "MANAGER") return <ManagerLayout />;
+
+  // Non-managers cannot access these manager-only modules
+  const managerOnlyPaths = ["/dashboard", "/suppliers", "/reports"];
+  if (managerOnlyPaths.some(path => location.pathname.startsWith(path))) {
+    return <Navigate to="/my-tasks" replace />;
+  }
+
   const moduleKey = getModuleKeyFromRoute(location.pathname);
   if (!moduleKey || !canView(currentUserPermissions, moduleKey)) {
     return <Navigate to="/my-tasks" replace />;
   }
-  return currentUser.role === "MANAGER" ? <ManagerLayout /> : <EmployeeLayout />;
+  return <EmployeeLayout />;
 }
 
 function RequireAuth() {
@@ -86,6 +93,7 @@ function RootRedirect() {
   if (loading) return null;
   if (!currentUser) return <Navigate to="/login" replace />;
   if (currentUser.role === "MANAGER") return <Navigate to="/dashboard" replace />;
+  if (currentUser.division) return <Navigate to={`/equipment/division/${encodeURIComponent(currentUser.division)}`} replace />;
   return <Navigate to="/my-tasks" replace />;
 }
 
@@ -112,7 +120,7 @@ function AppRoutes() {
         <Route path="/issues" element={<IssuesPage />} />
         <Route path="/issues/:id" element={<IssueDetailPage />} />
         <Route path="/meetings" element={<Navigate to="/orders" replace />} />
-        <Route path="/inventory" element={<InventoryPage />} />
+        <Route path="/inventory" element={<Navigate to="/equipment?tab=warehouses" replace />} />
         <Route path="/workflows" element={<Navigate to="/tasks" replace />} />
         <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/documents/:id" element={<DocumentDetailPage />} />
@@ -121,6 +129,7 @@ function AppRoutes() {
         <Route path="/waste-management" element={<WasteManagementPage />} />
         <Route path="/equipment" element={<EquipmentPage />} />
         <Route path="/equipment/installer/:id" element={<InstallerDetailPage />} />
+        <Route path="/equipment/division/:divisionName" element={<DivisionDetailPage />} />
         <Route path="/compliance" element={<Navigate to="/documents" replace />} />
         <Route path="/shipment-groups" element={<Navigate to="/orders" replace />} />
         <Route path="/alerts" element={<AlertsPage />} />

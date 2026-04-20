@@ -124,6 +124,8 @@ export function registerOrderTools(server: McpServer) {
       booking_number: z.string().optional().describe("Shipping line booking number or BL number"),
       tclog_reference: z.string().optional().describe("tclog freight forwarder reference number"),
       shipment_group_id: z.string().uuid().optional().describe("Shipment group UUID to link this order to a shared shipment"),
+      destination_supplier_id: z.string().uuid().optional().describe("Destination supplier UUID for supplier-to-supplier transfers"),
+      destination_supplier_name: z.string().optional().describe("Destination supplier display name"),
       items: z.array(z.object({
         name: z.string().describe("Item name"),
         qty: z.number().describe("Quantity"),
@@ -133,7 +135,8 @@ export function registerOrderTools(server: McpServer) {
     },
     async ({ supplier_id, supplier_name, status, priority, order_date, total_price, contact_name,
              payment_status, notes, eta, etd, tracking_number, pi_number, vessel_name,
-             booking_number, tclog_reference, shipment_group_id, items }) => {
+             booking_number, tclog_reference, shipment_group_id,
+             destination_supplier_id, destination_supplier_name, items }) => {
       let resolvedSupplierName = supplier_name || null;
       if (supplier_id && !supplier_name) {
         const { data: sup } = await supabase.from("suppliers").select("company").eq("id", supplier_id).single();
@@ -160,6 +163,8 @@ export function registerOrderTools(server: McpServer) {
           booking_number: booking_number || null,
           tclog_reference: tclog_reference || null,
           shipment_group_id: shipment_group_id || null,
+          destination_supplier_id: destination_supplier_id || null,
+          destination_supplier_name: destination_supplier_name || null,
         })
         .select()
         .single();
@@ -193,6 +198,7 @@ export function registerOrderTools(server: McpServer) {
     "עדכון הזמנה — Update order status, dates, shipping fields, notes, etc.",
     {
       id: z.string().uuid().describe("Order UUID"),
+      supplier_id: z.string().uuid().optional().describe("Supplier UUID — use to reassign order to a different supplier"),
       status: ORDER_STATUS_ENUM.optional().describe("New status"),
       priority: z.enum(["דחוף", "גבוה", "בינוני", "נמוך"]).optional().describe("New priority"),
       order_date: z.string().optional().describe("Order date (YYYY-MM-DD)"),
@@ -212,6 +218,8 @@ export function registerOrderTools(server: McpServer) {
       booking_number: z.string().optional().describe("Booking/BL number"),
       tclog_reference: z.string().optional().describe("tclog reference number"),
       shipment_group_id: z.string().uuid().nullable().optional().describe("Shipment group UUID (pass null to unlink)"),
+      destination_supplier_id: z.string().uuid().nullable().optional().describe("Destination supplier UUID for transfers (pass null to clear)"),
+      destination_supplier_name: z.string().nullable().optional().describe("Destination supplier name (pass null to clear)"),
     },
     async ({ id, notes, notes_change_reason, ...fields }) => {
       const updates: Record<string, unknown> = {};
@@ -508,6 +516,40 @@ export function registerOrderTools(server: McpServer) {
 
       if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
       return { content: [{ type: "text" as const, text: `${data.length} items added:\n${JSON.stringify(data, null, 2)}` }] };
+    }
+  );
+
+  server.tool(
+    "list_orders_by_division",
+    "הזמנות לפי חטיבה — List all orders assigned to a specific division. Useful for division managers to see only their relevant orders.",
+    {
+      division: z.string().describe("Division name, e.g. \"AWCAS\" or \"כפתור\""),
+      status: z.string().optional().describe("Filter by order status: PENDING, ORDERED, SHIPPED, ARRIVED_PORT, CUSTOMS_CLEARANCE, DELIVERED, ARRIVED, CANCELLED"),
+      limit: z.number().default(50).describe("Max results"),
+    },
+    async ({ division, status, limit }) => {
+      let query = supabase
+        .from("orders")
+        .select("id, supplier_name, status, division, total_price, order_date, eta, pi_number, created_at, order_items(name, qty)")
+        .eq("division", division)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+      if (status) query = query.eq("status", status);
+
+      const { data, error } = await query;
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({
+            division,
+            total: data?.length ?? 0,
+            orders: data,
+          }, null, 2),
+        }],
+      };
     }
   );
 }

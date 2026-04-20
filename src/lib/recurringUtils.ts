@@ -21,10 +21,64 @@ export function recurringMatchesDay(rt: RecurringTask, day: Date): boolean {
       return rt.day_of_month === dayOfMonth && day.getMonth() % 3 === 0;
     case "biannual":
       return rt.day_of_month === dayOfMonth && (day.getMonth() === 0 || day.getMonth() === 6);
-    case "annual":
-      return rt.day_of_month === dayOfMonth && day.getMonth() === 0;
+    case "annual": {
+      const targetMonth = rt.month_of_year ?? 0;
+      return rt.day_of_month === dayOfMonth && day.getMonth() === targetMonth;
+    }
     default: return false;
   }
+}
+
+/** Returns the due date for the next occurrence of a recurring template after a given base date. */
+export function getNextOccurrenceDate(template: RecurringTask, fromDueDate: Date): Date {
+  const base = new Date(fromDueDate);
+  switch (template.frequency) {
+    case "daily":
+      base.setDate(base.getDate() + 1);
+      break;
+    case "weekly":
+      base.setDate(base.getDate() + 7);
+      break;
+    case "biweekly":
+      base.setDate(base.getDate() + 14);
+      break;
+    case "monthly": {
+      const dom = template.day_of_month ?? base.getDate();
+      base.setDate(1); // avoid overflow when current day > days in next month
+      base.setMonth(base.getMonth() + 1);
+      const lastDay = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+      base.setDate(Math.min(dom, lastDay));
+      break;
+    }
+    case "quarterly": {
+      const dom3 = template.day_of_month ?? base.getDate();
+      base.setDate(1); // avoid overflow while changing month
+      base.setMonth(base.getMonth() + 3);
+      const lastDay3 = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+      base.setDate(Math.min(dom3, lastDay3));
+      break;
+    }
+    case "biannual": {
+      const dom6 = template.day_of_month ?? base.getDate();
+      base.setDate(1);
+      base.setMonth(base.getMonth() + 6);
+      const lastDay6 = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+      base.setDate(Math.min(dom6, lastDay6));
+      break;
+    }
+    case "annual": {
+      const domY = template.day_of_month ?? base.getDate();
+      base.setDate(1);
+      base.setFullYear(base.getFullYear() + 1);
+      const lastDayY = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+      base.setDate(Math.min(domY, lastDayY));
+      break;
+    }
+    default:
+      base.setDate(base.getDate() + 1);
+  }
+  base.setHours(0, 0, 0, 0);
+  return base;
 }
 
 export async function findOrCreateRecurringInstance(

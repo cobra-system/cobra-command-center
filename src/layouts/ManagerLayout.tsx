@@ -14,7 +14,6 @@ import {
   FileText,
   CalendarClock,
   BarChart3,
-  Warehouse,
   GripVertical,
   Server,
   Repeat,
@@ -42,7 +41,6 @@ const defaultNavItems = [
   { to: "/orders", icon: "ShoppingCart", label: "הזמנות" },
   { to: "/equipment", icon: "Boxes", label: "חטיבות" },
   { to: "/tasks", icon: "ListTodo", label: "משימות" },
-  { to: "/inventory", icon: "Warehouse", label: "מלאי" },
   { to: "/documents", icon: "FileText", label: "מסמכים" },
   { to: "/suppliers", icon: "Truck", label: "ספקים" },
   { to: "/issues", icon: "Wrench", label: "תקלות" },
@@ -56,7 +54,7 @@ const defaultNavItems = [
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard, Package, ShoppingCart, Truck, ListTodo,
-  Settings, FileText, CalendarClock, BarChart3, Warehouse, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Recycle, Boxes, Bell, Map,
+  Settings, FileText, CalendarClock, BarChart3, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Recycle, Boxes, Bell, Map,
 };
 
 const NAV_ORDER_KEY = "cobra-nav-order";

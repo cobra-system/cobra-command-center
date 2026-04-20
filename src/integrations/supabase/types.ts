@@ -182,6 +182,7 @@ export type Database = {
           address: string | null
           city: string | null
           created_at: string
+          division: string | null
           id: string
           is_main: boolean
           name: string
@@ -193,6 +194,7 @@ export type Database = {
           address?: string | null
           city?: string | null
           created_at?: string
+          division?: string | null
           id?: string
           is_main?: boolean
           name: string
@@ -204,6 +206,7 @@ export type Database = {
           address?: string | null
           city?: string | null
           created_at?: string
+          division?: string | null
           id?: string
           is_main?: boolean
           name?: string
@@ -432,6 +435,7 @@ export type Database = {
           id: string
           notes: string | null
           order_date: string | null
+          order_image: string | null
           payment_date: string | null
           payment_status: string
           priority: string
@@ -453,6 +457,7 @@ export type Database = {
           id?: string
           notes?: string | null
           order_date?: string | null
+          order_image?: string | null
           payment_date?: string | null
           payment_status?: string
           priority?: string
@@ -474,6 +479,7 @@ export type Database = {
           id?: string
           notes?: string | null
           order_date?: string | null
+          order_image?: string | null
           payment_date?: string | null
           payment_status?: string
           priority?: string
@@ -1318,6 +1324,8 @@ export type Database = {
           coordinator: string | null
           status: string
           notes: string | null
+          entity_type: string
+          center_id: string | null
           created_at: string
           updated_at: string
         }
@@ -1330,6 +1338,8 @@ export type Database = {
           coordinator?: string | null
           status?: string
           notes?: string | null
+          entity_type?: string
+          center_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -1342,10 +1352,20 @@ export type Database = {
           coordinator?: string | null
           status?: string
           notes?: string | null
+          entity_type?: string
+          center_id?: string | null
           created_at?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "installers_center_id_fkey"
+            columns: ["center_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_centers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       equipment_pickups: {
         Row: {

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from "react";
-const ProcurementAgendaTab = lazy(() =>
-  import("@/pages/ProcurementAgendaPage").then(m => ({ default: m.ProcurementAgendaTab }))
+const ProcurementMeetingTab = lazy(() =>
+  import("@/components/meetings/ProcurementMeetingTab")
 );
 const ProcurementMeetingTab = lazy(() =>
   import("@/components/meetings/ProcurementMeetingTab").then(m => ({ default: m.default }))
@@ -146,7 +146,7 @@ export default function OrdersPage() {
     const q = archiveSearch.toLowerCase();
     return orders
       .filter(o => {
-        if (o.status !== "ARRIVED") return false;
+        if (o.status !== "ARRIVED" && o.status !== "CANCELLED") return false;
         if (q) {
           const itemNames = o.items.map(i => i.name).join(" ").toLowerCase();
           const supplier = (o.supplier_name || "").toLowerCase();
@@ -163,7 +163,7 @@ export default function OrdersPage() {
 
   const filtered = useMemo(() => {
     let result = orders.filter(o => {
-      if (o.status === "ARRIVED") return false;
+      if (o.status === "ARRIVED" || o.status === "CANCELLED") return false;
       if (statusFilter !== "all" && o.status !== statusFilter) return false;
       if (priorityFilter !== "all" && o.priority !== priorityFilter) return false;
       if (paymentFilter !== "all" && (o as Record<string, unknown>).payment_status !== paymentFilter) return false;
@@ -233,7 +233,7 @@ export default function OrdersPage() {
   const orderCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     orders.forEach(o => {
-      if (o.status !== "ARRIVED") {
+      if (o.status !== "ARRIVED" && o.status !== "CANCELLED") {
         counts[o.status] = (counts[o.status] || 0) + 1;
       }
     });
@@ -341,7 +341,7 @@ export default function OrdersPage() {
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-0">
-          <OrdersDashboardView orders={filtered} orderWorkflows={orderWorkflows} suppliers={suppliers} />
+          <OrdersDashboardView orders={orders} orderWorkflows={orderWorkflows} suppliers={suppliers} />
         </TabsContent>
 
         <TabsContent value="table" className="mt-0 space-y-4">
@@ -408,7 +408,7 @@ export default function OrdersPage() {
 
         <TabsContent value="agenda" className="mt-0">
           <Suspense fallback={<div className="p-8 text-center text-muted-foreground">טוען...</div>}>
-            <ProcurementAgendaTab />
+            <ProcurementMeetingTab />
           </Suspense>
         </TabsContent>
 

@@ -7,6 +7,8 @@ interface Task {
   due_date: string | null;
   status: string;
   is_daily: boolean;
+  recurring_task_id: string | null;
+  notes: string | null;
 }
 
 Deno.serve(async (req) => {
@@ -26,8 +28,9 @@ Deno.serve(async (req) => {
     // Get all incomplete tasks with past due dates
     const { data: tasks, error: fetchError } = await supabase
       .from("tasks")
-      .select("id, title, due_date, status, is_daily")
+      .select("id, title, due_date, status, is_daily, recurring_task_id, notes")
       .neq("status", "DONE")
+      .neq("status", "TEMPLATE")
       .not("due_date", "is", null);
 
     if (fetchError) {
@@ -45,9 +48,6 @@ Deno.serve(async (req) => {
 
       // Skip if task is due today or in the future
       if (taskDueDateOnly >= today) continue;
-
-      // Skip if task is already done (extra safety)
-      if (task.status === "DONE") continue;
 
       tasksToAdvance.push(task);
     }
@@ -73,18 +73,47 @@ Deno.serve(async (req) => {
 
     // Advance each task to today
     for (const task of tasksToAdvance) {
-      const { error: updateError } = await supabase
-        .from("tasks")
-        .update({ due_date: todayISO })
-        .eq("id", task.id);
+      const oldDueDate = task.due_date ? new Date(task.due_date).toISOString() : null;
 
-      if (updateError) {
-        console.error(`Error advancing task ${task.id}:`, updateError);
-        continue;
+      // For recurring instances: append a "missed" note and update last_generated on the
+      // template to prevent generate-recurring-tasks from creating a duplicate today.
+      if (task.recurring_task_id) {
+        const missedDate = task.due_date
+          ? new Date(task.due_date).toLocaleDateString("he-IL", { day: "numeric", month: "numeric", year: "numeric" })
+          : "תאריך לא ידוע";
+        const missedNote = `⚠️ לא בוצע ב-${missedDate}`;
+        const newNotes = task.notes ? `${task.notes}\n${missedNote}` : missedNote;
+
+        const { error: updateError } = await supabase
+          .from("tasks")
+          .update({ due_date: todayISO, notes: newNotes })
+          .eq("id", task.id);
+
+        if (updateError) {
+          console.error(`Error advancing recurring task ${task.id}:`, updateError);
+          continue;
+        }
+
+        // Stamp last_generated on the template so generate-recurring-tasks won't
+        // create a second instance for today.
+        await supabase
+          .from("tasks")
+          .update({ last_generated: now.toISOString() })
+          .eq("id", task.recurring_task_id);
+      } else {
+        // Regular (non-recurring) task: just advance the due date
+        const { error: updateError } = await supabase
+          .from("tasks")
+          .update({ due_date: todayISO })
+          .eq("id", task.id);
+
+        if (updateError) {
+          console.error(`Error advancing task ${task.id}:`, updateError);
+          continue;
+        }
       }
 
       // Log the advancement
-      const oldDueDate = task.due_date ? new Date(task.due_date).toISOString() : null;
       await supabase
         .from("task_advancement_log")
         .insert({

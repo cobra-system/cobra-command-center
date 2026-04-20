@@ -1,11 +1,11 @@
 /**
  * Shared CORS configuration for all Edge Functions.
- * Restricts access to the configured frontend origin instead of allowing "*".
+ * Uses "*" because every function enforces authentication via JWT (verifyAuth),
+ * making origin-based restriction redundant while preventing "Failed to fetch"
+ * errors when the app is served from preview or staging URLs.
  */
-const ALLOWED_ORIGIN = Deno.env.get("ALLOWED_ORIGIN") || "https://cobra-command-center.lovable.app";
-
 export const corsHeaders: Record<string, string> = {
-  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
 };
