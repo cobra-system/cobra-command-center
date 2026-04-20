@@ -7,9 +7,17 @@
 
 ## [2026-04-20]
 
+- Merge pull request #149 from cobra-system/claude/fix-consumption-average-pwunu (2d1714a)
+- Add MCP tools: assign_product_division, get_product_supplier_payments, list_orders_by_division (836b283)
+- Add supplier payment stats to product detail + auto-assign order division (ab65b30)
+- Implement division-based data filtering with RLS enforcement (07a9803)
+- Fix consumption average + division improvements (34db6b5)
+
+<!-- last-commit: 2d1714a6f3fd9ba38e04166efd39aded1b4dd366 -->
+## [2026-04-20]
+
 - Implement order archiving, dashboard status distribution, and image uploads (1b7d588)
 
-<!-- last-commit: 72b818fae4e32369defe1e2f4d376107bae7b003 -->
 ## [2026-04-20]
 
 - Update product field labels and visibility (49536b2)
