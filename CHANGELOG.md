@@ -7,9 +7,13 @@
 
 ## [2026-04-20]
 
+- Implement order archiving, dashboard status distribution, and image uploads (1b7d588)
+
+<!-- last-commit: 72b818fae4e32369defe1e2f4d376107bae7b003 -->
+## [2026-04-20]
+
 - Update product field labels and visibility (49536b2)
 
-<!-- last-commit: d753f120b6f413755928cfb859b7fd72692a8c49 -->
 ## [2026-04-19]
 
 - Merge main and resolve MIGRATIONS.md conflict (cc13d3e)
