@@ -62,7 +62,7 @@ export default function ProductDetailPage() {
     : { label: "תקין", className: "bg-success/15 text-success" };
 
   const handleInlineSave = async (field: string, value: string) => {
-    const numericFields = ["purchase_price", "sale_price", "monthly_order", "stock_qty"];
+    const numericFields = ["purchase_price", "sale_price", "monthly_order", "stock_qty", "monthly_sales_avg"];
     const updates: Record<string, string | number | null> = {};
     const finalValue = field === "sku" ? value.toUpperCase() : value;
     updates[field] = numericFields.includes(field) ? (finalValue ? Number(finalValue) : null) : (finalValue || null);
@@ -85,8 +85,9 @@ export default function ProductDetailPage() {
     { label: "שיטת משלוח", field: "shipping", value: product.shipping, options: shippingOptions, tooltip: "אופן המשלוח המועדף מהספק" },
     { label: "מחיר רכישה", field: "purchase_price", value: product.purchase_price, tooltip: product.product_type === "מורכב" ? "מחושב אוטומטית — סכום מחירי הרכיבים" : "מחיר קנייה מהספק ($)" },
     { label: "מחיר מכירה", field: "sale_price", value: product.sale_price, tooltip: "מחיר מכירה ללקוח הסופי ($)" },
-    { label: "מכירות חודשיות", field: "monthly_sales", value: avgByProduct.get(product.id) ?? undefined, readOnly: true, isComputed: true, tooltip: "מחושב אוטומטית — ממוצע כמויות שהוצאו מהמלאי בחודשים האחרונים" },
+    { label: "מכירות חודשיות (לפי הצטיידות)", field: "monthly_sales", value: avgByProduct.get(product.id) ?? undefined, readOnly: true, isComputed: true, tooltip: "מחושב אוטומטית — ממוצע כמויות שהוצאו מהמלאי בחודשים האחרונים" },
     { label: "הזמנה חודשית", field: "monthly_order", value: product.monthly_order, tooltip: "כמות ההזמנה החודשית המתוכננת — מוגדרת ידנית" },
+    { label: "ממוצע צריכה שנתי (SAP)", field: "monthly_sales_avg", value: product.monthly_sales_avg, tooltip: "ממוצע צריכה שנתי ממערכת SAP — מוגדר ידנית" },
     { label: "מלאי קיים", field: "stock_qty", value: product.stock_qty, tooltip: "כמות יחידות פיזיות במחסן — מוגדרת ידנית" },
     { label: 'עול"ב', field: "incoming_qty", value: metrics[product.id]?.incomingQty ?? product.incoming_qty, readOnly: true, isComputed: true, tooltip: 'מחושב אוטומטית — סכום כמויות מהזמנות פעילות (נשלח / הגיע לנמל / שחרור מכס)' },
     { label: "הערות", field: "notes", value: product.notes, tooltip: "הערות חופשיות על המוצר" },
@@ -198,7 +199,7 @@ export default function ProductDetailPage() {
           {[
             { label: "מלאי קיים", value: product.stock_qty, danger: product.stock_qty === 0, tooltip: "כמות יחידות פיזיות במחסן" },
             { label: 'עול"ב', value: metrics[product.id]?.incomingQty ?? product.incoming_qty, tooltip: 'מחושב מהזמנות פעילות (נשלח / הגיע לנמל / שחרור מכס)' },
-            { label: "מכירות חודשיות", value: avgByProduct.get(product.id) ?? "—", tooltip: "ממוצע מכירות חודשי מחושב מהיסטוריית הוצאות המלאי" },
+            { label: "מכירות חודשיות (לפי הצטיידות)", value: avgByProduct.get(product.id) ?? "—", tooltip: "ממוצע מכירות חודשי מחושב מהיסטוריית הוצאות המלאי" },
             { label: "הזמנה חודשית", value: product.monthly_order ?? "—", tooltip: "כמות הזמנה חודשית מתוכננת — מוגדרת ידנית" },
           ].map((item) => (
             <div key={item.label} className="bg-card rounded-xl border p-4 text-center">

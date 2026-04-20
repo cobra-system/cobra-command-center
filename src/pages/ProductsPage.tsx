@@ -17,7 +17,7 @@ import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/c
 import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "sonner";
 
-type SortKey = "name" | "sku" | "product_type" | "supplier" | "stock_qty" | "incoming_qty" | "purchase_price" | "monthly_order" | "sale_price" | "monthly_sales" | "category" | "reorder_point" | "lead_time_days";
+type SortKey = "name" | "sku" | "product_type" | "supplier" | "stock_qty" | "incoming_qty" | "purchase_price" | "monthly_order" | "sale_price" | "monthly_sales" | "category" | "lead_time_days" | "monthly_sales_avg" | "division" | "shipping";
 
 const COLUMN_DEFS = [
   { id: "name",           label: "שם מוצר",           sortField: "name" },
@@ -29,10 +29,12 @@ const COLUMN_DEFS = [
   { id: "purchase_price", label: "מחיר רכישה",        sortField: "purchase_price" },
   { id: "monthly_order",  label: "הזמנה חודשית",      sortField: "monthly_order" },
   { id: "sale_price",     label: "מחיר מכירה",        sortField: "sale_price" },
-  { id: "monthly_sales",  label: "מכירות חודשיות",    sortField: "monthly_sales" },
-  { id: "category",       label: "קטגוריה",            sortField: "category" },
-  { id: "reorder_point",  label: "נקודת הזמנה",       sortField: "reorder_point" },
-  { id: "lead_time_days", label: "זמן אספקה (ימים)",  sortField: "lead_time_days" },
+  { id: "monthly_sales",     label: "מכירות חודשיות (לפי הצטיידות)", sortField: "monthly_sales" },
+  { id: "category",          label: "קטגוריה",                       sortField: "category" },
+  { id: "lead_time_days",    label: "זמן אספקה (ימים)",              sortField: "lead_time_days" },
+  { id: "monthly_sales_avg", label: "ממוצע צריכה שנתי (SAP)",        sortField: "monthly_sales_avg" },
+  { id: "division",          label: "חטיבות",                        sortField: "division" },
+  { id: "shipping",          label: "שיטת משלוח",                    sortField: "shipping" },
 ] as const;
 
 function CompositeIncomingBadge({ m }: { m: ProductMetrics | undefined }) {
@@ -75,7 +77,7 @@ export default function ProductsPage() {
   const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility(
     "products:hidden-columns",
     COLUMN_DEFS,
-    ["sale_price", "monthly_sales", "category", "reorder_point", "lead_time_days"]
+    ["sale_price", "monthly_sales", "category", "lead_time_days", "monthly_sales_avg", "division", "shipping"]
   );
   const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
   const { metrics } = useLiveProductMetrics(products);
@@ -418,8 +420,10 @@ export default function ProductsPage() {
                     )}
                     {isVisible("monthly_sales") && <td className="p-2 sm:p-3 text-muted-foreground">{avgByProduct.get(p.id) ?? "—"}</td>}
                     {isVisible("category") && <td className="p-2 sm:p-3 text-muted-foreground">{p.category || "—"}</td>}
-                    {isVisible("reorder_point") && <td className="p-2 sm:p-3 text-muted-foreground">{p.reorder_point ?? "—"}</td>}
                     {isVisible("lead_time_days") && <td className="p-2 sm:p-3 text-muted-foreground">{p.lead_time_days ?? "—"}</td>}
+                    {isVisible("monthly_sales_avg") && <td className="p-2 sm:p-3 text-muted-foreground">{avgByProduct.get(p.id) ?? p.monthly_sales_avg ?? "—"}</td>}
+                    {isVisible("division") && <td className="p-2 sm:p-3 text-muted-foreground">{p.division || "—"}</td>}
+                    {isVisible("shipping") && <td className="p-2 sm:p-3 text-muted-foreground">{p.shipping || "—"}</td>}
                     {hasEdit && (
                       <td className="p-3" onClick={e => e.stopPropagation()}>
                         <AlertDialog>

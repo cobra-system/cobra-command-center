@@ -53,7 +53,6 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
         monthly_order: product.monthly_order ?? "",
         monthly_sales_avg: product.monthly_sales_avg ?? "",
         stock_qty: product.stock_qty ?? 0,
-        reorder_point: product.reorder_point ?? "",
         lead_time_days: product.lead_time_days ?? "",
         end_product_url: product.end_product_url || "",
         end_product_image: product.end_product_image || "",
@@ -68,7 +67,7 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
     setSaving(true);
     try {
       const updates: Record<string, any> = {};
-      const numericFields = ["purchase_price", "sale_price", "monthly_order", "monthly_sales_avg", "stock_qty", "reorder_point", "lead_time_days"];
+      const numericFields = ["purchase_price", "sale_price", "monthly_order", "monthly_sales_avg", "stock_qty", "lead_time_days"];
       const textFields = ["name", "sku", "category", "division", "product_type", "description", "supplier", "shipping", "end_product_url", "end_product_image", "notes"];
 
       for (const key of textFields) {
@@ -206,8 +205,7 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
             <div className="grid grid-cols-2 gap-3">
               {numField("stock_qty", "מלאי קיים")}
               {numField("monthly_order", "הזמנה חודשית")}
-              {numField("reorder_point", "נקודת הזמנה מחדש")}
-              {numField("monthly_sales_avg", "ממוצע מכירות ידני (גיבוי)")}
+              {numField("monthly_sales_avg", "ממוצע צריכה שנתי (SAP)")}
             </div>
             <p className="text-[11px] text-muted-foreground mt-2">
               מלאי בדרך ומכירות חודשיות מחושבים אוטומטית מהזמנות ומהיסטוריית הוצאות המלאי.

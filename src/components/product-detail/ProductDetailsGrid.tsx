@@ -54,7 +54,7 @@ export function ProductDetailsGrid({ details, suppliers, hasEdit, onInlineSave }
                   : undefined
               }
               type={
-                ["purchase_price", "sale_price", "monthly_sales", "monthly_order", "stock_qty", "incoming_qty"].includes(d.field)
+                ["purchase_price", "sale_price", "monthly_sales", "monthly_order", "stock_qty", "incoming_qty", "monthly_sales_avg"].includes(d.field)
                   ? "number"
                   : "text"
               }
