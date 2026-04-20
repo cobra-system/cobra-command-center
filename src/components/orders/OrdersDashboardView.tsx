@@ -22,6 +22,9 @@ const STATUS_COLORS: Record<string, string> = {
   "PENDING": "#fbbf24",
   "ORDERED": "#60a5fa",
   "SHIPPED": "#8b5cf6",
+  "ARRIVED_PORT": "#a78bfa",
+  "CUSTOMS_CLEARANCE": "#f472b6",
+  "DELIVERED": "#34d399",
   "ARRIVED": "#10b981",
   "CANCELLED": "#ef4444",
 };
@@ -79,7 +82,7 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
     }, {} as Record<string, number>);
 
     const paymentStatus = orders.reduce((acc, o) => {
-      const status = (o as any).payment_status || "ממתין";
+      const status = (o as Record<string, unknown>).payment_status || "ממתין";
       acc[status] = (acc[status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -101,7 +104,7 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
     return Object.entries(stats.statusCounts).map(([status, count]) => ({
       name: status,
       value: count,
-      fill: STATUS_COLORS[status] || "#gray",
+      fill: STATUS_COLORS[status] || "#808080",
     }));
   }, [stats]);
 
@@ -141,7 +144,7 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
     });
   }, [orders]);
 
-  const StatCard = ({ icon: Icon, label, value, bgColor }: any) => (
+  const StatCard = ({ icon: Icon, label, value, bgColor }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string | number; bgColor: string }) => (
     <div className={cn("rounded-lg p-4 border", bgColor)}>
       <div className="flex items-center justify-between">
         <div>

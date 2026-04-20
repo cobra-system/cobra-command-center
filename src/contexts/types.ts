@@ -106,6 +106,7 @@ export interface Order {
   destination_supplier_id?: string | null;
   destination_supplier_name?: string | null;
   updated_at?: string | null;
+  order_image?: string | null;
   items: OrderItem[];
 }
 
