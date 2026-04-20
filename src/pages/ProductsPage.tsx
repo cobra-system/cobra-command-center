@@ -421,7 +421,7 @@ export default function ProductsPage() {
                     {isVisible("monthly_sales") && <td className="p-2 sm:p-3 text-muted-foreground">{avgByProduct.get(p.id) ?? "—"}</td>}
                     {isVisible("category") && <td className="p-2 sm:p-3 text-muted-foreground">{p.category || "—"}</td>}
                     {isVisible("lead_time_days") && <td className="p-2 sm:p-3 text-muted-foreground">{p.lead_time_days ?? "—"}</td>}
-                    {isVisible("monthly_sales_avg") && <td className="p-2 sm:p-3 text-muted-foreground">{avgByProduct.get(p.id) ?? p.monthly_sales_avg ?? "—"}</td>}
+                    {isVisible("monthly_sales_avg") && <td className="p-2 sm:p-3 text-muted-foreground">{p.monthly_sales_avg ?? "—"}</td>}
                     {isVisible("division") && <td className="p-2 sm:p-3 text-muted-foreground">{p.division || "—"}</td>}
                     {isVisible("shipping") && <td className="p-2 sm:p-3 text-muted-foreground">{p.shipping || "—"}</td>}
                     {hasEdit && (
