@@ -58,7 +58,6 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
       sale_price: String(p?.sale_price ?? ""),
       monthly_order: String(p?.monthly_order ?? ""),
       stock_qty: String(p?.stock_qty ?? 0),
-      reorder_point: String(p?.reorder_point ?? ""),
       lead_time_days: String(p?.lead_time_days ?? ""),
       notes: p?.notes || "",
       description: p?.description || "",
@@ -105,7 +104,6 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
       sale_price: numOrNull(form.sale_price),
       monthly_order: numOrNull(form.monthly_order),
       stock_qty: Number(form.stock_qty) || 0,
-      reorder_point: numOrNull(form.reorder_point),
       lead_time_days: numOrNull(form.lead_time_days),
       notes: form.notes || null,
       description: form.description || null,
@@ -258,14 +256,10 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>הזמנה חודשית</Label>
               <Input type="number" value={form.monthly_order} onChange={e => setField("monthly_order", e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label>נק׳ הזמנה מחדש</Label>
-              <Input type="number" value={form.reorder_point} onChange={e => setField("reorder_point", e.target.value)} />
             </div>
             <div className="space-y-1">
               <Label>זמן אספקה (ימים)</Label>
