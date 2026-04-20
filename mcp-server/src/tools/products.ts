@@ -54,9 +54,15 @@ export function registerProductTools(server: McpServer) {
 
   server.tool(
     "update_product",
-    "עדכון מוצר — Update editable product fields. NOTE: incoming_qty is computed live from active orders; monthly_sales is computed from pickup history — do not set these manually.",
+    "עדכון מוצר — Update editable product fields including name, sku, category, division, product_type, and supplier. NOTE: incoming_qty is computed live from active orders; monthly_sales is computed from pickup history — do not set these manually.",
     {
       id: z.string().uuid().describe("Product UUID"),
+      name: z.string().optional().describe("Product name"),
+      sku: z.string().optional().describe("SKU / part number"),
+      category: z.string().optional().describe("Product category"),
+      division: z.string().optional().describe("Comma-separated divisions assigned to this product (e.g. \"AWCAS, כפתור\")"),
+      product_type: z.string().optional().describe("Product type: מוגמר (finished) or מורכב (composite)"),
+      supplier: z.string().optional().describe("Supplier name"),
       stock_qty: z.number().optional().describe("Physical stock quantity (manually maintained)"),
       sale_price: z.number().optional().describe("Sale price ($)"),
       purchase_price: z.number().optional().describe("Purchase price ($) — for composite products this is calculated automatically from component prices"),
