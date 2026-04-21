@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useMemo } from "react";
-import { type Order, type Supplier } from "@/contexts/AppContext";
+import { type Order, type Supplier, statusLabel } from "@/contexts/AppContext";
 import { cn } from "@/lib/utils";
 import { Globe, MapPin, DollarSign, AlertCircle, Truck, TrendingUp, Clock } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
@@ -101,11 +101,13 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
   }, [orders, suppliers]);
 
   const statusChartData = useMemo(() => {
-    return Object.entries(stats.statusCounts).map(([status, count]) => ({
-      name: status,
-      value: count,
-      fill: STATUS_COLORS[status] || "#808080",
-    }));
+    return Object.entries(stats.statusCounts)
+      .filter(([status]) => status !== "ARRIVED" && status !== "CANCELLED")
+      .map(([status, count]) => ({
+        name: statusLabel[status] || status,
+        value: count,
+        fill: STATUS_COLORS[status] || "#808080",
+      }));
   }, [stats]);
 
   const priorityChartData = useMemo(() => {
