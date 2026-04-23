@@ -167,6 +167,7 @@ export async function markItemAsFaulty(opts: {
     recommendations: "",
     source: "equipment_return",
     return_item_id: opts.returnItemId,
+    product_id: opts.productId,
     created_by: opts.changedBy,
     created_by_name: opts.changedByName,
   });

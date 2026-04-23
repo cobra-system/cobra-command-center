@@ -7,6 +7,16 @@
 
 ## [2026-04-23]
 
+### Added
+- דף בלאי: אפשרות לדווח על פריטי רכיב (מ-`product_components`) בנוסף למוצרים — טוגל מוצר/פריט בטופס
+- דף מוצר: סקשן **בלאי** מוצג בתיק המוצר (מתחת להזמנות) — מציג את כל פריטי הבלאי של המוצר ורכיביו, עם קישור לדף הבלאי
+
+### Changed
+- אינטגרציית DB אמיתית לטבלת `waste_items`: הוספת עמודות FK — `product_id → products(id)` ו-`component_id → product_components(id)` — עם indexes ו-backfill אוטומטי לרשומות קיימות (מיגרציה 93)
+- בחירת מוצר/רכיב בדף הבלאי מעדכנת כעת את ה-FK בנוסף לטקסט החופשי
+- `markItemAsFaulty` שומר `product_id` בשורת הבלאי שנוצרת מהחזרת ציוד
+- MCP `waste.ts`: `list_waste_items` תומך כעת בסינון לפי `product_id` (כולל רכיבים); `create_waste_item` ו-`update_waste_item` מקבלים `product_id` ו-`component_id`
+
 - chore: resolve merge conflicts with main (fbfaab5)
 - fix(mcp): tighten task tools — Hebrew priority enum, status validation, assignee lookup (8488538)
 - fix: sync product deletion fix to MCP tool, add component search to GlobalSearch (ad60654)

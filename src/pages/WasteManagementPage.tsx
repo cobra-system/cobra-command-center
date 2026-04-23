@@ -46,6 +46,7 @@ import {
   Box,
   MessageSquare,
   ToggleRight,
+  Layers,
 } from "lucide-react";
 import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 
@@ -61,6 +62,8 @@ interface WasteItem {
   created_at: string;
   updated_at: string;
   photo_url: string | null;
+  product_id: string | null;
+  component_id: string | null;
 }
 
 interface EditingRow {
@@ -70,6 +73,9 @@ interface EditingRow {
   quantity: number;
   in_use: boolean;
   recommendations: string;
+  itemSource: "product" | "component";
+  product_id: string | null;
+  component_id: string | null;
 }
 
 const emptyRow: EditingRow = {
@@ -79,6 +85,9 @@ const emptyRow: EditingRow = {
   quantity: 0,
   in_use: false,
   recommendations: "",
+  itemSource: "product",
+  product_id: null,
+  component_id: null,
 };
 
 export default function WasteManagementPage() {
@@ -103,26 +112,62 @@ export default function WasteManagementPage() {
     [products]
   );
 
-  const productByName = useMemo(() => {
-    const map = new Map<string, string>();
-    products.forEach((p) => map.set(p.name, p.sku));
+  const productMap = useMemo(() => {
+    const map = new Map<string, { id: string; sku: string }>();
+    products.forEach((p) => map.set(p.name, { id: p.id, sku: p.sku }));
+    return map;
+  }, [products]);
+
+  const componentOptions = useMemo(
+    () =>
+      products.flatMap((p) =>
+        (p.components || []).map((c) => ({
+          value: c.name,
+          label: `${c.name} — ${p.name}`,
+        }))
+      ),
+    [products]
+  );
+
+  const componentMap = useMemo(() => {
+    const map = new Map<string, { id: string; sku: string; product_id: string }>();
+    products.forEach((p) => {
+      (p.components || []).forEach((c) => {
+        if (!map.has(c.name)) map.set(c.name, { id: c.id, sku: c.sku || "", product_id: p.id });
+      });
+    });
     return map;
   }, [products]);
 
   const handleProductSelect = (val: string) => {
     if (!editingRow) return;
-    const sku = productByName.get(val);
-    if (sku !== undefined) {
-      setEditingRow({ ...editingRow, product_name: val, sku });
-    } else {
-      setEditingRow({ ...editingRow, product_name: val });
-    }
+    const hit = productMap.get(val);
+    setEditingRow({
+      ...editingRow,
+      product_name: val,
+      sku: hit?.sku ?? editingRow.sku,
+      product_id: hit?.id ?? null,
+      component_id: null,
+    });
+  };
+
+  const handleComponentSelect = (val: string) => {
+    if (!editingRow) return;
+    const hit = componentMap.get(val);
+    setEditingRow({
+      ...editingRow,
+      product_name: val,
+      sku: hit?.sku ?? editingRow.sku,
+      product_id: hit?.product_id ?? null,
+      component_id: hit?.id ?? null,
+    });
   };
 
   const isProductFromSystem = useMemo(() => {
     if (!editingRow) return false;
-    return productByName.has(editingRow.product_name);
-  }, [editingRow, productByName]);
+    if (editingRow.itemSource === "component") return componentMap.has(editingRow.product_name);
+    return productMap.has(editingRow.product_name);
+  }, [editingRow, productMap, componentMap]);
 
   const refreshItems = useCallback(async () => {
     let query = supabase
@@ -207,6 +252,8 @@ export default function WasteManagementPage() {
             quantity: editingRow.quantity,
             in_use: editingRow.in_use,
             recommendations: editingRow.recommendations.trim(),
+            product_id: editingRow.product_id,
+            component_id: editingRow.component_id,
             updated_at: new Date().toISOString(),
           })
           .eq("id", editingRow.id);
@@ -219,6 +266,8 @@ export default function WasteManagementPage() {
           quantity: editingRow.quantity,
           in_use: editingRow.in_use,
           recommendations: editingRow.recommendations.trim(),
+          product_id: editingRow.product_id,
+          component_id: editingRow.component_id,
           created_by: currentUser.id,
           created_by_name: currentUser.name,
         });
@@ -281,6 +330,9 @@ export default function WasteManagementPage() {
       quantity: item.quantity,
       in_use: item.in_use,
       recommendations: item.recommendations,
+      itemSource: item.component_id ? "component" : "product",
+      product_id: item.product_id,
+      component_id: item.component_id,
     });
     if (isMobile) {
       setDrawerOpen(true);
@@ -555,24 +607,55 @@ export default function WasteManagementPage() {
 
             {editingRow && (
               <div className="px-4 space-y-5 overflow-y-auto">
-                {/* Product name */}
+                {/* Product / Component toggle + name */}
                 <div className="space-y-2">
-                  <Label
-                    className="text-sm font-medium flex items-center gap-2"
-                  >
-                    <Package className="h-4 w-4 text-primary" />
-                    שם המוצר
-                  </Label>
-                  <Combobox
-                    value={editingRow.product_name}
-                    onValueChange={handleProductSelect}
-                    options={productOptions}
-                    placeholder="בחר או הקלד שם מוצר..."
-                    searchPlaceholder="חיפוש מוצר..."
-                    emptyText="לא נמצא מוצר"
-                    allowCustomValue
-                    className="h-12 rounded-xl text-base"
-                  />
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium flex items-center gap-2">
+                      {editingRow.itemSource === "component"
+                        ? <Layers className="h-4 w-4 text-primary" />
+                        : <Package className="h-4 w-4 text-primary" />}
+                      {editingRow.itemSource === "component" ? "שם הפריט" : "שם המוצר"}
+                    </Label>
+                    <div className="inline-flex rounded-lg border bg-muted/40 p-0.5 gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setEditingRow({ ...editingRow, product_name: "", sku: "", product_id: null, component_id: null, itemSource: "product" })}
+                        className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${editingRow.itemSource === "product" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                      >
+                        מוצר
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingRow({ ...editingRow, product_name: "", sku: "", product_id: null, component_id: null, itemSource: "component" })}
+                        className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${editingRow.itemSource === "component" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                      >
+                        פריט
+                      </button>
+                    </div>
+                  </div>
+                  {editingRow.itemSource === "component" ? (
+                    <Combobox
+                      value={editingRow.product_name}
+                      onValueChange={handleComponentSelect}
+                      options={componentOptions}
+                      placeholder="בחר פריט מוצר..."
+                      searchPlaceholder="חיפוש פריט..."
+                      emptyText="לא נמצא פריט"
+                      allowCustomValue
+                      className="h-12 rounded-xl text-base"
+                    />
+                  ) : (
+                    <Combobox
+                      value={editingRow.product_name}
+                      onValueChange={handleProductSelect}
+                      options={productOptions}
+                      placeholder="בחר או הקלד שם מוצר..."
+                      searchPlaceholder="חיפוש מוצר..."
+                      emptyText="לא נמצא מוצר"
+                      allowCustomValue
+                      className="h-12 rounded-xl text-base"
+                    />
+                  )}
                 </div>
 
                 {/* SKU + Quantity row */}
@@ -837,16 +920,47 @@ export default function WasteManagementPage() {
                   </TableCell>
                 )}
                 <TableCell>
-                  <Combobox
-                    value={editingRow.product_name}
-                    onValueChange={handleProductSelect}
-                    options={productOptions}
-                    placeholder="בחר או הקלד שם מוצר..."
-                    searchPlaceholder="חיפוש מוצר..."
-                    emptyText="לא נמצא מוצר"
-                    allowCustomValue
-                    className="h-9"
-                  />
+                  <div className="space-y-1">
+                    <div className="inline-flex rounded-md border bg-muted/40 p-0.5 gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setEditingRow({ ...editingRow, product_name: "", sku: "", product_id: null, component_id: null, itemSource: "product" })}
+                        className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${editingRow.itemSource === "product" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                      >
+                        מוצר
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingRow({ ...editingRow, product_name: "", sku: "", product_id: null, component_id: null, itemSource: "component" })}
+                        className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${editingRow.itemSource === "component" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                      >
+                        פריט
+                      </button>
+                    </div>
+                    {editingRow.itemSource === "component" ? (
+                      <Combobox
+                        value={editingRow.product_name}
+                        onValueChange={handleComponentSelect}
+                        options={componentOptions}
+                        placeholder="בחר פריט מוצר..."
+                        searchPlaceholder="חיפוש פריט..."
+                        emptyText="לא נמצא פריט"
+                        allowCustomValue
+                        className="h-9"
+                      />
+                    ) : (
+                      <Combobox
+                        value={editingRow.product_name}
+                        onValueChange={handleProductSelect}
+                        options={productOptions}
+                        placeholder="בחר או הקלד שם מוצר..."
+                        searchPlaceholder="חיפוש מוצר..."
+                        emptyText="לא נמצא מוצר"
+                        allowCustomValue
+                        className="h-9"
+                      />
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Input
@@ -937,16 +1051,47 @@ export default function WasteManagementPage() {
                     </TableCell>
                   )}
                   <TableCell>
-                    <Combobox
-                      value={editingRow.product_name}
-                      onValueChange={handleProductSelect}
-                      options={productOptions}
-                      placeholder="בחר או הקלד שם מוצר..."
-                      searchPlaceholder="חיפוש מוצר..."
-                      emptyText="לא נמצא מוצר"
-                      allowCustomValue
-                      className="h-9"
-                    />
+                    <div className="space-y-1">
+                      <div className="inline-flex rounded-md border bg-muted/40 p-0.5 gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setEditingRow({ ...editingRow, product_name: "", sku: "", product_id: null, component_id: null, itemSource: "product" })}
+                          className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${editingRow.itemSource === "product" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                        >
+                          מוצר
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingRow({ ...editingRow, product_name: "", sku: "", product_id: null, component_id: null, itemSource: "component" })}
+                          className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${editingRow.itemSource === "component" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                        >
+                          פריט
+                        </button>
+                      </div>
+                      {editingRow.itemSource === "component" ? (
+                        <Combobox
+                          value={editingRow.product_name}
+                          onValueChange={handleComponentSelect}
+                          options={componentOptions}
+                          placeholder="בחר פריט מוצר..."
+                          searchPlaceholder="חיפוש פריט..."
+                          emptyText="לא נמצא פריט"
+                          allowCustomValue
+                          className="h-9"
+                        />
+                      ) : (
+                        <Combobox
+                          value={editingRow.product_name}
+                          onValueChange={handleProductSelect}
+                          options={productOptions}
+                          placeholder="בחר או הקלד שם מוצר..."
+                          searchPlaceholder="חיפוש מוצר..."
+                          emptyText="לא נמצא מוצר"
+                          allowCustomValue
+                          className="h-9"
+                        />
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Input

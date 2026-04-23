@@ -128,7 +128,7 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 - `division_products` — מוצרי חטיבה (מלאי שטח ידני, דרישה לרבעון, צריכה חודשית מחושבת)
 
 ### ניהול פסולת
-- `waste_items` — פריטי פסולת/בלאי (מוצר, כמות, מקור, המלצות)
+- `waste_items` — פריטי פסולת/בלאי (מוצר, כמות, מקור, המלצות, `product_id → products`, `component_id → product_components`)
 
 ### מפת מחסן
 - `warehouse_zone_products` — שיוך מוצרים לאזורים במחסן (zone_id, product_id)
