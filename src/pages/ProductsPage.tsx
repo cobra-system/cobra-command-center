@@ -94,7 +94,7 @@ export default function ProductsPage() {
       if (category !== "הכל" && p.category !== category) return false;
       if (typeFilter !== "all" && p.product_type !== typeFilter) return false;
       if (supplierFilter !== "all" && p.supplier !== supplierFilter) return false;
-      if (search && !p.name.includes(search) && !p.sku.includes(search)) return false;
+      if (search && !p.name.includes(search) && !p.sku.includes(search) && !(p.notes || "").toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
 
