@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth, useData } from "@/contexts/AppContext";
+import MobileNavPopup from "@/components/MobileNavPopup";
 import { canView, getModuleKeyFromRoute } from "@/lib/permissions";
 import {
   LayoutDashboard,
@@ -9,7 +10,6 @@ import {
   ListTodo,
   LogOut,
   Menu,
-  X,
   Settings,
   FileText,
   CalendarClock,
@@ -120,18 +120,12 @@ export default function ManagerLayout() {
 
   return (
     <div className="min-h-screen flex bg-background">
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
-      )}
-
-      {/* Sidebar */}
+      {/* Sidebar (desktop only) */}
       <aside className={`
-        fixed lg:static inset-y-0 right-0 z-50 flex flex-col
+        hidden lg:flex inset-y-0 right-0 z-50 flex-col
         bg-card/95 backdrop-blur-xl border-l border-border/50
         transition-all duration-300 ease-out
         ${collapsed ? "w-[72px]" : "w-[280px]"}
-        ${sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
       `}>
         {/* Logo area */}
         <div className={`h-16 flex items-center border-b border-border/50 ${collapsed ? "justify-center px-2" : "px-5 justify-between"}`}>
@@ -151,9 +145,6 @@ export default function ManagerLayout() {
               onClick={() => { navigate("/dashboard"); window.location.reload(); }}
             />
           )}
-          <button className="lg:hidden text-muted-foreground hover:text-foreground" onClick={() => setSidebarOpen(false)}>
-            <X className="h-5 w-5" />
-          </button>
         </div>
 
         {/* Search */}
@@ -274,6 +265,17 @@ export default function ManagerLayout() {
           <Outlet />
         </div>
       </main>
+
+      {/* Mobile fullscreen nav popup */}
+      <MobileNavPopup
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        visibleNavItems={visibleNavItems}
+        pendingCount={pendingCount}
+        alertCount={alertCount}
+        currentUser={currentUser}
+        onLogout={handleLogout}
+      />
     </div>
   );
 }
