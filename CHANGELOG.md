@@ -7,6 +7,15 @@
 
 ## [2026-04-23]
 
+- chore: resolve merge conflicts with main (fbfaab5)
+- fix(mcp): tighten task tools — Hebrew priority enum, status validation, assignee lookup (8488538)
+- fix: sync product deletion fix to MCP tool, add component search to GlobalSearch (ad60654)
+- docs: add component detail route to README modules table (b26ffc4)
+- fix: remove linked-products section, fix product deletion, add component profile page (e678c4d)
+
+<!-- last-commit: 990c1f35fadf69b45a3b157fc7e560d37ed307dc -->
+## [2026-04-23]
+
 ### Changed
 - הסרת סעיף "מוצרים מקושרים לחטיבה (קטלוג)" מדף החטיבה — מוצרי החטיבה מנוהלים כולם דרך טבלת `division_products` בלבד
 
@@ -23,7 +32,6 @@
 - feat: extend search to cover all meaningful fields across pages (d616469)
 - fix: apply document_tracking migration and sync TS types for purchase_documents (b36f6f9)
 
-<!-- last-commit: 811df5926ac32a25d463d5dda20f38777951a81c -->
 ## [2026-04-20]
 
 - Merge pull request #149 from cobra-system/claude/fix-consumption-average-pwunu (2d1714a)
