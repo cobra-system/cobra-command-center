@@ -40,6 +40,7 @@ const DivisionDetailPage = lazy(() => import("@/pages/DivisionDetailPage"));
 const AlertsPage = lazy(() => import("@/pages/AlertsPage"));
 const LogisticsMapPage = lazy(() => import("@/pages/LogisticsMapPage"));
 const IssueDetailPage = lazy(() => import("@/pages/IssueDetailPage"));
+const ComponentDetailPage = lazy(() => import("@/pages/ComponentDetailPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -111,6 +112,7 @@ function AppRoutes() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/products/:id" element={<ProductDetailPage />} />
+        <Route path="/products/:productId/components/:componentId" element={<ComponentDetailPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/orders/:id" element={<OrderDetailPage />} />
         <Route path="/suppliers" element={<SuppliersPage />} />

@@ -5,6 +5,18 @@
 
 ---
 
+## [2026-04-23]
+
+### Changed
+- הסרת סעיף "מוצרים מקושרים לחטיבה (קטלוג)" מדף החטיבה — מוצרי החטיבה מנוהלים כולם דרך טבלת `division_products` בלבד
+
+### Fixed
+- תיקון מחיקת מוצר שנכשלה בשקט כשהמוצר קשור להזמנות (FK RESTRICT על `order_items`)
+
+### Added
+- דף תיק פריט (`/products/:productId/components/:componentId`) — תיק מפורט לכל רכיב/פריט בתוך מוצר מורכב, עם עריכה ומחיקה
+- ניווט לתיק פריט ישירות מטבלת ה-BOM בתיק המוצר
+
 ## [2026-04-20]
 
 - Merge pull request #149 from cobra-system/claude/fix-consumption-average-pwunu (2d1714a)
