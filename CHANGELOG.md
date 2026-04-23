@@ -5,6 +5,12 @@
 
 ---
 
+## [2026-04-23]
+
+- feat: extend search to cover all meaningful fields across pages (d616469)
+- fix: apply document_tracking migration and sync TS types for purchase_documents (b36f6f9)
+
+<!-- last-commit: 811df5926ac32a25d463d5dda20f38777951a81c -->
 ## [2026-04-20]
 
 - Merge pull request #149 from cobra-system/claude/fix-consumption-average-pwunu (2d1714a)
@@ -13,7 +19,6 @@
 - Implement division-based data filtering with RLS enforcement (07a9803)
 - Fix consumption average + division improvements (34db6b5)
 
-<!-- last-commit: 2d1714a6f3fd9ba38e04166efd39aded1b4dd366 -->
 ## [2026-04-20]
 
 - Implement order archiving, dashboard status distribution, and image uploads (1b7d588)
