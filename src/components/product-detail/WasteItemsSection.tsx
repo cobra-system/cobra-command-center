@@ -30,7 +30,14 @@ export function WasteItemsSection({ product }: WasteItemsSectionProps) {
   const [items, setItems] = useState<WasteItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Match product itself + all its components by name
+  // FK-based filter parts (fast, indexed)
+  const componentIds = useMemo(
+    () => (product.components || []).map((c) => c.id),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [product.id, (product.components || []).map((c) => c.id).join("|")]
+  );
+
+  // Name-based fallback parts (covers old records not yet backfilled)
   const matchingNames = useMemo(
     () => [product.name, ...(product.components || []).map((c) => c.name)],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -38,14 +45,26 @@ export function WasteItemsSection({ product }: WasteItemsSectionProps) {
   );
 
   const fetchItems = useCallback(async () => {
+    const fkParts = [
+      `product_id.eq.${product.id}`,
+      ...componentIds.map((id) => `component_id.eq.${id}`),
+    ].join(",");
+    const nameParts = matchingNames.map((n) => `product_name.eq.${n}`).join(",");
+
     const { data } = await supabase
       .from("waste_items")
       .select("id, product_name, sku, quantity, in_use, recommendations, created_by_name, created_at")
-      .in("product_name", matchingNames)
+      .or(`${fkParts},${nameParts}`)
       .order("created_at", { ascending: false });
-    setItems((data as WasteItem[]) || []);
+
+    // De-duplicate in case a row matches both FK and name filters
+    const seen = new Set<string>();
+    const unique = ((data as WasteItem[]) || []).filter(
+      (r) => !seen.has(r.id) && seen.add(r.id)
+    );
+    setItems(unique);
     setLoading(false);
-  }, [matchingNames]);
+  }, [product.id, componentIds, matchingNames]);
 
   useEffect(() => {
     fetchItems();

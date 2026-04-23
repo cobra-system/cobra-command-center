@@ -62,6 +62,8 @@ interface WasteItem {
   created_at: string;
   updated_at: string;
   photo_url: string | null;
+  product_id: string | null;
+  component_id: string | null;
 }
 
 interface EditingRow {
@@ -72,6 +74,8 @@ interface EditingRow {
   in_use: boolean;
   recommendations: string;
   itemSource: "product" | "component";
+  product_id: string | null;
+  component_id: string | null;
 }
 
 const emptyRow: EditingRow = {
@@ -82,6 +86,8 @@ const emptyRow: EditingRow = {
   in_use: false,
   recommendations: "",
   itemSource: "product",
+  product_id: null,
+  component_id: null,
 };
 
 export default function WasteManagementPage() {
@@ -106,9 +112,9 @@ export default function WasteManagementPage() {
     [products]
   );
 
-  const productByName = useMemo(() => {
-    const map = new Map<string, string>();
-    products.forEach((p) => map.set(p.name, p.sku));
+  const productMap = useMemo(() => {
+    const map = new Map<string, { id: string; sku: string }>();
+    products.forEach((p) => map.set(p.name, { id: p.id, sku: p.sku }));
     return map;
   }, [products]);
 
@@ -123,11 +129,11 @@ export default function WasteManagementPage() {
     [products]
   );
 
-  const componentByName = useMemo(() => {
-    const map = new Map<string, string>(); // component name → sku
+  const componentMap = useMemo(() => {
+    const map = new Map<string, { id: string; sku: string; product_id: string }>();
     products.forEach((p) => {
       (p.components || []).forEach((c) => {
-        if (!map.has(c.name)) map.set(c.name, c.sku || "");
+        if (!map.has(c.name)) map.set(c.name, { id: c.id, sku: c.sku || "", product_id: p.id });
       });
     });
     return map;
@@ -135,21 +141,33 @@ export default function WasteManagementPage() {
 
   const handleProductSelect = (val: string) => {
     if (!editingRow) return;
-    const sku = productByName.get(val);
-    setEditingRow({ ...editingRow, product_name: val, sku: sku !== undefined ? sku : editingRow.sku });
+    const hit = productMap.get(val);
+    setEditingRow({
+      ...editingRow,
+      product_name: val,
+      sku: hit?.sku ?? editingRow.sku,
+      product_id: hit?.id ?? null,
+      component_id: null,
+    });
   };
 
   const handleComponentSelect = (val: string) => {
     if (!editingRow) return;
-    const sku = componentByName.get(val);
-    setEditingRow({ ...editingRow, product_name: val, sku: sku !== undefined ? sku : editingRow.sku });
+    const hit = componentMap.get(val);
+    setEditingRow({
+      ...editingRow,
+      product_name: val,
+      sku: hit?.sku ?? editingRow.sku,
+      product_id: hit?.product_id ?? null,
+      component_id: hit?.id ?? null,
+    });
   };
 
   const isProductFromSystem = useMemo(() => {
     if (!editingRow) return false;
-    if (editingRow.itemSource === "component") return componentByName.has(editingRow.product_name);
-    return productByName.has(editingRow.product_name);
-  }, [editingRow, productByName, componentByName]);
+    if (editingRow.itemSource === "component") return componentMap.has(editingRow.product_name);
+    return productMap.has(editingRow.product_name);
+  }, [editingRow, productMap, componentMap]);
 
   const refreshItems = useCallback(async () => {
     let query = supabase
@@ -234,6 +252,8 @@ export default function WasteManagementPage() {
             quantity: editingRow.quantity,
             in_use: editingRow.in_use,
             recommendations: editingRow.recommendations.trim(),
+            product_id: editingRow.product_id,
+            component_id: editingRow.component_id,
             updated_at: new Date().toISOString(),
           })
           .eq("id", editingRow.id);
@@ -246,6 +266,8 @@ export default function WasteManagementPage() {
           quantity: editingRow.quantity,
           in_use: editingRow.in_use,
           recommendations: editingRow.recommendations.trim(),
+          product_id: editingRow.product_id,
+          component_id: editingRow.component_id,
           created_by: currentUser.id,
           created_by_name: currentUser.name,
         });
@@ -308,7 +330,9 @@ export default function WasteManagementPage() {
       quantity: item.quantity,
       in_use: item.in_use,
       recommendations: item.recommendations,
-      itemSource: "product",
+      itemSource: item.component_id ? "component" : "product",
+      product_id: item.product_id,
+      component_id: item.component_id,
     });
     if (isMobile) {
       setDrawerOpen(true);
@@ -595,14 +619,14 @@ export default function WasteManagementPage() {
                     <div className="inline-flex rounded-lg border bg-muted/40 p-0.5 gap-0.5">
                       <button
                         type="button"
-                        onClick={() => setEditingRow({ ...editingRow, product_name: "", sku: "", itemSource: "product" })}
+                        onClick={() => setEditingRow({ ...editingRow, product_name: "", sku: "", product_id: null, component_id: null, itemSource: "product" })}
                         className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${editingRow.itemSource === "product" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                       >
                         מוצר
                       </button>
                       <button
                         type="button"
-                        onClick={() => setEditingRow({ ...editingRow, product_name: "", sku: "", itemSource: "component" })}
+                        onClick={() => setEditingRow({ ...editingRow, product_name: "", sku: "", product_id: null, component_id: null, itemSource: "component" })}
                         className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${editingRow.itemSource === "component" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                       >
                         פריט
@@ -900,14 +924,14 @@ export default function WasteManagementPage() {
                     <div className="inline-flex rounded-md border bg-muted/40 p-0.5 gap-0.5">
                       <button
                         type="button"
-                        onClick={() => setEditingRow({ ...editingRow, product_name: "", sku: "", itemSource: "product" })}
+                        onClick={() => setEditingRow({ ...editingRow, product_name: "", sku: "", product_id: null, component_id: null, itemSource: "product" })}
                         className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${editingRow.itemSource === "product" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                       >
                         מוצר
                       </button>
                       <button
                         type="button"
-                        onClick={() => setEditingRow({ ...editingRow, product_name: "", sku: "", itemSource: "component" })}
+                        onClick={() => setEditingRow({ ...editingRow, product_name: "", sku: "", product_id: null, component_id: null, itemSource: "component" })}
                         className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${editingRow.itemSource === "component" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                       >
                         פריט
@@ -1031,14 +1055,14 @@ export default function WasteManagementPage() {
                       <div className="inline-flex rounded-md border bg-muted/40 p-0.5 gap-0.5">
                         <button
                           type="button"
-                          onClick={() => setEditingRow({ ...editingRow, product_name: "", sku: "", itemSource: "product" })}
+                          onClick={() => setEditingRow({ ...editingRow, product_name: "", sku: "", product_id: null, component_id: null, itemSource: "product" })}
                           className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${editingRow.itemSource === "product" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                         >
                           מוצר
                         </button>
                         <button
                           type="button"
-                          onClick={() => setEditingRow({ ...editingRow, product_name: "", sku: "", itemSource: "component" })}
+                          onClick={() => setEditingRow({ ...editingRow, product_name: "", sku: "", product_id: null, component_id: null, itemSource: "component" })}
                           className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${editingRow.itemSource === "component" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                         >
                           פריט
