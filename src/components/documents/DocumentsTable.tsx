@@ -91,7 +91,8 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
       result = result.filter(d =>
         supplierName(d.supplier_id).toLowerCase().includes(q) ||
         productName(d.product_id).toLowerCase().includes(q) ||
-        (d.document_name || "").toLowerCase().includes(q)
+        (d.document_name || "").toLowerCase().includes(q) ||
+        (d.document_number || "").toLowerCase().includes(q)
       );
     }
 

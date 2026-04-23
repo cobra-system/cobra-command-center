@@ -112,7 +112,7 @@ export default function SuppliersPage() {
       if (countryFilter !== "all" && s.country !== countryFilter) return false;
       if (!search) return true;
       const q = search.toLowerCase();
-      return s.contact_name.toLowerCase().includes(q) || s.company.toLowerCase().includes(q) || (s.email || "").toLowerCase().includes(q);
+      return s.contact_name.toLowerCase().includes(q) || s.company.toLowerCase().includes(q) || (s.email || "").toLowerCase().includes(q) || (s.phone || "").toLowerCase().includes(q) || (s.notes || "").toLowerCase().includes(q);
     });
 
     if (sortKey) {

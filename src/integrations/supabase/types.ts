@@ -729,8 +729,13 @@ export type Database = {
           created_at: string
           currency: string
           document_name: string | null
+          document_number: string | null
+          document_subtype: string | null
+          expiry_date: string | null
           file_url: string | null
+          folder_id: string | null
           id: string
+          is_starred: boolean
           notes: string | null
           order_id: string | null
           product_id: string | null
@@ -748,8 +753,13 @@ export type Database = {
           created_at?: string
           currency?: string
           document_name?: string | null
+          document_number?: string | null
+          document_subtype?: string | null
+          expiry_date?: string | null
           file_url?: string | null
+          folder_id?: string | null
           id?: string
+          is_starred?: boolean
           notes?: string | null
           order_id?: string | null
           product_id?: string | null
@@ -767,8 +777,13 @@ export type Database = {
           created_at?: string
           currency?: string
           document_name?: string | null
+          document_number?: string | null
+          document_subtype?: string | null
+          expiry_date?: string | null
           file_url?: string | null
+          folder_id?: string | null
           id?: string
+          is_starred?: boolean
           notes?: string | null
           order_id?: string | null
           product_id?: string | null
@@ -781,6 +796,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "purchase_documents_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "document_folders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "purchase_documents_order_id_fkey"
             columns: ["order_id"]
