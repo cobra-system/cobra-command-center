@@ -2,19 +2,20 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
-import { Search, Package, Truck, ShoppingCart, ListTodo, FileText, CreditCard, X } from "lucide-react";
+import { Search, Package, Truck, ShoppingCart, ListTodo, FileText, CreditCard, X, Boxes } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 interface SearchResult {
   id: string;
   label: string;
   subtitle?: string;
-  type: "product" | "supplier" | "order" | "task" | "document" | "payment";
+  type: "product" | "component" | "supplier" | "order" | "task" | "document" | "payment";
   path: string;
 }
 
 const typeConfig = {
   product: { icon: Package, label: "מוצר", color: "text-blue-500" },
+  component: { icon: Boxes, label: "פריט", color: "text-sky-500" },
   supplier: { icon: Truck, label: "ספק", color: "text-green-500" },
   order: { icon: ShoppingCart, label: "הזמנה", color: "text-orange-500" },
   task: { icon: ListTodo, label: "משימה", color: "text-purple-500" },
@@ -27,8 +28,8 @@ export default function GlobalSearch() {
   const { products, suppliers, orders, tasks } = useData();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const [documents, setDocuments] = useState<any[]>([]);
-  const [payments, setPayments] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<{ id: string; name?: string }[]>([]);
+  const [payments, setPayments] = useState<{ id: string; supplier_id?: string; notes?: string; amount?: number }[]>([]);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -62,6 +63,12 @@ export default function GlobalSearch() {
       if (res.length >= limit) break;
       if (p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || (p.description || "").toLowerCase().includes(q)) {
         res.push({ id: p.id, label: p.name, subtitle: p.sku, type: "product", path: `/products/${p.id}` });
+      }
+      for (const comp of p.components ?? []) {
+        if (res.length >= limit) break;
+        if (comp.name.toLowerCase().includes(q) || (comp.sku || "").toLowerCase().includes(q)) {
+          res.push({ id: comp.id, label: comp.name, subtitle: `פריט של ${p.name}`, type: "component", path: `/products/${p.id}/components/${comp.id}` });
+        }
       }
     }
 
