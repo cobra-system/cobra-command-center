@@ -23,13 +23,16 @@ const typeConfig = {
   payment: { icon: CreditCard, label: "תשלום", color: "text-emerald-500" },
 };
 
+interface SearchDoc { id: string; document_name: string | null; document_number: string | null; supplier_id: string | null }
+interface SearchPayment { id: string; supplier_id: string | null; notes: string | null; amount: number | null }
+
 export default function GlobalSearch() {
   const navigate = useNavigate();
   const { products, suppliers, orders, tasks } = useData();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const [documents, setDocuments] = useState<{ id: string; name?: string }[]>([]);
-  const [payments, setPayments] = useState<{ id: string; supplier_id?: string; notes?: string; amount?: number }[]>([]);
+  const [documents, setDocuments] = useState<SearchDoc[]>([]);
+  const [payments, setPayments] = useState<SearchPayment[]>([]);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,7 +46,7 @@ export default function GlobalSearch() {
   useEffect(() => {
     const fetchData = async () => {
       const [docsRes, paymentsRes] = await Promise.all([
-        supabase.from("purchase_documents").select("id, name, supplier_id"),
+        supabase.from("purchase_documents").select("id, document_name, document_number, supplier_id"),
         supabase.from("supplier_payments").select("id, supplier_id, notes, amount"),
       ]);
       if (docsRes.data) setDocuments(docsRes.data);
@@ -81,7 +84,7 @@ export default function GlobalSearch() {
 
     for (const o of orders) {
       if (res.length >= limit) break;
-      if ((o.supplier_name || "").toLowerCase().includes(q) || o.items.some(i => i.name.toLowerCase().includes(q))) {
+      if ((o.supplier_name || "").toLowerCase().includes(q) || o.items.some(i => i.name.toLowerCase().includes(q)) || (o.pi_number || "").toLowerCase().includes(q) || (o.tracking_number || "").toLowerCase().includes(q)) {
         res.push({ id: o.id, label: `הזמנה — ${o.supplier_name || "ללא ספק"}`, subtitle: o.status, type: "order", path: `/orders/${o.id}` });
       }
     }
@@ -95,8 +98,8 @@ export default function GlobalSearch() {
 
     for (const d of documents) {
       if (res.length >= limit) break;
-      if ((d.name || "").toLowerCase().includes(q)) {
-        res.push({ id: d.id, label: d.name || "מסמך ללא שם", subtitle: "מסמך רכש", type: "document", path: `/documents` });
+      if ((d.document_name || "").toLowerCase().includes(q) || (d.document_number || "").toLowerCase().includes(q)) {
+        res.push({ id: d.id, label: d.document_name || "מסמך ללא שם", subtitle: d.document_number || "מסמך רכש", type: "document", path: `/documents` });
       }
     }
 
