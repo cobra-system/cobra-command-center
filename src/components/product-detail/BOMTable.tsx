@@ -159,7 +159,12 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
                           disabled={!canEditStock}
                         />
                       </div>
-                      <span className="flex-1 font-medium text-sm text-foreground truncate">{comp.name}</span>
+                      <button
+                        onClick={() => navigate(`/products/${product.id}/components/${comp.id}`)}
+                        className="flex-1 font-medium text-sm text-foreground truncate text-right hover:text-primary hover:underline"
+                      >
+                        {comp.name}
+                      </button>
                       {hasEdit && (
                         <div className="flex gap-1 shrink-0">
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openMobileEdit(comp)}>
@@ -264,7 +269,14 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
                             disabled={!canEditStock}
                           />
                         </td>
-                        <td className="p-3 font-medium text-foreground">{comp.name}</td>
+                        <td className="p-3 font-medium text-foreground">
+                          <button
+                            onClick={() => navigate(`/products/${product.id}/components/${comp.id}`)}
+                            className="hover:text-primary hover:underline text-right"
+                          >
+                            {comp.name}
+                          </button>
+                        </td>
                         <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">{comp.sku || "—"}</td>
                         <td className="p-3 text-muted-foreground">
                           {(() => {

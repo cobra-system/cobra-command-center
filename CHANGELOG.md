@@ -7,6 +7,19 @@
 
 ## [2026-04-23]
 
+### Changed
+- הסרת סעיף "מוצרים מקושרים לחטיבה (קטלוג)" מדף החטיבה — מוצרי החטיבה מנוהלים כולם דרך טבלת `division_products` בלבד
+
+### Fixed
+- תיקון מחיקת מוצר שנכשלה בשקט כשהמוצר קשור להזמנות (FK RESTRICT על `order_items`)
+- כלי MCP `delete_product`: אותו תיקון (nullify order_items לפני מחיקה)
+- כלי MCP משימות: עדיפות P0-P3 הוחלפה בעברית (דחוף/גבוה/בינוני/נמוך), ולידציה על status ו-assignee מול profiles
+
+### Added
+- דף תיק פריט (`/products/:productId/components/:componentId`) — תיק מפורט לכל רכיב/פריט בתוך מוצר מורכב, עם עריכה ומחיקה
+- ניווט לתיק פריט ישירות מטבלת ה-BOM בתיק המוצר
+- חיפוש גלובלי: הוסיפו חיפוש על פריטים/רכיבים עם ניווט ישיר לתיק פריט
+
 - feat: extend search to cover all meaningful fields across pages (d616469)
 - fix: apply document_tracking migration and sync TS types for purchase_documents (b36f6f9)
 

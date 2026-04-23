@@ -102,6 +102,8 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
 
   const deleteProduct = useCallback(async (id: string) => {
     try {
+      const { error: oiError } = await supabase.from("order_items").update({ product_id: null }).eq("product_id", id);
+      if (oiError) throw oiError;
       const { error: compError } = await supabase.from("product_components").delete().eq("product_id", id);
       if (compError) throw compError;
       const { error: prodError } = await supabase.from("products").delete().eq("id", id);
