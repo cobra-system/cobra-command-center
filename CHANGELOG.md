@@ -7,6 +7,14 @@
 
 ## [2026-04-23]
 
+- docs+mcp: update waste FK integration across MCP server and docs (8044d3b)
+- feat(waste): real DB integration — add product_id/component_id FKs to waste_items (6def8cd)
+- feat(products): show waste items on product detail page (345193e)
+- feat(waste): add product-component (items) selection to wear report (640ff41)
+
+<!-- last-commit: 1f42049334def0a68bd64f1fb2325dfc5a0397f2 -->
+## [2026-04-23]
+
 ### Added
 - דף בלאי: אפשרות לדווח על פריטי רכיב (מ-`product_components`) בנוסף למוצרים — טוגל מוצר/פריט בטופס
 - דף מוצר: סקשן **בלאי** מוצג בתיק המוצר (מתחת להזמנות) — מציג את כל פריטי הבלאי של המוצר ורכיביו, עם קישור לדף הבלאי
@@ -23,7 +31,6 @@
 - docs: add component detail route to README modules table (b26ffc4)
 - fix: remove linked-products section, fix product deletion, add component profile page (e678c4d)
 
-<!-- last-commit: 990c1f35fadf69b45a3b157fc7e560d37ed307dc -->
 ## [2026-04-23]
 
 ### Changed
