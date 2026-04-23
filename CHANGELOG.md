@@ -81,6 +81,11 @@
 - `markItemAsFaulty` שומר `product_id` בשורת הבלאי שנוצרת מהחזרת ציוד
 - MCP `waste.ts`: `list_waste_items` תומך כעת בסינון לפי `product_id` (כולל רכיבים); `create_waste_item` ו-`update_waste_item` מקבלים `product_id` ו-`component_id`
 
+### Fixed
+- תיקון שמות חטיבות — `AppContext.divisions` מסונכרן כעת עם `DIVISIONS` מ-`equipment/constants.ts` (AWACS, DOORE, פריזבי קרסו במקום AWCAS/Doore/קראסו)
+- עדכון נתוני mock לפי שמות החטיבות הנכונים
+- שינוי הגדרת מודול `/equipment`: כותרת הדף ותווית המודול עודכנו ל"ניהול חטיבות"
+- עדכון README — שורת `/equipment` בטבלת המודולים
 - chore: resolve merge conflicts with main (fbfaab5)
 - fix(mcp): tighten task tools — Hebrew priority enum, status validation, assignee lookup (8488538)
 - fix: sync product deletion fix to MCP tool, add component search to GlobalSearch (ad60654)

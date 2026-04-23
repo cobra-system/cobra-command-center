@@ -21,7 +21,7 @@ export const MODULES: ModuleDefinition[] = [
   { key: "issues", label: "תקלות", route: "/issues", category: "Documents" },
   { key: "alerts", label: "התראות", route: "/alerts", category: "Documents" },
   { key: "waste", label: "ניהול בלאי", route: "/waste-management", category: "Warehouse" },
-  { key: "equipment", label: "הצטיידויות ובלאי", route: "/equipment", category: "Warehouse" },
+  { key: "equipment", label: "ניהול חטיבות", route: "/equipment", category: "Warehouse" },
   { key: "shipment-groups", label: "קבוצות משלוח", route: "/shipment-groups", category: "Warehouse" },
   { key: "logistics-map", label: "מפת מחסן", route: "/logistics-map", category: "Warehouse" },
 ];
