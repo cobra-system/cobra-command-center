@@ -14,10 +14,11 @@ export function registerWasteTools(server: McpServer) {
       in_use: z.boolean().optional().describe("Filter by in-use status"),
       source: z.enum(["manual", "equipment_return"]).optional().describe("Filter by source"),
       created_by: z.string().uuid().optional().describe("Filter by creator user UUID"),
+      product_id: z.string().uuid().optional().describe("Filter by product UUID — returns items for that product and its components"),
       search: z.string().optional().describe("Search by product name or SKU"),
       limit: z.number().int().default(100).describe("Max results"),
     },
-    async ({ in_use, source, created_by, search, limit }) => {
+    async ({ in_use, source, created_by, product_id, search, limit }) => {
       let query = supabase
         .from("waste_items")
         .select("*")
@@ -27,6 +28,16 @@ export function registerWasteTools(server: McpServer) {
       if (in_use !== undefined) query = query.eq("in_use", in_use);
       if (source) query = query.eq("source", source);
       if (created_by) query = query.eq("created_by", created_by);
+      if (product_id) {
+        // Return items linked directly to the product OR to any of its components
+        const { data: components } = await supabase
+          .from("product_components")
+          .select("id")
+          .eq("product_id", product_id);
+        const componentIds = (components || []).map((c: { id: string }) => c.id);
+        const fkParts = [`product_id.eq.${product_id}`, ...componentIds.map((id: string) => `component_id.eq.${id}`)].join(",");
+        query = query.or(fkParts);
+      }
       if (search) {
         query = query.or(`product_name.ilike.%${search}%,sku.ilike.%${search}%`);
       }
@@ -46,11 +57,13 @@ export function registerWasteTools(server: McpServer) {
       quantity: z.number().int().min(1).default(1).describe("Quantity"),
       recommendations: z.string().optional().describe("Recommendations or notes on handling"),
       in_use: z.boolean().default(false).describe("Whether the item is currently in use"),
+      product_id: z.string().uuid().optional().describe("UUID of the linked product (from products table)"),
+      component_id: z.string().uuid().optional().describe("UUID of the linked component (from product_components table); also set product_id to the component's parent product"),
     },
-    async ({ product_name, sku, quantity, recommendations, in_use }) => {
+    async ({ product_name, sku, quantity, recommendations, in_use, product_id, component_id }) => {
       const { data, error } = await supabase
         .from("waste_items")
-        .insert({ product_name, sku, quantity, recommendations, in_use, source: "manual" })
+        .insert({ product_name, sku, quantity, recommendations, in_use, source: "manual", product_id, component_id })
         .select()
         .single();
 
@@ -69,6 +82,8 @@ export function registerWasteTools(server: McpServer) {
       quantity: z.number().int().min(1).optional().describe("Updated quantity"),
       recommendations: z.string().nullable().optional().describe("Updated recommendations"),
       in_use: z.boolean().optional().describe("Updated in-use status"),
+      product_id: z.string().uuid().nullable().optional().describe("Updated product FK"),
+      component_id: z.string().uuid().nullable().optional().describe("Updated component FK"),
     },
     async ({ id, ...fields }) => {
       const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
