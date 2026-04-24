@@ -13,6 +13,7 @@ import {
 import RolePermissionsManager from "@/components/settings/RolePermissionsManager";
 import RoleDefinitionManager from "@/components/settings/RoleDefinitionManager";
 import UserManagementTable from "@/components/settings/UserManagementTable";
+import NotificationSettings from "@/components/settings/NotificationSettings";
 import { passwordChangeSchema } from "@/lib/schemas/passwordSchema";
 import { employeeCreateSchema, employeeUpdateSchema } from "@/lib/schemas/employeeSchema";
 
@@ -262,6 +263,9 @@ export default function SettingsPage() {
 
       {/* Role Permissions Management */}
       {isManager && <RolePermissionsManager />}
+
+      {/* Notification Settings */}
+      {isManager && <NotificationSettings />}
 
       {/* Change Password */}
       <Card>

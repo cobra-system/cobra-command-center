@@ -3,7 +3,7 @@
 ## Overview
 This project uses PostgreSQL migrations managed through Supabase. All migration files are stored in `supabase/migrations/`.
 
-**Total migrations: 93** (last: `20260424000001_add_tracking_fields_to_orders.sql`)
+**Total migrations: 94** (last: `20260424000002_create_notification_settings.sql`)
 
 ## How to Apply Migrations
 
