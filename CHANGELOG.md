@@ -7,6 +7,11 @@
 
 ## [2026-04-24]
 
+### Added
+- migration `20260423000002`: סנכרון דו-כיווני אוטומטי בין `products.division` ל-`division_products`
+  - Backfill חד-פעמי: כל מוצרי החטיבות מאוכלסים אוטומטית בטבלת `division_products`
+  - Trigger B (`division_products → products`): הוספה/הסרה ב-`division_products` מעדכנת `products.division`
+- מנהל חטיבה יכול להוסיף ולהסיר מוצרים מדף החטיבה שלו ללא הרשאת equipment-edit
 - chore: resolve merge conflicts with main (5f8b984)
 - feat(settings): notification settings UI — recipients, days, content toggles (9f9c2c9)
 - feat(orders): overhaul dashboard with DHL tracking, payments, supplier perf & email alerts (4d43171)
