@@ -7,6 +7,19 @@
 
 ## [2026-04-24]
 
+### Changed
+- `division_products` הוא מקור האמת היחיד לשיוך מוצרים לחטיבות
+  - migration `20260424000001`: הסרת Trigger A (products → division_products) — כתיבה ישירה מהאפליקציה לא עוברת יותר דרך products.division
+  - `ProductsContext.updateProduct()` ו-`addProduct()` כותבים עכשיו ישירות ל-`division_products`; Trigger B מעדכן `products.division` אוטומטית
+  - migration `20260423000001`: Backfill + Trigger B נשארים בתוקף
+
+### Added
+- migration `20260423000002`: סנכרון דו-כיווני אוטומטי בין `products.division` ל-`division_products`
+  - Backfill חד-פעמי: כל מוצרי החטיבות מאוכלסים אוטומטית בטבלת `division_products`
+  - Trigger B (`division_products → products`): הוספה/הסרה מעדכנת `products.division` אוטומטית
+- migration `20260424000001`: הסרת Trigger A — `division_products` הוא מקור האמת היחיד
+- `ProductsContext.updateProduct()` ו-`addProduct()` כותבים ישירות ל-`division_products`
+- מנהל חטיבה יכול להוסיף ולהסיר מוצרים מדף החטיבה שלו ללא הרשאת equipment-edit (RLS מגן ברמת DB)
 - chore: resolve merge conflicts with main (5f8b984)
 - feat(settings): notification settings UI — recipients, days, content toggles (9f9c2c9)
 - feat(orders): overhaul dashboard with DHL tracking, payments, supplier perf & email alerts (4d43171)
@@ -81,6 +94,11 @@
 - `markItemAsFaulty` שומר `product_id` בשורת הבלאי שנוצרת מהחזרת ציוד
 - MCP `waste.ts`: `list_waste_items` תומך כעת בסינון לפי `product_id` (כולל רכיבים); `create_waste_item` ו-`update_waste_item` מקבלים `product_id` ו-`component_id`
 
+### Fixed
+- תיקון שמות חטיבות — `AppContext.divisions` מסונכרן כעת עם `DIVISIONS` מ-`equipment/constants.ts` (AWACS, DOORE, פריזבי קרסו במקום AWCAS/Doore/קראסו)
+- עדכון נתוני mock לפי שמות החטיבות הנכונים
+- שינוי הגדרת מודול `/equipment`: כותרת הדף ותווית המודול עודכנו ל"ניהול חטיבות"
+- עדכון README — שורת `/equipment` בטבלת המודולים
 - chore: resolve merge conflicts with main (fbfaab5)
 - fix(mcp): tighten task tools — Hebrew priority enum, status validation, assignee lookup (8488538)
 - fix: sync product deletion fix to MCP tool, add component search to GlobalSearch (ad60654)

@@ -3,7 +3,7 @@
 ## Overview
 This project uses PostgreSQL migrations managed through Supabase. All migration files are stored in `supabase/migrations/`.
 
-**Total migrations: 95** (last: `20260424000002_create_notification_settings.sql`)
+**Total migrations: 97** (last: `20260424000001_remove_product_division_trigger_a.sql`)
 
 ## How to Apply Migrations
 
