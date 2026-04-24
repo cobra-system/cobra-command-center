@@ -278,7 +278,14 @@ export default function WasteManagementPage() {
       setDrawerOpen(false);
       await refreshItems();
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : "שגיאה בשמירת הפריט");
+      const msg =
+        error instanceof Error
+          ? error.message
+          : typeof error === "object" && error !== null && "message" in error
+          ? String((error as { message: unknown }).message)
+          : "שגיאה בשמירת הפריט";
+      logger.error("Waste item save error", error);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
