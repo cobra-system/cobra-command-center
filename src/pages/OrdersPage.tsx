@@ -329,20 +329,22 @@ export default function OrdersPage() {
       </div>
 
       <Tabs defaultValue="dashboard" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>
-          <TabsTrigger value="table">טבלת הזמנות</TabsTrigger>
-          <TabsTrigger value="archive" className="gap-1.5" dir="ltr">
-            ארכיון הזמנות
-            {archivedOrders.length > 0 && (
-              <span className="bg-muted text-muted-foreground text-xs font-medium px-1.5 py-0.5 rounded-full">
-                {archivedOrders.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="agenda">סדר יום רכש</TabsTrigger>
-          <TabsTrigger value="shipment-groups">קבוצות משלוח</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-1">
+          <TabsList className="w-max min-w-full">
+            <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>
+            <TabsTrigger value="table">טבלת הזמנות</TabsTrigger>
+            <TabsTrigger value="archive" className="gap-1.5" dir="ltr">
+              ארכיון הזמנות
+              {archivedOrders.length > 0 && (
+                <span className="bg-muted text-muted-foreground text-xs font-medium px-1.5 py-0.5 rounded-full">
+                  {archivedOrders.length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="agenda">סדר יום רכש</TabsTrigger>
+            <TabsTrigger value="shipment-groups">קבוצות משלוח</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="dashboard" className="mt-0">
           <OrdersDashboardView orders={orders} orderWorkflows={orderWorkflows} suppliers={suppliers} />
