@@ -7,12 +7,17 @@
 
 ## [2026-04-24]
 
+- Merge pull request #159 from cobra-system/claude/new-session-eZGxa (a9601dd)
+- fix: reload PostgREST schema cache after waste_items migration (f55bd7a)
+
+<!-- last-commit: a9601dd5df71d63dbdd8c95d36e7c610ae492a9c -->
+## [2026-04-24]
+
 - refactor: division_products as single source of truth for product-division mapping (1bbf614)
 - feat: bidirectional sync between products.division and division_products (38175c4)
 - fix: unify division names and rename equipment page to division management (b49f640)
 - fix: replace empty string SelectItem value in EmployeeFormDialog (2fe6394)
 
-<!-- last-commit: ffb5497fafded0f038cf4fba129abbbdca2e0dd9 -->
 ## [2026-04-24]
 
 ### Changed
