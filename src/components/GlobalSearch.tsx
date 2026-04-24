@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
@@ -26,7 +26,12 @@ const typeConfig = {
 interface SearchDoc { id: string; document_name: string | null; document_number: string | null; supplier_id: string | null }
 interface SearchPayment { id: string; supplier_id: string | null; notes: string | null; amount: number | null }
 
-export default function GlobalSearch() {
+interface GlobalSearchProps {
+  autoFocus?: boolean;
+  onNavigate?: () => void;
+}
+
+export default function GlobalSearch({ autoFocus, onNavigate }: GlobalSearchProps = {}) {
   const navigate = useNavigate();
   const { products, suppliers, orders, tasks } = useData();
   const [query, setQuery] = useState("");
@@ -34,6 +39,7 @@ export default function GlobalSearch() {
   const [documents, setDocuments] = useState<SearchDoc[]>([]);
   const [payments, setPayments] = useState<SearchPayment[]>([]);
   const ref = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -42,6 +48,10 @@ export default function GlobalSearch() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  useEffect(() => {
+    if (autoFocus) inputRef.current?.focus();
+  }, [autoFocus]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -113,17 +123,19 @@ export default function GlobalSearch() {
     return res;
   }, [query, products, suppliers, orders, tasks, documents, payments]);
 
-  const handleSelect = (result: SearchResult) => {
+  const handleSelect = useCallback((result: SearchResult) => {
     navigate(result.path);
     setQuery("");
     setOpen(false);
-  };
+    onNavigate?.();
+  }, [navigate, onNavigate]);
 
   return (
     <div ref={ref} className="relative px-3 mb-2">
       <div className="relative">
         <Search className="absolute start-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-sidebar-foreground/40" />
         <Input
+          ref={inputRef}
           value={query}
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
