@@ -5,6 +5,13 @@
 
 ---
 
+## [2026-04-24]
+
+- chore: resolve merge conflicts with main (5f8b984)
+- feat(settings): notification settings UI — recipients, days, content toggles (9f9c2c9)
+- feat(orders): overhaul dashboard with DHL tracking, payments, supplier perf & email alerts (4d43171)
+
+<!-- last-commit: 8abc004cbe7a82fddef0e0851cc8b0b48c0529f7 -->
 ## [2026-04-24] (2)
 
 ### Added
@@ -44,7 +51,6 @@
 
 - fix(waste): fix item save error caused by multi-statement exec_sql migration (cd6949e)
 
-<!-- last-commit: c8a3dcb3e338ec5352296dce7ef725ed60f9807b -->
 ## [2026-04-24]
 
 - Merge pull request #154 from cobra-system/claude/fullscreen-popup-navigation-QOfGU (8aaaa04)
