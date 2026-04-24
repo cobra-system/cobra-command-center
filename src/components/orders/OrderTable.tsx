@@ -14,7 +14,7 @@ import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/c
 import type { ColDef } from "@/hooks/useColumnVisibility";
 import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 
-export type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment" | "workflow" | "tracking_number" | "updated_at" | "pi_number";
+export type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment" | "workflow" | "tracking_number" | "tracking_status" | "updated_at" | "pi_number";
 export type SortDir = "asc" | "desc" | null;
 
 export interface WorkflowInfo {
@@ -39,6 +39,7 @@ const COLUMN_DEFS: ColDef[] = [
   { id: "payment",         label: "תשלום",          sortField: "payment" },
   { id: "workflow",        label: "תהליך",          sortField: "workflow" },
   { id: "tracking_number", label: "מספר מעקב",      sortField: "tracking_number" },
+  { id: "tracking_status", label: "מצב מעקב DHL",   sortField: "tracking_status" },
   { id: "pi_number",       label: "PI Number",       sortField: "pi_number" },
   { id: "updated_at",      label: "עודכן לאחרונה",  sortField: "updated_at" },
 ];
@@ -446,6 +447,24 @@ export function OrderTable({
                     )}
                     {isVisible("tracking_number") && (
                       <td className="p-3 text-muted-foreground text-xs">{order.tracking_number || "—"}</td>
+                    )}
+                    {isVisible("tracking_status") && (
+                      <td className="p-3 text-xs">
+                        {order.tracking_status ? (
+                          <span className={cn(
+                            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium",
+                            order.tracking_status.toLowerCase().includes("delivered") ? "bg-green-100 text-green-700" :
+                            order.tracking_status.toLowerCase().includes("transit") || order.tracking_status.toLowerCase().includes("shipment") ? "bg-blue-100 text-blue-700" :
+                            order.tracking_status.toLowerCase().includes("exception") || order.tracking_status.toLowerCase().includes("failure") ? "bg-red-100 text-red-700" :
+                            "bg-muted text-muted-foreground"
+                          )}>
+                            <Truck className="h-3 w-3" />
+                            {order.tracking_status}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
                     )}
                     {isVisible("pi_number") && (
                       <td className="p-3 text-muted-foreground text-xs font-mono">{order.pi_number || "—"}</td>
