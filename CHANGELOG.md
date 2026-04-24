@@ -5,6 +5,12 @@
 
 ---
 
+## [2026-04-24]
+
+- Merge pull request #153 from cobra-system/claude/auto-update-mcp-tools-9aYpb (0f162ab)
+- Add MCP tools auto-sync awareness system (f4bec4f)
+
+<!-- last-commit: 0f162abfbca46c311220619e914c3e1c454252ff -->
 ## [2026-04-23]
 
 - docs+mcp: update waste FK integration across MCP server and docs (8044d3b)
@@ -12,7 +18,6 @@
 - feat(products): show waste items on product detail page (345193e)
 - feat(waste): add product-component (items) selection to wear report (640ff41)
 
-<!-- last-commit: 1f42049334def0a68bd64f1fb2325dfc5a0397f2 -->
 ## [2026-04-23]
 
 ### Added
