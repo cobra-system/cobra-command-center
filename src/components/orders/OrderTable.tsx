@@ -95,6 +95,98 @@ export function OrderTable({
 
   return (
     <>
+      {/* ── Mobile card list (hidden on md+) ─────────────────────────────── */}
+      <div className="md:hidden space-y-3">
+        {filtered.length === 0 ? (
+          <p className="text-center text-muted-foreground py-10">אין הזמנות</p>
+        ) : filtered.map(order => {
+          const paymentStatus = (order as Record<string, unknown>).payment_status as string || "ממתין";
+          const paymentColors: Record<string, string> = {
+            "שולם": "bg-success/15 text-success",
+            "שולם פיקדון": "bg-accent/15 text-accent",
+            "ממתין": "bg-warning/15 text-warning",
+          };
+          return (
+            <div
+              key={order.id}
+              className="bg-card rounded-xl border p-4 space-y-3 cursor-pointer active:bg-muted/50 transition-colors"
+              onClick={() => navigate(`/orders/${order.id}`)}
+              data-navigate-to={`/orders/${order.id}`}
+            >
+              {/* Items + status */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-foreground text-sm line-clamp-2">
+                    {order.items.length === 0 ? "ללא פריטים" : order.items.map(i => i.name).join(", ")}
+                  </p>
+                  {order.supplier_name && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{order.supplier_name}</p>
+                  )}
+                </div>
+                <OrderStatusBadge status={order.status as OrderStatus} />
+              </div>
+
+              {/* Priority + payment + total */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <PriorityBadge priority={order.priority as Priority} />
+                <span className={cn("inline-block px-2 py-0.5 rounded-full text-xs font-medium", paymentColors[paymentStatus] || "bg-muted text-muted-foreground")}>
+                  {paymentStatus}
+                </span>
+                {order.total_price && (
+                  <span className="ms-auto text-sm font-semibold text-foreground">${order.total_price.toLocaleString()}</span>
+                )}
+              </div>
+
+              {/* ETA + tracking */}
+              {(order.eta || order.tracking_number) && (
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  {order.eta && <span>ETA: {new Date(order.eta).toLocaleDateString("he-IL")}</span>}
+                  {order.tracking_number && <span className="font-mono truncate">{order.tracking_number}</span>}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex items-center gap-2 pt-1 border-t border-border/50" onClick={e => e.stopPropagation()}>
+                <PhotoCaptureButton
+                  imageUrl={order.order_image}
+                  storagePath={`orders/${order.id}`}
+                  onSave={async (url) => { await updateOrder(order.id, { order_image: url }); }}
+                  disabled={!hasEdit}
+                />
+                <button
+                  className="p-2 rounded-lg hover:bg-muted transition-colors ms-auto"
+                  title="שכפל הזמנה"
+                  onClick={(e) => handleDuplicateOrder(order.id, e)}
+                >
+                  <Copy className="h-4 w-4 text-muted-foreground" />
+                </button>
+                {hasEdit && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button className="p-2 rounded-lg hover:bg-destructive/10 transition-colors">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>מחיקת הזמנה</AlertDialogTitle>
+                        <AlertDialogDescription>האם למחוק את ההזמנה? פעולה זו לא ניתנת לביטול.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>ביטול</AlertDialogCancel>
+                        <AlertDialogAction onClick={(e) => handleDeleteOrder(order.id, e)} className="bg-destructive text-destructive-foreground">מחק</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Desktop table (hidden on mobile) ─────────────────────────────── */}
+      <div className="hidden md:block">
       <div className="bg-card rounded-xl border shadow-sm overflow-x-auto" dir="rtl">
         <table className="w-full text-sm min-w-[700px]">
           <thead>
@@ -425,6 +517,7 @@ export function OrderTable({
           </tbody>
         </table>
       </div>
+      </div>{/* end hidden md:block */}
 
       {colMenu && (
         <ColContextMenu

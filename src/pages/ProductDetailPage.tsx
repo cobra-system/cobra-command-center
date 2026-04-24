@@ -20,6 +20,7 @@ import { ProductDetailsGrid } from "@/components/product-detail/ProductDetailsGr
 import { BOMTable } from "@/components/product-detail/BOMTable";
 import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 import { OrdersHistoryTable } from "@/components/product-detail/OrdersHistoryTable";
+import { WasteItemsSection } from "@/components/product-detail/WasteItemsSection";
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -250,6 +251,8 @@ export default function ProductDetailPage() {
         product={product}
         hasEdit={hasEdit}
       />
+
+      <WasteItemsSection product={product} />
 
       {/* Documents */}
       <DocumentsSection productId={product.id} />

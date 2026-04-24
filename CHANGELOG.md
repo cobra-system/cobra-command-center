@@ -23,7 +23,7 @@
 - **לוח בקרה הזמנות — שיפורים מקיפים**
   - 4 כרטיסי KPI: הזמנות מישראל, מחו"ל, באיחור, ערך צנרת פתוחה
   - ציר הזמן מסנן הזמנות ARRIVED/CANCELLED — מציג רק הזמנות פעילות
-  - עוגת סטטוס ו-grap עדיפות — מחושבים על הזמנות פעילות בלבד
+  - עוגת סטטוס וגרף עדיפות — מחושבים על הזמנות פעילות בלבד
   - סינון ספק בסטטוס תשלום (dropdown)
   - כפתור "הצג הכל" בציר הזמן עם ספירת הזמנות
   - ווידג'ט תשלומים קרובים (30 יום) — מקובץ לפי שבוע
@@ -40,7 +40,40 @@
   - כולל: הזמנות באיחור + תשלומים שמגיעים תוך 3 ימים
   - GitHub Actions cron: `daily-notifications.yml` — מופעל 08:00 שעון ישראל, ימי עבודה
 
+## [2026-04-24]
+
+- fix(waste): fix item save error caused by multi-statement exec_sql migration (cd6949e)
+
+<!-- last-commit: c8a3dcb3e338ec5352296dce7ef725ed60f9807b -->
+## [2026-04-24]
+
+- Merge pull request #154 from cobra-system/claude/fullscreen-popup-navigation-QOfGU (8aaaa04)
+- feat: mobile UX improvements across manager layout and key pages (a2dc810)
+- feat: replace mobile sidebar slide-in with fullscreen nav popup (4ec2d6f)
+
+## [2026-04-24]
+
+- Merge pull request #153 from cobra-system/claude/auto-update-mcp-tools-9aYpb (0f162ab)
+- Add MCP tools auto-sync awareness system (f4bec4f)
+
 ## [2026-04-23]
+
+- docs+mcp: update waste FK integration across MCP server and docs (8044d3b)
+- feat(waste): real DB integration — add product_id/component_id FKs to waste_items (6def8cd)
+- feat(products): show waste items on product detail page (345193e)
+- feat(waste): add product-component (items) selection to wear report (640ff41)
+
+## [2026-04-23]
+
+### Added
+- דף בלאי: אפשרות לדווח על פריטי רכיב (מ-`product_components`) בנוסף למוצרים — טוגל מוצר/פריט בטופס
+- דף מוצר: סקשן **בלאי** מוצג בתיק המוצר (מתחת להזמנות) — מציג את כל פריטי הבלאי של המוצר ורכיביו, עם קישור לדף הבלאי
+
+### Changed
+- אינטגרציית DB אמיתית לטבלת `waste_items`: הוספת עמודות FK — `product_id → products(id)` ו-`component_id → product_components(id)` — עם indexes ו-backfill אוטומטי לרשומות קיימות (מיגרציה 93)
+- בחירת מוצר/רכיב בדף הבלאי מעדכנת כעת את ה-FK בנוסף לטקסט החופשי
+- `markItemAsFaulty` שומר `product_id` בשורת הבלאי שנוצרת מהחזרת ציוד
+- MCP `waste.ts`: `list_waste_items` תומך כעת בסינון לפי `product_id` (כולל רכיבים); `create_waste_item` ו-`update_waste_item` מקבלים `product_id` ו-`component_id`
 
 - chore: resolve merge conflicts with main (fbfaab5)
 - fix(mcp): tighten task tools — Hebrew priority enum, status validation, assignee lookup (8488538)
@@ -48,7 +81,6 @@
 - docs: add component detail route to README modules table (b26ffc4)
 - fix: remove linked-products section, fix product deletion, add component profile page (e678c4d)
 
-<!-- last-commit: 990c1f35fadf69b45a3b157fc7e560d37ed307dc -->
 ## [2026-04-23]
 
 ### Changed
