@@ -173,7 +173,40 @@ export default function SuppliersPage() {
         </div>
       </div>
 
-      <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-3">
+        {filtered.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">לא נמצאו ספקים</p>
+        ) : filtered.map(s => (
+          <div
+            key={s.id}
+            className="bg-card rounded-xl border shadow-sm p-4 cursor-pointer active:bg-muted/30 transition-colors"
+            onClick={() => navigate(`/suppliers/${s.id}`)}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground text-base truncate">{s.company}</p>
+                {s.contact_name && <p className="text-sm text-muted-foreground mt-0.5">{s.contact_name}</p>}
+              </div>
+              {s.country && (
+                <span className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${s.country === "ישראל" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" : "bg-muted text-muted-foreground"}`}>
+                  <Globe className="h-3 w-3" />
+                  {s.country}
+                </span>
+              )}
+            </div>
+            {(s.email || s.phone) && (
+              <div className="mt-2 space-y-0.5">
+                {s.email && <p className="text-xs text-accent" dir="ltr">{s.email}</p>}
+                {s.phone && <p className="text-xs text-muted-foreground" dir="ltr">{s.phone}</p>}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block bg-card rounded-xl border shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead><tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
             {COLUMN_DEFS.map(col => isVisible(col.id) ? (

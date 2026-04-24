@@ -260,7 +260,47 @@ export default function IssuesPage() {
         </span>
       </div>
 
-      <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-2">
+        {filtered.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">אין תקלות להצגה</p>
+        ) : filtered.map(issue => {
+          const supplier = getSupplierForProduct(issue.product_id);
+          return (
+            <div
+              key={issue.id}
+              className={`bg-card rounded-xl border shadow-sm p-4 cursor-pointer active:bg-muted/30 transition-colors border-r-2 ${severityBorderColors[issue.severity] || "border-r-border"} ${issue.severity === "קריטי" ? "bg-destructive/5" : ""}`}
+              onClick={() => navigate(`/issues/${issue.id}`)}
+            >
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex flex-wrap gap-1.5">
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${severityColors[issue.severity] || "bg-muted text-muted-foreground"}`}>
+                    {issue.severity}
+                  </span>
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[issue.status] || "bg-muted text-muted-foreground"}`}>
+                    {issue.status}
+                  </span>
+                </div>
+                <span className="text-xs text-muted-foreground shrink-0 mt-0.5">{relativeDate(issue.reported_date)}</span>
+              </div>
+              <p className="font-semibold text-foreground">{productMap[issue.product_id] || "—"}</p>
+              {supplier && (
+                <p className="text-xs text-muted-foreground mt-0.5">{supplier.company}</p>
+              )}
+              <p className="text-sm text-foreground/80 mt-1.5 line-clamp-2">{issue.description}</p>
+              <p className="text-xs text-muted-foreground mt-2">דווח ע"י: {issue.reporter}</p>
+              {issue.ticket_number && (
+                <span className="inline-flex items-center gap-0.5 mt-1.5 bg-muted/70 border border-border rounded px-1.5 py-0.5 text-xs font-mono text-muted-foreground">
+                  <Hash className="h-3 w-3" />{issue.ticket_number}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block bg-card rounded-xl border shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>

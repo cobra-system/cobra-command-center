@@ -241,8 +241,69 @@ export default function ReorderPage() {
         </div>
       </div>
 
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-3">
+        {rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">אין מוצרים עם נתוני מכירות לחישוב</p>
+        ) : rows.map(r => (
+          <div key={r.id} className={`bg-card rounded-xl border shadow-sm p-4 ${r.status === "danger" ? "border-destructive/40 bg-destructive/5" : r.status === "warning" ? "border-warning/40 bg-warning/5" : ""}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2.5 min-w-0">
+                <span className="text-lg mt-0.5 shrink-0">{statusIcon(r.status)}</span>
+                <div className="min-w-0">
+                  <button onClick={() => navigate(`/products/${r.id}`)} className="text-primary font-semibold text-base hover:underline text-right block truncate w-full">
+                    {r.name}
+                  </button>
+                  <p className="text-xs text-muted-foreground font-mono" dir="ltr">{r.sku}</p>
+                </div>
+              </div>
+              {r.has_active_order && (
+                <span className="text-xs font-medium text-success bg-success/15 px-2 py-0.5 rounded-full shrink-0">
+                  {r.active_order_qty} פעיל{r.active_order_qty > 1 ? "ות" : "ה"}
+                </span>
+              )}
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div className="bg-muted/40 rounded-lg p-2">
+                <p className="text-xs text-muted-foreground">מלאי</p>
+                <p className="font-bold text-foreground">{r.stock_qty}</p>
+              </div>
+              <div className="bg-muted/40 rounded-lg p-2">
+                <p className="text-xs text-muted-foreground">בדרך</p>
+                <p className="text-muted-foreground">{r.incoming_qty || "—"}</p>
+              </div>
+              <div className="bg-muted/40 rounded-lg p-2">
+                <p className="text-xs text-muted-foreground">ימים לאזילה</p>
+                <p className={`font-bold ${r.status === "danger" ? "text-destructive" : r.status === "warning" ? "text-warning" : "text-foreground"}`}>
+                  {r.days_until_stockout !== null ? r.days_until_stockout : "—"}
+                </p>
+              </div>
+            </div>
+            {r.order_by_date && (
+              <p className="text-xs text-muted-foreground mt-2">
+                הזמן עד:{" "}
+                <span className={`font-medium ${r.status === "danger" ? "text-destructive" : "text-foreground"}`}>
+                  {format(r.order_by_date, "dd/MM/yyyy")}
+                </span>
+              </p>
+            )}
+            {hasEdit && r.status === "danger" && (
+              <Button
+                size="sm"
+                variant="outline"
+                className={`w-full mt-3 text-xs ${r.has_active_order ? "border-warning/50 text-warning hover:bg-warning/10" : "border-destructive/50 text-destructive hover:bg-destructive/10"}`}
+                onClick={() => navigate(`/orders?create=true&product=${r.id}`)}
+              >
+                <ShoppingCart className="h-3.5 w-3.5 ml-1.5" />
+                {r.has_active_order ? "הזמן שוב" : "הזמן עכשיו"}
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
+
       {/* Reorder Table */}
-      <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
+      <div className="hidden md:block bg-card rounded-xl border shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
