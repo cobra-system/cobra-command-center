@@ -263,12 +263,44 @@ export function ProcurementAgendaTab() {
         </div>
       </div>
 
-      {/* Urgent Active Orders table */}
-      <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
+      {/* Urgent Active Orders */}
+      <div className="bg-card rounded-xl border shadow-sm">
         <div className="p-4 border-b flex items-center gap-2">
           <Zap className="h-4 w-4 text-primary" />
           <h2 className="font-semibold text-foreground">הזמנות דחופות פעילות ({sortedUrgent.length})</h2>
         </div>
+
+        {/* Mobile card list */}
+        <div className="md:hidden divide-y">
+          {sortedUrgent.length === 0 ? (
+            <p className="p-6 text-sm text-center text-muted-foreground">אין הזמנות דחופות פעילות</p>
+          ) : sortedUrgent.map(o => (
+            <div
+              key={o.id}
+              className="p-3 cursor-pointer active:bg-muted/30 transition-colors"
+              onClick={() => navigate(`/orders/${o.id}`)}
+            >
+              <div className="flex items-start justify-between gap-2 mb-1.5">
+                <p className="font-medium text-foreground truncate">{o.supplier_name || "—"}</p>
+                <PriorityBadge priority={o.priority as Priority} />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <OrderStatusBadge status={o.status as OrderStatus} />
+                {o.pi_number && <span className="text-xs text-muted-foreground font-mono">{o.pi_number}</span>}
+                {o.total_price && <span className="text-xs font-medium text-foreground">${o.total_price.toLocaleString()}</span>}
+              </div>
+              {(o.etd || o.eta) && (
+                <div className="mt-1.5 flex gap-3 text-xs text-muted-foreground">
+                  {o.etd && <span>ETD: {formatDate(o.etd)}</span>}
+                  {o.eta && <span>ETA: {formatDate(o.eta)}</span>}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
@@ -315,6 +347,7 @@ export function ProcurementAgendaTab() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {colMenu && (

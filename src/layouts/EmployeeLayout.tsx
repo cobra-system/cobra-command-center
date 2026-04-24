@@ -54,7 +54,7 @@ export default function EmployeeLayout() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto overflow-x-auto pb-16">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden pb-16">
         <Outlet />
       </div>
 
