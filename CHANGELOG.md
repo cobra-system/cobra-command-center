@@ -7,6 +7,14 @@
 
 ## [2026-04-24]
 
+- refactor: division_products as single source of truth for product-division mapping (1bbf614)
+- feat: bidirectional sync between products.division and division_products (38175c4)
+- fix: unify division names and rename equipment page to division management (b49f640)
+- fix: replace empty string SelectItem value in EmployeeFormDialog (2fe6394)
+
+<!-- last-commit: ffb5497fafded0f038cf4fba129abbbdca2e0dd9 -->
+## [2026-04-24]
+
 ### Changed
 - `division_products` הוא מקור האמת היחיד לשיוך מוצרים לחטיבות
   - migration `20260424000001`: הסרת Trigger A (products → division_products) — כתיבה ישירה מהאפליקציה לא עוברת יותר דרך products.division
@@ -24,7 +32,6 @@
 - feat(settings): notification settings UI — recipients, days, content toggles (9f9c2c9)
 - feat(orders): overhaul dashboard with DHL tracking, payments, supplier perf & email alerts (4d43171)
 
-<!-- last-commit: 8abc004cbe7a82fddef0e0851cc8b0b48c0529f7 -->
 ## [2026-04-24] (2)
 
 ### Added
