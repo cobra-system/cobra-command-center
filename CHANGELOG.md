@@ -7,10 +7,16 @@
 
 ## [2026-04-24]
 
+- Merge pull request #154 from cobra-system/claude/fullscreen-popup-navigation-QOfGU (8aaaa04)
+- feat: mobile UX improvements across manager layout and key pages (a2dc810)
+- feat: replace mobile sidebar slide-in with fullscreen nav popup (4ec2d6f)
+
+<!-- last-commit: 8aaaa040b5e9df459228773419a9b1867b0151a9 -->
+## [2026-04-24]
+
 - Merge pull request #153 from cobra-system/claude/auto-update-mcp-tools-9aYpb (0f162ab)
 - Add MCP tools auto-sync awareness system (f4bec4f)
 
-<!-- last-commit: 0f162abfbca46c311220619e914c3e1c454252ff -->
 ## [2026-04-23]
 
 - docs+mcp: update waste FK integration across MCP server and docs (8044d3b)
