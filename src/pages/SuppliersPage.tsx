@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth, type Supplier } from "@/contexts/AppContext";
 import { useProductScope } from "@/hooks/useProductScope";
-import { Search, Plus, ArrowUpDown, ArrowUp, ArrowDown, Globe, GitMerge, AlertTriangle, ExternalLink, Eye, Trash2, Pencil, ShoppingCart, Mail } from "lucide-react";
+import { Search, Plus, ArrowUpDown, ArrowUp, ArrowDown, Globe, GitMerge, AlertTriangle, ExternalLink, Eye, Trash2, Pencil, ShoppingCart, Mail, Building2 } from "lucide-react";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
@@ -176,7 +176,13 @@ export default function SuppliersPage() {
       {/* Mobile card list */}
       <div className="md:hidden space-y-3">
         {filtered.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">לא נמצאו ספקים</p>
+          <div className="flex flex-col items-center justify-center py-14 gap-3 text-center">
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+              <Building2 className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-foreground">לא נמצאו ספקים</p>
+            <p className="text-xs text-muted-foreground">נסה לחפש שם חברה אחר</p>
+          </div>
         ) : filtered.map(s => (
           <div
             key={s.id}
@@ -220,7 +226,12 @@ export default function SuppliersPage() {
           </tr></thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={visibleCount} className="p-6 text-center text-muted-foreground">לא נמצאו ספקים</td></tr>
+              <tr><td colSpan={visibleCount} className="py-16 text-center">
+                <div className="flex flex-col items-center gap-2">
+                  <Building2 className="h-8 w-8 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">לא נמצאו ספקים</p>
+                </div>
+              </td></tr>
             ) : filtered.map(s => {
               const supplierMenuGroups: ContextMenuGroupItem[][] = [
                 [

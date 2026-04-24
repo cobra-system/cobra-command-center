@@ -61,6 +61,7 @@ export default function OrderDetailPage() {
   const { scopedOrders: orders, scopedSuppliers: suppliers, scopedProducts: products } = useProductScope();
 
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteItemConfirm, setDeleteItemConfirm] = useState<string | null>(null);
   const [inventoryDialog, setInventoryDialog] = useState(false);
   const [editItemDialog, setEditItemDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -400,7 +401,7 @@ export default function OrderDetailPage() {
                         <Button variant="ghost" size="sm" onClick={() => openEditItem(item)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteItem(item.id)}>
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteItemConfirm(item.id)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
@@ -534,6 +535,18 @@ export default function OrderDetailPage() {
           <div className="flex gap-2 pt-2">
             <Button variant="outline" className="flex-1" onClick={() => setDeleteConfirm(false)}>ביטול</Button>
             <Button variant="destructive" className="flex-1" onClick={handleDelete}>מחק</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Item Confirmation */}
+      <Dialog open={!!deleteItemConfirm} onOpenChange={(open) => { if (!open) setDeleteItemConfirm(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>מחיקת פריט</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">האם למחוק את הפריט מההזמנה? פעולה זו אינה ניתנת לביטול.</p>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => setDeleteItemConfirm(null)}>ביטול</Button>
+            <Button variant="destructive" className="flex-1" onClick={() => { handleDeleteItem(deleteItemConfirm!); setDeleteItemConfirm(null); }}>מחק</Button>
           </div>
         </DialogContent>
       </Dialog>

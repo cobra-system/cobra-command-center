@@ -186,7 +186,7 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div className="space-y-1">
               <Label>קטגוריה</Label>
               <Select value={form.category} onValueChange={v => setField("category", v)}>
@@ -204,7 +204,7 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 col-span-2 sm:col-span-1">
               <Label>חטיבות</Label>
               <div className="flex flex-wrap gap-1 p-2 border rounded-md min-h-[36px]">
                 {divisions.map(d => {
@@ -241,7 +241,7 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div className="space-y-1">
               <Label>מלאי</Label>
               <Input type="number" value={form.stock_qty} onChange={e => setField("stock_qty", e.target.value)} />
@@ -250,7 +250,7 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
               <Label>מחיר רכישה</Label>
               <Input type="number" value={form.purchase_price} onChange={e => setField("purchase_price", e.target.value)} />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 col-span-2 sm:col-span-1">
               <Label>מחיר מכירה</Label>
               <Input type="number" value={form.sale_price} onChange={e => setField("sale_price", e.target.value)} />
             </div>
@@ -287,37 +287,41 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
                 </Button>
               </div>
               {comps.map((comp, i) => (
-                <div key={i} className="grid grid-cols-[1fr_80px_120px_80px_80px_auto] gap-2 items-end">
-                  <div className="space-y-1">
-                    <Label className="text-xs">שם *</Label>
-                    <Input value={comp.name} onChange={e => { const nc = [...comps]; nc[i].name = e.target.value; setComps(nc); }} className="h-8 text-xs" />
+                <div key={i} className="border rounded-lg p-3 space-y-2">
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1 space-y-1">
+                      <Label className="text-xs">שם *</Label>
+                      <Input value={comp.name} onChange={e => { const nc = [...comps]; nc[i].name = e.target.value; setComps(nc); }} className="h-8 text-xs" />
+                    </div>
+                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setComps(prev => prev.filter((_, j) => j !== i))}>
+                      <Trash2 className="h-3 w-3 text-destructive" />
+                    </Button>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">מק״ט</Label>
-                    <Input value={comp.sku} onChange={e => { const nc = [...comps]; nc[i].sku = e.target.value.toUpperCase(); setComps(nc); }} className="h-8 text-xs" dir="ltr" />
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">מק״ט</Label>
+                      <Input value={comp.sku} onChange={e => { const nc = [...comps]; nc[i].sku = e.target.value.toUpperCase(); setComps(nc); }} className="h-8 text-xs" dir="ltr" />
+                    </div>
+                    <div className="space-y-1 col-span-2 sm:col-span-1">
+                      <Label className="text-xs">ספק</Label>
+                      <Combobox
+                        value={comp.supplier || ""}
+                        onValueChange={v => { const nc = [...comps]; nc[i].supplier = v; setComps(nc); }}
+                        options={[{ value: "", label: "ללא" }, ...suppliers.map(s => ({ value: s.company, label: s.company }))]}
+                        placeholder="בחר ספק"
+                        searchPlaceholder="חיפוש..."
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">מלאי</Label>
+                      <Input type="number" value={comp.stock_qty} onChange={e => { const nc = [...comps]; nc[i].stock_qty = e.target.value; setComps(nc); }} className="h-8 text-xs" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">מחיר</Label>
+                      <Input type="number" value={comp.price} onChange={e => { const nc = [...comps]; nc[i].price = e.target.value; setComps(nc); }} className="h-8 text-xs" />
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">ספק</Label>
-                    <Combobox
-                      value={comp.supplier || ""}
-                      onValueChange={v => { const nc = [...comps]; nc[i].supplier = v; setComps(nc); }}
-                      options={[{ value: "", label: "ללא" }, ...suppliers.map(s => ({ value: s.company, label: s.company }))]}
-                      placeholder="בחר ספק"
-                      searchPlaceholder="חיפוש..."
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">מלאי</Label>
-                    <Input type="number" value={comp.stock_qty} onChange={e => { const nc = [...comps]; nc[i].stock_qty = e.target.value; setComps(nc); }} className="h-8 text-xs" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">מחיר</Label>
-                    <Input type="number" value={comp.price} onChange={e => { const nc = [...comps]; nc[i].price = e.target.value; setComps(nc); }} className="h-8 text-xs" />
-                  </div>
-                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setComps(prev => prev.filter((_, j) => j !== i))}>
-                    <Trash2 className="h-3 w-3 text-destructive" />
-                  </Button>
                 </div>
               ))}
             </div>

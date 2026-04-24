@@ -9,6 +9,7 @@ import { Suspense, lazy, useState, useCallback } from "react";
 import SplashScreen from "@/components/SplashScreen";
 import { useMiddleClickNavigation } from "@/hooks/useMiddleClickNavigation";
 import { canView, getModuleKeyFromRoute, MODULES } from "@/lib/permissions";
+import { ThemeProvider } from "next-themes";
 
 // Eager: needed on first render
 import LoginPage from "@/pages/LoginPage";
@@ -182,17 +183,19 @@ function AppWithSplash() {
 }
 
 const App = () => (
-  <ErrorBoundary>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <AppProvider>
-          <AppWithSplash />
-        </AppProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </ErrorBoundary>
+  <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <AppProvider>
+            <AppWithSplash />
+          </AppProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
+  </ThemeProvider>
 );
 
 export default App;

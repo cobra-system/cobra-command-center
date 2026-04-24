@@ -70,6 +70,57 @@
     --done: 142 60% 93%;
     --blocked: 0 60% 95%;
   }
+
+  .dark {
+    --background: 220 20% 10%;
+    --foreground: 220 14% 93%;
+
+    --card: 220 20% 13%;
+    --card-foreground: 220 14% 93%;
+
+    --popover: 220 20% 15%;
+    --popover-foreground: 220 14% 93%;
+
+    --primary: 211 100% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 20% 20%;
+    --secondary-foreground: 220 14% 85%;
+
+    --muted: 220 20% 18%;
+    --muted-foreground: 220 10% 55%;
+
+    --accent: 211 80% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --warning: 32 95% 55%;
+    --warning-foreground: 0 0% 100%;
+
+    --success: 142 60% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --border: 220 20% 22%;
+    --input: 220 20% 22%;
+    --ring: 211 100% 55%;
+
+    --sidebar-background: 220 20% 11%;
+    --sidebar-foreground: 220 14% 90%;
+    --sidebar-primary: 211 100% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 211 100% 20%;
+    --sidebar-accent-foreground: 211 100% 70%;
+    --sidebar-border: 220 20% 20%;
+    --sidebar-ring: 211 100% 55%;
+    --sidebar-muted: 220 10% 50%;
+
+    --todo: 220 20% 18%;
+    --in-progress: 211 80% 18%;
+    --done: 142 50% 15%;
+    --blocked: 0 50% 18%;
+  }
 }
 
 @layer base {
@@ -101,7 +152,16 @@
   }
 }
 
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 @layer utilities {
+  .page-fade-in {
+    animation: page-fade-in 0.18s ease-out;
+  }
+
   .priority-urgent {
     @apply bg-[hsl(var(--p0))] text-[hsl(var(--destructive-foreground))];
   }

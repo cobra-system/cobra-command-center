@@ -8,6 +8,8 @@ import { Package, Truck, ClipboardList, Users, AlertTriangle, ScrollText, Wrench
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 
 const priorityOrder: Record<string, number> = { "דחוף": 0, "גבוה": 1, "בינוני": 2, "נמוך": 3 };
 
@@ -19,32 +21,39 @@ export default function DashboardPage() {
   const [expiringLicenses, setExpiringLicenses] = useState<{ id: string; name: string; daysLeft: number }[]>([]);
   const [openIssueCount, setOpenIssueCount] = useState(0);
   const [pendingPayments, setPendingPayments] = useState(0);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
-      const [licensesRes, issuesRes, paymentsRes] = await Promise.all([
-        supabase.from("compliance_items").select("id, name, expiry_date").not("expiry_date", "is", null).order("expiry_date", { ascending: true }).limit(10),
-        supabase.from("product_issues").select("severity, status"),
-        supabase.from("supplier_payments").select("amount, status").neq("status", "שולם"),
-      ]);
+      try {
+        const [licensesRes, issuesRes, paymentsRes] = await Promise.all([
+          supabase.from("compliance_items").select("id, name, expiry_date").not("expiry_date", "is", null).order("expiry_date", { ascending: true }).limit(10),
+          supabase.from("product_issues").select("severity, status"),
+          supabase.from("supplier_payments").select("amount, status").neq("status", "שולם"),
+        ]);
 
-      if (licensesRes.data) {
-        const now = Date.now();
-        setExpiringLicenses(
-          licensesRes.data
-            .map(d => ({ id: d.id, name: d.name, daysLeft: Math.ceil((new Date(d.expiry_date!).getTime() - now) / 86400000) }))
-            .filter(d => d.daysLeft <= 90 && d.daysLeft > 0)
-            .slice(0, 3)
-        );
-      }
+        if (licensesRes.data) {
+          const now = Date.now();
+          setExpiringLicenses(
+            licensesRes.data
+              .map(d => ({ id: d.id, name: d.name, daysLeft: Math.ceil((new Date(d.expiry_date!).getTime() - now) / 86400000) }))
+              .filter(d => d.daysLeft <= 90 && d.daysLeft > 0)
+              .slice(0, 3)
+          );
+        }
 
-      if (issuesRes.data) {
-        const open = issuesRes.data.filter((d: { status: string }) => d.status !== "נסגר");
-        setOpenIssueCount(open.length);
-      }
+        if (issuesRes.data) {
+          const open = issuesRes.data.filter((d: { status: string }) => d.status !== "נסגר");
+          setOpenIssueCount(open.length);
+        }
 
-      if (paymentsRes.data) {
-        setPendingPayments(paymentsRes.data.reduce((s: number, p: { amount?: number }) => s + (p.amount || 0), 0));
+        if (paymentsRes.data) {
+          setPendingPayments(paymentsRes.data.reduce((s: number, p: { amount?: number }) => s + (p.amount || 0), 0));
+        }
+      } catch {
+        toast.error("שגיאה בטעינת נתוני dashboard");
+      } finally {
+        setDashboardLoading(false);
       }
     };
     fetchDashboardData();
@@ -70,6 +79,21 @@ export default function DashboardPage() {
       .slice(0, 5),
     [tasks]
   );
+
+  if (dashboardLoading) {
+    return (
+      <div className="space-y-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3">
+          {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-[72px] sm:h-20 rounded-xl" />)}
+        </div>
+        <Skeleton className="h-28 rounded-xl" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Skeleton className="h-64 rounded-xl" />
+          <Skeleton className="h-64 rounded-xl" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

@@ -263,7 +263,13 @@ export default function IssuesPage() {
       {/* Mobile card list */}
       <div className="md:hidden space-y-2">
         {filtered.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">אין תקלות להצגה</p>
+          <div className="flex flex-col items-center justify-center py-14 gap-3 text-center">
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+              <Wrench className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-foreground">אין תקלות להצגה</p>
+            <p className="text-xs text-muted-foreground">נסה לשנות את הסינון או לחפש מוצר אחר</p>
+          </div>
         ) : filtered.map(issue => {
           const supplier = getSupplierForProduct(issue.product_id);
           return (
@@ -318,7 +324,12 @@ export default function IssuesPage() {
           <tbody className="divide-y">
             <TooltipProvider>
             {filtered.length === 0 ? (
-              <tr><td colSpan={visibleCount} className="p-6 text-center text-muted-foreground">אין תקלות להצגה</td></tr>
+              <tr><td colSpan={visibleCount} className="py-16 text-center">
+                <div className="flex flex-col items-center gap-2">
+                  <Wrench className="h-8 w-8 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">אין תקלות להצגה</p>
+                </div>
+              </td></tr>
             ) : filtered.map(issue => {
               const supplier = getSupplierForProduct(issue.product_id);
               return (

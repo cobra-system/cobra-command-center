@@ -28,6 +28,7 @@ export default function SupplierDetailPage() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteContactConfirm, setDeleteContactConfirm] = useState<string | null>(null);
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [editContactOpen, setEditContactOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<SupplierContact | null>(null);
@@ -309,7 +310,7 @@ export default function SupplierDetailPage() {
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => openEditContact(contact)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteContact(contact.id)}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteContactConfirm(contact.id)}>
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
@@ -508,6 +509,18 @@ export default function SupplierDetailPage() {
           <div className="flex gap-2 justify-end mt-4">
             <Button variant="outline" onClick={() => setDeleteConfirm(false)}>ביטול</Button>
             <Button variant="destructive" onClick={handleDelete}>מחק</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Contact Confirm */}
+      <Dialog open={!!deleteContactConfirm} onOpenChange={(open) => { if (!open) setDeleteContactConfirm(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>מחיקת איש קשר</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">האם למחוק את איש הקשר? פעולה זו אינה ניתנת לביטול.</p>
+          <div className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" onClick={() => setDeleteContactConfirm(null)}>ביטול</Button>
+            <Button variant="destructive" onClick={() => { handleDeleteContact(deleteContactConfirm!); setDeleteContactConfirm(null); }}>מחק</Button>
           </div>
         </DialogContent>
       </Dialog>

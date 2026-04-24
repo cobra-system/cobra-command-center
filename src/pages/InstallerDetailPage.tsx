@@ -291,7 +291,7 @@ export default function InstallerDetailPage() {
             returnItemId,
             changedBy: userId,
             changedByName: userName,
-          }).catch(() => {});
+          }).catch(() => toast.error("שגיאה בעדכון המלאי"));
         } else if (current === true && next !== true) {
           // Un-confirmed faulty → restore inventory + delete waste item
           unmarkItemAsFaulty({
@@ -300,7 +300,7 @@ export default function InstallerDetailPage() {
             returnItemId,
             changedBy: userId,
             changedByName: userName,
-          }).catch(() => {});
+          }).catch(() => toast.error("שגיאה בעדכון המלאי"));
         }
       }
 
