@@ -263,6 +263,8 @@ mcp-server/              # MCP Server לאינטגרציה עם Claude Code (30+
 | `fix-setup` | תיקון הגדרות מסד נתונים |
 | `fix-trigger` | תיקון Triggers ו-Policies ב-Supabase |
 | `debug-external` | כלי דיבאג לחיבורים חיצוניים |
+| `track-shipment` | רענון סטטוס מעקב DHL לפי order_id |
+| `notify-daily-digest` | שליחת סיכום יומי למנהלים (איחורים + תשלומים) |
 | `health` | בדיקת בריאות שרת + זמן תגובה DB (ללא אימות) |
 
 ---

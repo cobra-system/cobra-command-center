@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Trash2, CreditCard, Zap, Check, Ship, Hash, Plus, Pencil, ChevronLeft, ChevronRight, Warehouse } from "lucide-react";
+import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Trash2, CreditCard, Zap, Check, Ship, Hash, Plus, Pencil, ChevronLeft, ChevronRight, Warehouse, RefreshCw } from "lucide-react";
 import DocumentsSection from "@/components/DocumentsSection";
 import { OrderPaymentsSection } from "@/components/orders/OrderPaymentsSection";
 import { OrderAuditLog } from "@/components/orders/OrderAuditLog";
@@ -61,6 +61,7 @@ export default function OrderDetailPage() {
   const { scopedOrders: orders, scopedSuppliers: suppliers, scopedProducts: products } = useProductScope();
 
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [trackingLoading, setTrackingLoading] = useState(false);
   const [inventoryDialog, setInventoryDialog] = useState(false);
   const [editItemDialog, setEditItemDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -229,6 +230,25 @@ export default function OrderDetailPage() {
     await refreshOrders();
   };
 
+  const handleRefreshTracking = async () => {
+    if (!order.tracking_number) { toast.error("אין מספר מעקב להזמנה זו"); return; }
+    setTrackingLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/track-shipment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ order_id: order.id }),
+      });
+      const json = await res.json();
+      if (!res.ok) { toast.error(json.error || "שגיאה בעדכון מעקב"); return; }
+      toast.success("מעקב DHL עודכן");
+      await refreshOrders();
+    } finally {
+      setTrackingLoading(false);
+    }
+  };
+
   const details: { label: string; field: string; value: string | number | null | undefined; options?: { value: string; label: string }[]; isDate?: boolean; isSupplierLink?: boolean; icon?: any; isReadOnly?: boolean }[] = [
     { label: "סטטוס", field: "status", value: order.status, options: statusOptions, icon: Check },
     { label: "עדיפות", field: "priority", value: order.priority, options: priorityOptions, icon: Hash },
@@ -340,6 +360,47 @@ export default function OrderDetailPage() {
           )}
         </div>
       </div>
+
+      {/* DHL Tracking */}
+      {order.tracking_number && (
+        <div className="bg-card rounded-xl border shadow-sm p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Truck className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold text-foreground">מעקב DHL</h2>
+            </div>
+            <button
+              onClick={handleRefreshTracking}
+              disabled={trackingLoading}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border rounded-lg px-3 py-1.5 transition-colors hover:bg-muted/30 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${trackingLoading ? "animate-spin" : ""}`} />
+              רענן מעקב
+            </button>
+          </div>
+          <div className="space-y-2">
+            {order.tracking_status ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">סטטוס:</span>
+                <span className="text-sm font-semibold">{order.tracking_status}</span>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">טרם בוצע עדכון מעקב — לחץ "רענן מעקב"</p>
+            )}
+            {order.tracking_last_event && (
+              <div className="flex items-start gap-2">
+                <span className="text-sm text-muted-foreground shrink-0">אירוע אחרון:</span>
+                <span className="text-sm">{order.tracking_last_event}</span>
+              </div>
+            )}
+            {order.tracking_updated_at && (
+              <p className="text-xs text-muted-foreground">
+                עודכן: {new Date(order.tracking_updated_at).toLocaleString("he-IL")}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Dates Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

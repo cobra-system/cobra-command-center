@@ -1,0 +1,59 @@
+name: Daily Notifications Digest
+
+on:
+  schedule:
+    # 06:00 UTC = 08:00 Israel time (UTC+2), weekdays only
+    - cron: '0 6 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send daily digest email
+        run: |
+          echo "Starting daily notifications digest..."
+
+          SUPABASE_URL="${{ secrets.SUPABASE_URL }}"
+          CRON_SECRET="${{ secrets.CRON_SECRET }}"
+
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "::error::SUPABASE_URL secret is not set. Configure it in repository Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET secret is not set. Configure it in repository Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+          EDGE_FUNCTION_URL="${SUPABASE_URL}/functions/v1/notify-daily-digest"
+
+          echo "Calling Edge Function at ${SUPABASE_URL%%.*}..../functions/v1/notify-daily-digest"
+
+          HTTP_STATUS=$(curl -s -o /tmp/response.json -w "%{http_code}" -X POST "$EDGE_FUNCTION_URL" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $CRON_SECRET")
+          CURL_EXIT=$?
+          RESPONSE=$(cat /tmp/response.json)
+
+          if [ $CURL_EXIT -ne 0 ]; then
+            echo "::error::curl failed with exit code $CURL_EXIT"
+            exit 1
+          fi
+
+          echo "HTTP Status: $HTTP_STATUS"
+          echo "Response: $RESPONSE"
+
+          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+            echo "::error::Edge function returned HTTP $HTTP_STATUS"
+            exit 1
+          fi
+
+          echo "Daily digest completed successfully"
+
+      - name: Log job completion
+        if: always()
+        run: |
+          echo "Daily notifications job completed at $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
