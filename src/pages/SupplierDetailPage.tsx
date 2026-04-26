@@ -76,8 +76,7 @@ export default function SupplierDetailPage() {
   const handleInlineSave = async (field: string, value: string) => {
     const updates: Partial<Supplier> = {};
     (updates as any)[field] = value || null;
-    await updateSupplier(supplier.id, updates);
-    toast.success("עודכן");
+    await updateSupplier(supplier.id, updates).catch(() => {});
   };
 
   const handleAddContact = async () => {
@@ -604,7 +603,8 @@ function SupplierEditDialog({ open, onOpenChange, supplier, onSave }: {
       await onSave(supplier.id, updates);
       onOpenChange(false);
       setFields({});
-      toast.success("ספק עודכן בהצלחה");
+    } catch {
+      // error toast already shown by context
     } finally {
       setSaving(false);
     }
