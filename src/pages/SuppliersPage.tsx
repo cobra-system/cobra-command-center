@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth, type Supplier } from "@/contexts/AppContext";
 import { useProductScope } from "@/hooks/useProductScope";
@@ -88,7 +88,7 @@ export default function SuppliersPage() {
   const { currentUser } = useAuth();
   const { hasEdit } = usePermissions("suppliers");
   const { addSupplier, updateSupplier, deleteSupplier, refreshSuppliers, products } = useData();
-  const { scopedSuppliers: suppliers } = useProductScope();
+  const { scopedSuppliers: suppliers, scopedOrders } = useProductScope();
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
@@ -99,16 +99,13 @@ export default function SuppliersPage() {
     sortField: "company",
     filters: { countryFilter: "all" },
   });
-  const [orderCountMap, setOrderCountMap] = useState<Map<string, number>>(new Map());
-  useEffect(() => {
-    supabase.from("orders").select("supplier_id").then(({ data }) => {
-      const map = new Map<string, number>();
-      (data ?? []).forEach(o => {
-        if (o.supplier_id) map.set(o.supplier_id, (map.get(o.supplier_id) ?? 0) + 1);
-      });
-      setOrderCountMap(map);
-    });
-  }, []);
+  const orderCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const o of scopedOrders) {
+      if (o.supplier_id) map.set(o.supplier_id, (map.get(o.supplier_id) ?? 0) + 1);
+    }
+    return map;
+  }, [scopedOrders]);
 
   const productCountMap = useMemo(() => {
     const map = new Map<string, number>();
