@@ -7,9 +7,15 @@
 
 ## [2026-04-26]
 
+- Merge pull request #163 from cobra-system/claude/fix-missing-products-24mFY (3db4f2e)
+- feat: add product count, order count, and website columns to suppliers table (cd6012f)
+- feat: show product count instead of field qty on division cards (77b3cd8)
+
+<!-- last-commit: 3db4f2e64fe10768eb2a9796a670d7ed8a7a2183 -->
+## [2026-04-26]
+
 - fix(suppliers): apply missing supplier_number migration + fix error-handling (6d84a87)
 
-<!-- last-commit: 4d4075358ef09a85c974e08bc238eafaa32508ce -->
 ## [2026-04-26]
 
 - fix: allow custom role_definitions when creating employees + clearer DHL 401 (94dbe59)
