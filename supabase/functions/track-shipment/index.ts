@@ -79,8 +79,11 @@ Deno.serve(async (req) => {
 
     if (!dhlRes.ok) {
       const errText = await dhlRes.text();
+      const msg = dhlRes.status === 401
+        ? "DHL API: מפתח לא תקף או פג תוקף — יש לעדכן DHL_API_KEY"
+        : `DHL API שגיאה: ${dhlRes.status}`;
       return new Response(
-        JSON.stringify({ error: `DHL API שגיאה: ${dhlRes.status}`, details: errText }),
+        JSON.stringify({ error: msg, details: errText }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
