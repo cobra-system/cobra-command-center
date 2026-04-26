@@ -7,6 +7,11 @@
 
 ## [2026-04-26]
 
+- fix: allow custom role_definitions when creating employees + clearer DHL 401 (94dbe59)
+
+<!-- last-commit: 4e4e461e8d768fdfab9d737cb7dbf5bc228790fe -->
+## [2026-04-26]
+
 - merge: resolve conflicts with main — scrollable tabs + DHL language fix (86887a5)
 - feat(suppliers): add supplier_number field (68f9a3a)
 - fix(dhl): remove unsupported language=he param from tracking API call (d5921cd)
@@ -14,7 +19,6 @@
 - Merge branch 'main' of https://github.com/cobra-system/cobra-command-center into claude/procurement-meeting-tab-iDhXq (54847d6)
 - fix: move procurement meeting tab to Orders page (e8944d1)
 
-<!-- last-commit: 0ceb8b39e3fa433436d41e89777cc77ee945fe59 -->
 ## [2026-04-26]
 
 - merge: resolve conflict with main — keep both deleteItemConfirm and trackingLoading states (589404e)
