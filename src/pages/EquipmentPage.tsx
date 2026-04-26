@@ -566,7 +566,7 @@ export default function EquipmentPage() {
     <div className="p-4 md:p-6 space-y-4" dir="rtl">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-xl font-bold">הצטיידות</h1>
+        <h1 className="text-xl font-bold">ניהול חטיבות</h1>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => setShowNewInstaller(true)}>
             <Plus className="h-4 w-4 me-1" />

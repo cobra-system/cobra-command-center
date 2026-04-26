@@ -7,9 +7,75 @@
 
 ## [2026-04-24]
 
+- Merge pull request #159 from cobra-system/claude/new-session-eZGxa (a9601dd)
+- fix: reload PostgREST schema cache after waste_items migration (f55bd7a)
+
+<!-- last-commit: a9601dd5df71d63dbdd8c95d36e7c610ae492a9c -->
+## [2026-04-24]
+
+- refactor: division_products as single source of truth for product-division mapping (1bbf614)
+- feat: bidirectional sync between products.division and division_products (38175c4)
+- fix: unify division names and rename equipment page to division management (b49f640)
+- fix: replace empty string SelectItem value in EmployeeFormDialog (2fe6394)
+
+## [2026-04-24]
+
+### Changed
+- `division_products` הוא מקור האמת היחיד לשיוך מוצרים לחטיבות
+  - migration `20260424000001`: הסרת Trigger A (products → division_products) — כתיבה ישירה מהאפליקציה לא עוברת יותר דרך products.division
+  - `ProductsContext.updateProduct()` ו-`addProduct()` כותבים עכשיו ישירות ל-`division_products`; Trigger B מעדכן `products.division` אוטומטית
+  - migration `20260423000001`: Backfill + Trigger B נשארים בתוקף
+
+### Added
+- migration `20260423000002`: סנכרון דו-כיווני אוטומטי בין `products.division` ל-`division_products`
+  - Backfill חד-פעמי: כל מוצרי החטיבות מאוכלסים אוטומטית בטבלת `division_products`
+  - Trigger B (`division_products → products`): הוספה/הסרה מעדכנת `products.division` אוטומטית
+- migration `20260424000001`: הסרת Trigger A — `division_products` הוא מקור האמת היחיד
+- `ProductsContext.updateProduct()` ו-`addProduct()` כותבים ישירות ל-`division_products`
+- מנהל חטיבה יכול להוסיף ולהסיר מוצרים מדף החטיבה שלו ללא הרשאת equipment-edit (RLS מגן ברמת DB)
+- chore: resolve merge conflicts with main (5f8b984)
+- feat(settings): notification settings UI — recipients, days, content toggles (9f9c2c9)
+- feat(orders): overhaul dashboard with DHL tracking, payments, supplier perf & email alerts (4d43171)
+
+## [2026-04-24] (2)
+
+### Added
+- **הגדרות התראות מייל** (`/settings` — MANAGER בלבד)
+  - Toggle להפעלה/כיבוי של הדוח היומי
+  - בחירת ימי שליחה (כפתורי ימי שבוע)
+  - בחירת תוכן: הזמנות באיחור / תשלומים קרובים + כמה ימים קדימה
+  - ניהול נמענים: הוספת משתמשי מערכת (פרופיל) + כתובות מייל חיצוניות
+  - Toggle הפעל/השבת לכל נמען + אפשרות הסרה
+- טבלות DB חדשות: `notification_digest_config`, `notification_recipients`
+- Edge Function `notify-daily-digest` עודכן לקרוא הגדרות מה-DB, לבדוק ימי שבוע לפי שעון ישראל, ולשלוח רק לנמענים המוגדרים
+
+## [2026-04-24]
+
+### Added
+- **לוח בקרה הזמנות — שיפורים מקיפים**
+  - 4 כרטיסי KPI: הזמנות מישראל, מחו"ל, באיחור, ערך צנרת פתוחה
+  - ציר הזמן מסנן הזמנות ARRIVED/CANCELLED — מציג רק הזמנות פעילות
+  - עוגת סטטוס וגרף עדיפות — מחושבים על הזמנות פעילות בלבד
+  - סינון ספק בסטטוס תשלום (dropdown)
+  - כפתור "הצג הכל" בציר הזמן עם ספירת הזמנות
+  - ווידג'ט תשלומים קרובים (30 יום) — מקובץ לפי שבוע
+  - גרף תזרים תשלומים לפי חודש (6 חודשים קדימה)
+  - טבלת ביצועי ספקים: % הגעה בזמן + ממוצע ימי איחור
+- **DHL Tracking API**
+  - Edge Function `track-shipment` — מושך סטטוס מעקב מ-DHL API
+  - עמודת "מצב מעקב DHL" בטבלת הזמנות
+  - סקשן מעקב DHL בדף הזמנה עם כפתור רענון
+  - כפתור רענון מאסיבי בדאשבורד לכל ההזמנות עם מספר מעקב
+  - Migration: עמודות `tracking_status`, `tracking_last_event`, `tracking_updated_at`
+- **התראות מייל יומיות**
+  - Edge Function `notify-daily-digest` — שולח סיכום יומי בעברית למנהלים
+  - כולל: הזמנות באיחור + תשלומים שמגיעים תוך 3 ימים
+  - GitHub Actions cron: `daily-notifications.yml` — מופעל 08:00 שעון ישראל, ימי עבודה
+
+## [2026-04-24]
+
 - fix(waste): fix item save error caused by multi-statement exec_sql migration (cd6949e)
 
-<!-- last-commit: c8a3dcb3e338ec5352296dce7ef725ed60f9807b -->
 ## [2026-04-24]
 
 - Merge pull request #154 from cobra-system/claude/fullscreen-popup-navigation-QOfGU (8aaaa04)
@@ -40,6 +106,11 @@
 - `markItemAsFaulty` שומר `product_id` בשורת הבלאי שנוצרת מהחזרת ציוד
 - MCP `waste.ts`: `list_waste_items` תומך כעת בסינון לפי `product_id` (כולל רכיבים); `create_waste_item` ו-`update_waste_item` מקבלים `product_id` ו-`component_id`
 
+### Fixed
+- תיקון שמות חטיבות — `AppContext.divisions` מסונכרן כעת עם `DIVISIONS` מ-`equipment/constants.ts` (AWACS, DOORE, פריזבי קרסו במקום AWCAS/Doore/קראסו)
+- עדכון נתוני mock לפי שמות החטיבות הנכונים
+- שינוי הגדרת מודול `/equipment`: כותרת הדף ותווית המודול עודכנו ל"ניהול חטיבות"
+- עדכון README — שורת `/equipment` בטבלת המודולים
 - chore: resolve merge conflicts with main (fbfaab5)
 - fix(mcp): tighten task tools — Hebrew priority enum, status validation, assignee lookup (8488538)
 - fix: sync product deletion fix to MCP tool, add component search to GlobalSearch (ad60654)

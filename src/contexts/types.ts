@@ -98,6 +98,9 @@ export interface Order {
   contact_name?: string | null;
   notes?: string | null;
   tracking_number?: string | null;
+  tracking_status?: string | null;
+  tracking_last_event?: string | null;
+  tracking_updated_at?: string | null;
   pi_number?: string | null;
   vessel_name?: string | null;
   booking_number?: string | null;

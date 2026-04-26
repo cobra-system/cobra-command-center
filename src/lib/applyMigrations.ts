@@ -8,7 +8,7 @@
 import { supabase } from "@/lib/supabase";
 
 const MIGRATION_KEY = "cobra_migrations_applied"
-const CURRENT_VERSION = "20260424_waste_save_fix"
+const CURRENT_VERSION = "20260424_waste_schema_reload"
 
 const INTERNATIONAL_TEMPLATE_ID = "b5a990c9-579d-4d9f-8e9a-90a8856ad00b";
 const ISRAEL_TEMPLATE_ID = "c7b881d0-68ae-4e0a-9f1b-a1b9967be11c";
@@ -559,6 +559,7 @@ $$;`,
       `UPDATE public.waste_items w SET product_id = r.product_id FROM public.equipment_return_items r WHERE w.return_item_id = r.id AND w.product_id IS NULL;`,
       `UPDATE public.waste_items w SET product_id = p.id FROM public.products p WHERE w.product_name = p.name AND w.product_id IS NULL;`,
       `UPDATE public.waste_items w SET component_id = c.id, product_id = c.product_id FROM public.product_components c WHERE w.product_name = c.name AND w.product_id IS NULL;`,
+      `NOTIFY pgrst, 'reload schema';`,
     ];
     for (const sql of migration12Sqls) {
       try {

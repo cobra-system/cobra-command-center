@@ -1132,7 +1132,7 @@ export default function DivisionDetailPage() {
             >
               ייבא מהיסטוריה
             </Button>
-            {canEdit(currentUserPermissions, "equipment") && (
+            {(canEdit(currentUserPermissions, "equipment") || currentUser?.division === division) && (
               <div className="w-56">
                 <Combobox
                   value=""
@@ -1302,7 +1302,7 @@ export default function DivisionDetailPage() {
                           </td>
                         )}
                         <td className="p-3">
-                          {canEdit(currentUserPermissions, "equipment") && (
+                          {(canEdit(currentUserPermissions, "equipment") || currentUser?.division === division) && (
                             <Button
                               variant="ghost"
                               size="icon"

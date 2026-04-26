@@ -20,6 +20,10 @@ See `.env.example` for all required variables.
 | `DATABASE_PASSWORD` | Server only | Direct DB access |
 | `POSTGRES_URL` | Server only | PostgreSQL connection string |
 | `VITE_SENTRY_DSN` | Client (optional) | Error tracking |
+| `DHL_API_KEY` | Server only (Supabase secret) | DHL Tracking API — create at developer.dhl.com |
+| `RESEND_API_KEY` | Server only (Supabase secret) | Resend email service — create at resend.com |
+| `RESEND_FROM_EMAIL` | Server only (Supabase secret) | Sender address (must be verified domain in Resend) |
+| `CRON_SECRET` | Server + GitHub secret | Static bearer token for cron-triggered Edge Functions |
 
 **Security notes:**
 - Never commit `.env` — it is in `.gitignore`
@@ -83,7 +87,7 @@ All tables have RLS enabled. Key policies:
 
 ## Edge Functions
 
-12 Edge Functions deployed to Supabase:
+14 Edge Functions deployed to Supabase:
 
 | Function | Purpose | Auth | Rate Limit |
 |----------|---------|------|------------|
@@ -99,6 +103,8 @@ All tables have RLS enabled. Key policies:
 | `fix-setup` | Fix setup issues | MANAGER | — |
 | `fix-trigger` | Fix DB triggers | MANAGER | — |
 | `debug-external` | Debug external connections | MANAGER | — |
+| `track-shipment` | Refresh DHL tracking for an order | JWT (any role) | — |
+| `notify-daily-digest` | Send daily email digest (overdue orders + upcoming payments) | CRON_SECRET | — |
 
 ### Deploying Edge Functions
 ```bash
@@ -122,7 +128,8 @@ supabase functions deploy <function-name>
 1. **`ci.yml`** — Lint, type-check, test, build (on PR and push)
 2. **`supabase-migration.yml`** — Apply DB migrations and deploy Edge Functions
 3. **`advance-overdue-tasks.yml`** — Scheduled task advancement
-4. **`changelog.yml`** — Changelog generation
+4. **`daily-notifications.yml`** — Daily digest email (08:00 IL, weekdays) — requires `SUPABASE_URL` + `CRON_SECRET` GitHub secrets
+5. **`changelog.yml`** — Changelog generation
 
 ### Vercel Deployment
 - Automatic preview deployments on PRs
