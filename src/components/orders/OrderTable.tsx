@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { type Order, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { Trash2, Copy, ArrowUpDown, ArrowUp, ArrowDown, Zap, CheckCircle, Eye, RefreshCw, CreditCard, Truck } from "lucide-react";
+import { Trash2, Copy, ArrowUpDown, ArrowUp, ArrowDown, Zap, CheckCircle, Eye, RefreshCw, CreditCard, Truck, ShoppingCart } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -98,7 +98,13 @@ export function OrderTable({
       {/* ── Mobile card list (hidden on md+) ─────────────────────────────── */}
       <div className="md:hidden space-y-3">
         {filtered.length === 0 ? (
-          <p className="text-center text-muted-foreground py-10">אין הזמנות</p>
+          <div className="flex flex-col items-center justify-center py-14 gap-3 text-center">
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+              <ShoppingCart className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-foreground">אין הזמנות להצגה</p>
+            <p className="text-xs text-muted-foreground">נסה לשנות את הסינון או לחפש שם אחר</p>
+          </div>
         ) : filtered.map(order => {
           const paymentStatus = (order as Record<string, unknown>).payment_status as string || "ממתין";
           const paymentColors: Record<string, string> = {
@@ -218,7 +224,12 @@ export function OrderTable({
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={totalColSpan} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
+              <tr><td colSpan={totalColSpan} className="py-16 text-center">
+                <div className="flex flex-col items-center gap-2">
+                  <ShoppingCart className="h-8 w-8 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">אין הזמנות להצגה</p>
+                </div>
+              </td></tr>
             ) : filtered.map((order) => {
               const isAlreadyPaid = (order as Record<string, unknown>).payment_status === "שולם";
               const orderMenuGroups: ContextMenuGroupItem[][] = [

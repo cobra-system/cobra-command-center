@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth, type Supplier } from "@/contexts/AppContext";
 import { useProductScope } from "@/hooks/useProductScope";
-import { Search, Plus, ArrowUpDown, ArrowUp, ArrowDown, Globe, GitMerge, AlertTriangle, ExternalLink, Eye, Trash2, Pencil, ShoppingCart, Mail } from "lucide-react";
+import { Search, Plus, ArrowUpDown, ArrowUp, ArrowDown, Globe, GitMerge, AlertTriangle, ExternalLink, Eye, Trash2, Pencil, ShoppingCart, Mail, Building2 } from "lucide-react";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
@@ -173,7 +173,46 @@ export default function SuppliersPage() {
         </div>
       </div>
 
-      <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-3">
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-14 gap-3 text-center">
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+              <Building2 className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-foreground">לא נמצאו ספקים</p>
+            <p className="text-xs text-muted-foreground">נסה לחפש שם חברה אחר</p>
+          </div>
+        ) : filtered.map(s => (
+          <div
+            key={s.id}
+            className="bg-card rounded-xl border shadow-sm p-4 cursor-pointer active:bg-muted/30 transition-colors"
+            onClick={() => navigate(`/suppliers/${s.id}`)}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground text-base truncate">{s.company}</p>
+                {s.contact_name && <p className="text-sm text-muted-foreground mt-0.5">{s.contact_name}</p>}
+              </div>
+              {s.country && (
+                <span className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${s.country === "ישראל" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" : "bg-muted text-muted-foreground"}`}>
+                  <Globe className="h-3 w-3" />
+                  {s.country}
+                </span>
+              )}
+            </div>
+            {(s.email || s.phone) && (
+              <div className="mt-2 space-y-0.5">
+                {s.email && <p className="text-xs text-accent" dir="ltr">{s.email}</p>}
+                {s.phone && <p className="text-xs text-muted-foreground" dir="ltr">{s.phone}</p>}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block bg-card rounded-xl border shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead><tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
             {COLUMN_DEFS.map(col => isVisible(col.id) ? (
@@ -187,7 +226,12 @@ export default function SuppliersPage() {
           </tr></thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={visibleCount} className="p-6 text-center text-muted-foreground">לא נמצאו ספקים</td></tr>
+              <tr><td colSpan={visibleCount} className="py-16 text-center">
+                <div className="flex flex-col items-center gap-2">
+                  <Building2 className="h-8 w-8 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">לא נמצאו ספקים</p>
+                </div>
+              </td></tr>
             ) : filtered.map(s => {
               const supplierMenuGroups: ContextMenuGroupItem[][] = [
                 [

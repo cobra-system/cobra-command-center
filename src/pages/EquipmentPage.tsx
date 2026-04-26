@@ -922,7 +922,21 @@ export default function EquipmentPage() {
                         {totalInDiv} פריטים | {techCount} טכנאים
                       </span>
                     </div>
-                    <div className="overflow-x-auto">
+                    {/* Mobile stacked rows */}
+                    <div className="md:hidden divide-y">
+                      {items.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between px-3 py-2.5 gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{item.productName}</p>
+                            {item.sku && <p className="text-xs text-muted-foreground font-mono" dir="ltr">{item.sku}</p>}
+                            <p className="text-xs text-muted-foreground">{item.installerName}</p>
+                          </div>
+                          <p className="font-bold text-foreground shrink-0">{item.balance}</p>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Desktop table */}
+                    <div className="hidden md:block overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
                           <tr
@@ -1094,7 +1108,31 @@ export default function EquipmentPage() {
           <Card>
             <CardContent className="p-0">
               <h3 className="font-semibold p-3 border-b text-sm">סיכום לפי חטיבה</h3>
-              <div className="overflow-x-auto">
+              {/* Mobile rows */}
+              <div className="md:hidden divide-y">
+                {sortedDivisionStats.map((stat) => (
+                  <div
+                    key={stat.division}
+                    className="flex items-center justify-between p-3 gap-3 cursor-pointer hover:bg-muted/20"
+                    onClick={() => navigate(`/equipment/division/${encodeURIComponent(stat.division)}`)}
+                  >
+                    <div>
+                      <Badge className={`border ${DIVISION_COLORS[stat.division] ?? "bg-gray-100 text-gray-700 border-gray-200"}`}>
+                        {stat.division}
+                      </Badge>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        טכנאים: {stat.activeCount} · יצאו: {stat.totalTaken} · חזרו: {stat.totalReturned}
+                      </p>
+                    </div>
+                    <div className="text-left shrink-0">
+                      <p className="font-bold text-lg">{stat.inField}</p>
+                      <p className={`text-xs font-medium ${returnPctColor(stat.returnPct)}`}>{stat.returnPct}%</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Desktop table */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(dashColVis.hiddenCols, setDashMenu)}>
@@ -1261,7 +1299,28 @@ export default function EquipmentPage() {
                   </h3>
                   <Card>
                     <CardContent className="p-0">
-                      <div className="overflow-x-auto">
+                      {/* Mobile rows */}
+                      <div className="md:hidden divide-y">
+                        {centerTransfers.map(tr => {
+                          const fromCenter = centers.find(c => c.id === tr.from_center_id);
+                          const toCenter = centers.find(c => c.id === tr.to_center_id);
+                          const prod = products.find(p => p.id === tr.product_id);
+                          return (
+                            <div key={tr.id} className="flex items-center justify-between p-3 gap-3">
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-foreground truncate">{prod?.name ?? "—"}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {fromCenter?.name ?? "—"} → {toCenter?.name ?? "—"}
+                                </p>
+                                <p className="text-xs text-muted-foreground">{tr.created_at.slice(0, 10)}</p>
+                              </div>
+                              <p className="font-bold text-foreground shrink-0">{tr.quantity}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {/* Desktop table */}
+                      <div className="hidden md:block overflow-x-auto">
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="border-b bg-muted/50">

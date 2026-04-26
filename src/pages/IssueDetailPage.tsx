@@ -139,6 +139,7 @@ export default function IssueDetailPage() {
   const [submittingUpdate, setSubmittingUpdate] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [deleteAttachmentConfirm, setDeleteAttachmentConfirm] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Fetchers ────────────────────────────────────────────────────────────────
@@ -664,7 +665,7 @@ export default function IssueDetailPage() {
                     if (att.file_type === "image") setLightboxUrl(att.file_url);
                     else window.open(att.file_url, "_blank");
                   }}
-                  onDelete={isManager ? () => handleDeleteAttachment(att.id) : null}
+                  onDelete={isManager ? () => setDeleteAttachmentConfirm(att.id) : null}
                 />
               ))}
             </div>
@@ -678,6 +679,20 @@ export default function IssueDetailPage() {
           {lightboxUrl && (
             <img src={lightboxUrl} alt="media" className="w-full rounded-lg max-h-[80vh] object-contain" />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete Attachment Confirmation ──────────────────────────────────── */}
+      <Dialog open={!!deleteAttachmentConfirm} onOpenChange={(open) => { if (!open) setDeleteAttachmentConfirm(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <div className="pt-2">
+            <h2 className="font-semibold text-base mb-1">מחיקת קובץ מצורף</h2>
+            <p className="text-sm text-muted-foreground">האם למחוק את הקובץ? פעולה זו אינה ניתנת לביטול.</p>
+            <div className="flex gap-2 justify-end mt-4">
+              <Button variant="outline" onClick={() => setDeleteAttachmentConfirm(null)}>ביטול</Button>
+              <Button variant="destructive" onClick={() => { handleDeleteAttachment(deleteAttachmentConfirm!); setDeleteAttachmentConfirm(null); }}>מחק</Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

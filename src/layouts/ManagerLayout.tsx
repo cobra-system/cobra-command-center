@@ -29,11 +29,14 @@ import {
   ExternalLink,
   Bell,
   Map,
+  Moon,
+  Sun,
   type LucideIcon,
 } from "lucide-react";
 import { useAlertCount } from "@/hooks/useAlertCount";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { useState } from "react";
+import { useTheme } from "next-themes";
 import cobraLogo from "@/assets/cobra-logo.png";
 import GlobalSearch from "@/components/GlobalSearch";
 
@@ -88,6 +91,7 @@ export default function ManagerLayout() {
   const [navItems, setNavItems] = useState(getStoredOrder);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const { theme, setTheme } = useTheme();
 
   const isManager = currentUser?.role === "MANAGER";
   const visibleNavItems = navItems.filter((item) => {
@@ -248,8 +252,26 @@ export default function ManagerLayout() {
               </div>
             )}
             {!collapsed && (
-              <button onClick={handleLogout} className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded-md hover:bg-destructive/10">
-                <LogOut className="h-4 w-4" />
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted/60"
+                  title={theme === "dark" ? "מצב בהיר" : "מצב כהה"}
+                >
+                  {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                </button>
+                <button onClick={handleLogout} className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded-md hover:bg-destructive/10">
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+            {collapsed && (
+              <button
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted/60 mt-1"
+                title={theme === "dark" ? "מצב בהיר" : "מצב כהה"}
+              >
+                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </button>
             )}
           </div>
@@ -270,7 +292,7 @@ export default function ManagerLayout() {
           </button>
         </header>
 
-        <div className="flex-1 p-3 sm:p-4 lg:p-8 max-w-[1600px] overflow-x-hidden">
+        <div key={location.pathname} className="flex-1 p-3 sm:p-4 lg:p-8 max-w-[1600px] overflow-x-hidden page-fade-in">
           <Outlet />
         </div>
       </main>

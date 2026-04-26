@@ -177,7 +177,13 @@ export default function ProductsPage() {
       {/* Mobile card list */}
       <div className="md:hidden space-y-3">
         {filtered.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">לא נמצאו מוצרים</p>
+          <div className="flex flex-col items-center justify-center py-14 gap-3 text-center">
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+              <Boxes className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-foreground">לא נמצאו מוצרים</p>
+            <p className="text-xs text-muted-foreground">נסה לחפש מונח אחר או לנקות את הסינון</p>
+          </div>
         ) : filtered.map(p => {
           const isComposite = p.product_type === "מורכב";
           const isExpanded = expandedId === p.id;
@@ -309,7 +315,12 @@ export default function ProductsPage() {
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={1 + visibleCount + (hasEdit ? 1 : 0)} className="p-8 text-center text-muted-foreground">לא נמצאו מוצרים</td></tr>
+              <tr><td colSpan={1 + visibleCount + (hasEdit ? 1 : 0)} className="py-16 text-center">
+                <div className="flex flex-col items-center gap-2">
+                  <Boxes className="h-8 w-8 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">לא נמצאו מוצרים</p>
+                </div>
+              </td></tr>
             ) : filtered.map(p => {
               const isComposite = p.product_type === "מורכב";
               const isExpanded = expandedId === p.id;

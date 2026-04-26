@@ -176,8 +176,65 @@ export default function ShipmentGroupsPage() {
         className="max-w-md"
       />
 
-      {/* Table */}
-      <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-3">
+        {loading ? (
+          <p className="text-sm text-muted-foreground text-center py-8">טוען...</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">אין קבוצות משלוח</p>
+        ) : filtered.map(g => (
+          <div
+            key={g.id}
+            className="bg-card rounded-xl border shadow-sm p-4 cursor-pointer active:bg-muted/30 transition-colors"
+            onClick={() => navigate(`/orders?shipment_group=${g.id}`)}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground text-base truncate">{g.name}</p>
+                {g.vessel_name && (
+                  <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
+                    <Ship className="h-3.5 w-3.5 shrink-0" />
+                    {g.vessel_name}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={cn(
+                  "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
+                  (orderCounts[g.id] || 0) > 0 ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"
+                )}>
+                  <Package className="h-3 w-3" />
+                  {orderCounts[g.id] || 0}
+                </span>
+              </div>
+            </div>
+            {(g.departure_date || g.arrival_date) && (
+              <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                {g.departure_date && <span>יציאה: {new Date(g.departure_date).toLocaleDateString("he-IL")}</span>}
+                {g.departure_date && g.arrival_date && <span>→</span>}
+                {g.arrival_date && <span>הגעה: {new Date(g.arrival_date).toLocaleDateString("he-IL")}</span>}
+              </div>
+            )}
+            {(g.booking_number || g.tclog_reference) && (
+              <div className="mt-1.5 flex flex-wrap gap-2 text-xs text-muted-foreground font-mono">
+                {g.booking_number && <span>{g.booking_number}</span>}
+                {g.tclog_reference && <span className="text-muted-foreground/70">{g.tclog_reference}</span>}
+              </div>
+            )}
+            {hasEdit && (
+              <div className="mt-3 flex gap-2" onClick={e => e.stopPropagation()}>
+                <Button variant="outline" size="sm" className="h-7 text-xs flex-1" onClick={() => openEdit(g)}>עריכה</Button>
+                <Button variant="outline" size="sm" className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => handleDelete(g.id)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block bg-card rounded-xl border shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
