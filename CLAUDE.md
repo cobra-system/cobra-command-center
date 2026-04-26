@@ -82,6 +82,73 @@ Use a new unique key for each new table (e.g. `"invoices:hidden-columns"`).
 
 ---
 
+## MCP Tool Maintenance (Required for Schema Changes)
+
+When modifying the database schema (new table, renamed column, new enum value, column removed), **also update the corresponding MCP tool module(s)** in `mcp-server/src/tools/`. The PostToolUse hook will warn automatically when `types.ts` or a tool file changes.
+
+### When to update
+
+| Change | Action required |
+|--------|----------------|
+| New DB table | Add tools to an existing module **or** create a new module + register in `index.ts` |
+| Renamed/removed column | Update the Zod schema and query in the affected tool file |
+| New enum value | Add it to the `z.enum([...])` in the affected tool's input schema |
+| Removed table | Remove or redirect all `.from("table")` references in tools |
+| New tool module | Register `registerXTools(server)` in `mcp-server/src/index.ts` |
+
+### Quick find — which tools touch a table
+
+```bash
+grep -r "\"TABLE_NAME\"" mcp-server/src/tools/
+```
+
+### Build after changes
+
+```bash
+cd mcp-server && npm run build
+```
+
+### Module inventory (32 modules · 245 tools)
+
+| Module | Domain | Key tables | Tools |
+|--------|--------|------------|------:|
+| `analytics` | Analytics & KPIs | orders, products, tasks, suppliers | 6 |
+| `audit-logs` | Audit trail | inventory_change_log, task_advancement_log | 2 |
+| `bulk-ops` | Bulk operations | orders, products, tasks | 5 |
+| `compliance` | Compliance items | compliance_items, compliance_product_links | 7 |
+| `daily-reports` | Daily reports | daily_reports, tasks | 5 |
+| `divisions` | Division management | division_products, profiles | 4 |
+| `documents` | Documents | documents, purchase_documents | 10 |
+| `equipment` | Equipment tracking | installers, equipment_pickups, equipment_returns | 36 |
+| `finance` | Finance & payments | orders, supplier_payments | 4 |
+| `goals` | Goals tracking | goals | 4 |
+| `inventory` | Inventory & warehouses | center_inventory, distribution_centers, inventory_transfers | 11 |
+| `issues` | Product issues | product_issues, issue_attachments, issue_updates | 16 |
+| `learning-journal` | Learning journal | learning_journal | 5 |
+| `meetings` | Meetings & decisions | meetings, meeting_action_items | 14 |
+| `notifications` | Notifications | orders, tasks, compliance_items | 3 |
+| `order-payments` | Order payments | order_payments, orders | 5 |
+| `orders` | Orders | orders, order_items, purchase_documents | 13 |
+| `payments` | Supplier payments | supplier_payments | 4 |
+| `procurement-agenda` | Procurement agenda | orders | 2 |
+| `procurement-inventory` | Procurement inventory | center_inventory, orders | 6 |
+| `procurement-meeting` | Procurement meetings | meetings, procurement_meeting_orders | 7 |
+| `products` | Products & components | products, product_components | 13 |
+| `reminders` | Reminders | compliance_items, orders, tasks | 3 |
+| `search` | Global search | (multi-table) | 4 |
+| `shipping` | Shipping & logistics | orders, shipment_groups | 9 |
+| `suppliers` | Suppliers | suppliers, supplier_contacts, supplier_bank_details | 13 |
+| `tasks` | Tasks | tasks | 7 |
+| `team` | Team & permissions | profiles, user_roles, role_permissions | 9 |
+| `user-preferences` | User preferences | user_preferences | 3 |
+| `warehouse` | Warehouse zones | warehouse_zones, warehouse_zone_products | 6 |
+| `waste` | Waste tracking | waste_items | 5 |
+| `workflows` | Workflows | workflow_templates, workflow_instances | 4 |
+
+See `docs/MCP_TOOLS.md` for the full reference including table→module mapping.
+
+---
+
 ## Documentation Maintenance (Required)
 
 The only 3 files that belong at project root are `README.md`, `CLAUDE.md`, and `CHANGELOG.md`. Everything else lives under `docs/`.
@@ -91,6 +158,7 @@ The only 3 files that belong at project root are `README.md`, `CLAUDE.md`, and `
 - **Adding a DB table** → add it to the relevant Database section
 - **Adding an Edge Function** → add a row to the Edge Functions table
 - **Adding a major dependency** → add to the Tech Stack table
+- **Adding a new MCP tool module** → update the MCP Tools section tool/module count
 
 ### CHANGELOG.md — update when:
 - **Completing a major feature** → add a new entry at the top under `## [Unreleased]`
@@ -100,6 +168,7 @@ The only 3 files that belong at project root are `README.md`, `CLAUDE.md`, and `
 - `docs/INFRASTRUCTURE.md` — update when adding/removing Edge Functions, changing CI/CD, or modifying backup procedures
 - `docs/MIGRATIONS.md` — update the total migration count when new migrations are added
 - `docs/BACKLOG.md` — remove items when completed, add new backlog items here
+- `docs/MCP_TOOLS.md` — update when adding/removing tool modules or when tables gain/lose coverage
 
 ### Root-level discipline:
 - **Never** create new root-level `.md` files for one-time work (feature summaries, test reports, deployment guides, sprint plans)

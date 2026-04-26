@@ -9,6 +9,7 @@ import { Suspense, lazy, useState, useCallback } from "react";
 import SplashScreen from "@/components/SplashScreen";
 import { useMiddleClickNavigation } from "@/hooks/useMiddleClickNavigation";
 import { canView, getModuleKeyFromRoute, MODULES } from "@/lib/permissions";
+import { ThemeProvider } from "next-themes";
 
 // Eager: needed on first render
 import LoginPage from "@/pages/LoginPage";
@@ -40,6 +41,7 @@ const DivisionDetailPage = lazy(() => import("@/pages/DivisionDetailPage"));
 const AlertsPage = lazy(() => import("@/pages/AlertsPage"));
 const LogisticsMapPage = lazy(() => import("@/pages/LogisticsMapPage"));
 const IssueDetailPage = lazy(() => import("@/pages/IssueDetailPage"));
+const ComponentDetailPage = lazy(() => import("@/pages/ComponentDetailPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -111,6 +113,7 @@ function AppRoutes() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/products/:id" element={<ProductDetailPage />} />
+        <Route path="/products/:productId/components/:componentId" element={<ComponentDetailPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/orders/:id" element={<OrderDetailPage />} />
         <Route path="/suppliers" element={<SuppliersPage />} />
@@ -180,17 +183,19 @@ function AppWithSplash() {
 }
 
 const App = () => (
-  <ErrorBoundary>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <AppProvider>
-          <AppWithSplash />
-        </AppProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </ErrorBoundary>
+  <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <AppProvider>
+            <AppWithSplash />
+          </AppProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
+  </ThemeProvider>
 );
 
 export default App;

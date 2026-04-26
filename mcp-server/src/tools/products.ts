@@ -156,6 +156,12 @@ export function registerProductTools(server: McpServer) {
       id: z.string().uuid().describe("Product UUID"),
     },
     async ({ id }) => {
+      const { error: oiError } = await supabase
+        .from("order_items")
+        .update({ product_id: null })
+        .eq("product_id", id);
+      if (oiError) return { content: [{ type: "text" as const, text: `Error: ${oiError.message}` }] };
+
       const { error } = await supabase
         .from("products")
         .delete()

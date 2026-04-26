@@ -211,15 +211,6 @@ const DP_COLS: ColDef[] = [
   { id: "last_pickup", label: "שינוי אחרון", sortField: "last_pickup" },
 ];
 
-const LINKED_PROD_COLS: ColDef[] = [
-  { id: "name", label: "שם מוצר", sortField: "name" },
-  { id: "sku", label: 'מק"ט' },
-  { id: "category", label: "קטגוריה", sortField: "category" },
-  { id: "stock_qty", label: "מלאי", sortField: "stock_qty" },
-  { id: "monthly_sales_avg", label: "ממוצע צריכה (SAP)", sortField: "monthly_sales_avg" },
-  { id: "supplier", label: "ספק", sortField: "supplier" },
-] as const;
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function returnPctColor(pct: number) {
@@ -349,11 +340,6 @@ export default function DivisionDetailPage() {
   const { menu: dpMenu, setMenu: setDpMenu, closeMenu: closeDpMenu } = useColMenu();
   const warehouseColVis = useColumnVisibility("division-warehouse:hidden-columns", WAREHOUSE_COLS);
   const { menu: warehouseMenu, setMenu: setWarehouseMenu, closeMenu: closeWarehouseMenu } = useColMenu();
-  const [linkedProdSortField, setLinkedProdSortField] = useState<string | null>("name");
-  const [linkedProdSortDir, setLinkedProdSortDir] = useState<"asc" | "desc">("asc");
-  const linkedProdColVis = useColumnVisibility("division-linked-products:hidden-columns", LINKED_PROD_COLS);
-  const { menu: linkedProdMenu, setMenu: setLinkedProdMenu, closeMenu: closeLinkedProdMenu } = useColMenu();
-
   const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const installerMap = useMemo(() => new Map(installers.map((i) => [i.id, i])), [installers]);
 
@@ -621,25 +607,6 @@ export default function DivisionDetailPage() {
       return a.products.name.localeCompare(b.products.name, "he") * dir;
     });
   }, [divisionProducts, dpSortField, dpSortDir, lastPickupByProduct]);
-
-  const linkedProducts = useMemo(() =>
-    products.filter(p =>
-      p.division?.split(",").map(d => d.trim()).includes(division)
-    ),
-    [products, division]
-  );
-
-  const sortedLinkedProducts = useMemo(() => {
-    return [...linkedProducts].sort((a, b) => {
-      const dir = linkedProdSortDir === "asc" ? 1 : -1;
-      if (linkedProdSortField === "name") return a.name.localeCompare(b.name, "he") * dir;
-      if (linkedProdSortField === "category") return (a.category ?? "").localeCompare(b.category ?? "", "he") * dir;
-      if (linkedProdSortField === "stock_qty") return (a.stock_qty - b.stock_qty) * dir;
-      if (linkedProdSortField === "monthly_sales_avg") return ((a.monthly_sales_avg ?? 0) - (b.monthly_sales_avg ?? 0)) * dir;
-      if (linkedProdSortField === "supplier") return (a.supplier ?? "").localeCompare(b.supplier ?? "", "he") * dir;
-      return a.name.localeCompare(b.name, "he");
-    });
-  }, [linkedProducts, linkedProdSortField, linkedProdSortDir]);
 
   // ── Installer CRUD ──
   async function handleDeleteInstaller(id: string) {
@@ -1165,7 +1132,7 @@ export default function DivisionDetailPage() {
             >
               ייבא מהיסטוריה
             </Button>
-            {canEdit(currentUserPermissions, "equipment") && (
+            {(canEdit(currentUserPermissions, "equipment") || currentUser?.division === division) && (
               <div className="w-56">
                 <Combobox
                   value=""
@@ -1335,7 +1302,7 @@ export default function DivisionDetailPage() {
                           </td>
                         )}
                         <td className="p-3">
-                          {canEdit(currentUserPermissions, "equipment") && (
+                          {(canEdit(currentUserPermissions, "equipment") || currentUser?.division === division) && (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -1349,85 +1316,6 @@ export default function DivisionDetailPage() {
                       </tr>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ── Section: Linked Products (Catalog) ── */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">מוצרים מקושרים לחטיבה (קטלוג)</h2>
-          <span className="text-xs text-muted-foreground">{linkedProducts.length} מוצרים</span>
-        </div>
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr
-                    className="border-b bg-muted/50"
-                    onContextMenu={trContextMenu(linkedProdColVis.hiddenCols, setLinkedProdMenu)}
-                  >
-                    {LINKED_PROD_COLS.map((col) =>
-                      linkedProdColVis.isVisible(col.id) ? (
-                        <th
-                          key={col.id}
-                          className="text-right p-3 font-semibold text-foreground"
-                          onContextMenu={colThContextMenu(col, setLinkedProdMenu)}
-                        >
-                          {col.sortField ? (
-                            <button
-                              onClick={() => {
-                                if (linkedProdSortField === col.sortField) setLinkedProdSortDir((d) => (d === "asc" ? "desc" : "asc"));
-                                else { setLinkedProdSortField(col.sortField!); setLinkedProdSortDir("asc"); }
-                              }}
-                              className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors"
-                            >
-                              {col.label}
-                              <SortIcon field={col.sortField} currentField={linkedProdSortField} currentDir={linkedProdSortDir} />
-                            </button>
-                          ) : col.label}
-                        </th>
-                      ) : null
-                    )}
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {sortedLinkedProducts.length === 0 ? (
-                    <tr>
-                      <td colSpan={linkedProdColVis.visibleCount} className="text-center p-8 text-muted-foreground">
-                        אין מוצרים מקושרים לחטיבה זו בקטלוג
-                      </td>
-                    </tr>
-                  ) : sortedLinkedProducts.map((p) => (
-                    <tr
-                      key={p.id}
-                      className="hover:bg-muted/30 transition-colors cursor-pointer"
-                      onClick={() => navigate(`/products/${p.id}`)}
-                    >
-                      {linkedProdColVis.isVisible("name") && (
-                        <td className="p-3 font-medium">{p.name}</td>
-                      )}
-                      {linkedProdColVis.isVisible("sku") && (
-                        <td className="p-3 font-mono text-xs text-muted-foreground" dir="ltr">{p.sku || "—"}</td>
-                      )}
-                      {linkedProdColVis.isVisible("category") && (
-                        <td className="p-3 text-muted-foreground">{p.category || "—"}</td>
-                      )}
-                      {linkedProdColVis.isVisible("stock_qty") && (
-                        <td className="p-3">{p.stock_qty}</td>
-                      )}
-                      {linkedProdColVis.isVisible("monthly_sales_avg") && (
-                        <td className="p-3 text-muted-foreground">{p.monthly_sales_avg ?? "—"}</td>
-                      )}
-                      {linkedProdColVis.isVisible("supplier") && (
-                        <td className="p-3 text-muted-foreground">{p.supplier || "—"}</td>
-                      )}
-                    </tr>
-                  ))}
                 </tbody>
               </table>
             </div>
@@ -2230,19 +2118,6 @@ export default function DivisionDetailPage() {
           onShow={warehouseColVis.show}
           onSortAsc={(field) => { setWarehouseSortField(field); setWarehouseSortDir("asc"); closeWarehouseMenu(); }}
           onSortDesc={(field) => { setWarehouseSortField(field); setWarehouseSortDir("desc"); closeWarehouseMenu(); }}
-        />
-      )}
-      {linkedProdMenu && (
-        <ColContextMenu
-          menu={linkedProdMenu}
-          sortField={linkedProdSortField}
-          sortDir={linkedProdSortDir}
-          hiddenCols={linkedProdColVis.hiddenCols}
-          onClose={closeLinkedProdMenu}
-          onHide={linkedProdColVis.hide}
-          onShow={linkedProdColVis.show}
-          onSortAsc={(field) => { setLinkedProdSortField(field); setLinkedProdSortDir("asc"); closeLinkedProdMenu(); }}
-          onSortDesc={(field) => { setLinkedProdSortField(field); setLinkedProdSortDir("desc"); closeLinkedProdMenu(); }}
         />
       )}
     </div>

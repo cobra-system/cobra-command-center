@@ -8,7 +8,7 @@
 import { supabase } from "@/lib/supabase";
 
 const MIGRATION_KEY = "cobra_migrations_applied"
-const CURRENT_VERSION = "20260412_zone_notes_and_log"
+const CURRENT_VERSION = "20260424_waste_schema_reload"
 
 const INTERNATIONAL_TEMPLATE_ID = "b5a990c9-579d-4d9f-8e9a-90a8856ad00b";
 const ISRAEL_TEMPLATE_ID = "c7b881d0-68ae-4e0a-9f1b-a1b9967be11c";
@@ -546,6 +546,28 @@ $$;`,
       if (error) console.warn("Migration 11 (zone log) warning:", error.message);
     } catch {
       console.warn("Migration 11 may need to be applied via Supabase dashboard");
+    }
+
+    // ── Migration 12: Add photo_url, product_id + component_id to waste_items ──
+    // Each statement is a separate exec_sql call (exec_sql handles one statement at a time)
+    const migration12Sqls = [
+      `ALTER TABLE public.waste_items ADD COLUMN IF NOT EXISTS photo_url TEXT;`,
+      `ALTER TABLE public.waste_items ADD COLUMN IF NOT EXISTS product_id UUID REFERENCES public.products(id) ON DELETE SET NULL;`,
+      `ALTER TABLE public.waste_items ADD COLUMN IF NOT EXISTS component_id UUID REFERENCES public.product_components(id) ON DELETE SET NULL;`,
+      `CREATE INDEX IF NOT EXISTS idx_waste_items_product_id ON public.waste_items(product_id);`,
+      `CREATE INDEX IF NOT EXISTS idx_waste_items_component_id ON public.waste_items(component_id);`,
+      `UPDATE public.waste_items w SET product_id = r.product_id FROM public.equipment_return_items r WHERE w.return_item_id = r.id AND w.product_id IS NULL;`,
+      `UPDATE public.waste_items w SET product_id = p.id FROM public.products p WHERE w.product_name = p.name AND w.product_id IS NULL;`,
+      `UPDATE public.waste_items w SET component_id = c.id, product_id = c.product_id FROM public.product_components c WHERE w.product_name = c.name AND w.product_id IS NULL;`,
+      `NOTIFY pgrst, 'reload schema';`,
+    ];
+    for (const sql of migration12Sqls) {
+      try {
+        const { error } = await supabase.rpc("exec_sql" as any, { sql });
+        if (error) console.warn("Migration 12 (waste_items columns) step warning:", error.message);
+      } catch {
+        console.warn("Migration 12 step may need to be applied via Supabase dashboard");
+      }
     }
 
     localStorage.setItem(MIGRATION_KEY, CURRENT_VERSION)

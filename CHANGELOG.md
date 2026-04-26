@@ -5,6 +5,144 @@
 
 ---
 
+## [2026-04-26]
+
+- merge: resolve conflict with main — keep both deleteItemConfirm and trackingLoading states (589404e)
+- UI polish: dark mode, page transitions, delete confirmations, empty states, skeleton (3b3e1d7)
+- fix: add mobile layouts to EquipmentPage tables (tabs 3, 4, 5) (fee4b59)
+- fix: complete mobile responsiveness for remaining pages and layout (e370921)
+- fix: add mobile card layouts for ReorderPage, IssuesPage, SuppliersPage (cdef09d)
+
+<!-- last-commit: 9bd57c32b584e09c4f643970d4711c14dc0e9517 -->
+## [2026-04-24]
+
+- Merge pull request #159 from cobra-system/claude/new-session-eZGxa (a9601dd)
+- fix: reload PostgREST schema cache after waste_items migration (f55bd7a)
+
+## [2026-04-24]
+
+- refactor: division_products as single source of truth for product-division mapping (1bbf614)
+- feat: bidirectional sync between products.division and division_products (38175c4)
+- fix: unify division names and rename equipment page to division management (b49f640)
+- fix: replace empty string SelectItem value in EmployeeFormDialog (2fe6394)
+
+## [2026-04-24]
+
+### Changed
+- `division_products` הוא מקור האמת היחיד לשיוך מוצרים לחטיבות
+  - migration `20260424000001`: הסרת Trigger A (products → division_products) — כתיבה ישירה מהאפליקציה לא עוברת יותר דרך products.division
+  - `ProductsContext.updateProduct()` ו-`addProduct()` כותבים עכשיו ישירות ל-`division_products`; Trigger B מעדכן `products.division` אוטומטית
+  - migration `20260423000001`: Backfill + Trigger B נשארים בתוקף
+
+### Added
+- migration `20260423000002`: סנכרון דו-כיווני אוטומטי בין `products.division` ל-`division_products`
+  - Backfill חד-פעמי: כל מוצרי החטיבות מאוכלסים אוטומטית בטבלת `division_products`
+  - Trigger B (`division_products → products`): הוספה/הסרה מעדכנת `products.division` אוטומטית
+- migration `20260424000001`: הסרת Trigger A — `division_products` הוא מקור האמת היחיד
+- `ProductsContext.updateProduct()` ו-`addProduct()` כותבים ישירות ל-`division_products`
+- מנהל חטיבה יכול להוסיף ולהסיר מוצרים מדף החטיבה שלו ללא הרשאת equipment-edit (RLS מגן ברמת DB)
+- chore: resolve merge conflicts with main (5f8b984)
+- feat(settings): notification settings UI — recipients, days, content toggles (9f9c2c9)
+- feat(orders): overhaul dashboard with DHL tracking, payments, supplier perf & email alerts (4d43171)
+
+## [2026-04-24] (2)
+
+### Added
+- **הגדרות התראות מייל** (`/settings` — MANAGER בלבד)
+  - Toggle להפעלה/כיבוי של הדוח היומי
+  - בחירת ימי שליחה (כפתורי ימי שבוע)
+  - בחירת תוכן: הזמנות באיחור / תשלומים קרובים + כמה ימים קדימה
+  - ניהול נמענים: הוספת משתמשי מערכת (פרופיל) + כתובות מייל חיצוניות
+  - Toggle הפעל/השבת לכל נמען + אפשרות הסרה
+- טבלות DB חדשות: `notification_digest_config`, `notification_recipients`
+- Edge Function `notify-daily-digest` עודכן לקרוא הגדרות מה-DB, לבדוק ימי שבוע לפי שעון ישראל, ולשלוח רק לנמענים המוגדרים
+
+## [2026-04-24]
+
+### Added
+- **לוח בקרה הזמנות — שיפורים מקיפים**
+  - 4 כרטיסי KPI: הזמנות מישראל, מחו"ל, באיחור, ערך צנרת פתוחה
+  - ציר הזמן מסנן הזמנות ARRIVED/CANCELLED — מציג רק הזמנות פעילות
+  - עוגת סטטוס וגרף עדיפות — מחושבים על הזמנות פעילות בלבד
+  - סינון ספק בסטטוס תשלום (dropdown)
+  - כפתור "הצג הכל" בציר הזמן עם ספירת הזמנות
+  - ווידג'ט תשלומים קרובים (30 יום) — מקובץ לפי שבוע
+  - גרף תזרים תשלומים לפי חודש (6 חודשים קדימה)
+  - טבלת ביצועי ספקים: % הגעה בזמן + ממוצע ימי איחור
+- **DHL Tracking API**
+  - Edge Function `track-shipment` — מושך סטטוס מעקב מ-DHL API
+  - עמודת "מצב מעקב DHL" בטבלת הזמנות
+  - סקשן מעקב DHL בדף הזמנה עם כפתור רענון
+  - כפתור רענון מאסיבי בדאשבורד לכל ההזמנות עם מספר מעקב
+  - Migration: עמודות `tracking_status`, `tracking_last_event`, `tracking_updated_at`
+- **התראות מייל יומיות**
+  - Edge Function `notify-daily-digest` — שולח סיכום יומי בעברית למנהלים
+  - כולל: הזמנות באיחור + תשלומים שמגיעים תוך 3 ימים
+  - GitHub Actions cron: `daily-notifications.yml` — מופעל 08:00 שעון ישראל, ימי עבודה
+
+## [2026-04-24]
+
+- fix(waste): fix item save error caused by multi-statement exec_sql migration (cd6949e)
+
+## [2026-04-24]
+
+- Merge pull request #154 from cobra-system/claude/fullscreen-popup-navigation-QOfGU (8aaaa04)
+- feat: mobile UX improvements across manager layout and key pages (a2dc810)
+- feat: replace mobile sidebar slide-in with fullscreen nav popup (4ec2d6f)
+
+## [2026-04-24]
+
+- Merge pull request #153 from cobra-system/claude/auto-update-mcp-tools-9aYpb (0f162ab)
+- Add MCP tools auto-sync awareness system (f4bec4f)
+
+## [2026-04-23]
+
+- docs+mcp: update waste FK integration across MCP server and docs (8044d3b)
+- feat(waste): real DB integration — add product_id/component_id FKs to waste_items (6def8cd)
+- feat(products): show waste items on product detail page (345193e)
+- feat(waste): add product-component (items) selection to wear report (640ff41)
+
+## [2026-04-23]
+
+### Added
+- דף בלאי: אפשרות לדווח על פריטי רכיב (מ-`product_components`) בנוסף למוצרים — טוגל מוצר/פריט בטופס
+- דף מוצר: סקשן **בלאי** מוצג בתיק המוצר (מתחת להזמנות) — מציג את כל פריטי הבלאי של המוצר ורכיביו, עם קישור לדף הבלאי
+
+### Changed
+- אינטגרציית DB אמיתית לטבלת `waste_items`: הוספת עמודות FK — `product_id → products(id)` ו-`component_id → product_components(id)` — עם indexes ו-backfill אוטומטי לרשומות קיימות (מיגרציה 93)
+- בחירת מוצר/רכיב בדף הבלאי מעדכנת כעת את ה-FK בנוסף לטקסט החופשי
+- `markItemAsFaulty` שומר `product_id` בשורת הבלאי שנוצרת מהחזרת ציוד
+- MCP `waste.ts`: `list_waste_items` תומך כעת בסינון לפי `product_id` (כולל רכיבים); `create_waste_item` ו-`update_waste_item` מקבלים `product_id` ו-`component_id`
+
+### Fixed
+- תיקון שמות חטיבות — `AppContext.divisions` מסונכרן כעת עם `DIVISIONS` מ-`equipment/constants.ts` (AWACS, DOORE, פריזבי קרסו במקום AWCAS/Doore/קראסו)
+- עדכון נתוני mock לפי שמות החטיבות הנכונים
+- שינוי הגדרת מודול `/equipment`: כותרת הדף ותווית המודול עודכנו ל"ניהול חטיבות"
+- עדכון README — שורת `/equipment` בטבלת המודולים
+- chore: resolve merge conflicts with main (fbfaab5)
+- fix(mcp): tighten task tools — Hebrew priority enum, status validation, assignee lookup (8488538)
+- fix: sync product deletion fix to MCP tool, add component search to GlobalSearch (ad60654)
+- docs: add component detail route to README modules table (b26ffc4)
+- fix: remove linked-products section, fix product deletion, add component profile page (e678c4d)
+
+## [2026-04-23]
+
+### Changed
+- הסרת סעיף "מוצרים מקושרים לחטיבה (קטלוג)" מדף החטיבה — מוצרי החטיבה מנוהלים כולם דרך טבלת `division_products` בלבד
+
+### Fixed
+- תיקון מחיקת מוצר שנכשלה בשקט כשהמוצר קשור להזמנות (FK RESTRICT על `order_items`)
+- כלי MCP `delete_product`: אותו תיקון (nullify order_items לפני מחיקה)
+- כלי MCP משימות: עדיפות P0-P3 הוחלפה בעברית (דחוף/גבוה/בינוני/נמוך), ולידציה על status ו-assignee מול profiles
+
+### Added
+- דף תיק פריט (`/products/:productId/components/:componentId`) — תיק מפורט לכל רכיב/פריט בתוך מוצר מורכב, עם עריכה ומחיקה
+- ניווט לתיק פריט ישירות מטבלת ה-BOM בתיק המוצר
+- חיפוש גלובלי: הוסיפו חיפוש על פריטים/רכיבים עם ניווט ישיר לתיק פריט
+
+- feat: extend search to cover all meaningful fields across pages (d616469)
+- fix: apply document_tracking migration and sync TS types for purchase_documents (b36f6f9)
+
 ## [2026-04-20]
 
 - Merge pull request #149 from cobra-system/claude/fix-consumption-average-pwunu (2d1714a)
@@ -13,7 +151,6 @@
 - Implement division-based data filtering with RLS enforcement (07a9803)
 - Fix consumption average + division improvements (34db6b5)
 
-<!-- last-commit: 2d1714a6f3fd9ba38e04166efd39aded1b4dd366 -->
 ## [2026-04-20]
 
 - Implement order archiving, dashboard status distribution, and image uploads (1b7d588)

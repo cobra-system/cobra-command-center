@@ -20,6 +20,29 @@ interface ProductsState {
 
 const ProductsContext = createContext<ProductsState | null>(null);
 
+// Syncs division_products for a product.
+// Trigger B (division_products → products.division) keeps products.division in sync automatically.
+async function syncDivisionProducts(productId: string, newDivision: string | null | undefined) {
+  const newDivs = new Set(
+    (newDivision || "").split(",").map(d => d.trim()).filter(Boolean)
+  );
+  const { data: current } = await supabase
+    .from("division_products")
+    .select("id, division")
+    .eq("product_id", productId);
+  const existing = current || [];
+  const existingDivs = new Set(existing.map(dp => dp.division));
+
+  const toDelete = existing.filter(dp => !newDivs.has(dp.division));
+  if (toDelete.length > 0) {
+    await supabase.from("division_products").delete().in("id", toDelete.map(dp => dp.id));
+  }
+  const toInsert = [...newDivs].filter(d => !existingDivs.has(d));
+  if (toInsert.length > 0) {
+    await supabase.from("division_products").insert(toInsert.map(d => ({ division: d, product_id: productId })));
+  }
+}
+
 export function useProducts() {
   const ctx = useContext(ProductsContext);
   if (!ctx) throw new Error("useProducts must be within ProductsProvider");
@@ -60,9 +83,11 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
 
   const updateProduct = useCallback(async (id: string, updates: Partial<Product>) => {
     try {
-      const { components, supplier_id, ...dbUpdates } = updates as Partial<Product> & Record<string, unknown>;
-      const { error } = await supabase.from("products").update(dbUpdates).eq("id", id);
-      if (error) throw error;
+      const { components, supplier_id, division, ...dbUpdates } = updates as Partial<Product> & Record<string, unknown>;
+      if (Object.keys(dbUpdates).length > 0) {
+        const { error } = await supabase.from("products").update(dbUpdates).eq("id", id);
+        if (error) throw error;
+      }
       // Sync stock with main center inventory
       if (dbUpdates.stock_qty !== undefined) {
         const { data: mainCenter } = await supabase.from("distribution_centers").select("id").eq("is_main", true).maybeSingle();
@@ -72,6 +97,9 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
             { onConflict: "center_id,product_id" }
           );
         }
+      }
+      if (division !== undefined) {
+        await syncDivisionProducts(id, division as string | null);
       }
       await queryClient.refetchQueries({ queryKey: ["products"] });
       toast.success("מוצר עודכן בהצלחה");
@@ -84,12 +112,15 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
 
   const addProduct = useCallback(async (product: Omit<Product, "id" | "components">, components?: Omit<ProductComponent, "id" | "product_id">[]) => {
     try {
-      const { supplier_id, ...productData } = product as Omit<Product, "id" | "components"> & Record<string, unknown>;
+      const { supplier_id, division, ...productData } = product as Omit<Product, "id" | "components"> & Record<string, unknown>;
       const { data: newProd, error: prodError } = await supabase.from("products").insert(productData).select("id").single();
       if (prodError) throw prodError;
       if (newProd && components && components.length > 0) {
         const { error: compError } = await supabase.from("product_components").insert(components.map(c => ({ ...c, product_id: newProd.id })));
         if (compError) throw compError;
+      }
+      if (newProd && division) {
+        await syncDivisionProducts(newProd.id, division as string);
       }
       await queryClient.refetchQueries({ queryKey: ["products"] });
       toast.success("מוצר נוצר בהצלחה");
@@ -102,6 +133,8 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
 
   const deleteProduct = useCallback(async (id: string) => {
     try {
+      const { error: oiError } = await supabase.from("order_items").update({ product_id: null }).eq("product_id", id);
+      if (oiError) throw oiError;
       const { error: compError } = await supabase.from("product_components").delete().eq("product_id", id);
       if (compError) throw compError;
       const { error: prodError } = await supabase.from("products").delete().eq("id", id);

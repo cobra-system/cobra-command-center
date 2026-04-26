@@ -131,10 +131,10 @@ export default function EmployeeFormDialog({
           </div>
           <div className="space-y-2">
             <Label>חטיבה</Label>
-            <Select value={empDivision} onValueChange={setEmpDivision}>
+            <Select value={empDivision || "none"} onValueChange={v => setEmpDivision(v === "none" ? "" : v)}>
               <SelectTrigger><SelectValue placeholder="ללא חטיבה" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">ללא חטיבה</SelectItem>
+                <SelectItem value="none">ללא חטיבה</SelectItem>
                 {DIVISIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
               </SelectContent>
             </Select>

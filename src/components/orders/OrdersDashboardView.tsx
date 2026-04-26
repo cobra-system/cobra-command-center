@@ -1,9 +1,24 @@
 import { useNavigate } from "react-router-dom";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { type Order, type Supplier } from "@/contexts/AppContext";
 import { cn } from "@/lib/utils";
-import { Globe, MapPin, DollarSign, AlertCircle, Truck, TrendingUp, Clock } from "lucide-react";
+import { Globe, MapPin, DollarSign, AlertCircle, Truck, Clock, ChevronDown, ChevronUp, CreditCard, RefreshCw } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
+import { supabase } from "@/lib/supabase";
+import { useData } from "@/contexts/AppContext";
+import { toast } from "sonner";
+
+interface OrderPayment {
+  id: string;
+  order_id: string;
+  amount: number;
+  currency: "USD" | "EUR" | "ILS";
+  due_date: string | null;
+  status: "ממתין" | "שולם";
+  payment_type: "Deposit" | "Balance" | "Full";
+  supplier_name?: string;
+  order_items?: string;
+}
 
 interface WorkflowInfo {
   id: string;
@@ -36,37 +51,95 @@ const PRIORITY_COLORS: Record<string, string> = {
   "נמוך": "#9ca3af",
 };
 
-const PRIORITY_NAMES: Record<string, string> = {
-  "דחוף": "דחוף",
-  "גבוה": "גבוה",
-  "בינוני": "בינוני",
-  "נמוך": "נמוך",
-};
+const ACTIVE_STATUSES = ["PENDING", "ORDERED", "SHIPPED", "ARRIVED_PORT", "CUSTOMS_CLEARANCE", "DELIVERED"];
 
 export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: OrdersDashboardViewProps) {
   const navigate = useNavigate();
+  const [timelineExpanded, setTimelineExpanded] = useState(false);
+  const [paymentSupplierFilter, setPaymentSupplierFilter] = useState<string>("all");
+  const [upcomingPayments, setUpcomingPayments] = useState<OrderPayment[]>([]);
+  const [allPayments, setAllPayments] = useState<OrderPayment[]>([]);
+  const [bulkTracking, setBulkTracking] = useState<{ running: boolean; done: number; total: number }>({ running: false, done: 0, total: 0 });
+  const abortRef = useRef(false);
+  const { refreshOrders } = useData();
+
+  useEffect(() => {
+    const thirtyDays = new Date();
+    thirtyDays.setDate(thirtyDays.getDate() + 30);
+
+    supabase
+      .from("order_payments")
+      .select("id, order_id, amount, currency, due_date, status, payment_type, orders(supplier_name, order_items(name))")
+      .order("due_date", { ascending: true })
+      .then(({ data }) => {
+        if (!data) return;
+        const flat = data.map((p: Record<string, unknown>) => {
+          const ord = p.orders as Record<string, unknown> | null;
+          const items = (ord?.order_items as { name: string }[] | null) ?? [];
+          return {
+            id: p.id as string,
+            order_id: p.order_id as string,
+            amount: p.amount as number,
+            currency: p.currency as OrderPayment["currency"],
+            due_date: p.due_date as string | null,
+            status: p.status as OrderPayment["status"],
+            payment_type: p.payment_type as OrderPayment["payment_type"],
+            supplier_name: (ord?.supplier_name as string) ?? undefined,
+            order_items: items.map(i => i.name).join(", ") || undefined,
+          } satisfies OrderPayment;
+        });
+        setAllPayments(flat);
+        setUpcomingPayments(
+          flat.filter(p => p.status === "ממתין" && p.due_date && new Date(p.due_date) <= thirtyDays)
+        );
+      });
+  }, []);
+
+  const handleBulkRefreshTracking = async () => {
+    const trackableOrders = activeOrders.filter(o => o.tracking_number);
+    if (trackableOrders.length === 0) { toast.error("אין הזמנות פעילות עם מספר מעקב"); return; }
+    abortRef.current = false;
+    setBulkTracking({ running: true, done: 0, total: trackableOrders.length });
+    const { data: { session } } = await supabase.auth.getSession();
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    let done = 0;
+    for (const order of trackableOrders) {
+      if (abortRef.current) break;
+      try {
+        await fetch(`${baseUrl}/functions/v1/track-shipment`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ order_id: order.id }),
+        });
+      } catch { /* continue on individual failure */ }
+      done++;
+      setBulkTracking(prev => ({ ...prev, done }));
+    }
+    setBulkTracking({ running: false, done, total: trackableOrders.length });
+    toast.success(`עודכן מעקב ל-${done} הזמנות`);
+    await refreshOrders();
+  };
+
+  const activeOrders = useMemo(
+    () => orders.filter(o => ACTIVE_STATUSES.includes(o.status)),
+    [orders]
+  );
 
   const stats = useMemo(() => {
-    const totalOrders = orders.length;
-    const totalValue = orders.reduce((sum, o) => sum + (o.total_price || 0), 0);
-    const totalQuantity = orders.reduce((sum, o) => sum + o.items.reduce((s, i) => s + i.qty, 0), 0);
-    const overdue = orders.filter(o => o.eta && new Date(o.eta) < new Date()).length;
+    const totalValue = activeOrders.reduce((sum, o) => sum + (o.total_price || 0), 0);
+    const overdue = activeOrders.filter(o => o.eta && new Date(o.eta) < new Date()).length;
 
     const supplierCountryMap = suppliers.reduce((acc, s) => {
       acc[s.id] = s.country ?? null;
       return acc;
     }, {} as Record<string, string | null>);
 
-    const inProcessOrders = orders.filter(
-      o => o.status !== "ARRIVED" && o.status !== "CANCELLED"
-    );
-
-    const ordersInProcessIsrael = inProcessOrders.filter(o => {
+    const ordersInProcessIsrael = activeOrders.filter(o => {
       const country = o.supplier_id ? supplierCountryMap[o.supplier_id] : null;
       return country === "ישראל";
     }).length;
 
-    const ordersInProcessAbroad = inProcessOrders.filter(o => {
+    const ordersInProcessAbroad = activeOrders.filter(o => {
       const country = o.supplier_id ? supplierCountryMap[o.supplier_id] : null;
       return country !== "ישראל";
     }).length;
@@ -76,29 +149,20 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
       return acc;
     }, {} as Record<string, number>);
 
-    const priorityCounts = orders.reduce((acc, o) => {
+    const priorityCounts = activeOrders.reduce((acc, o) => {
       acc[o.priority] = (acc[o.priority] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    const paymentStatus = orders.reduce((acc, o) => {
-      const status = (o as Record<string, unknown>).payment_status || "ממתין";
-      acc[status] = (acc[status] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
     return {
-      totalOrders,
       totalValue,
-      totalQuantity,
       overdue,
       statusCounts,
       priorityCounts,
-      paymentStatus,
       ordersInProcessIsrael,
       ordersInProcessAbroad,
     };
-  }, [orders, suppliers]);
+  }, [orders, activeOrders, suppliers]);
 
   const statusChartData = useMemo(() => {
     return Object.entries(stats.statusCounts).map(([status, count]) => ({
@@ -111,66 +175,205 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
   const priorityChartData = useMemo(() => {
     return Object.entries(stats.priorityCounts)
       .map(([priority, count]) => ({
-        name: PRIORITY_NAMES[priority] || priority,
+        name: priority,
         value: count,
-        fill: PRIORITY_COLORS[priority] || "#gray",
+        fill: PRIORITY_COLORS[priority] || "#9ca3af",
       }))
       .sort((a, b) => b.value - a.value);
   }, [stats]);
 
-  const paymentChartData = useMemo(() => {
-    return Object.entries(stats.paymentStatus).map(([status, count]) => ({
-      name: status,
-      value: count,
-    }));
-  }, [stats]);
+  const paymentSupplierOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const opts: { id: string; name: string }[] = [];
+    for (const o of activeOrders) {
+      if (o.supplier_id && o.supplier_name && !seen.has(o.supplier_id)) {
+        seen.add(o.supplier_id);
+        opts.push({ id: o.supplier_id, name: o.supplier_name });
+      }
+    }
+    return opts.sort((a, b) => a.name.localeCompare(b.name, "he"));
+  }, [activeOrders]);
 
-  // Timeline - orders sorted by ETA
+  const paymentChartData = useMemo(() => {
+    const filtered = paymentSupplierFilter === "all"
+      ? activeOrders
+      : activeOrders.filter(o => o.supplier_id === paymentSupplierFilter);
+
+    const total = filtered.length || 1;
+    const counts = filtered.reduce((acc, o) => {
+      const status = (o as Record<string, unknown>).payment_status as string || "ממתין";
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return { counts, total };
+  }, [activeOrders, paymentSupplierFilter]);
+
   const timelineOrders = useMemo(() => {
-    return [...orders]
+    return [...activeOrders]
       .filter(o => o.eta)
-      .sort((a, b) => (a.eta || "").localeCompare(b.eta || ""))
-      .slice(0, 8);
+      .sort((a, b) => (a.eta || "").localeCompare(b.eta || ""));
+  }, [activeOrders]);
+
+  const visibleTimelineOrders = timelineExpanded ? timelineOrders : timelineOrders.slice(0, 8);
+
+  const cashFlowData = useMemo(() => {
+    const months: { key: string; label: string; paid: number; pending: number }[] = [];
+    const now = new Date();
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleDateString("he-IL", { month: "short", year: "2-digit" });
+      months.push({ key, label, paid: 0, pending: 0 });
+    }
+    for (const p of allPayments) {
+      if (!p.due_date) continue;
+      const monthKey = p.due_date.slice(0, 7);
+      const bucket = months.find(m => m.key === monthKey);
+      if (!bucket) continue;
+      const usd = p.currency === "USD" ? p.amount : p.currency === "EUR" ? p.amount * 1.08 : p.amount / 3.7;
+      if (p.status === "שולם") bucket.paid += usd;
+      else bucket.pending += usd;
+    }
+    return months.map(m => ({ ...m, paid: Math.round(m.paid), pending: Math.round(m.pending) }));
+  }, [allPayments]);
+
+  const supplierPerformance = useMemo(() => {
+    type SupplierStat = {
+      id: string;
+      name: string;
+      active: number;
+      arrived: number;
+      onTime: number;
+      totalDelayDays: number;
+    };
+    const map = new Map<string, SupplierStat>();
+
+    for (const o of orders) {
+      if (!o.supplier_id || !o.supplier_name) continue;
+      if (!map.has(o.supplier_id)) {
+        map.set(o.supplier_id, { id: o.supplier_id, name: o.supplier_name, active: 0, arrived: 0, onTime: 0, totalDelayDays: 0 });
+      }
+      const s = map.get(o.supplier_id)!;
+      if (ACTIVE_STATUSES.includes(o.status)) s.active++;
+      if (o.status === "ARRIVED" && o.eta && o.updated_at) {
+        const etaDate = new Date(o.eta);
+        const arrivedDate = new Date(o.updated_at);
+        const delayDays = Math.round((arrivedDate.getTime() - etaDate.getTime()) / (1000 * 60 * 60 * 24));
+        s.arrived++;
+        s.totalDelayDays += delayDays;
+        if (delayDays <= 0) s.onTime++;
+      }
+    }
+
+    return [...map.values()]
+      .filter(s => s.active > 0 || s.arrived > 0)
+      .sort((a, b) => (b.active + b.arrived) - (a.active + a.arrived))
+      .slice(0, 10)
+      .map(s => ({
+        ...s,
+        onTimePct: s.arrived > 0 ? Math.round((s.onTime / s.arrived) * 100) : null,
+        avgDelay: s.arrived > 0 ? Math.round(s.totalDelayDays / s.arrived) : null,
+      }));
   }, [orders]);
 
-  // Get upcoming orders (next 7 days)
+  const upcomingGrouped = useMemo(() => {
+    const now = new Date();
+    const endOfWeek = new Date(now); endOfWeek.setDate(now.getDate() + 7);
+    const endOfNextWeek = new Date(now); endOfNextWeek.setDate(now.getDate() + 14);
+    const thisWeek: OrderPayment[] = [];
+    const nextWeek: OrderPayment[] = [];
+    const later: OrderPayment[] = [];
+    for (const p of upcomingPayments) {
+      const d = new Date(p.due_date!);
+      if (d <= endOfWeek) thisWeek.push(p);
+      else if (d <= endOfNextWeek) nextWeek.push(p);
+      else later.push(p);
+    }
+    return { thisWeek, nextWeek, later };
+  }, [upcomingPayments]);
+
   const upcomingOrders = useMemo(() => {
     const now = new Date();
     const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    return orders.filter(o => {
+    return activeOrders.filter(o => {
       if (!o.eta) return false;
       const eta = new Date(o.eta);
       return eta >= now && eta <= sevenDaysFromNow;
     });
-  }, [orders]);
+  }, [activeOrders]);
 
-  const StatCard = ({ icon: Icon, label, value, bgColor }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string | number; bgColor: string }) => (
+  const StatCard = ({
+    icon: Icon,
+    label,
+    value,
+    bgColor,
+    valueColor,
+  }: {
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
+    value: string | number;
+    bgColor: string;
+    valueColor?: string;
+  }) => (
     <div className={cn("rounded-lg p-4 border", bgColor)}>
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-muted-foreground mb-1">{label}</p>
-          <p className="text-2xl font-bold">{value}</p>
+          <p className={cn("text-2xl font-bold", valueColor)}>{value}</p>
         </div>
         <Icon className="h-8 w-8 text-muted-foreground opacity-50" />
       </div>
     </div>
   );
 
+  const trackableCount = activeOrders.filter(o => o.tracking_number).length;
+
   return (
     <div className="space-y-6">
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Bulk DHL Refresh */}
+      {trackableCount > 0 && (
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">{trackableCount} הזמנות עם מספר מעקב DHL</span>
+          <button
+            onClick={handleBulkRefreshTracking}
+            disabled={bulkTracking.running}
+            className="flex items-center gap-1.5 text-xs border rounded-lg px-3 py-1.5 hover:bg-muted/30 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${bulkTracking.running ? "animate-spin" : ""}`} />
+            {bulkTracking.running
+              ? `מעדכן... ${bulkTracking.done}/${bulkTracking.total}`
+              : "רענן מעקב DHL"}
+          </button>
+        </div>
+      )}
+
+      {/* Summary Stats — 4 cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={MapPin}
-          label="הזמנות בתהליך מישראל"
+          label="בתהליך מישראל"
           value={stats.ordersInProcessIsrael}
           bgColor="bg-blue-50 border-blue-200"
         />
         <StatCard
           icon={Globe}
-          label="הזמנות בתהליך מחול"
+          label="בתהליך מחו״ל"
           value={stats.ordersInProcessAbroad}
           bgColor="bg-purple-50 border-purple-200"
+        />
+        <StatCard
+          icon={AlertCircle}
+          label="הזמנות באיחור"
+          value={stats.overdue}
+          bgColor={stats.overdue > 0 ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200"}
+          valueColor={stats.overdue > 0 ? "text-red-600" : undefined}
+        />
+        <StatCard
+          icon={DollarSign}
+          label="ערך צנרת פתוחה"
+          value={`$${stats.totalValue.toLocaleString()}`}
+          bgColor="bg-emerald-50 border-emerald-200"
         />
       </div>
 
@@ -178,7 +381,7 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Status Distribution */}
         <div className="bg-card rounded-xl border p-4">
-          <h3 className="text-sm font-semibold mb-4">התפלגות סטטוס</h3>
+          <h3 className="text-sm font-semibold mb-4">התפלגות סטטוס (כל ההזמנות)</h3>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
               <Pie
@@ -200,43 +403,63 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
           </ResponsiveContainer>
         </div>
 
-        {/* Priority Distribution */}
+        {/* Priority Distribution — active orders only */}
         <div className="bg-card rounded-xl border p-4">
-          <h3 className="text-sm font-semibold mb-4">התפלגות עדיפות</h3>
+          <h3 className="text-sm font-semibold mb-1">התפלגות עדיפות</h3>
+          <p className="text-xs text-muted-foreground mb-3">הזמנות פעילות בלבד</p>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={priorityChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="name" tick={{ fontSize: 12 }} reversed />
               <YAxis tick={{ fontSize: 12 }} orientation="right" />
               <Tooltip />
-              <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                {priorityChartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Payment Status */}
+        {/* Payment Status — with supplier filter */}
         <div className="bg-card rounded-xl border p-4">
-          <h3 className="text-sm font-semibold mb-4">סטטוס תשלום</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold">סטטוס תשלום</h3>
+            <select
+              value={paymentSupplierFilter}
+              onChange={e => setPaymentSupplierFilter(e.target.value)}
+              className="text-xs border rounded px-2 py-1 bg-background text-foreground max-w-[130px] truncate"
+            >
+              <option value="all">כל הספקים</option>
+              {paymentSupplierOptions.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
           <div className="space-y-3">
-            {paymentChartData.map((item) => (
-              <div key={item.name} className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">{item.name}</span>
+            {Object.entries(paymentChartData.counts).map(([status, count]) => (
+              <div key={status} className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">{status}</span>
                 <div className="flex items-center gap-2">
                   <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden" dir="ltr">
                     <div
                       className="h-full bg-blue-500 rounded-full"
-                      style={{ width: `${(item.value / stats.totalOrders) * 100}%` }}
+                      style={{ width: `${(count / paymentChartData.total) * 100}%` }}
                     />
                   </div>
-                  <span className="text-sm font-semibold w-8 text-right">{item.value}</span>
+                  <span className="text-sm font-semibold w-8 text-right">{count}</span>
                 </div>
               </div>
             ))}
+            {Object.keys(paymentChartData.counts).length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-4">אין נתונים</p>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Upcoming Orders Timeline */}
+      {/* Upcoming Orders (next 7 days) */}
       {upcomingOrders.length > 0 && (
         <div className="bg-card rounded-xl border p-4">
           <div className="flex items-center gap-2 mb-4">
@@ -250,7 +473,7 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
                 onClick={() => navigate(`/orders/${order.id}`)}
                 className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/30 cursor-pointer transition-colors"
               >
-                <div className="flex-shrink-0 w-2 h-2 rounded-full bg-orange-500"></div>
+                <div className="flex-shrink-0 w-2 h-2 rounded-full bg-orange-500" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">
                     {order.items.map(i => i.name).join(", ") || "ללא פריטים"}
@@ -269,78 +492,215 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
         </div>
       )}
 
-      {/* Timeline View */}
+      {/* Timeline — active orders only */}
       <div className="bg-card rounded-xl border p-4">
-        <h3 className="text-sm font-semibold mb-4">ציר הזמן - הזמנות לפי ETA</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold">ציר הזמן — הזמנות לפי ETA</h3>
+          {timelineOrders.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {timelineExpanded ? timelineOrders.length : Math.min(8, timelineOrders.length)} מתוך {timelineOrders.length}
+            </span>
+          )}
+        </div>
         <div className="space-y-3">
           {timelineOrders.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">אין הזמנות עם תאריך הגעה</p>
+            <p className="text-sm text-muted-foreground text-center py-8">אין הזמנות פעילות עם תאריך הגעה</p>
           ) : (
-            timelineOrders.map((order) => {
-              const daysUntil = order.eta
-                ? Math.ceil(
-                    (new Date(order.eta).getTime() - new Date().getTime()) /
-                      (1000 * 60 * 60 * 24)
-                  )
-                : null;
-              const isOverdue = daysUntil !== null && daysUntil < 0;
-              const isPriority = order.priority === "דחוף" || order.priority === "גבוה";
+            <>
+              {visibleTimelineOrders.map((order) => {
+                const daysUntil = order.eta
+                  ? Math.ceil(
+                      (new Date(order.eta).getTime() - new Date().getTime()) /
+                        (1000 * 60 * 60 * 24)
+                    )
+                  : null;
+                const isOverdue = daysUntil !== null && daysUntil < 0;
+                const isPriority = order.priority === "דחוף" || order.priority === "גבוה";
 
-              return (
-                <div
-                  key={order.id}
-                  onClick={() => navigate(`/orders/${order.id}`)}
-                  className="cursor-pointer group"
-                >
-                  <div className="flex items-center gap-3 p-3 rounded-lg border border-r-4 hover:shadow-md transition-all"
-                    style={{
-                      borderRightColor: PRIORITY_COLORS[order.priority] || "#gray",
-                      backgroundColor: isOverdue ? "#fef2f2" : isPriority ? "#fef3c7" : "transparent",
-                    }}
+                return (
+                  <div
+                    key={order.id}
+                    onClick={() => navigate(`/orders/${order.id}`)}
+                    className="cursor-pointer group"
                   >
-                    <div className="flex-shrink-0 flex flex-col items-center gap-1">
-                      <div className={cn(
-                        "w-10 h-10 rounded-full flex items-center justify-center font-semibold text-xs",
-                        isOverdue ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
-                      )}>
-                        {daysUntil !== null ? (daysUntil < 0 ? `${Math.abs(daysUntil)}` : daysUntil) : "?"}
-                      </div>
-                      <span className="text-[10px] text-muted-foreground">
-                        {daysUntil !== null ? (daysUntil < 0 ? "ימים\nעברו" : "ימים") : ""}
-                      </span>
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground">
-                        {order.items.map(i => i.name).join(", ") || "ללא פריטים"}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {order.supplier_name || "—"} • {new Date(order.eta!).toLocaleDateString("he-IL")}
-                      </p>
-                    </div>
-
-                    <div className="flex-shrink-0 flex items-center gap-4">
-                      <div className="flex items-center gap-1 text-xs">
-                        <Truck className="h-3 w-3 text-muted-foreground" />
-                        <span className="font-semibold">{order.items.reduce((s, i) => s + i.qty, 0)}</span>
-                      </div>
-                      {order.total_price && (
-                        <div className="flex items-center gap-1 text-xs">
-                          <DollarSign className="h-3 w-3 text-muted-foreground" />
-                          <span className="font-semibold">${order.total_price.toLocaleString()}</span>
+                    <div
+                      className="flex items-center gap-3 p-3 rounded-lg border border-r-4 hover:shadow-md transition-all"
+                      style={{
+                        borderRightColor: PRIORITY_COLORS[order.priority] || "#9ca3af",
+                        backgroundColor: isOverdue ? "#fef2f2" : isPriority ? "#fef3c7" : "transparent",
+                      }}
+                    >
+                      <div className="flex-shrink-0 flex flex-col items-center gap-1">
+                        <div className={cn(
+                          "w-10 h-10 rounded-full flex items-center justify-center font-semibold text-xs",
+                          isOverdue ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
+                        )}>
+                          {daysUntil !== null ? Math.abs(daysUntil) : "?"}
                         </div>
-                      )}
-                      {isOverdue && (
-                        <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
-                      )}
+                        <span className="text-[10px] text-muted-foreground leading-tight text-center">
+                          {daysUntil !== null ? (daysUntil < 0 ? "עברו" : "ימים") : ""}
+                        </span>
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground">
+                          {order.items.map(i => i.name).join(", ") || "ללא פריטים"}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {order.supplier_name || "—"} • {new Date(order.eta!).toLocaleDateString("he-IL")}
+                        </p>
+                      </div>
+
+                      <div className="flex-shrink-0 flex items-center gap-4">
+                        <div className="flex items-center gap-1 text-xs">
+                          <Truck className="h-3 w-3 text-muted-foreground" />
+                          <span className="font-semibold">{order.items.reduce((s, i) => s + i.qty, 0)}</span>
+                        </div>
+                        {order.total_price && (
+                          <div className="flex items-center gap-1 text-xs">
+                            <DollarSign className="h-3 w-3 text-muted-foreground" />
+                            <span className="font-semibold">${order.total_price.toLocaleString()}</span>
+                          </div>
+                        )}
+                        {isOverdue && (
+                          <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })
+                );
+              })}
+
+              {timelineOrders.length > 8 && (
+                <button
+                  onClick={() => setTimelineExpanded(v => !v)}
+                  className="w-full flex items-center justify-center gap-1 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors border rounded-lg hover:bg-muted/30"
+                >
+                  {timelineExpanded ? (
+                    <><ChevronUp className="h-3 w-3" /> הצג פחות</>
+                  ) : (
+                    <><ChevronDown className="h-3 w-3" /> הצג עוד {timelineOrders.length - 8} הזמנות</>
+                  )}
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
+      {/* Upcoming Payments */}
+      {upcomingPayments.length > 0 && (
+        <div className="bg-card rounded-xl border p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <CreditCard className="h-5 w-5 text-blue-500" />
+            <h3 className="text-sm font-semibold">תשלומים קרובים (30 יום)</h3>
+            <span className="text-xs bg-blue-100 text-blue-700 rounded-full px-2 py-0.5">{upcomingPayments.length}</span>
+          </div>
+          {(["thisWeek", "nextWeek", "later"] as const).map(group => {
+            const groupLabels = { thisWeek: "השבוע", nextWeek: "שבוע הבא", later: "מאוחר יותר" };
+            const items = upcomingGrouped[group];
+            if (items.length === 0) return null;
+            return (
+              <div key={group} className="mb-4">
+                <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">{groupLabels[group]}</p>
+                <div className="space-y-2">
+                  {items.map(p => {
+                    const daysLeft = p.due_date
+                      ? Math.ceil((new Date(p.due_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+                      : null;
+                    const isUrgent = daysLeft !== null && daysLeft <= 3;
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => navigate(`/orders/${p.order_id}`)}
+                        className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/30 cursor-pointer transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{p.supplier_name || "—"}</p>
+                          {p.order_items && <p className="text-xs text-muted-foreground truncate">{p.order_items}</p>}
+                        </div>
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <span className={cn(
+                            "text-xs rounded-full px-2 py-0.5",
+                            isUrgent ? "bg-red-100 text-red-700" : "bg-muted text-muted-foreground"
+                          )}>
+                            {daysLeft !== null ? (daysLeft === 0 ? "היום" : `${daysLeft} ימים`) : "—"}
+                          </span>
+                          <span className="text-sm font-semibold">
+                            {p.currency === "USD" ? "$" : p.currency === "EUR" ? "€" : "₪"}{p.amount.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Supplier Performance */}
+      {supplierPerformance.length > 0 && (
+        <div className="bg-card rounded-xl border p-4">
+          <h3 className="text-sm font-semibold mb-1">ביצועי ספקים</h3>
+          <p className="text-xs text-muted-foreground mb-4">זמן הגעה מחושב לפי ETA מול תאריך עדכון סטטוס ל-ARRIVED</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-right">
+                  <th className="pb-2 font-semibold text-muted-foreground">ספק</th>
+                  <th className="pb-2 font-semibold text-muted-foreground text-center">פעילות</th>
+                  <th className="pb-2 font-semibold text-muted-foreground text-center">הגיעו</th>
+                  <th className="pb-2 font-semibold text-muted-foreground text-center">% בזמן</th>
+                  <th className="pb-2 font-semibold text-muted-foreground text-center">איחור ממוצע</th>
+                </tr>
+              </thead>
+              <tbody>
+                {supplierPerformance.map(s => (
+                  <tr key={s.id} className="border-b last:border-0 hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/suppliers/${s.id}`)}>
+                    <td className="py-2 font-medium">{s.name}</td>
+                    <td className="py-2 text-center">{s.active}</td>
+                    <td className="py-2 text-center">{s.arrived}</td>
+                    <td className="py-2 text-center">
+                      {s.onTimePct !== null ? (
+                        <span className={cn("font-semibold", s.onTimePct >= 80 ? "text-green-600" : s.onTimePct >= 50 ? "text-yellow-600" : "text-red-600")}>
+                          {s.onTimePct}%
+                        </span>
+                      ) : "—"}
+                    </td>
+                    <td className="py-2 text-center">
+                      {s.avgDelay !== null ? (
+                        <span className={cn("font-semibold", s.avgDelay <= 0 ? "text-green-600" : s.avgDelay <= 7 ? "text-yellow-600" : "text-red-600")}>
+                          {s.avgDelay > 0 ? `+${s.avgDelay}` : s.avgDelay} ימים
+                        </span>
+                      ) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Cash Flow Chart */}
+      {cashFlowData.some(m => m.paid > 0 || m.pending > 0) && (
+        <div className="bg-card rounded-xl border p-4">
+          <h3 className="text-sm font-semibold mb-1">תזרים תשלומים לפי חודש</h3>
+          <p className="text-xs text-muted-foreground mb-4">הערכה ב-USD (EUR × 1.08, ILS ÷ 3.7)</p>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={cashFlowData} barGap={2}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} reversed />
+              <YAxis tick={{ fontSize: 11 }} orientation="right" tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
+              <Tooltip formatter={(value: number) => `$${value.toLocaleString()}`} />
+              <Legend />
+              <Bar dataKey="paid" name="שולם" fill="#34d399" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="pending" name="ממתין" fill="#fb923c" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 }

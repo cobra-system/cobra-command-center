@@ -41,6 +41,7 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 | דשבורד | `/dashboard` | KPIs, הזמנות פתוחות, משימות דחופות, התראות |
 | מוצרים | `/products` | רשימת מוצרים עם סינון, מיון, פירוט מורכב |
 | תיק מוצר | `/products/:id` | פרטים, רכיבים, הזמנות, תקלות, רישיונות, מסמכים |
+| תיק פריט | `/products/:productId/components/:componentId` | פרטי רכיב/פריט בתוך מוצר מורכב, עריכה ומחיקה |
 | ספקים | `/suppliers` | רשימת ספקים עם חיפוש וסינון |
 | תיק ספק | `/suppliers/:id` | פרטי קשר, מוצרים, הזמנות, מסמכים |
 | הזמנות | `/orders` | לוח בקרה, טבלת הזמנות, ארכיון, סדר יום רכש, קבוצות משלוח (5 טאבים) |
@@ -55,7 +56,7 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 | תקלות | `/issues` | דיווח ומעקב תקלות מוצרים |
 | פרטי תקלה | `/issues/:id` | עמוד תקלה — עריכה inline, עדכונים, גלריית מדיה |
 | ניהול פסולת | `/waste-management` | מעקב פסולת ובלאי, חיבור לציוד וסיבות החזרה |
-| ציוד ומתקינים | `/equipment` | מעקב ציוד מתקינים: כרטיסי חטיבה, הצטיידויות, מלאי שטח, לוח בקרה |
+| ניהול חטיבות | `/equipment` | ניהול חטיבות: ציוד, הצטיידויות, החזרות ופעילות התקנה |
 | פירוט מתקין | `/equipment/installer/:id` | פרטי מתקין, ציוד בשטח, היסטוריית החזרות |
 | פרטי חטיבה | `/equipment/division/:divisionName` | טכנאים, הצטיידויות, מלאי, אנשי קשר לפי חטיבה |
 | דוחות | `/reports` | גרפי מגמות, ביצועי ספקים, ניתוח הזמנות |
@@ -127,7 +128,7 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 - `division_products` — מוצרי חטיבה (מלאי שטח ידני, דרישה לרבעון, צריכה חודשית מחושבת)
 
 ### ניהול פסולת
-- `waste_items` — פריטי פסולת/בלאי (מוצר, כמות, מקור, המלצות)
+- `waste_items` — פריטי פסולת/בלאי (מוצר, כמות, מקור, המלצות, `product_id → products`, `component_id → product_components`)
 
 ### מפת מחסן
 - `warehouse_zone_products` — שיוך מוצרים לאזורים במחסן (zone_id, product_id)
@@ -161,7 +162,7 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 | Toasts | Sonner |
 | טפסים | React Hook Form + Zod |
 | PDF | PDF.js + pdf-lib + mammoth |
-| אוטומציה | MCP Server — 30+ כלים לאינטגרציה עם Claude Code |
+| אוטומציה | MCP Server — 245 כלים ב-32 מודולים לאינטגרציה עם Claude Code |
 | בדיקות E2E | Playwright |
 
 ---
@@ -262,7 +263,52 @@ mcp-server/              # MCP Server לאינטגרציה עם Claude Code (30+
 | `fix-setup` | תיקון הגדרות מסד נתונים |
 | `fix-trigger` | תיקון Triggers ו-Policies ב-Supabase |
 | `debug-external` | כלי דיבאג לחיבורים חיצוניים |
+| `track-shipment` | רענון סטטוס מעקב DHL לפי order_id |
+| `notify-daily-digest` | שליחת סיכום יומי למנהלים (איחורים + תשלומים) |
 | `health` | בדיקת בריאות שרת + זמן תגובה DB (ללא אימות) |
+
+---
+
+## MCP Tools
+
+שרת MCP מאפשר ל-Claude Code גישה ישירה לכל מסד הנתונים ללא ממשק גרפי — **245 כלים** ב-**32 מודולים**.
+
+| מודול | Domain | כלים |
+|-------|--------|-----:|
+| `analytics` | Analytics & KPIs | 6 |
+| `audit-logs` | Audit trail | 2 |
+| `bulk-ops` | Bulk operations | 5 |
+| `compliance` | Compliance & licensing | 7 |
+| `daily-reports` | Daily reports | 5 |
+| `divisions` | Division management | 4 |
+| `documents` | Documents (PI/PO) | 10 |
+| `equipment` | Equipment & installers | 36 |
+| `finance` | Finance summary | 4 |
+| `goals` | Goals tracking | 4 |
+| `inventory` | Inventory & warehouses | 11 |
+| `issues` | Product issues | 16 |
+| `learning-journal` | Learning journal | 5 |
+| `meetings` | Meetings & decisions | 14 |
+| `notifications` | Notifications | 3 |
+| `order-payments` | Order payments | 5 |
+| `orders` | Orders lifecycle | 13 |
+| `payments` | Supplier payments | 4 |
+| `procurement-agenda` | Procurement agenda | 2 |
+| `procurement-inventory` | Procurement inventory | 6 |
+| `procurement-meeting` | Procurement meetings | 7 |
+| `products` | Products & components | 13 |
+| `reminders` | Reminders | 3 |
+| `search` | Global search | 4 |
+| `shipping` | Shipping & logistics | 9 |
+| `suppliers` | Suppliers | 13 |
+| `tasks` | Tasks | 7 |
+| `team` | Team & permissions | 9 |
+| `user-preferences` | User preferences | 3 |
+| `warehouse` | Warehouse zones | 6 |
+| `waste` | Waste tracking | 5 |
+| `workflows` | Workflows | 4 |
+
+ראה [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md) לתיעוד מלא: מיפוי טבלה→מודול, תהליך עדכון, ו-pattern להוספת מודול חדש.
 
 ---
 
@@ -272,6 +318,7 @@ mcp-server/              # MCP Server לאינטגרציה עם Claude Code (30+
 - [Database Migrations](docs/MIGRATIONS.md) — כיצד להריץ ולהוסיף migrations
 - [Backlog](docs/BACKLOG.md) — תכונות פתוחות לפיתוח עתידי
 - [Scheduled Task Prompt](docs/SCHEDULED_TASK_PROMPT.md) — תהליך דוח בוקר יומי (Noam)
+- [MCP Tools Reference](docs/MCP_TOOLS.md) — inventory מלא, table→module mapping, update process
 
 ---
 

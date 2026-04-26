@@ -126,7 +126,58 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
         </Select>
       </div>
 
-      <div className="bg-card rounded-xl border shadow-sm overflow-x-auto" dir="rtl">
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-2" dir="rtl">
+        {filtered.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">אין תשלומים</p>
+        ) : filtered.map(p => {
+          const displayStatus = getDisplayStatus(p);
+          const isOverdue = displayStatus === "מאוחר";
+          return (
+            <div key={p.id} className={`bg-card rounded-xl border shadow-sm p-4 ${isOverdue ? "border-destructive/40 bg-destructive/5" : ""}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-semibold text-foreground truncate">{supplierName(p.supplier_id)}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{paymentTypeLabels[p.payment_type] || p.payment_type}</p>
+                </div>
+                <div className="shrink-0 text-left">
+                  <p className="font-bold text-foreground" dir="ltr">{currencySymbol[p.currency] || ""}{p.amount.toLocaleString()}</p>
+                  <span className={cn("mt-0.5 inline-block px-2 py-0.5 rounded-full text-xs font-medium", payStatusColors[displayStatus] || "bg-muted text-muted-foreground")}>
+                    {displayStatus}
+                  </span>
+                </div>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                {p.due_date && <span>פירעון: {format(new Date(p.due_date), "dd/MM/yy")}</span>}
+                {p.paid_date && <span>שולם: {format(new Date(p.paid_date), "dd/MM/yy")}</span>}
+              </div>
+              <div className="mt-2 flex gap-2">
+                {p.status !== "שולם" && (
+                  <button
+                    onClick={() => markPaid(p.id)}
+                    className="text-xs text-success hover:underline"
+                  >
+                    ✓ סמן כשולם
+                  </button>
+                )}
+                {p.document_id && (
+                  <button className="text-xs text-accent hover:underline" onClick={() => navigate(`/documents/${p.document_id}`)}>
+                    צפה במסמך
+                  </button>
+                )}
+                {onEdit && (
+                  <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => onEdit(p)}>
+                    <Pencil className="h-3.5 w-3.5 inline" /> עריכה
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block bg-card rounded-xl border shadow-sm overflow-x-auto" dir="rtl">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>

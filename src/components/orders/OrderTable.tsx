@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { type Order, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { Trash2, Copy, ArrowUpDown, ArrowUp, ArrowDown, Zap, CheckCircle, Eye, RefreshCw, CreditCard, Truck } from "lucide-react";
+import { Trash2, Copy, ArrowUpDown, ArrowUp, ArrowDown, Zap, CheckCircle, Eye, RefreshCw, CreditCard, Truck, ShoppingCart } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -14,7 +14,7 @@ import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/c
 import type { ColDef } from "@/hooks/useColumnVisibility";
 import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 
-export type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment" | "workflow" | "tracking_number" | "updated_at" | "pi_number";
+export type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment" | "workflow" | "tracking_number" | "tracking_status" | "updated_at" | "pi_number";
 export type SortDir = "asc" | "desc" | null;
 
 export interface WorkflowInfo {
@@ -39,6 +39,7 @@ const COLUMN_DEFS: ColDef[] = [
   { id: "payment",         label: "תשלום",          sortField: "payment" },
   { id: "workflow",        label: "תהליך",          sortField: "workflow" },
   { id: "tracking_number", label: "מספר מעקב",      sortField: "tracking_number" },
+  { id: "tracking_status", label: "מצב מעקב DHL",   sortField: "tracking_status" },
   { id: "pi_number",       label: "PI Number",       sortField: "pi_number" },
   { id: "updated_at",      label: "עודכן לאחרונה",  sortField: "updated_at" },
 ];
@@ -94,6 +95,104 @@ export function OrderTable({
 
   return (
     <>
+      {/* ── Mobile card list (hidden on md+) ─────────────────────────────── */}
+      <div className="md:hidden space-y-3">
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-14 gap-3 text-center">
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+              <ShoppingCart className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-foreground">אין הזמנות להצגה</p>
+            <p className="text-xs text-muted-foreground">נסה לשנות את הסינון או לחפש שם אחר</p>
+          </div>
+        ) : filtered.map(order => {
+          const paymentStatus = (order as Record<string, unknown>).payment_status as string || "ממתין";
+          const paymentColors: Record<string, string> = {
+            "שולם": "bg-success/15 text-success",
+            "שולם פיקדון": "bg-accent/15 text-accent",
+            "ממתין": "bg-warning/15 text-warning",
+          };
+          return (
+            <div
+              key={order.id}
+              className="bg-card rounded-xl border p-4 space-y-3 cursor-pointer active:bg-muted/50 transition-colors"
+              onClick={() => navigate(`/orders/${order.id}`)}
+              data-navigate-to={`/orders/${order.id}`}
+            >
+              {/* Items + status */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-foreground text-sm line-clamp-2">
+                    {order.items.length === 0 ? "ללא פריטים" : order.items.map(i => i.name).join(", ")}
+                  </p>
+                  {order.supplier_name && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{order.supplier_name}</p>
+                  )}
+                </div>
+                <OrderStatusBadge status={order.status as OrderStatus} />
+              </div>
+
+              {/* Priority + payment + total */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <PriorityBadge priority={order.priority as Priority} />
+                <span className={cn("inline-block px-2 py-0.5 rounded-full text-xs font-medium", paymentColors[paymentStatus] || "bg-muted text-muted-foreground")}>
+                  {paymentStatus}
+                </span>
+                {order.total_price && (
+                  <span className="ms-auto text-sm font-semibold text-foreground">${order.total_price.toLocaleString()}</span>
+                )}
+              </div>
+
+              {/* ETA + tracking */}
+              {(order.eta || order.tracking_number) && (
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  {order.eta && <span>ETA: {new Date(order.eta).toLocaleDateString("he-IL")}</span>}
+                  {order.tracking_number && <span className="font-mono truncate">{order.tracking_number}</span>}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex items-center gap-2 pt-1 border-t border-border/50" onClick={e => e.stopPropagation()}>
+                <PhotoCaptureButton
+                  imageUrl={order.order_image}
+                  storagePath={`orders/${order.id}`}
+                  onSave={async (url) => { await updateOrder(order.id, { order_image: url }); }}
+                  disabled={!hasEdit}
+                />
+                <button
+                  className="p-2 rounded-lg hover:bg-muted transition-colors ms-auto"
+                  title="שכפל הזמנה"
+                  onClick={(e) => handleDuplicateOrder(order.id, e)}
+                >
+                  <Copy className="h-4 w-4 text-muted-foreground" />
+                </button>
+                {hasEdit && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button className="p-2 rounded-lg hover:bg-destructive/10 transition-colors">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>מחיקת הזמנה</AlertDialogTitle>
+                        <AlertDialogDescription>האם למחוק את ההזמנה? פעולה זו לא ניתנת לביטול.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>ביטול</AlertDialogCancel>
+                        <AlertDialogAction onClick={(e) => handleDeleteOrder(order.id, e)} className="bg-destructive text-destructive-foreground">מחק</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Desktop table (hidden on mobile) ─────────────────────────────── */}
+      <div className="hidden md:block">
       <div className="bg-card rounded-xl border shadow-sm overflow-x-auto" dir="rtl">
         <table className="w-full text-sm min-w-[700px]">
           <thead>
@@ -125,7 +224,12 @@ export function OrderTable({
           </thead>
           <tbody className="divide-y">
             {filtered.length === 0 ? (
-              <tr><td colSpan={totalColSpan} className="p-8 text-center text-muted-foreground">אין הזמנות</td></tr>
+              <tr><td colSpan={totalColSpan} className="py-16 text-center">
+                <div className="flex flex-col items-center gap-2">
+                  <ShoppingCart className="h-8 w-8 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">אין הזמנות להצגה</p>
+                </div>
+              </td></tr>
             ) : filtered.map((order) => {
               const isAlreadyPaid = (order as Record<string, unknown>).payment_status === "שולם";
               const orderMenuGroups: ContextMenuGroupItem[][] = [
@@ -355,6 +459,24 @@ export function OrderTable({
                     {isVisible("tracking_number") && (
                       <td className="p-3 text-muted-foreground text-xs">{order.tracking_number || "—"}</td>
                     )}
+                    {isVisible("tracking_status") && (
+                      <td className="p-3 text-xs">
+                        {order.tracking_status ? (
+                          <span className={cn(
+                            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium",
+                            order.tracking_status.toLowerCase().includes("delivered") ? "bg-green-100 text-green-700" :
+                            order.tracking_status.toLowerCase().includes("transit") || order.tracking_status.toLowerCase().includes("shipment") ? "bg-blue-100 text-blue-700" :
+                            order.tracking_status.toLowerCase().includes("exception") || order.tracking_status.toLowerCase().includes("failure") ? "bg-red-100 text-red-700" :
+                            "bg-muted text-muted-foreground"
+                          )}>
+                            <Truck className="h-3 w-3" />
+                            {order.tracking_status}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    )}
                     {isVisible("pi_number") && (
                       <td className="p-3 text-muted-foreground text-xs font-mono">{order.pi_number || "—"}</td>
                     )}
@@ -406,6 +528,7 @@ export function OrderTable({
           </tbody>
         </table>
       </div>
+      </div>{/* end hidden md:block */}
 
       {colMenu && (
         <ColContextMenu

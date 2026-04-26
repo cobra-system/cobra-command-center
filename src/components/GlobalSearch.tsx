@@ -1,20 +1,21 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
-import { Search, Package, Truck, ShoppingCart, ListTodo, FileText, CreditCard, X } from "lucide-react";
+import { Search, Package, Truck, ShoppingCart, ListTodo, FileText, CreditCard, X, Boxes } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 interface SearchResult {
   id: string;
   label: string;
   subtitle?: string;
-  type: "product" | "supplier" | "order" | "task" | "document" | "payment";
+  type: "product" | "component" | "supplier" | "order" | "task" | "document" | "payment";
   path: string;
 }
 
 const typeConfig = {
   product: { icon: Package, label: "מוצר", color: "text-blue-500" },
+  component: { icon: Boxes, label: "פריט", color: "text-sky-500" },
   supplier: { icon: Truck, label: "ספק", color: "text-green-500" },
   order: { icon: ShoppingCart, label: "הזמנה", color: "text-orange-500" },
   task: { icon: ListTodo, label: "משימה", color: "text-purple-500" },
@@ -22,14 +23,23 @@ const typeConfig = {
   payment: { icon: CreditCard, label: "תשלום", color: "text-emerald-500" },
 };
 
-export default function GlobalSearch() {
+interface SearchDoc { id: string; document_name: string | null; document_number: string | null; supplier_id: string | null }
+interface SearchPayment { id: string; supplier_id: string | null; notes: string | null; amount: number | null }
+
+interface GlobalSearchProps {
+  autoFocus?: boolean;
+  onNavigate?: () => void;
+}
+
+export default function GlobalSearch({ autoFocus, onNavigate }: GlobalSearchProps = {}) {
   const navigate = useNavigate();
   const { products, suppliers, orders, tasks } = useData();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const [documents, setDocuments] = useState<any[]>([]);
-  const [payments, setPayments] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<SearchDoc[]>([]);
+  const [payments, setPayments] = useState<SearchPayment[]>([]);
   const ref = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -40,9 +50,13 @@ export default function GlobalSearch() {
   }, []);
 
   useEffect(() => {
+    if (autoFocus) inputRef.current?.focus();
+  }, [autoFocus]);
+
+  useEffect(() => {
     const fetchData = async () => {
       const [docsRes, paymentsRes] = await Promise.all([
-        supabase.from("purchase_documents").select("id, name, supplier_id"),
+        supabase.from("purchase_documents").select("id, document_name, document_number, supplier_id"),
         supabase.from("supplier_payments").select("id, supplier_id, notes, amount"),
       ]);
       if (docsRes.data) setDocuments(docsRes.data);
@@ -63,6 +77,12 @@ export default function GlobalSearch() {
       if (p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || (p.description || "").toLowerCase().includes(q)) {
         res.push({ id: p.id, label: p.name, subtitle: p.sku, type: "product", path: `/products/${p.id}` });
       }
+      for (const comp of p.components ?? []) {
+        if (res.length >= limit) break;
+        if (comp.name.toLowerCase().includes(q) || (comp.sku || "").toLowerCase().includes(q)) {
+          res.push({ id: comp.id, label: comp.name, subtitle: `פריט של ${p.name}`, type: "component", path: `/products/${p.id}/components/${comp.id}` });
+        }
+      }
     }
 
     for (const s of suppliers) {
@@ -74,7 +94,7 @@ export default function GlobalSearch() {
 
     for (const o of orders) {
       if (res.length >= limit) break;
-      if ((o.supplier_name || "").toLowerCase().includes(q) || o.items.some(i => i.name.toLowerCase().includes(q))) {
+      if ((o.supplier_name || "").toLowerCase().includes(q) || o.items.some(i => i.name.toLowerCase().includes(q)) || (o.pi_number || "").toLowerCase().includes(q) || (o.tracking_number || "").toLowerCase().includes(q)) {
         res.push({ id: o.id, label: `הזמנה — ${o.supplier_name || "ללא ספק"}`, subtitle: o.status, type: "order", path: `/orders/${o.id}` });
       }
     }
@@ -88,8 +108,8 @@ export default function GlobalSearch() {
 
     for (const d of documents) {
       if (res.length >= limit) break;
-      if ((d.name || "").toLowerCase().includes(q)) {
-        res.push({ id: d.id, label: d.name || "מסמך ללא שם", subtitle: "מסמך רכש", type: "document", path: `/documents` });
+      if ((d.document_name || "").toLowerCase().includes(q) || (d.document_number || "").toLowerCase().includes(q)) {
+        res.push({ id: d.id, label: d.document_name || "מסמך ללא שם", subtitle: d.document_number || "מסמך רכש", type: "document", path: `/documents` });
       }
     }
 
@@ -103,17 +123,19 @@ export default function GlobalSearch() {
     return res;
   }, [query, products, suppliers, orders, tasks, documents, payments]);
 
-  const handleSelect = (result: SearchResult) => {
+  const handleSelect = useCallback((result: SearchResult) => {
     navigate(result.path);
     setQuery("");
     setOpen(false);
-  };
+    onNavigate?.();
+  }, [navigate, onNavigate]);
 
   return (
     <div ref={ref} className="relative px-3 mb-2">
       <div className="relative">
         <Search className="absolute start-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-sidebar-foreground/40" />
         <Input
+          ref={inputRef}
           value={query}
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}

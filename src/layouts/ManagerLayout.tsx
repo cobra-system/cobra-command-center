@@ -1,5 +1,7 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth, useData } from "@/contexts/AppContext";
+import MobileNavPopup from "@/components/MobileNavPopup";
+import MobileSearchOverlay from "@/components/MobileSearchOverlay";
 import { canView, getModuleKeyFromRoute } from "@/lib/permissions";
 import {
   LayoutDashboard,
@@ -9,7 +11,7 @@ import {
   ListTodo,
   LogOut,
   Menu,
-  X,
+  Search,
   Settings,
   FileText,
   CalendarClock,
@@ -27,11 +29,14 @@ import {
   ExternalLink,
   Bell,
   Map,
+  Moon,
+  Sun,
   type LucideIcon,
 } from "lucide-react";
 import { useAlertCount } from "@/hooks/useAlertCount";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { useState } from "react";
+import { useTheme } from "next-themes";
 import cobraLogo from "@/assets/cobra-logo.png";
 import GlobalSearch from "@/components/GlobalSearch";
 
@@ -79,11 +84,14 @@ export default function ManagerLayout() {
   const { currentUser, logout } = useAuth();
   const { tasks, currentUserPermissions } = useData();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [navItems, setNavItems] = useState(getStoredOrder);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const { theme, setTheme } = useTheme();
 
   const isManager = currentUser?.role === "MANAGER";
   const visibleNavItems = navItems.filter((item) => {
@@ -94,6 +102,7 @@ export default function ManagerLayout() {
   });
   const pendingCount = tasks.filter(t => t.status !== "DONE").length;
   const alertCount = useAlertCount();
+  const pageTitle = defaultNavItems.find(item => location.pathname.startsWith(item.to))?.label ?? "";
 
   const handleLogout = () => {
     logout();
@@ -120,18 +129,12 @@ export default function ManagerLayout() {
 
   return (
     <div className="min-h-screen flex bg-background">
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
-      )}
-
-      {/* Sidebar */}
+      {/* Sidebar (desktop only) */}
       <aside className={`
-        fixed lg:static inset-y-0 right-0 z-50 flex flex-col
+        hidden lg:flex inset-y-0 right-0 z-50 flex-col
         bg-card/95 backdrop-blur-xl border-l border-border/50
         transition-all duration-300 ease-out
         ${collapsed ? "w-[72px]" : "w-[280px]"}
-        ${sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
       `}>
         {/* Logo area */}
         <div className={`h-16 flex items-center border-b border-border/50 ${collapsed ? "justify-center px-2" : "px-5 justify-between"}`}>
@@ -151,9 +154,6 @@ export default function ManagerLayout() {
               onClick={() => { navigate("/dashboard"); window.location.reload(); }}
             />
           )}
-          <button className="lg:hidden text-muted-foreground hover:text-foreground" onClick={() => setSidebarOpen(false)}>
-            <X className="h-5 w-5" />
-          </button>
         </div>
 
         {/* Search */}
@@ -252,8 +252,26 @@ export default function ManagerLayout() {
               </div>
             )}
             {!collapsed && (
-              <button onClick={handleLogout} className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded-md hover:bg-destructive/10">
-                <LogOut className="h-4 w-4" />
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted/60"
+                  title={theme === "dark" ? "מצב בהיר" : "מצב כהה"}
+                >
+                  {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                </button>
+                <button onClick={handleLogout} className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded-md hover:bg-destructive/10">
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+            {collapsed && (
+              <button
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted/60 mt-1"
+                title={theme === "dark" ? "מצב בהיר" : "מצב כהה"}
+              >
+                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </button>
             )}
           </div>
@@ -263,17 +281,38 @@ export default function ManagerLayout() {
       {/* Main content */}
       <main className="flex-1 min-h-screen flex flex-col">
         {/* Mobile header */}
-        <header className="lg:hidden sticky top-0 z-30 bg-card/90 backdrop-blur-xl border-b border-border/50 px-4 py-3 flex items-center justify-between">
-          <img src={cobraLogo} alt="COBRA.IO" className="h-7 opacity-90" />
-          <button onClick={() => setSidebarOpen(true)} className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/60 transition-colors">
+        <header className="lg:hidden sticky top-0 z-30 bg-card/90 backdrop-blur-xl border-b border-border/50 px-4 py-3 flex items-center gap-3">
+          <img src={cobraLogo} alt="COBRA.IO" className="h-6 opacity-90 shrink-0" />
+          <span className="flex-1 text-sm font-semibold text-foreground text-center truncate">{pageTitle}</span>
+          <button onClick={() => setSearchOpen(true)} className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/60 transition-colors shrink-0">
+            <Search className="h-5 w-5" />
+          </button>
+          <button onClick={() => setSidebarOpen(true)} className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/60 transition-colors shrink-0">
             <Menu className="h-5 w-5" />
           </button>
         </header>
 
-        <div className="flex-1 p-3 sm:p-4 lg:p-8 max-w-[1600px] overflow-x-hidden">
+        <div key={location.pathname} className="flex-1 p-3 sm:p-4 lg:p-8 max-w-[1600px] overflow-x-hidden page-fade-in">
           <Outlet />
         </div>
       </main>
+
+      {/* Mobile fullscreen nav popup */}
+      <MobileNavPopup
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        visibleNavItems={visibleNavItems}
+        pendingCount={pendingCount}
+        alertCount={alertCount}
+        currentUser={currentUser}
+        onLogout={handleLogout}
+      />
+
+      {/* Mobile fullscreen search overlay */}
+      <MobileSearchOverlay
+        isOpen={searchOpen}
+        onClose={() => setSearchOpen(false)}
+      />
     </div>
   );
 }

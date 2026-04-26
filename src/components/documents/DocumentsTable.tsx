@@ -91,7 +91,8 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
       result = result.filter(d =>
         supplierName(d.supplier_id).toLowerCase().includes(q) ||
         productName(d.product_id).toLowerCase().includes(q) ||
-        (d.document_name || "").toLowerCase().includes(q)
+        (d.document_name || "").toLowerCase().includes(q) ||
+        (d.document_number || "").toLowerCase().includes(q)
       );
     }
 
@@ -163,7 +164,76 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
         </Select>
       </div>
 
-      <div className="bg-card rounded-xl border shadow-sm overflow-x-auto" dir="rtl">
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-2" dir="rtl">
+        {filtered.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">אין מסמכים</p>
+        ) : filtered.map(doc => {
+          const docName = doc.document_name || doc.notes || "ללא שם";
+          return (
+            <div
+              key={doc.id}
+              className="bg-card rounded-xl border shadow-sm p-4 cursor-pointer active:bg-muted/30 transition-colors"
+              onClick={() => navigate(`/documents/${doc.id}`)}
+            >
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    {doc.file_url && <Paperclip className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                    <p className="font-semibold text-foreground truncate">{docName}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                    <DocTypeBadge type={doc.type} />
+                    <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", docStatusColors[doc.status] || "bg-muted text-muted-foreground")}>
+                      {doc.status}
+                    </span>
+                  </div>
+                </div>
+                {doc.total_price && (
+                  <p className="font-bold text-foreground shrink-0 text-sm" dir="ltr">
+                    {currencySymbol[doc.currency] || ""}{doc.total_price.toLocaleString()}
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                {supplierName(doc.supplier_id) !== "—" && <span>{supplierName(doc.supplier_id)}</span>}
+                {productName(doc.product_id) !== "—" && <span>{productName(doc.product_id)}</span>}
+                {doc.quantity && <span>{doc.quantity} יח׳</span>}
+                <span>{format(new Date(doc.created_at), "dd/MM/yy")}</span>
+              </div>
+              <div className="mt-2 flex gap-3" onClick={e => e.stopPropagation()}>
+                {onEdit && (
+                  <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => onEdit(doc)}>
+                    <Pencil className="h-3.5 w-3.5 inline ml-0.5" />עריכה
+                  </button>
+                )}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button className="text-xs text-destructive hover:underline" disabled={deletingId === doc.id}>
+                      <Trash2 className="h-3.5 w-3.5 inline ml-0.5" />מחק
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogTitle>מחיקת מסמך</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      האם אתה בטוח שברצונך למחוק את המסמך "{docName}"? פעולה זו לא ניתנת לביטול.
+                    </AlertDialogDescription>
+                    <div className="flex gap-2 justify-end">
+                      <AlertDialogCancel>ביטול</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDeleteDocument(doc.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        מחק
+                      </AlertDialogAction>
+                    </div>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block bg-card rounded-xl border shadow-sm overflow-x-auto" dir="rtl">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>

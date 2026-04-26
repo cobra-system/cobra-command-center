@@ -1,4 +1,4 @@
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth, useData } from "@/contexts/AppContext";
 import { LogOut } from "lucide-react";
 import cobraLogo from "@/assets/cobra-logo.png";
@@ -8,6 +8,7 @@ export default function EmployeeLayout() {
   const { currentUser, logout } = useAuth();
   const { tasks } = useData();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const isToday = (dateStr?: string | null) => {
     if (!dateStr) return false;
@@ -54,7 +55,7 @@ export default function EmployeeLayout() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto overflow-x-auto pb-16">
+      <div key={location.pathname} className="flex-1 overflow-y-auto overflow-x-hidden pb-16 page-fade-in">
         <Outlet />
       </div>
 

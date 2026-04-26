@@ -224,7 +224,51 @@ export default function TeamPage() {
           </Dialog>
         )}
       </div>
-      <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-2">
+        {sortedProfiles.map(u => {
+          const roleDisplay = u.role_definition_id
+            ? (roleDefinitions.find(rd => rd.id === u.role_definition_id)?.name ?? getRoleLabel(u.role))
+            : getRoleLabel(u.role);
+          return (
+            <div key={u.id} className="bg-card rounded-xl border shadow-sm p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
+                    {u.name?.[0]}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground truncate">{u.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{roleDisplay}</p>
+                  </div>
+                </div>
+                {isManager && u.role !== "MANAGER" && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleEdit(u)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    {deleteConfirm === u.id ? (
+                      <>
+                        <Button variant="destructive" size="sm" className="h-7 text-xs px-2" onClick={() => handleDelete(u.id)} disabled={submitting}>
+                          {submitting ? "..." : "אישור"}
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => setDeleteConfirm(null)}>ביטול</Button>
+                      </>
+                    ) : (
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive hover:text-destructive" onClick={() => setDeleteConfirm(u.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block bg-card rounded-xl border shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead><tr className="border-b bg-muted/50">
             <th className="text-right p-3 font-semibold text-foreground cursor-pointer select-none" onClick={() => prefs.toggleSort("name")}>

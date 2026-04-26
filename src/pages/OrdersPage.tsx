@@ -175,9 +175,17 @@ export default function OrdersPage() {
       }
       if (search) {
         const q = search.toLowerCase();
-        const itemNames = o.items.map(i => i.name).join(" ").toLowerCase();
-        const supplier = (o.supplier_name || "").toLowerCase();
-        if (!itemNames.includes(q) && !supplier.includes(q)) return false;
+        const searchable = [
+          o.items.map(i => i.name).join(" "),
+          o.supplier_name,
+          o.pi_number,
+          o.tracking_number,
+          o.vessel_name,
+          o.booking_number,
+          o.contact_name,
+          o.notes,
+        ].filter(Boolean).join(" ").toLowerCase();
+        if (!searchable.includes(q)) return false;
       }
       return true;
     });
@@ -321,21 +329,23 @@ export default function OrdersPage() {
       </div>
 
       <Tabs defaultValue="dashboard" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>
-          <TabsTrigger value="table">טבלת הזמנות</TabsTrigger>
-          <TabsTrigger value="archive" className="gap-1.5" dir="ltr">
-            ארכיון הזמנות
-            {archivedOrders.length > 0 && (
-              <span className="bg-muted text-muted-foreground text-xs font-medium px-1.5 py-0.5 rounded-full">
-                {archivedOrders.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="agenda">סדר יום רכש</TabsTrigger>
-          <TabsTrigger value="meeting">ישיבת רכש</TabsTrigger>
-          <TabsTrigger value="shipment-groups">קבוצות משלוח</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-1">
+          <TabsList className="w-max min-w-full">
+            <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>
+            <TabsTrigger value="table">טבלת הזמנות</TabsTrigger>
+            <TabsTrigger value="archive" className="gap-1.5" dir="ltr">
+              ארכיון הזמנות
+              {archivedOrders.length > 0 && (
+                <span className="bg-muted text-muted-foreground text-xs font-medium px-1.5 py-0.5 rounded-full">
+                  {archivedOrders.length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="agenda">סדר יום רכש</TabsTrigger>
+            <TabsTrigger value="meeting">ישיבת רכש</TabsTrigger>
+            <TabsTrigger value="shipment-groups">קבוצות משלוח</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="dashboard" className="mt-0">
           <OrdersDashboardView orders={orders} orderWorkflows={orderWorkflows} suppliers={suppliers} />
