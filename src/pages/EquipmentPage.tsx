@@ -210,6 +210,7 @@ export default function EquipmentPage() {
   const [installers, setInstallers] = useState<Installer[]>([]);
   const [pickups, setPickups] = useState<PickupRaw[]>([]);
   const [returns, setReturns] = useState<ReturnRaw[]>([]);
+  const [divisionProductCounts, setDivisionProductCounts] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "divisions");
@@ -250,7 +251,7 @@ export default function EquipmentPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [instRes, pickRes, retRes] = await Promise.all([
+      const [instRes, pickRes, retRes, dpRes] = await Promise.all([
         supabase
           .from("installers")
           .select("id, name, warehouse_number, division, status, coordinator, phone")
@@ -267,6 +268,7 @@ export default function EquipmentPage() {
             "id, installer_id, return_date, logged_by, equipment_return_items(id, product_id, quantity, reason, reason_detail, sticker_label, is_actually_faulty, serial_numbers)"
           )
           .order("return_date", { ascending: false }),
+        supabase.from("division_products").select("division"),
       ]);
       if (instRes.error) throw instRes.error;
       if (pickRes.error) throw pickRes.error;
@@ -274,6 +276,11 @@ export default function EquipmentPage() {
       setInstallers((instRes.data ?? []) as Installer[]);
       setPickups((pickRes.data ?? []) as PickupRaw[]);
       setReturns((retRes.data ?? []) as ReturnRaw[]);
+      const counts = new Map<string, number>();
+      (dpRes.data ?? []).forEach((row) => {
+        counts.set(row.division, (counts.get(row.division) ?? 0) + 1);
+      });
+      setDivisionProductCounts(counts);
     } catch {
       toast.error("שגיאה בטעינת נתוני הצטיידות");
     } finally {
@@ -318,9 +325,10 @@ export default function EquipmentPage() {
         .reduce((sum, r) => sum + r.equipment_return_items.reduce((s, i) => s + i.quantity, 0), 0);
       const inField = totalTaken - totalReturned;
       const returnPct = totalTaken > 0 ? Math.round((totalReturned / totalTaken) * 100) : 0;
-      return { division: div, activeCount, totalTaken, totalReturned, inField, returnPct };
+      const productCount = divisionProductCounts.get(div) ?? 0;
+      return { division: div, activeCount, totalTaken, totalReturned, inField, returnPct, productCount };
     });
-  }, [installers, pickups, returns]);
+  }, [installers, pickups, returns, divisionProductCounts]);
 
   // ── Filtered + sorted pickups (Tab 2) ──
   const filteredPickups = useMemo(() => {
@@ -625,8 +633,8 @@ export default function EquipmentPage() {
                           <p className="font-bold text-lg">{stat.activeCount}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">בשטח כעת</p>
-                          <p className="font-bold text-lg">{stat.inField}</p>
+                          <p className="text-xs text-muted-foreground">מוצרים</p>
+                          <p className="font-bold text-lg">{stat.productCount}</p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">יצאו (סה"כ)</p>
@@ -681,8 +689,8 @@ export default function EquipmentPage() {
                           <p className="text-xs text-muted-foreground">ישות מסחרית</p>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">בשטח כעת</p>
-                          <p className="font-bold text-lg">{stat.inField}</p>
+                          <p className="text-xs text-muted-foreground">מוצרים</p>
+                          <p className="font-bold text-lg">{stat.productCount}</p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">יצאו (סה"כ)</p>
