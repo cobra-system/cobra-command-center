@@ -5,12 +5,20 @@
 
 ---
 
+## [2026-04-26]
+
+- merge: resolve conflict with main — keep both deleteItemConfirm and trackingLoading states (589404e)
+- UI polish: dark mode, page transitions, delete confirmations, empty states, skeleton (3b3e1d7)
+- fix: add mobile layouts to EquipmentPage tables (tabs 3, 4, 5) (fee4b59)
+- fix: complete mobile responsiveness for remaining pages and layout (e370921)
+- fix: add mobile card layouts for ReorderPage, IssuesPage, SuppliersPage (cdef09d)
+
+<!-- last-commit: 9bd57c32b584e09c4f643970d4711c14dc0e9517 -->
 ## [2026-04-24]
 
 - Merge pull request #159 from cobra-system/claude/new-session-eZGxa (a9601dd)
 - fix: reload PostgREST schema cache after waste_items migration (f55bd7a)
 
-<!-- last-commit: a9601dd5df71d63dbdd8c95d36e7c610ae492a9c -->
 ## [2026-04-24]
 
 - refactor: division_products as single source of truth for product-division mapping (1bbf614)
