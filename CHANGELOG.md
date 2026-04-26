@@ -7,9 +7,13 @@
 
 ## [2026-04-26]
 
+- fix(suppliers): apply missing supplier_number migration + fix error-handling (6d84a87)
+
+<!-- last-commit: 4d4075358ef09a85c974e08bc238eafaa32508ce -->
+## [2026-04-26]
+
 - fix: allow custom role_definitions when creating employees + clearer DHL 401 (94dbe59)
 
-<!-- last-commit: 4e4e461e8d768fdfab9d737cb7dbf5bc228790fe -->
 ## [2026-04-26]
 
 - merge: resolve conflicts with main — scrollable tabs + DHL language fix (86887a5)
