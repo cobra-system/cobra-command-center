@@ -521,7 +521,6 @@ function AddSupplierDialog({ open, onOpenChange, onAdd, onUpdate, editingSupplie
           notes: fields.notes || null,
           supplier_number: fields.supplier_number || null,
         } as Partial<Supplier>);
-        toast.success("הספק עודכן");
       } else {
         await onAdd({
           company: fields.company,
@@ -533,9 +532,10 @@ function AddSupplierDialog({ open, onOpenChange, onAdd, onUpdate, editingSupplie
           notes: fields.notes || null,
           supplier_number: fields.supplier_number || null,
         });
-        toast.success("ספק נוסף בהצלחה");
       }
       onOpenChange(false);
+    } catch {
+      // error toast already shown by context
     } finally {
       setSaving(false);
     }

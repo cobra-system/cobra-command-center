@@ -52,6 +52,7 @@ export function SuppliersProvider({ children }: { children: ReactNode }) {
       logActivity({ action: "supplier.create", entityType: "supplier" });
     } catch (err) {
       handleError(err, "שגיאה בהוספת ספק");
+      throw err;
     }
   }, [queryClient]);
 
@@ -64,6 +65,7 @@ export function SuppliersProvider({ children }: { children: ReactNode }) {
       logActivity({ action: "supplier.update", entityType: "supplier", entityId: id });
     } catch (err) {
       handleError(err, "שגיאה בעדכון ספק");
+      throw err;
     }
   }, [queryClient]);
 
