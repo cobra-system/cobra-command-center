@@ -9,6 +9,7 @@ export const supplierSchema = z.object({
   country: z.string().nullable().optional(),
   payment_terms: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
+  supplier_number: z.string().nullable().optional(),
 });
 
 export const supplierContactSchema = z.object({

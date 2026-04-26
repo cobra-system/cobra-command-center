@@ -215,6 +215,7 @@ export default function SupplierDetailPage() {
           />
         </div>
         <div className="mt-4 pt-4 border-t grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <InlineEditField label="מספר ספק" value={supplier.supplier_number} onSave={(v) => handleInlineSave("supplier_number", v)} disabled={!hasEdit} />
           <InlineEditField label="מדינה" value={supplier.country} onSave={(v) => handleInlineSave("country", v)} disabled={!hasEdit} />
           <InlineEditField label="תנאי תשלום" value={supplier.payment_terms} onSave={(v) => handleInlineSave("payment_terms", v)} disabled={!hasEdit} />
           <InlineEditField label="מוצרים" value={supplier.products} onSave={(v) => handleInlineSave("products", v)} disabled={!hasEdit} />
@@ -573,6 +574,7 @@ function SupplierEditDialog({ open, onOpenChange, supplier, onSave }: {
       products: supplier.products || "",
       notes: supplier.notes || "",
       payment_terms: supplier.payment_terms || "",
+      supplier_number: supplier.supplier_number || "",
     };
     setTimeout(() => setFields(init), 0);
   }
@@ -624,6 +626,10 @@ function SupplierEditDialog({ open, onOpenChange, supplier, onSave }: {
             <div className="space-y-1">
               <Label className="text-xs">אתר</Label>
               <Input value={fields.website ?? ""} onChange={e => set("website", e.target.value)} dir="ltr" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">מספר ספק</Label>
+              <Input value={fields.supplier_number ?? ""} onChange={e => set("supplier_number", e.target.value)} dir="ltr" placeholder="לדוג' 042" />
             </div>
           </div>
           <div className="space-y-1">
