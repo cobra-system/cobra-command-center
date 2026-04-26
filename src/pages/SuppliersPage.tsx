@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth, type Supplier } from "@/contexts/AppContext";
 import { useProductScope } from "@/hooks/useProductScope";
@@ -18,7 +18,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
-type SortKey = "company" | "contact_name" | "email" | "phone" | "country" | "supplier_number";
+type SortKey = "company" | "contact_name" | "email" | "phone" | "country" | "supplier_number" | "product_count" | "order_count";
 
 const COLUMN_DEFS = [
   { id: "supplier_number", label: "מס' ספק",  sortField: "supplier_number" },
@@ -27,6 +27,9 @@ const COLUMN_DEFS = [
   { id: "country",         label: "מקור",      sortField: "country" },
   { id: "email",           label: "אימייל",    sortField: "email" },
   { id: "phone",           label: "טלפון",     sortField: "phone" },
+  { id: "website",         label: "אתר" },
+  { id: "product_count",   label: "מוצרים",   sortField: "product_count" },
+  { id: "order_count",     label: "הזמנות",   sortField: "order_count" },
 ] as const;
 
 interface DuplicateGroup {
@@ -84,7 +87,7 @@ export default function SuppliersPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { hasEdit } = usePermissions("suppliers");
-  const { addSupplier, updateSupplier, deleteSupplier, refreshSuppliers } = useData();
+  const { addSupplier, updateSupplier, deleteSupplier, refreshSuppliers, products } = useData();
   const { scopedSuppliers: suppliers } = useProductScope();
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
@@ -96,7 +99,28 @@ export default function SuppliersPage() {
     sortField: "company",
     filters: { countryFilter: "all" },
   });
-  const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility("suppliers:hidden-columns", COLUMN_DEFS);
+  const [orderCountMap, setOrderCountMap] = useState<Map<string, number>>(new Map());
+  useEffect(() => {
+    supabase.from("orders").select("supplier_id").then(({ data }) => {
+      const map = new Map<string, number>();
+      (data ?? []).forEach(o => {
+        if (o.supplier_id) map.set(o.supplier_id, (map.get(o.supplier_id) ?? 0) + 1);
+      });
+      setOrderCountMap(map);
+    });
+  }, []);
+
+  const productCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    products.forEach(p => {
+      if (p.supplier) map.set(p.supplier, (map.get(p.supplier) ?? 0) + 1);
+    });
+    return map;
+  }, [products]);
+
+  const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility(
+    "suppliers:hidden-columns", COLUMN_DEFS, ["website", "product_count", "order_count"]
+  );
   const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 
   const sortKey = prefs.sortField as SortKey | null;
@@ -118,6 +142,14 @@ export default function SuppliersPage() {
 
     if (sortKey) {
       result = [...result].sort((a, b) => {
+        if (sortKey === "product_count") {
+          const diff = (productCountMap.get(a.company) ?? 0) - (productCountMap.get(b.company) ?? 0);
+          return sortDir === "asc" ? diff : -diff;
+        }
+        if (sortKey === "order_count") {
+          const diff = (orderCountMap.get(a.id) ?? 0) - (orderCountMap.get(b.id) ?? 0);
+          return sortDir === "asc" ? diff : -diff;
+        }
         const av = a[sortKey as keyof Supplier] || "";
         const bv = b[sortKey as keyof Supplier] || "";
         const cmp = String(av).localeCompare(String(bv), "he");
@@ -126,7 +158,7 @@ export default function SuppliersPage() {
     }
 
     return result;
-  }, [suppliers, search, countryFilter, sortKey, sortDir]);
+  }, [suppliers, search, countryFilter, sortKey, sortDir, productCountMap, orderCountMap]);
 
   const duplicateGroups = useMemo(() => detectDuplicates(suppliers), [suppliers]);
 
@@ -218,10 +250,12 @@ export default function SuppliersPage() {
           <thead><tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
             {COLUMN_DEFS.map(col => isVisible(col.id) ? (
               <th key={col.id} className="text-right p-3 font-semibold text-foreground" onContextMenu={colThContextMenu(col, setColMenu)}>
-                <button onClick={() => prefs.toggleSort(col.sortField)} className="flex items-center gap-1 hover:text-accent transition-colors">
-                  {col.label}
-                  <SortIcon col={col.sortField} />
-                </button>
+                {"sortField" in col ? (
+                  <button onClick={() => prefs.toggleSort(col.sortField!)} className="flex items-center gap-1 hover:text-accent transition-colors">
+                    {col.label}
+                    <SortIcon col={col.sortField as SortKey} />
+                  </button>
+                ) : col.label}
               </th>
             ) : null)}
           </tr></thead>
@@ -267,6 +301,9 @@ export default function SuppliersPage() {
                 )}
                 {isVisible("email") && <td className="p-3">{s.email ? <span className="text-accent text-xs" dir="ltr">{s.email}</span> : "—"}</td>}
                 {isVisible("phone") && <td className="p-3 text-muted-foreground" dir="ltr">{s.phone || "—"}</td>}
+                {isVisible("website") && <td className="p-3">{s.website ? <a href={s.website} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-accent text-xs flex items-center gap-1" dir="ltr"><ExternalLink className="h-3 w-3 shrink-0" />{s.website}</a> : "—"}</td>}
+                {isVisible("product_count") && <td className="p-3 text-center tabular-nums">{productCountMap.get(s.company) ?? 0}</td>}
+                {isVisible("order_count") && <td className="p-3 text-center tabular-nums">{orderCountMap.get(s.id) ?? 0}</td>}
               </tr>
               </EntityContextMenu>
               );
