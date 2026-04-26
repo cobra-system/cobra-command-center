@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     }
 
     const dhlRes = await fetch(
-      `${DHL_API_URL}?trackingNumber=${encodeURIComponent(order.tracking_number)}&language=he`,
+      `${DHL_API_URL}?trackingNumber=${encodeURIComponent(order.tracking_number)}`,
       { headers: { "DHL-API-Key": dhlApiKey, "Accept": "application/json" } }
     );
 

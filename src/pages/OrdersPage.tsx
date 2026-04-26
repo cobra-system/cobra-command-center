@@ -342,6 +342,7 @@ export default function OrdersPage() {
               )}
             </TabsTrigger>
             <TabsTrigger value="agenda">סדר יום רכש</TabsTrigger>
+            <TabsTrigger value="meeting">ישיבת רכש</TabsTrigger>
             <TabsTrigger value="shipment-groups">קבוצות משלוח</TabsTrigger>
           </TabsList>
         </div>
@@ -413,6 +414,12 @@ export default function OrdersPage() {
         </TabsContent>
 
         <TabsContent value="agenda" className="mt-0">
+          <Suspense fallback={<div className="p-8 text-center text-muted-foreground">טוען...</div>}>
+            <ProcurementMeetingTab />
+          </Suspense>
+        </TabsContent>
+
+        <TabsContent value="meeting" className="mt-0">
           <Suspense fallback={<div className="p-8 text-center text-muted-foreground">טוען...</div>}>
             <ProcurementMeetingTab />
           </Suspense>

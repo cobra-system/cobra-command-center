@@ -80,6 +80,7 @@ export interface Supplier {
   risk_level?: string | null;
   backup_supplier_id?: string | null;
   website?: string | null;
+  supplier_number?: string | null;
   contacts?: SupplierContact[];
 }
 

@@ -64,8 +64,9 @@ export function registerSupplierTools(server: McpServer) {
       payment_terms: z.string().optional().describe("Payment terms (e.g. Net 30)"),
       risk_level: z.enum(["low", "medium", "high"]).optional().describe("Risk level: low, medium, high"),
       lead_time_days: z.number().optional().describe("Lead time in days"),
+      supplier_number: z.string().optional().describe("Supplier number / internal ID (e.g. '042')"),
     },
-    async ({ company, contact_name, email, phone, role, country, products, notes, payment_terms, risk_level, lead_time_days }) => {
+    async ({ company, contact_name, email, phone, role, country, products, notes, payment_terms, risk_level, lead_time_days, supplier_number }) => {
       const { data, error } = await supabase
         .from("suppliers")
         .insert({
@@ -80,6 +81,7 @@ export function registerSupplierTools(server: McpServer) {
           payment_terms: payment_terms || null,
           risk_level: risk_level || null,
           lead_time_days: lead_time_days ?? null,
+          supplier_number: supplier_number || null,
         })
         .select()
         .single();
@@ -105,6 +107,7 @@ export function registerSupplierTools(server: McpServer) {
       payment_terms: z.string().optional().describe("Payment terms"),
       risk_level: z.enum(["low", "medium", "high"]).optional().describe("Risk level: low, medium, high"),
       lead_time_days: z.number().optional().describe("Lead time in days"),
+      supplier_number: z.string().optional().describe("Supplier number / internal ID (e.g. '042')"),
     },
     async ({ id, ...fields }) => {
       const updates: Record<string, unknown> = {};

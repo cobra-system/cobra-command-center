@@ -18,14 +18,15 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
-type SortKey = "company" | "contact_name" | "email" | "phone" | "country";
+type SortKey = "company" | "contact_name" | "email" | "phone" | "country" | "supplier_number";
 
 const COLUMN_DEFS = [
-  { id: "company",       label: "חברה",      sortField: "company" },
-  { id: "contact_name",  label: "איש קשר",   sortField: "contact_name" },
-  { id: "country",       label: "מקור",      sortField: "country" },
-  { id: "email",         label: "אימייל",    sortField: "email" },
-  { id: "phone",         label: "טלפון",     sortField: "phone" },
+  { id: "supplier_number", label: "מס' ספק",  sortField: "supplier_number" },
+  { id: "company",         label: "חברה",      sortField: "company" },
+  { id: "contact_name",    label: "איש קשר",   sortField: "contact_name" },
+  { id: "country",         label: "מקור",      sortField: "country" },
+  { id: "email",           label: "אימייל",    sortField: "email" },
+  { id: "phone",           label: "טלפון",     sortField: "phone" },
 ] as const;
 
 interface DuplicateGroup {
@@ -251,6 +252,7 @@ export default function SuppliersPage() {
               return (
               <EntityContextMenu key={s.id} groups={supplierMenuGroups}>
               <tr className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/suppliers/${s.id}`)} data-navigate-to={`/suppliers/${s.id}`}>
+                {isVisible("supplier_number") && <td className="p-3 text-muted-foreground font-mono text-sm" dir="ltr">{s.supplier_number || "—"}</td>}
                 {isVisible("company") && <td className="p-3 font-medium text-foreground">{s.company}</td>}
                 {isVisible("contact_name") && <td className="p-3 text-muted-foreground">{s.contact_name}</td>}
                 {isVisible("country") && (
@@ -464,7 +466,7 @@ function AddSupplierDialog({ open, onOpenChange, onAdd, onUpdate, editingSupplie
 }) {
   const navigate = useNavigate();
   const [fields, setFields] = useState({
-    company: "", contact_name: "", email: "", phone: "", country: "ישראל", website: "", notes: "",
+    company: "", contact_name: "", email: "", phone: "", country: "ישראל", website: "", notes: "", supplier_number: "",
   });
   const [saving, setSaving] = useState(false);
   const [addingCountry, setAddingCountry] = useState(false);
@@ -487,9 +489,10 @@ function AddSupplierDialog({ open, onOpenChange, onAdd, onUpdate, editingSupplie
         country: editingSupplier.country || "ישראל",
         website: editingSupplier.website || "",
         notes: editingSupplier.notes || "",
+        supplier_number: editingSupplier.supplier_number || "",
       });
     } else {
-      setFields({ company: "", contact_name: "", email: "", phone: "", country: "ישראל", website: "", notes: "" });
+      setFields({ company: "", contact_name: "", email: "", phone: "", country: "ישראל", website: "", notes: "", supplier_number: "" });
     }
     setAddingCountry(false);
   }, [editingSupplier, open]);
@@ -516,6 +519,7 @@ function AddSupplierDialog({ open, onOpenChange, onAdd, onUpdate, editingSupplie
           country: fields.country || null,
           website: fields.website || null,
           notes: fields.notes || null,
+          supplier_number: fields.supplier_number || null,
         } as Partial<Supplier>);
         toast.success("הספק עודכן");
       } else {
@@ -527,6 +531,7 @@ function AddSupplierDialog({ open, onOpenChange, onAdd, onUpdate, editingSupplie
           country: fields.country || null,
           website: fields.website || null,
           notes: fields.notes || null,
+          supplier_number: fields.supplier_number || null,
         });
         toast.success("ספק נוסף בהצלחה");
       }
@@ -614,6 +619,10 @@ function AddSupplierDialog({ open, onOpenChange, onAdd, onUpdate, editingSupplie
             <div className="space-y-1">
               <Label className="text-xs">אתר</Label>
               <Input value={fields.website} onChange={e => set("website", e.target.value)} dir="ltr" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">מספר ספק</Label>
+              <Input value={fields.supplier_number} onChange={e => set("supplier_number", e.target.value)} dir="ltr" placeholder="לדוג' 042" />
             </div>
           </div>
           <div className="space-y-1">
