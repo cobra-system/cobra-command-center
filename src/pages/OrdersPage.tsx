@@ -2,9 +2,6 @@ import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from "react
 const ProcurementMeetingTab = lazy(() =>
   import("@/components/meetings/ProcurementMeetingTab")
 );
-const ProcurementMeetingTab = lazy(() =>
-  import("@/components/meetings/ProcurementMeetingTab").then(m => ({ default: m.default }))
-);
 const ShipmentGroupsTab = lazy(() =>
   import("@/components/orders/ShipmentGroupsTab").then(m => ({ default: m.ShipmentGroupsTab }))
 );
