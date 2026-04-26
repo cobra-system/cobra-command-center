@@ -12,6 +12,8 @@ import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase";
 
 type SortKey = "name" | "role";
 
+const VALID_BASE_ROLES = ["MANAGER", "WAREHOUSE_MANAGER", "LOGISTICS", "DRIVER"] as const;
+
 
 export default function TeamPage() {
   const { currentUser } = useAuth();
@@ -78,9 +80,14 @@ export default function TeamPage() {
     if (!editingId && (!email.trim() || password.length < 6)) return;
     setSubmitting(true);
 
-    // Derive base app_role from selected role definition's system_key (or fallback to DRIVER)
+    // Derive base app_role from selected role definition's system_key.
+    // Custom role_definitions can carry a non-enum system_key; whitelist against
+    // the actual app_role enum so the backend never rejects it.
     const selectedRoleDef = roleDefinitions.find(rd => rd.id === roleDefId);
-    const baseRole: Role = (selectedRoleDef?.system_key as Role) ?? "DRIVER";
+    const sysKey = selectedRoleDef?.system_key;
+    const baseRole: Role = (VALID_BASE_ROLES as readonly string[]).includes(sysKey ?? "")
+      ? (sysKey as Role)
+      : "DRIVER";
 
     if (editingId) {
       // Update via edge function

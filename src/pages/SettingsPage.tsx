@@ -81,7 +81,14 @@ export default function SettingsPage() {
     }
 
     const selectedRd = nonManagerRoleDefinitions.find(rd => rd.id === empRoleDefId);
-    const resolvedRole: Role = (selectedRd?.system_key as Role) || "DRIVER";
+    // Custom role_definitions may carry a non-enum system_key (e.g. "DIVISION_MANAGER").
+    // Whitelist against the actual app_role enum so the backend never rejects it; the
+    // custom role's identity is still preserved via role_definition_id.
+    const VALID_BASE_ROLES = ["MANAGER", "WAREHOUSE_MANAGER", "LOGISTICS", "DRIVER"] as const;
+    const sysKey = selectedRd?.system_key;
+    const resolvedRole: Role = (VALID_BASE_ROLES as readonly string[]).includes(sysKey ?? "")
+      ? (sysKey as Role)
+      : "DRIVER";
 
     setSubmitting(true);
     if (editingId) {
