@@ -36,7 +36,7 @@ const statusOrder: Record<string, number> = { PENDING: 0, ORDERED: 1, SHIPPED: 2
 
 export default function OrdersPage() {
   const { updateOrderStatus, updateOrder, addOrder, deleteOrder, suppliers } = useData();
-  const { scopedOrders: orders, scopedProducts: products } = useProductScope();
+  const { scopedOrders: orders, scopedProducts: products, scopeOrderItems } = useProductScope();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [orderWorkflows, setOrderWorkflows] = useState<Record<string, WorkflowInfo>>({});
@@ -145,7 +145,7 @@ export default function OrdersPage() {
       .filter(o => {
         if (o.status !== "ARRIVED" && o.status !== "CANCELLED") return false;
         if (q) {
-          const itemNames = o.items.map(i => i.name).join(" ").toLowerCase();
+          const itemNames = scopeOrderItems(o.items).map(i => i.name).join(" ").toLowerCase();
           const supplier = (o.supplier_name || "").toLowerCase();
           if (!itemNames.includes(q) && !supplier.includes(q)) return false;
         }
@@ -156,7 +156,7 @@ export default function OrdersPage() {
         const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
         return dateB - dateA;
       });
-  }, [orders, archiveSearch]);
+  }, [orders, archiveSearch, scopeOrderItems]);
 
   const filtered = useMemo(() => {
     let result = orders.filter(o => {
@@ -176,7 +176,7 @@ export default function OrdersPage() {
       if (search) {
         const q = search.toLowerCase();
         const searchable = [
-          o.items.map(i => i.name).join(" "),
+          scopeOrderItems(o.items).map(i => i.name).join(" "),
           o.supplier_name,
           o.pi_number,
           o.tracking_number,
@@ -195,8 +195,8 @@ export default function OrdersPage() {
         let cmp = 0;
         switch (sortField) {
           case "priority": cmp = (priorityOrder[a.priority] ?? 9) - (priorityOrder[b.priority] ?? 9); break;
-          case "product": cmp = (a.items.map(i => i.name).join(", ")).localeCompare(b.items.map(i => i.name).join(", "), "he"); break;
-          case "qty": cmp = a.items.reduce((s, i) => s + i.qty, 0) - b.items.reduce((s, i) => s + i.qty, 0); break;
+          case "product": cmp = (scopeOrderItems(a.items).map(i => i.name).join(", ")).localeCompare(scopeOrderItems(b.items).map(i => i.name).join(", "), "he"); break;
+          case "qty": cmp = scopeOrderItems(a.items).reduce((s, i) => s + i.qty, 0) - scopeOrderItems(b.items).reduce((s, i) => s + i.qty, 0); break;
           case "supplier": cmp = (a.supplier_name || "").localeCompare(b.supplier_name || "", "he"); break;
           case "shipping": cmp = (a.shipping || "").localeCompare(b.shipping || "", "he"); break;
           case "status": cmp = (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9); break;
@@ -233,7 +233,7 @@ export default function OrdersPage() {
     }
 
     return result;
-  }, [orders, statusFilter, priorityFilter, paymentFilter, workflowFilter, search, sortField, sortDir, orderWorkflows]);
+  }, [orders, statusFilter, priorityFilter, paymentFilter, workflowFilter, search, sortField, sortDir, orderWorkflows, scopeOrderItems]);
 
   const orderCounts = useMemo(() => {
     const counts: Record<string, number> = {};

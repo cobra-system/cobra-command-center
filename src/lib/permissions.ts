@@ -45,3 +45,22 @@ export function getModuleKeyFromRoute(pathname: string): string | null {
 export function getFullPermissionsForManager(): RolePermissions {
   return Object.fromEntries(MODULES.map((m) => [m.key, "edit" as PermissionLevel]));
 }
+
+// Division managers (non-MANAGER role with a division) only get a curated UI:
+// their own division, products, orders, suppliers, and waste management.
+export const DIVISION_MANAGER_ALLOWED_PREFIXES = [
+  "/products",
+  "/orders",
+  "/suppliers",
+  "/waste-management",
+  "/equipment/division",
+  "/equipment/installer",
+];
+
+export function isDivisionManagerAllowedPath(pathname: string): boolean {
+  return DIVISION_MANAGER_ALLOWED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+export function isDivisionManager(user: { role: string; division?: string | null } | null | undefined): boolean {
+  return !!user && user.role !== "MANAGER" && !!user.division;
+}

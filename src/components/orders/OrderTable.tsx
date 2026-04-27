@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { cn } from "@/lib/utils";
 import type { Priority } from "@/contexts/AppContext";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { useProductScope } from "@/hooks/useProductScope";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import type { ColDef } from "@/hooks/useColumnVisibility";
 import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
@@ -90,6 +91,7 @@ export function OrderTable({
   const navigate = useNavigate();
   const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility("orders:hidden-columns", COLUMN_DEFS, ["total_price", "pi_number"]);
   const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
+  const { scopeOrderItems } = useProductScope();
 
   const totalColSpan = visibleCount + 1 + (hasEdit ? 1 : 0);
 
@@ -123,7 +125,10 @@ export function OrderTable({
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-foreground text-sm line-clamp-2">
-                    {order.items.length === 0 ? "ללא פריטים" : order.items.map(i => i.name).join(", ")}
+                    {(() => {
+                      const visibleItems = scopeOrderItems(order.items);
+                      return visibleItems.length === 0 ? "ללא פריטים" : visibleItems.map(i => i.name).join(", ");
+                    })()}
                   </p>
                   {order.supplier_name && (
                     <p className="text-xs text-muted-foreground mt-0.5">{order.supplier_name}</p>
@@ -277,24 +282,27 @@ export function OrderTable({
                     )}
                     {isVisible("product") && (
                       <td className="p-3 font-medium text-foreground max-w-[200px] truncate" onClick={e => e.stopPropagation()}>
-                        {order.items.length === 0 ? (
-                          <span className="text-muted-foreground italic text-xs">ללא פריטים</span>
-                        ) : order.items.map((i, idx) => (
-                          <span key={idx}>
-                            {i.product_id ? (
-                              <button onClick={(e) => navigateToProduct(i.product_id!, e)} className="text-primary hover:underline text-sm">
-                                {i.name}
-                              </button>
-                            ) : (
-                              <span>{i.name}</span>
-                            )}
-                            {idx < order.items.length - 1 && <span>, </span>}
-                          </span>
-                        ))}
+                        {(() => {
+                          const visibleItems = scopeOrderItems(order.items);
+                          return visibleItems.length === 0 ? (
+                            <span className="text-muted-foreground italic text-xs">ללא פריטים</span>
+                          ) : visibleItems.map((i, idx) => (
+                            <span key={idx}>
+                              {i.product_id ? (
+                                <button onClick={(e) => navigateToProduct(i.product_id!, e)} className="text-primary hover:underline text-sm">
+                                  {i.name}
+                                </button>
+                              ) : (
+                                <span>{i.name}</span>
+                              )}
+                              {idx < visibleItems.length - 1 && <span>, </span>}
+                            </span>
+                          ));
+                        })()}
                       </td>
                     )}
                     {isVisible("qty") && (
-                      <td className="p-3 text-muted-foreground">{order.items.reduce((s, i) => s + i.qty, 0) || "—"}</td>
+                      <td className="p-3 text-muted-foreground">{scopeOrderItems(order.items).reduce((s, i) => s + i.qty, 0) || "—"}</td>
                     )}
                     {isVisible("supplier") && (
                       <td className="p-3">

@@ -58,7 +58,7 @@ export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { updateOrderStatus, updateOrder, deleteOrder, refreshOrders, updateProduct, updateComponent } = useData();
-  const { scopedOrders: orders, scopedSuppliers: suppliers, scopedProducts: products } = useProductScope();
+  const { scopedOrders: orders, scopedSuppliers: suppliers, scopedProducts: products, scopeOrderItems } = useProductScope();
 
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleteItemConfirm, setDeleteItemConfirm] = useState<string | null>(null);
@@ -75,6 +75,7 @@ export default function OrderDetailPage() {
   const order = orders.find(o => o.id === id);
   const supplier = order?.supplier_id ? suppliers.find(s => s.id === order.supplier_id) : null;
   const { hasEdit } = usePermissions("orders");
+  const visibleItems = useMemo(() => (order ? scopeOrderItems(order.items) : []), [order, scopeOrderItems]);
 
   const supplierOptions = useMemo(() => suppliers.map(s => ({ value: s.id, label: s.company })), [suppliers]);
 
@@ -281,14 +282,14 @@ export default function OrderDetailPage() {
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-foreground">תיק הזמנה</h1>
           <p className="text-sm text-muted-foreground">
-            {order.items.map((i, idx) => {
+            {visibleItems.map((i, idx) => {
               const linkedProduct = i.product_id ? products.find(p => p.id === i.product_id) : products.find(p => p.name === i.name);
               return (
                 <span key={idx}>
                   {linkedProduct ? (
                     <button onClick={(e) => { e.preventDefault(); navigate(`/products/${linkedProduct.id}`); }} className="text-primary hover:underline cursor-pointer">{i.name}</button>
                   ) : i.name}
-                  {idx < order.items.length - 1 && <span>, </span>}
+                  {idx < visibleItems.length - 1 && <span>, </span>}
                 </span>
               );
             })}
@@ -427,7 +428,7 @@ export default function OrderDetailPage() {
         <div className="p-4 border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Package className="h-4 w-4 text-accent" />
-            <h2 className="font-semibold text-foreground">פריטים ({order.items.length})</h2>
+            <h2 className="font-semibold text-foreground">פריטים ({visibleItems.length})</h2>
           </div>
           {hasEdit && (
             <Button variant="outline" size="sm" onClick={openAddItem}>
@@ -446,7 +447,7 @@ export default function OrderDetailPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {order.items.map(item => {
+            {visibleItems.map(item => {
               const linkedProduct = item.product_id ? products.find(p => p.id === item.product_id) : products.find(p => p.name === item.name);
               return (
                 <tr key={item.id} className={linkedProduct ? "cursor-pointer hover:bg-muted/30" : ""} onClick={() => linkedProduct && navigate(`/products/${linkedProduct.id}`)}>

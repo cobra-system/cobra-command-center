@@ -5,24 +5,20 @@ export function useProductScope() {
   const { currentUser } = useAuth();
   const { products, orders, suppliers } = useData();
 
-  const scope = currentUser?.allowed_product_ids;
-  const isScoped = Array.isArray(scope) && scope.length > 0;
+  const allowedIds = currentUser?.allowed_product_ids;
+  const hasAllowedIds = Array.isArray(allowedIds) && allowedIds.length > 0;
+  // Division managers (non-MANAGER role with a division) get scoped via ProductsContext,
+  // which already filters `products` by division. We extend scoping to orders, suppliers,
+  // and order items so they see a consistent slice of the system.
+  const hasDivisionScope = !!currentUser && currentUser.role !== "MANAGER" && !!currentUser.division;
+  const isScoped = hasAllowedIds || hasDivisionScope;
 
   return useMemo(() => {
-    if (!isScoped) {
-      return {
-        isScoped: false as const,
-        scopedProducts: products,
-        scopedProductIds: new Set(products.map((p) => p.id)),
-        scopedProductNames: new Set(products.map((p) => p.name)),
-        scopedProductSkus: new Set(products.map((p) => p.sku)),
-        scopedOrders: orders,
-        scopedSuppliers: suppliers,
-      };
+    let filtered = products;
+    if (hasAllowedIds) {
+      const allowedSet = new Set(allowedIds);
+      filtered = filtered.filter((p) => allowedSet.has(p.id));
     }
-
-    const scopeSet = new Set(scope);
-    const filtered = products.filter((p) => scopeSet.has(p.id));
     const productIds = new Set(filtered.map((p) => p.id));
     const productNames = new Set(filtered.map((p) => p.name));
     const productSkus = new Set(filtered.map((p) => p.sku));
@@ -38,19 +34,37 @@ export function useProductScope() {
       }
     }
 
-    // An order is in scope when any item references a scoped product —
+    // An item is in scope when it references a scoped product —
     // by id, by product name/sku (free-text), or by component name/sku.
-    const filteredOrders = orders.filter((o) =>
-      o.items.some((item) => {
-        if (item.product_id) return productIds.has(item.product_id);
-        return (
-          productNames.has(item.name) ||
-          productSkus.has(item.name) ||
-          componentNames.has(item.name) ||
-          componentSkus.has(item.name)
-        );
-      })
-    );
+    const itemInScope = (item: { product_id?: string | null; name?: string | null }) => {
+      if (item.product_id) return productIds.has(item.product_id);
+      if (!item.name) return false;
+      return (
+        productNames.has(item.name) ||
+        productSkus.has(item.name) ||
+        componentNames.has(item.name) ||
+        componentSkus.has(item.name)
+      );
+    };
+
+    const scopeOrderItems = <T extends { product_id?: string | null; name?: string | null }>(
+      items: T[],
+    ): T[] => (isScoped ? items.filter(itemInScope) : items);
+
+    if (!isScoped) {
+      return {
+        isScoped: false as const,
+        scopedProducts: filtered,
+        scopedProductIds: productIds,
+        scopedProductNames: productNames,
+        scopedProductSkus: productSkus,
+        scopedOrders: orders,
+        scopedSuppliers: suppliers,
+        scopeOrderItems,
+      };
+    }
+
+    const filteredOrders = orders.filter((o) => o.items.some(itemInScope));
 
     // Suppliers in scope = suppliers of scoped products (direct + components)
     // PLUS suppliers referenced by scoped orders (origin + destination).
@@ -83,6 +97,7 @@ export function useProductScope() {
       scopedProductSkus: productSkus,
       scopedOrders: filteredOrders,
       scopedSuppliers: filteredSuppliers,
+      scopeOrderItems,
     };
-  }, [isScoped, scope, products, orders, suppliers]);
+  }, [isScoped, hasAllowedIds, allowedIds, products, orders, suppliers]);
 }
