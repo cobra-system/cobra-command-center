@@ -7,10 +7,15 @@
 
 ## [2026-04-27]
 
+- Merge pull request #165 from cobra-system/claude/fix-product-order-visibility-01QX3 (a97f1ad)
+- fix: include scoped orders' suppliers in product-scope visibility (90c8a41)
+
+<!-- last-commit: a97f1ad8e72ab324b2ba7b3c53cfbd8b85b21742 -->
+## [2026-04-27]
+
 - Merge pull request #164 from cobra-system/claude/redesign-settings-page-STkBQ (9de26bb)
 - refactor(settings): redesign settings page with tabbed layout (29c3f5c)
 
-<!-- last-commit: 9de26bb77775750caf79638d7bfa18ca3632ae35 -->
 ## [2026-04-26]
 
 - Merge pull request #163 from cobra-system/claude/fix-missing-products-24mFY (3db4f2e)
