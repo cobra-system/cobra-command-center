@@ -7,10 +7,24 @@
 
 ## [2026-04-27]
 
+- Merge pull request #167 from cobra-system/claude/fix-product-order-visibility-mHdRt (0d6d7c5)
+- fix: include orders for product components in scoped user visibility (3c13f37)
+
+<!-- last-commit: 0d6d7c59fc2174bfaaca49615d64f987968cc81e -->
+## [2026-04-27]
+
+- fix(suppliers): show product/order count columns by default, fix product count keying (2eeeeb3)
+
+## [2026-04-27]
+
+- Merge pull request #165 from cobra-system/claude/fix-product-order-visibility-01QX3 (a97f1ad)
+- fix: include scoped orders' suppliers in product-scope visibility (90c8a41)
+
+## [2026-04-27]
+
 - Merge pull request #164 from cobra-system/claude/redesign-settings-page-STkBQ (9de26bb)
 - refactor(settings): redesign settings page with tabbed layout (29c3f5c)
 
-<!-- last-commit: 9de26bb77775750caf79638d7bfa18ca3632ae35 -->
 ## [2026-04-26]
 
 - Merge pull request #163 from cobra-system/claude/fix-missing-products-24mFY (3db4f2e)

@@ -23,16 +23,33 @@ export function useProductScope() {
     const productNames = new Set(filtered.map((p) => p.name));
     const productSkus = new Set(filtered.map((p) => p.sku));
 
+    // Component names/skus of scoped products — orders for sub-items should
+    // also be visible when the parent product is in scope.
+    const componentNames = new Set<string>();
+    const componentSkus = new Set<string>();
+    for (const p of filtered) {
+      for (const c of p.components ?? []) {
+        if (c.name) componentNames.add(c.name);
+        if (c.sku) componentSkus.add(c.sku);
+      }
+    }
+
+    // An item is in scope when it references a scoped product —
+    // by id, by product name/sku (free-text), or by component name/sku.
+    const itemInScope = (item: { product_id?: string | null; name?: string | null }) => {
+      if (item.product_id) return productIds.has(item.product_id);
+      if (!item.name) return false;
+      return (
+        productNames.has(item.name) ||
+        productSkus.has(item.name) ||
+        componentNames.has(item.name) ||
+        componentSkus.has(item.name)
+      );
+    };
+
     const scopeOrderItems = <T extends { product_id?: string | null; name?: string | null }>(
       items: T[],
-    ): T[] => {
-      if (!isScoped) return items;
-      return items.filter((it) => {
-        if (it.product_id && productIds.has(it.product_id)) return true;
-        if (!it.product_id && it.name && productNames.has(it.name)) return true;
-        return false;
-      });
-    };
+    ): T[] => (isScoped ? items.filter(itemInScope) : items);
 
     if (!isScoped) {
       return {
@@ -47,6 +64,12 @@ export function useProductScope() {
       };
     }
 
+    const filteredOrders = orders.filter((o) => o.items.some(itemInScope));
+
+    // Suppliers in scope = suppliers of scoped products (direct + components)
+    // PLUS suppliers referenced by scoped orders (origin + destination).
+    // Without the order-side contribution, a scoped order's supplier can be
+    // hidden from the suppliers list, breaking navigation from order → supplier.
     const supplierIds = new Set<string>();
     for (const p of filtered) {
       if (p.supplier_id) supplierIds.add(p.supplier_id);
@@ -59,10 +82,11 @@ export function useProductScope() {
         }
       }
     }
+    for (const o of filteredOrders) {
+      if (o.supplier_id) supplierIds.add(o.supplier_id);
+      if (o.destination_supplier_id) supplierIds.add(o.destination_supplier_id);
+    }
 
-    const filteredOrders = orders.filter((o) =>
-      o.items.some((item) => item.product_id && productIds.has(item.product_id)),
-    );
     const filteredSuppliers = suppliers.filter((s) => supplierIds.has(s.id));
 
     return {
