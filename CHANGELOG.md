@@ -7,10 +7,17 @@
 
 ## [2026-04-27]
 
+- Merge branch 'main' into claude/hide-technicians-bonded-Fk98e (780eea3)
+- feat(scope): filter order items, not just orders, by user scope (29eeded)
+- feat(auth): give division managers a curated manager UI (dd5df45)
+- refactor(divisions): clean up bonded division view & extend products table (d7d2bf4)
+
+<!-- last-commit: 1d624e9f72bda526c1cdfcd42cb24db4ec21fe5f -->
+## [2026-04-27]
+
 - Merge pull request #167 from cobra-system/claude/fix-product-order-visibility-mHdRt (0d6d7c5)
 - fix: include orders for product components in scoped user visibility (3c13f37)
 
-<!-- last-commit: 0d6d7c59fc2174bfaaca49615d64f987968cc81e -->
 ## [2026-04-27]
 
 - fix(suppliers): show product/order count columns by default, fix product count keying (2eeeeb3)
