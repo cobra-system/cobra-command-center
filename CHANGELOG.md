@@ -5,13 +5,18 @@
 
 ---
 
+## [2026-04-27]
+
+- Merge pull request #164 from cobra-system/claude/redesign-settings-page-STkBQ (9de26bb)
+- refactor(settings): redesign settings page with tabbed layout (29c3f5c)
+
+<!-- last-commit: 9de26bb77775750caf79638d7bfa18ca3632ae35 -->
 ## [2026-04-26]
 
 - Merge pull request #163 from cobra-system/claude/fix-missing-products-24mFY (3db4f2e)
 - feat: add product count, order count, and website columns to suppliers table (cd6012f)
 - feat: show product count instead of field qty on division cards (77b3cd8)
 
-<!-- last-commit: 3db4f2e64fe10768eb2a9796a670d7ed8a7a2183 -->
 ## [2026-04-26]
 
 - fix(suppliers): apply missing supplier_number migration + fix error-handling (6d84a87)
