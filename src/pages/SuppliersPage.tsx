@@ -110,13 +110,13 @@ export default function SuppliersPage() {
   const productCountMap = useMemo(() => {
     const map = new Map<string, number>();
     products.forEach(p => {
-      if (p.supplier) map.set(p.supplier, (map.get(p.supplier) ?? 0) + 1);
+      if (p.supplier_id) map.set(p.supplier_id, (map.get(p.supplier_id) ?? 0) + 1);
     });
     return map;
   }, [products]);
 
   const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility(
-    "suppliers:hidden-columns", COLUMN_DEFS, ["website", "product_count", "order_count"]
+    "suppliers:hidden-columns", COLUMN_DEFS, ["website"]
   );
   const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 
@@ -140,7 +140,7 @@ export default function SuppliersPage() {
     if (sortKey) {
       result = [...result].sort((a, b) => {
         if (sortKey === "product_count") {
-          const diff = (productCountMap.get(a.company) ?? 0) - (productCountMap.get(b.company) ?? 0);
+          const diff = (productCountMap.get(a.id) ?? 0) - (productCountMap.get(b.id) ?? 0);
           return sortDir === "asc" ? diff : -diff;
         }
         if (sortKey === "order_count") {
@@ -299,7 +299,7 @@ export default function SuppliersPage() {
                 {isVisible("email") && <td className="p-3">{s.email ? <span className="text-accent text-xs" dir="ltr">{s.email}</span> : "—"}</td>}
                 {isVisible("phone") && <td className="p-3 text-muted-foreground" dir="ltr">{s.phone || "—"}</td>}
                 {isVisible("website") && <td className="p-3">{s.website ? <a href={s.website} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-accent text-xs flex items-center gap-1" dir="ltr"><ExternalLink className="h-3 w-3 shrink-0" />{s.website}</a> : "—"}</td>}
-                {isVisible("product_count") && <td className="p-3 text-center tabular-nums">{productCountMap.get(s.company) ?? 0}</td>}
+                {isVisible("product_count") && <td className="p-3 text-center tabular-nums">{productCountMap.get(s.id) ?? 0}</td>}
                 {isVisible("order_count") && <td className="p-3 text-center tabular-nums">{orderCountMap.get(s.id) ?? 0}</td>}
               </tr>
               </EntityContextMenu>
