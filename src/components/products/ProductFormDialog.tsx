@@ -19,6 +19,8 @@ interface Props {
   presetSupplierId?: string;
   presetSupplierName?: string;
   presetProductName?: string;
+  presetDivision?: string;
+  onCreated?: () => void;
 }
 
 interface CompDraft {
@@ -33,11 +35,11 @@ interface CompDraft {
 
 const emptyComp = (): CompDraft => ({ name: "", sku: "", supplier: "", origin: "", stock_qty: "", price: "", notes: "" });
 
-export default function ProductFormDialog({ open, onOpenChange, editProduct, presetSupplierId, presetSupplierName, presetProductName }: Props) {
+export default function ProductFormDialog({ open, onOpenChange, editProduct, presetSupplierId, presetSupplierName, presetProductName, presetDivision, onCreated }: Props) {
   const { addProduct, updateProduct, suppliers, products } = useData();
   const navigate = useNavigate();
 
-  const [form, setForm] = useState(() => initForm(editProduct));
+  const [form, setForm] = useState(() => initForm(editProduct, presetDivision));
   const [comps, setComps] = useState<CompDraft[]>(() =>
     editProduct?.components?.map(c => ({
       name: c.name, sku: c.sku || "", supplier: c.supplier || "",
@@ -45,12 +47,12 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
     })) || []
   );
 
-  function initForm(p?: Product | null) {
+  function initForm(p?: Product | null, preDiv?: string) {
     return {
       name: p?.name || (!p && presetProductName) || "",
       sku: p?.sku || "",
       category: p?.category || "מיגון ואיתור",
-      division: p?.division || "",
+      division: p?.division || (!p && preDiv) || "",
       product_type: p?.product_type || "מוגמר",
       supplier: p?.supplier || (!p && presetSupplierName) || "",
       shipping: p?.shipping || "",
@@ -68,7 +70,7 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
   // Reset when dialog opens with new product
   const handleOpenChange = (v: boolean) => {
     if (v) {
-      setForm(initForm(editProduct));
+      setForm(initForm(editProduct, presetDivision));
       setComps(editProduct?.components?.map(c => ({
         name: c.name, sku: c.sku || "", supplier: c.supplier || "",
         origin: c.origin || "", stock_qty: String(c.stock_qty ?? ""), price: String(c.price ?? ""), notes: c.notes || "",
@@ -142,6 +144,7 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
         await updateProduct(editProduct.id, productData);
       } else {
         await addProduct(productData, compData);
+        onCreated?.();
       }
       onOpenChange(false);
     } catch {

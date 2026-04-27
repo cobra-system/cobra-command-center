@@ -56,9 +56,10 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   onCreated: () => void;
   preselectedInstallerId?: string;
+  divisionProductIds?: string[];
 }
 
-export function NewReturnDialog({ open, onOpenChange, onCreated, preselectedInstallerId }: Props) {
+export function NewReturnDialog({ open, onOpenChange, onCreated, preselectedInstallerId, divisionProductIds }: Props) {
   const { products } = useData();
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
@@ -92,14 +93,15 @@ export function NewReturnDialog({ open, onOpenChange, onCreated, preselectedInst
     [installers]
   );
 
-  const productOptions = useMemo(
-    () =>
-      products.map((p) => ({
-        value: p.id,
-        label: p.sku ? `${p.name} · ${p.sku}` : p.name,
-      })),
-    [products]
-  );
+  const productOptions = useMemo(() => {
+    const filtered = divisionProductIds
+      ? products.filter((p) => divisionProductIds.includes(p.id))
+      : products;
+    return filtered.map((p) => ({
+      value: p.id,
+      label: p.sku ? `${p.name} · ${p.sku}` : p.name,
+    }));
+  }, [products, divisionProductIds]);
 
   const updateItem = <K extends keyof ReturnItemRow>(
     idx: number,

@@ -48,6 +48,7 @@ import { NewPickupDialog } from "@/components/equipment/NewPickupDialog";
 import { NewReturnDialog } from "@/components/equipment/NewReturnDialog";
 import { NewInstallerDialog } from "@/components/equipment/NewInstallerDialog";
 import { Combobox } from "@/components/ui/combobox";
+import ProductFormDialog from "@/components/products/ProductFormDialog";
 import { DIVISION_COLORS, BONDED_DIVISIONS } from "@/components/equipment/constants";
 import { canEdit } from "@/lib/permissions";
 import type { ColDef } from "@/hooks/useColumnVisibility";
@@ -220,6 +221,7 @@ export default function DivisionDetailPage() {
   const [expandedPickupId, setExpandedPickupId] = useState<string | null>(null);
   const [showNewPickup, setShowNewPickup] = useState(false);
   const [showNewReturn, setShowNewReturn] = useState(false);
+  const [showNewProduct, setShowNewProduct] = useState(false);
 
   // Installer edit/delete state
   const [editingInstallerData, setEditingInstallerData] = useState<Installer | null>(null);
@@ -638,22 +640,6 @@ export default function DivisionDetailPage() {
     else setDivisionProducts((prev) => prev.filter((dp) => dp.id !== dpId));
   }
 
-  async function importFromHistory() {
-    const allIds = new Set(
-      pickups
-        .filter((p) => divisionInstallerIds.has(p.installer_id))
-        .flatMap((p) => p.equipment_pickup_items.map((i) => i.product_id))
-    );
-    const existing = new Set(divisionProducts.map((dp) => dp.product_id));
-    const newIds = [...allIds].filter((id) => !existing.has(id));
-    if (!newIds.length) { toast.info("כל המוצרים כבר ברשימה"); return; }
-    const { error } = await supabase
-      .from("division_products")
-      .insert(newIds.map((id) => ({ division, product_id: id })));
-    if (error) toast.error("שגיאה בייבוא");
-    else { fetchData(); toast.success(`${newIds.length} מוצרים יובאו`); }
-  }
-
   // ── Contact CRUD ──
   const handleAddContact = async () => {
     if (!form.name.trim()) { toast.error("יש להזין שם"); return; }
@@ -765,9 +751,7 @@ export default function DivisionDetailPage() {
       {/* KPI strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          isBonded
-            ? { label: "סטטוס", value: bondedInstaller?.status ?? "—", icon: Building2, color: "text-blue-600", bg: "bg-blue-50" }
-            : { label: "טכנאים פעילים", value: activeCount, icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
+          { label: "כמות מוצרים", value: divisionProducts.length, icon: Package, color: "text-blue-600", bg: "bg-blue-50" },
           { label: "יצאו (סה״כ)", value: totalTaken, icon: Package, color: "text-indigo-600", bg: "bg-indigo-50" },
           { label: "הוחזרו (סה״כ)", value: totalReturned, icon: PackageX, color: "text-green-600", bg: "bg-green-50" },
           { label: "בשטח כעת", value: inField, icon: TrendingDown, color: returnPctColor(returnPct), bg: returnPct <= 5 ? "bg-green-50" : returnPct <= 15 ? "bg-yellow-50" : "bg-red-50" },
@@ -1011,26 +995,28 @@ export default function DivisionDetailPage() {
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">מוצרי החטיבה</h2>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={importFromHistory}
-              disabled={pickups.length === 0}
-            >
-              ייבא מהיסטוריה
-            </Button>
             {(canEdit(currentUserPermissions, "equipment") || currentUser?.division === division) && (
-              <div className="w-56">
-                <Combobox
-                  value=""
-                  onValueChange={(pid) => { if (pid) addProductToDivision(pid); }}
-                  options={products
-                    .filter((p) => !divisionProducts.some((dp) => dp.product_id === p.id))
-                    .map((p) => ({ value: p.id, label: p.sku ? `${p.name} · ${p.sku}` : p.name }))}
-                  placeholder="הוסף מוצר..."
-                  searchPlaceholder="חיפוש מוצר..."
-                />
-              </div>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNewProduct(true)}
+                >
+                  <Plus className="h-4 w-4 me-1" />
+                  צור מוצר חדש
+                </Button>
+                <div className="w-56">
+                  <Combobox
+                    value=""
+                    onValueChange={(pid) => { if (pid) addProductToDivision(pid); }}
+                    options={products
+                      .filter((p) => !divisionProducts.some((dp) => dp.product_id === p.id))
+                      .map((p) => ({ value: p.id, label: p.sku ? `${p.name} · ${p.sku}` : p.name }))}
+                    placeholder="הוסף מוצר קיים..."
+                    searchPlaceholder="חיפוש מוצר..."
+                  />
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -1072,7 +1058,7 @@ export default function DivisionDetailPage() {
                   {sortedDivisionProducts.length === 0 ? (
                     <tr>
                       <td colSpan={dpColVis.visibleCount + 1} className="text-center p-8 text-muted-foreground">
-                        לא נוספו מוצרים — הוסף ידנית או ייבא מהיסטוריה
+                        לא נוספו מוצרים — הוסף מהרשימה הקיימת או צור מוצר חדש
                       </td>
                     </tr>
                   ) : sortedDivisionProducts.map((dp) => {
@@ -1712,11 +1698,17 @@ export default function DivisionDetailPage() {
       </div>
 
       {/* Dialogs */}
-      <NewPickupDialog open={showNewPickup} onOpenChange={setShowNewPickup} onCreated={fetchData} />
+      <NewPickupDialog
+        open={showNewPickup}
+        onOpenChange={setShowNewPickup}
+        onCreated={fetchData}
+        divisionProductIds={divisionProducts.map((dp) => dp.product_id)}
+      />
       <NewPickupDialog
         open={showEditPickup}
         onOpenChange={(open) => { setShowEditPickup(open); if (!open) setEditingPickupData(null); }}
         onCreated={fetchData}
+        divisionProductIds={divisionProducts.map((dp) => dp.product_id)}
         editingPickup={editingPickupData ? {
           id: editingPickupData.id,
           installer_id: editingPickupData.installer_id,
@@ -1730,7 +1722,18 @@ export default function DivisionDetailPage() {
           })),
         } : null}
       />
-      <NewReturnDialog open={showNewReturn} onOpenChange={setShowNewReturn} onCreated={fetchData} />
+      <NewReturnDialog
+        open={showNewReturn}
+        onOpenChange={setShowNewReturn}
+        onCreated={fetchData}
+        divisionProductIds={divisionProducts.map((dp) => dp.product_id)}
+      />
+      <ProductFormDialog
+        open={showNewProduct}
+        onOpenChange={setShowNewProduct}
+        presetDivision={division}
+        onCreated={fetchData}
+      />
       <NewInstallerDialog
         open={showEditInstaller}
         onOpenChange={(open) => { setShowEditInstaller(open); if (!open) setEditingInstallerData(null); }}

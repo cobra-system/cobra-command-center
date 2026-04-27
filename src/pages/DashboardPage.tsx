@@ -147,7 +147,7 @@ export default function DashboardPage() {
             <ChevronLeft className="h-4 w-4 text-muted-foreground" />
           </div>
         )}
-        {pendingPayments > 0 && (
+        {pendingPayments > 0 && !currentUser?.division && (
           <div onClick={() => navigate("/documents")} data-navigate-to="/documents" className="bg-accent/5 border border-accent/20 rounded-lg p-3 cursor-pointer hover:bg-accent/10 transition-colors flex items-center gap-3">
             <DollarSign className="h-5 w-5 text-accent flex-shrink-0" />
             <div className="flex-1 min-w-0">
