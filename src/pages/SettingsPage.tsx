@@ -1,14 +1,15 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth, useData, roleLabel, type Role, type RoleDefinition } from "@/contexts/AppContext";
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
-  Lock, Pencil, User, Settings,
+  Lock, Pencil, User, Settings, Users, Shield, Bell, Check, X,
 } from "lucide-react";
 import RolePermissionsManager from "@/components/settings/RolePermissionsManager";
 import RoleDefinitionManager from "@/components/settings/RoleDefinitionManager";
@@ -17,9 +18,21 @@ import NotificationSettings from "@/components/settings/NotificationSettings";
 import { passwordChangeSchema } from "@/lib/schemas/passwordSchema";
 import { employeeCreateSchema, employeeUpdateSchema } from "@/lib/schemas/employeeSchema";
 
+type TabKey = "account" | "users" | "roles" | "notifications";
+const VALID_TABS: TabKey[] = ["account", "users", "roles", "notifications"];
+
 export default function SettingsPage() {
   const { currentUser } = useAuth();
   const { profiles, products, updateProfile, createEmployee, refreshProfiles, roleDefinitions, addRoleDefinition, updateRoleDefinition, deleteRoleDefinition } = useData();
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const activeTab: TabKey = (VALID_TABS as string[]).includes(tabParam ?? "") ? (tabParam as TabKey) : "account";
+  const setActiveTab = (key: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", key);
+    setSearchParams(next, { replace: true });
+  };
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -36,8 +49,8 @@ export default function SettingsPage() {
   const [empDivision, setEmpDivision] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Manager profile edit
-  const [managerEditOpen, setManagerEditOpen] = useState(false);
+  // Manager profile inline edit
+  const [managerEditing, setManagerEditing] = useState(false);
   const [managerName, setManagerName] = useState(currentUser?.name || "");
   const [savingManager, setSavingManager] = useState(false);
 
@@ -176,12 +189,18 @@ export default function SettingsPage() {
     setSubmitting(false);
   };
 
+  const startManagerEdit = () => {
+    if (!managerProfile) return;
+    setManagerName(managerProfile.name);
+    setManagerEditing(true);
+  };
+
   const handleSaveManagerName = async () => {
     if (!managerProfile || !managerName.trim()) return;
     setSavingManager(true);
     await updateProfile(managerProfile.id, { name: managerName.trim() });
     setSavingManager(false);
-    setManagerEditOpen(false);
+    setManagerEditing(false);
     toast.success("הפרופיל עודכן");
   };
 
@@ -221,115 +240,147 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-6xl">
       <div className="flex items-center gap-3">
         <Settings className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold text-foreground">הגדרות</h1>
       </div>
 
-      <div className="space-y-6 max-w-4xl">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="h-auto flex-wrap gap-1 p-1">
+          <TabsTrigger value="account" className="gap-2">
+            <User className="h-4 w-4" />
+            חשבון
+          </TabsTrigger>
+          {isManager && (
+            <TabsTrigger value="users" className="gap-2">
+              <Users className="h-4 w-4" />
+              משתמשים
+            </TabsTrigger>
+          )}
+          {isManager && (
+            <TabsTrigger value="roles" className="gap-2">
+              <Shield className="h-4 w-4" />
+              תפקידים והרשאות
+            </TabsTrigger>
+          )}
+          {isManager && (
+            <TabsTrigger value="notifications" className="gap-2">
+              <Bell className="h-4 w-4" />
+              התראות
+            </TabsTrigger>
+          )}
+        </TabsList>
 
-      {/* Manager Profile */}
-      {managerProfile && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-lg"><User className="h-5 w-5" />פרופיל מנהל</div>
-              <Button variant="outline" size="sm" onClick={() => { setManagerName(managerProfile.name); setManagerEditOpen(true); }}>
-                <Pencil className="h-3.5 w-3.5 ml-1" />עריכה
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div><p className="text-xs text-muted-foreground mb-1">שם</p><p className="text-sm font-medium text-foreground">{managerProfile.name}</p></div>
-              <div><p className="text-xs text-muted-foreground mb-1">תפקיד</p><p className="text-sm font-medium text-foreground">{getRoleLabel(managerProfile.role)}</p></div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        <TabsContent value="account" className="space-y-6">
+          {managerProfile && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-lg"><User className="h-5 w-5" />פרופיל מנהל</div>
+                  {!managerEditing && (
+                    <Button variant="outline" size="sm" onClick={startManagerEdit}>
+                      <Pencil className="h-3.5 w-3.5 ml-1" />עריכה
+                    </Button>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {managerEditing ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
+                    <div className="space-y-2">
+                      <Label>שם</Label>
+                      <Input value={managerName} onChange={e => setManagerName(e.target.value)} autoFocus />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={handleSaveManagerName} disabled={savingManager || !managerName.trim()} size="sm">
+                        <Check className="h-4 w-4 ml-1" />{savingManager ? "שומר..." : "שמור"}
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setManagerEditing(false)} disabled={savingManager}>
+                        <X className="h-4 w-4 ml-1" />ביטול
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><p className="text-xs text-muted-foreground mb-1">שם</p><p className="text-sm font-medium text-foreground">{managerProfile.name}</p></div>
+                    <div><p className="text-xs text-muted-foreground mb-1">תפקיד</p><p className="text-sm font-medium text-foreground">{getRoleLabel(managerProfile.role)}</p></div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
-      {/* Role Definitions Management */}
-      {isManager && (
-        <RoleDefinitionManager
-          roleDefinitions={roleDefinitions}
-          roleDialogOpen={roleDialogOpen}
-          setRoleDialogOpen={setRoleDialogOpen}
-          editingRoleId={editingRoleId}
-          roleName={roleName}
-          setRoleName={setRoleName}
-          roleSubmitting={roleSubmitting}
-          roleDeleteConfirm={roleDeleteConfirm}
-          setRoleDeleteConfirm={setRoleDeleteConfirm}
-          onRoleSubmit={handleRoleSubmit}
-          onRoleEdit={handleRoleEdit}
-          onRoleDelete={handleRoleDelete}
-          onRoleFormReset={resetRoleForm}
-        />
-      )}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg"><Lock className="h-5 w-5" />שינוי סיסמה</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 max-w-md">
+              <div className="space-y-2"><Label>סיסמה חדשה</Label><Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="לפחות 6 תווים" /></div>
+              <div className="space-y-2"><Label>אימות סיסמה</Label><Input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="הזן שוב" /></div>
+              <Button onClick={handleChangePassword} disabled={changingPassword || !newPassword || !confirmPassword}>{changingPassword ? "משנה..." : "שנה סיסמה"}</Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {/* Role Permissions Management */}
-      {isManager && <RolePermissionsManager />}
+        {isManager && (
+          <TabsContent value="users" className="space-y-6">
+            <UserManagementTable
+              employees={employees}
+              nonManagerRoleDefinitions={nonManagerRoleDefinitions}
+              getRoleLabel={getRoleLabel}
+              submitting={submitting}
+              employeeOpen={employeeOpen}
+              setEmployeeOpen={setEmployeeOpen}
+              editingId={editingId}
+              empName={empName}
+              setEmpName={setEmpName}
+              empEmail={empEmail}
+              setEmpEmail={setEmpEmail}
+              empPassword={empPassword}
+              setEmpPassword={setEmpPassword}
+              empRoleDefId={empRoleDefId}
+              setEmpRoleDefId={setEmpRoleDefId}
+              empAllowedProductIds={empAllowedProductIds}
+              setEmpAllowedProductIds={setEmpAllowedProductIds}
+              empDivision={empDivision}
+              setEmpDivision={setEmpDivision}
+              products={products}
+              onEmpSubmit={handleEmpSubmit}
+              onEmpReset={resetEmpForm}
+              onEmpEdit={handleEmpEdit}
+              onEmpDelete={handleEmpDelete}
+            />
+          </TabsContent>
+        )}
 
-      {/* Notification Settings */}
-      {isManager && <NotificationSettings />}
+        {isManager && (
+          <TabsContent value="roles" className="space-y-6">
+            <RoleDefinitionManager
+              roleDefinitions={roleDefinitions}
+              roleDialogOpen={roleDialogOpen}
+              setRoleDialogOpen={setRoleDialogOpen}
+              editingRoleId={editingRoleId}
+              roleName={roleName}
+              setRoleName={setRoleName}
+              roleSubmitting={roleSubmitting}
+              roleDeleteConfirm={roleDeleteConfirm}
+              setRoleDeleteConfirm={setRoleDeleteConfirm}
+              onRoleSubmit={handleRoleSubmit}
+              onRoleEdit={handleRoleEdit}
+              onRoleDelete={handleRoleDelete}
+              onRoleFormReset={resetRoleForm}
+            />
+            <RolePermissionsManager />
+          </TabsContent>
+        )}
 
-      {/* Change Password */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg"><Lock className="h-5 w-5" />שינוי סיסמה</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 max-w-md">
-          <div className="space-y-2"><Label>סיסמה חדשה</Label><Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="לפחות 6 תווים" /></div>
-          <div className="space-y-2"><Label>אימות סיסמה</Label><Input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="הזן שוב" /></div>
-          <Button onClick={handleChangePassword} disabled={changingPassword || !newPassword || !confirmPassword}>{changingPassword ? "משנה..." : "שנה סיסמה"}</Button>
-        </CardContent>
-      </Card>
-
-      </div>{/* end max-w-4xl */}
-
-      {/* Users Management */}
-      {isManager && (
-        <UserManagementTable
-          employees={employees}
-          nonManagerRoleDefinitions={nonManagerRoleDefinitions}
-          getRoleLabel={getRoleLabel}
-          submitting={submitting}
-          employeeOpen={employeeOpen}
-          setEmployeeOpen={setEmployeeOpen}
-          editingId={editingId}
-          empName={empName}
-          setEmpName={setEmpName}
-          empEmail={empEmail}
-          setEmpEmail={setEmpEmail}
-          empPassword={empPassword}
-          setEmpPassword={setEmpPassword}
-          empRoleDefId={empRoleDefId}
-          setEmpRoleDefId={setEmpRoleDefId}
-          empAllowedProductIds={empAllowedProductIds}
-          setEmpAllowedProductIds={setEmpAllowedProductIds}
-          empDivision={empDivision}
-          setEmpDivision={setEmpDivision}
-          products={products}
-          onEmpSubmit={handleEmpSubmit}
-          onEmpReset={resetEmpForm}
-          onEmpEdit={handleEmpEdit}
-          onEmpDelete={handleEmpDelete}
-        />
-      )}
-
-      {/* Manager Edit Dialog */}
-      <Dialog open={managerEditOpen} onOpenChange={setManagerEditOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader><DialogTitle>עריכת פרופיל מנהל</DialogTitle></DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="space-y-2"><Label>שם</Label><Input value={managerName} onChange={e => setManagerName(e.target.value)} /></div>
-            <Button onClick={handleSaveManagerName} disabled={savingManager || !managerName.trim()} className="w-full">
-              {savingManager ? "שומר..." : "שמור"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+        {isManager && (
+          <TabsContent value="notifications" className="space-y-6">
+            <NotificationSettings />
+          </TabsContent>
+        )}
+      </Tabs>
     </div>
   );
 }
