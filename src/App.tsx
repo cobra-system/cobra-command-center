@@ -8,7 +8,7 @@ import { AppProvider, useAuth, useData } from "@/contexts/AppContext";
 import { Suspense, lazy, useState, useCallback } from "react";
 import SplashScreen from "@/components/SplashScreen";
 import { useMiddleClickNavigation } from "@/hooks/useMiddleClickNavigation";
-import { canView, getModuleKeyFromRoute, MODULES } from "@/lib/permissions";
+import { canView, getModuleKeyFromRoute, MODULES, isDivisionManager, isDivisionManagerAllowedPath } from "@/lib/permissions";
 import { ThemeProvider } from "next-themes";
 
 // Eager: needed on first render
@@ -54,11 +54,18 @@ const queryClient = new QueryClient({
   },
 });
 
+function divisionHome(division: string) {
+  return `/equipment/division/${encodeURIComponent(division)}`;
+}
+
 function RequireManager() {
   const { currentUser, loading } = useAuth();
   if (loading) return null;
   if (!currentUser) return <Navigate to="/login" replace />;
-  if (currentUser.role !== "MANAGER") return <Navigate to="/my-tasks" replace />;
+  if (currentUser.role !== "MANAGER") {
+    if (isDivisionManager(currentUser)) return <Navigate to={divisionHome(currentUser.division!)} replace />;
+    return <Navigate to="/my-tasks" replace />;
+  }
   return <ManagerLayout />;
 }
 
@@ -69,6 +76,14 @@ function RequirePermission() {
   if (loading) return null;
   if (!currentUser) return <Navigate to="/login" replace />;
   if (currentUser.role === "MANAGER") return <ManagerLayout />;
+
+  // Division managers get the rich Manager UI but only on a curated set of pages.
+  if (isDivisionManager(currentUser)) {
+    if (!isDivisionManagerAllowedPath(location.pathname)) {
+      return <Navigate to={divisionHome(currentUser.division!)} replace />;
+    }
+    return <ManagerLayout />;
+  }
 
   // Non-managers cannot access these manager-only modules
   const managerOnlyPaths = ["/dashboard", "/suppliers", "/reports"];
@@ -87,6 +102,8 @@ function RequireAuth() {
   const { currentUser, loading } = useAuth();
   if (loading) return null;
   if (!currentUser) return <Navigate to="/login" replace />;
+  // Division managers don't use /my-tasks — bounce them to their division.
+  if (isDivisionManager(currentUser)) return <Navigate to={divisionHome(currentUser.division!)} replace />;
   return <EmployeeLayout />;
 }
 
@@ -95,7 +112,7 @@ function RootRedirect() {
   if (loading) return null;
   if (!currentUser) return <Navigate to="/login" replace />;
   if (currentUser.role === "MANAGER") return <Navigate to="/dashboard" replace />;
-  if (currentUser.division) return <Navigate to={`/equipment/division/${encodeURIComponent(currentUser.division)}`} replace />;
+  if (currentUser.division) return <Navigate to={divisionHome(currentUser.division)} replace />;
   return <Navigate to="/my-tasks" replace />;
 }
 

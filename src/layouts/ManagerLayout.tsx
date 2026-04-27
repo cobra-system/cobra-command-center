@@ -2,7 +2,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth, useData } from "@/contexts/AppContext";
 import MobileNavPopup from "@/components/MobileNavPopup";
 import MobileSearchOverlay from "@/components/MobileSearchOverlay";
-import { canView, getModuleKeyFromRoute } from "@/lib/permissions";
+import { canView, getModuleKeyFromRoute, isDivisionManager } from "@/lib/permissions";
 import {
   LayoutDashboard,
   Package,
@@ -94,15 +94,28 @@ export default function ManagerLayout() {
   const { theme, setTheme } = useTheme();
 
   const isManager = currentUser?.role === "MANAGER";
-  const visibleNavItems = navItems.filter((item) => {
-    if (isManager) return true;
-    if (item.to === "/settings") return false;
-    const moduleKey = getModuleKeyFromRoute(item.to);
-    return moduleKey ? canView(currentUserPermissions, moduleKey) : false;
-  });
+  const divisionManager = isDivisionManager(currentUser);
+  const visibleNavItems = divisionManager
+    ? [
+        { to: `/equipment/division/${encodeURIComponent(currentUser!.division!)}`, icon: "Boxes", label: "החטיבה שלי" },
+        { to: "/products", icon: "Package", label: "מוצרים" },
+        { to: "/orders", icon: "ShoppingCart", label: "הזמנות" },
+        { to: "/suppliers", icon: "Truck", label: "ספקים" },
+        { to: "/waste-management", icon: "Recycle", label: "ניהול בלאי" },
+      ]
+    : navItems.filter((item) => {
+        if (isManager) return true;
+        if (item.to === "/settings") return false;
+        const moduleKey = getModuleKeyFromRoute(item.to);
+        return moduleKey ? canView(currentUserPermissions, moduleKey) : false;
+      });
   const pendingCount = tasks.filter(t => t.status !== "DONE").length;
   const alertCount = useAlertCount();
-  const pageTitle = defaultNavItems.find(item => location.pathname.startsWith(item.to))?.label ?? "";
+  const pageTitle =
+    visibleNavItems.find(item => location.pathname.startsWith(item.to))?.label ??
+    defaultNavItems.find(item => location.pathname.startsWith(item.to))?.label ??
+    "";
+  const navDraggable = !divisionManager;
 
   const handleLogout = () => {
     logout();
@@ -143,7 +156,10 @@ export default function ManagerLayout() {
               src={cobraLogo}
               alt="COBRA.IO"
               className="h-8 cursor-pointer opacity-90 hover:opacity-100 transition-opacity"
-              onClick={() => { navigate("/dashboard"); window.location.reload(); }}
+              onClick={() => {
+                navigate(divisionManager ? `/equipment/division/${encodeURIComponent(currentUser!.division!)}` : "/dashboard");
+                window.location.reload();
+              }}
             />
           )}
           {collapsed && (
@@ -151,7 +167,10 @@ export default function ManagerLayout() {
               src={cobraLogo}
               alt="COBRA.IO"
               className="h-7 cursor-pointer opacity-90 hover:opacity-100 transition-opacity"
-              onClick={() => { navigate("/dashboard"); window.location.reload(); }}
+              onClick={() => {
+                navigate(divisionManager ? `/equipment/division/${encodeURIComponent(currentUser!.division!)}` : "/dashboard");
+                window.location.reload();
+              }}
             />
           )}
         </div>
@@ -176,16 +195,16 @@ export default function ManagerLayout() {
             return (
               <EntityContextMenu key={item.to} groups={navMenuGroups}>
               <div
-                draggable={!collapsed}
-                onDragStart={() => handleDragStart(index)}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDrop={() => handleDrop(index)}
-                onDragEnd={handleDragEnd}
+                draggable={navDraggable && !collapsed}
+                onDragStart={navDraggable ? () => handleDragStart(index) : undefined}
+                onDragOver={navDraggable ? (e) => handleDragOver(e, index) : undefined}
+                onDrop={navDraggable ? () => handleDrop(index) : undefined}
+                onDragEnd={navDraggable ? handleDragEnd : undefined}
                 className={`flex items-center group transition-all ${
-                  dragOverIndex === index ? "border-t-2 border-primary/60" : ""
-                } ${dragIndex === index ? "opacity-50" : ""}`}
+                  navDraggable && dragOverIndex === index ? "border-t-2 border-primary/60" : ""
+                } ${navDraggable && dragIndex === index ? "opacity-50" : ""}`}
               >
-                {!collapsed && (
+                {navDraggable && !collapsed && (
                   <div className="opacity-0 group-hover:opacity-60 cursor-grab active:cursor-grabbing px-2 text-muted-foreground transition-opacity duration-200">
                     <GripVertical className="h-4 w-4" />
                   </div>
