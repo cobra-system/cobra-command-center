@@ -7,10 +7,14 @@
 
 ## [2026-04-27]
 
+- fix(suppliers): show product/order count columns by default, fix product count keying (2eeeeb3)
+
+<!-- last-commit: c35d0e24b3afb64e7e78df866a09e56058ba158e -->
+## [2026-04-27]
+
 - Merge pull request #165 from cobra-system/claude/fix-product-order-visibility-01QX3 (a97f1ad)
 - fix: include scoped orders' suppliers in product-scope visibility (90c8a41)
 
-<!-- last-commit: a97f1ad8e72ab324b2ba7b3c53cfbd8b85b21742 -->
 ## [2026-04-27]
 
 - Merge pull request #164 from cobra-system/claude/redesign-settings-page-STkBQ (9de26bb)
