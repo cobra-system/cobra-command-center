@@ -27,12 +27,28 @@ export function useProductScope() {
     const productNames = new Set(filtered.map((p) => p.name));
     const productSkus = new Set(filtered.map((p) => p.sku));
 
+    // Component names/skus of scoped products — orders for sub-items should
+    // also be visible when the parent product is in scope.
+    const componentNames = new Set<string>();
+    const componentSkus = new Set<string>();
+    for (const p of filtered) {
+      for (const c of p.components ?? []) {
+        if (c.name) componentNames.add(c.name);
+        if (c.sku) componentSkus.add(c.sku);
+      }
+    }
+
     // An order is in scope when any item references a scoped product —
-    // either by id, or by name/sku for free-text items where product_id is null.
+    // by id, by product name/sku (free-text), or by component name/sku.
     const filteredOrders = orders.filter((o) =>
       o.items.some((item) => {
         if (item.product_id) return productIds.has(item.product_id);
-        return productNames.has(item.name);
+        return (
+          productNames.has(item.name) ||
+          productSkus.has(item.name) ||
+          componentNames.has(item.name) ||
+          componentSkus.has(item.name)
+        );
       })
     );
 
