@@ -7,9 +7,13 @@
 
 ## [2026-04-29]
 
+- feat: add QuantityBar battery-style stock level indicator (cf16317)
+
+<!-- last-commit: aeba203961c302af0fe49b6bf23550b8788b7a6b -->
+## [2026-04-29]
+
 - fix: product deletion now succeeds and shows impact preview before confirming (acdc97a)
 
-<!-- last-commit: 9d27c87fd60406b39ee65fb4c3469a974030f7f5 -->
 ## [2026-04-29]
 
 - Division page: product count KPI, create product from division, filter pickups to division products (d4b5329)
