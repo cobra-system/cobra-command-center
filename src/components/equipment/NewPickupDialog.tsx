@@ -53,9 +53,10 @@ interface Props {
   onCreated: () => void;
   preselectedInstallerId?: string;
   editingPickup?: EditingPickup | null;
+  divisionProductIds?: string[];
 }
 
-export function NewPickupDialog({ open, onOpenChange, onCreated, preselectedInstallerId, editingPickup }: Props) {
+export function NewPickupDialog({ open, onOpenChange, onCreated, preselectedInstallerId, editingPickup, divisionProductIds }: Props) {
   const { products } = useData();
   const { user } = useAuth();
   const isEdit = !!editingPickup;
@@ -107,14 +108,15 @@ export function NewPickupDialog({ open, onOpenChange, onCreated, preselectedInst
     [installers]
   );
 
-  const productOptions = useMemo(
-    () =>
-      products.map((p) => ({
-        value: p.id,
-        label: p.sku ? `${p.name} · ${p.sku}` : p.name,
-      })),
-    [products]
-  );
+  const productOptions = useMemo(() => {
+    const filtered = divisionProductIds
+      ? products.filter((p) => divisionProductIds.includes(p.id))
+      : products;
+    return filtered.map((p) => ({
+      value: p.id,
+      label: p.sku ? `${p.name} · ${p.sku}` : p.name,
+    }));
+  }, [products, divisionProductIds]);
 
   const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
