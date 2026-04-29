@@ -133,17 +133,44 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
 
   const deleteProduct = useCallback(async (id: string) => {
     try {
-      const { error: oiError } = await supabase.from("order_items").update({ product_id: null }).eq("product_id", id);
-      if (oiError) throw oiError;
-      const { error: compError } = await supabase.from("product_components").delete().eq("product_id", id);
-      if (compError) throw compError;
+      // Nullify references in tables where product_id is nullable
+      const nullifyOps = [
+        supabase.from("order_items").update({ product_id: null }).eq("product_id", id),
+        supabase.from("compliance_items").update({ product_id: null }).eq("product_id", id),
+        supabase.from("inventory_change_log").update({ product_id: null }).eq("product_id", id),
+        supabase.from("inventory_transfers").update({ product_id: null }).eq("product_id", id),
+        supabase.from("purchase_documents").update({ product_id: null }).eq("product_id", id),
+        supabase.from("supplier_price_quotes").update({ product_id: null }).eq("product_id", id),
+      ];
+      const nullifyResults = await Promise.all(nullifyOps);
+      for (const { error } of nullifyResults) {
+        if (error) throw error;
+      }
+
+      // Delete records that require product_id (NOT NULL)
+      const deleteOps = [
+        supabase.from("product_components").delete().eq("product_id", id),
+        supabase.from("center_inventory").delete().eq("product_id", id),
+        supabase.from("compliance_product_links").delete().eq("product_id", id),
+        supabase.from("product_issues").delete().eq("product_id", id),
+        supabase.from("equipment_pickup_items").delete().eq("product_id", id),
+        supabase.from("equipment_return_items").delete().eq("product_id", id),
+        supabase.from("warehouse_zone_products").delete().eq("product_id", id),
+      ];
+      const deleteResults = await Promise.all(deleteOps);
+      for (const { error } of deleteResults) {
+        if (error) throw error;
+      }
+
       const { error: prodError } = await supabase.from("products").delete().eq("id", id);
       if (prodError) throw prodError;
+
       await queryClient.refetchQueries({ queryKey: ["products"] });
       toast.success("מוצר נמחק בהצלחה");
       logActivity({ action: "product.delete", entityType: "product", entityId: id });
     } catch (err) {
       handleError(err, "שגיאה במחיקת מוצר: " + (err instanceof Error ? err.message : "נסה שוב"));
+      throw err;
     }
   }, [queryClient]);
 

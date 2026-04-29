@@ -9,13 +9,12 @@ import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/Entit
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import ProductFormDialog from "@/components/products/ProductFormDialog";
+import ProductDeleteDialog from "@/components/products/ProductDeleteDialog";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { usePermissions } from "@/hooks/usePermissions";
-import { toast } from "sonner";
 
 type SortKey = "name" | "sku" | "product_type" | "supplier" | "stock_qty" | "incoming_qty" | "purchase_price" | "monthly_order" | "sale_price" | "monthly_sales" | "category" | "lead_time_days" | "monthly_sales_avg" | "division" | "shipping";
 
@@ -69,6 +68,7 @@ export default function ProductsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const prefs = useTablePreferences("ProductsPage", {
     sortField: "name",
@@ -122,10 +122,18 @@ export default function ProductsPage() {
     return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   };
 
-  const handleDelete = async (productId: string, e?: React.MouseEvent) => {
+  const openDeleteDialog = (product: Product, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    await deleteProduct(productId);
-    toast.success("המוצר נמחק");
+    setDeleteTarget({ id: product.id, name: product.name });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteProduct(deleteTarget.id);
+    } finally {
+      setDeleteTarget(null);
+    }
   };
 
   const toggleExpand = (id: string) => setExpandedId(prev => prev === id ? null : id);
@@ -228,23 +236,9 @@ export default function ProductsPage() {
                         </span>
                       )}
                       {hasEdit && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <button onClick={e => e.stopPropagation()} className="p-1.5 rounded hover:bg-destructive/10 transition-colors">
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>מחיקת מוצר</AlertDialogTitle>
-                              <AlertDialogDescription>האם למחוק את "{p.name}"? פעולה זו לא ניתנת לביטול.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>ביטול</AlertDialogCancel>
-                              <AlertDialogAction onClick={(e) => handleDelete(p.id, e)} className="bg-destructive text-destructive-foreground">מחק</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <button onClick={e => openDeleteDialog(p, e)} className="p-1.5 rounded hover:bg-destructive/10 transition-colors">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </button>
                       )}
                     </div>
                     <div className="flex items-center gap-2 text-sm">
@@ -341,7 +335,7 @@ export default function ProductsPage() {
                   { label: "העתק מקט", icon: Hash, onClick: () => { navigator.clipboard.writeText(p.sku); toast.success("המקט הועתק"); }, hidden: !p.sku },
                 ],
                 [
-                  { label: "מחק מוצר", icon: Trash2, onClick: () => handleDelete(p.id), variant: "destructive" as const, hidden: !hasEdit, confirmTitle: "מחיקת מוצר", confirmDescription: `האם למחוק את "${p.name}"? פעולה זו לא ניתנת לביטול.` },
+                  { label: "מחק מוצר", icon: Trash2, onClick: () => openDeleteDialog(p), variant: "destructive" as const, hidden: !hasEdit },
                 ],
               ];
 
@@ -437,23 +431,9 @@ export default function ProductsPage() {
                     {isVisible("shipping") && <td className="p-2 sm:p-3 text-muted-foreground">{p.shipping || "—"}</td>}
                     {hasEdit && (
                       <td className="p-3" onClick={e => e.stopPropagation()}>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <button className="p-1 rounded hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100">
-                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                            </button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>מחיקת מוצר</AlertDialogTitle>
-                              <AlertDialogDescription>האם למחוק את "{p.name}"? פעולה זו לא ניתנת לביטול.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>ביטול</AlertDialogCancel>
-                              <AlertDialogAction onClick={(e) => handleDelete(p.id, e)} className="bg-destructive text-destructive-foreground">מחק</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <button onClick={e => openDeleteDialog(p, e)} className="p-1 rounded hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100">
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </button>
                       </td>
                     )}
                   </tr>
@@ -546,6 +526,16 @@ export default function ProductsPage() {
       )}
 
       <ProductFormDialog open={formOpen} onOpenChange={setFormOpen} editProduct={editProduct} />
+
+      {deleteTarget && (
+        <ProductDeleteDialog
+          open={!!deleteTarget}
+          productId={deleteTarget.id}
+          productName={deleteTarget.name}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
     </div>
   );
 }
