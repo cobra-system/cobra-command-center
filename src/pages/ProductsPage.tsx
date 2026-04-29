@@ -15,6 +15,8 @@ import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { usePermissions } from "@/hooks/usePermissions";
+import { QuantityBar } from "@/components/ui/QuantityBar";
+import { toast } from "sonner";
 
 type SortKey = "name" | "sku" | "product_type" | "supplier" | "stock_qty" | "incoming_qty" | "purchase_price" | "monthly_order" | "sale_price" | "monthly_sales" | "category" | "lead_time_days" | "monthly_sales_avg" | "division" | "shipping";
 
@@ -60,7 +62,7 @@ function CompositeIncomingBadge({ m }: { m: ProductMetrics | undefined }) {
 }
 
 export default function ProductsPage() {
-  const { suppliers, deleteProduct } = useData();
+  const { suppliers, deleteProduct, updateProduct } = useData();
   const { scopedProducts: products } = useProductScope();
   const navigate = useNavigate();
   const [category, setCategory] = useState("הכל");
@@ -241,9 +243,17 @@ export default function ProductsPage() {
                         </button>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className={`font-bold ${p.stock_qty === 0 ? "text-destructive" : "text-foreground"}`}>{p.stock_qty}</span>
-                      {(metrics[p.id]?.incomingQty ?? 0) > 0 ? <span className="text-xs text-muted-foreground">+{metrics[p.id]?.incomingQty}</span> : null}
+                    <div className="w-20" onClick={e => e.stopPropagation()}>
+                      <QuantityBar
+                        value={p.stock_qty}
+                        min={p.reorder_point ?? 0}
+                        max={p.monthly_order ?? 0}
+                        onMinChange={v => updateProduct(p.id, { reorder_point: v })}
+                        onMaxChange={v => updateProduct(p.id, { monthly_order: v })}
+                      />
+                      {(metrics[p.id]?.incomingQty ?? 0) > 0 && (
+                        <span className="text-xs text-muted-foreground">+{metrics[p.id]?.incomingQty} עול"ב</span>
+                      )}
                     </div>
                     <span className="text-xs text-muted-foreground">מלאי</span>
                   </div>
@@ -387,7 +397,18 @@ export default function ProductsPage() {
                         ) : <span className="text-muted-foreground">—</span>}
                       </td>
                     )}
-                    {isVisible("stock_qty") && <td className={`p-2 sm:p-3 font-semibold ${p.stock_qty === 0 ? "text-destructive" : "text-foreground"}`}>{p.stock_qty}</td>}
+                    {isVisible("stock_qty") && (
+                      <td className="p-2 sm:p-3" onClick={e => e.stopPropagation()}>
+                        <QuantityBar
+                          value={p.stock_qty}
+                          min={p.reorder_point ?? 0}
+                          max={p.monthly_order ?? 0}
+                          onMinChange={v => updateProduct(p.id, { reorder_point: v })}
+                          onMaxChange={v => updateProduct(p.id, { monthly_order: v })}
+                          className="min-w-[80px]"
+                        />
+                      </td>
+                    )}
                     {isVisible("incoming_qty") && (
                       <td className="p-2 sm:p-3">
                         {isComposite ? (

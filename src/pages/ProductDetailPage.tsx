@@ -17,6 +17,7 @@ import { useProductScope } from "@/hooks/useProductScope";
 import { useProductSupplierPayments } from "@/hooks/useProductSupplierPayments";
 import { toast } from "sonner";
 import { ProductDetailsGrid } from "@/components/product-detail/ProductDetailsGrid";
+import { QuantityBar } from "@/components/ui/QuantityBar";
 import { BOMTable } from "@/components/product-detail/BOMTable";
 import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 import { OrdersHistoryTable } from "@/components/product-detail/OrdersHistoryTable";
@@ -183,6 +184,27 @@ export default function ProductDetailPage() {
       </div>
 
       <ProductEditDialog open={editOpen} onOpenChange={setEditOpen} product={product} onSave={handleSaveEdit} />
+
+      {/* Quantity bar — visual stock level indicator */}
+      <div className="bg-card rounded-xl border shadow-sm px-5 py-4 space-y-2">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>רמת מלאי</span>
+          <span className="tabular-nums">{product.stock_qty} יח׳</span>
+        </div>
+        <QuantityBar
+          value={product.stock_qty}
+          min={product.reorder_point ?? 0}
+          max={product.monthly_order ?? 0}
+          label="מלאי קיים"
+          onMinChange={v => handleInlineSave("reorder_point", String(v))}
+          onMaxChange={v => handleInlineSave("monthly_order", String(v))}
+          readOnly={!canEditStock}
+        />
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          {product.reorder_point ? <span>מינ׳: {product.reorder_point}</span> : <span />}
+          {product.monthly_order ? <span>מקס׳: {product.monthly_order}</span> : <span />}
+        </div>
+      </div>
 
       <ProductDetailsGrid
         details={details}
