@@ -7,9 +7,13 @@
 
 ## [2026-04-29]
 
+- fix: product deletion now succeeds and shows impact preview before confirming (acdc97a)
+
+<!-- last-commit: 9d27c87fd60406b39ee65fb4c3469a974030f7f5 -->
+## [2026-04-29]
+
 - Division page: product count KPI, create product from division, filter pickups to division products (d4b5329)
 
-<!-- last-commit: 8cf80a68782c11301ff9feeb765bf4a0f1eda12f -->
 ## [2026-04-27]
 
 - Merge branch 'main' into claude/hide-technicians-bonded-Fk98e (780eea3)
