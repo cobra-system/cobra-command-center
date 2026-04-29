@@ -38,7 +38,6 @@ const WasteManagementPage = lazy(() => import("@/pages/WasteManagementPage"));
 const EquipmentPage = lazy(() => import("@/pages/EquipmentPage"));
 const InstallerDetailPage = lazy(() => import("@/pages/InstallerDetailPage"));
 const DivisionDetailPage = lazy(() => import("@/pages/DivisionDetailPage"));
-const AlertsPage = lazy(() => import("@/pages/AlertsPage"));
 const LogisticsMapPage = lazy(() => import("@/pages/LogisticsMapPage"));
 const IssueDetailPage = lazy(() => import("@/pages/IssueDetailPage"));
 const ComponentDetailPage = lazy(() => import("@/pages/ComponentDetailPage"));
@@ -152,7 +151,7 @@ function AppRoutes() {
         <Route path="/equipment/division/:divisionName" element={<DivisionDetailPage />} />
         <Route path="/compliance" element={<Navigate to="/documents" replace />} />
         <Route path="/shipment-groups" element={<Navigate to="/orders" replace />} />
-        <Route path="/alerts" element={<AlertsPage />} />
+        <Route path="/alerts" element={<Navigate to="/settings?tab=notifications" replace />} />
         <Route path="/logistics-map" element={<LogisticsMapPage />} />
       </Route>
 

@@ -15,6 +15,7 @@ import RolePermissionsManager from "@/components/settings/RolePermissionsManager
 import RoleDefinitionManager from "@/components/settings/RoleDefinitionManager";
 import UserManagementTable from "@/components/settings/UserManagementTable";
 import NotificationSettings from "@/components/settings/NotificationSettings";
+import AlertsContent from "@/components/settings/AlertsContent";
 import { passwordChangeSchema } from "@/lib/schemas/passwordSchema";
 import { employeeCreateSchema, employeeUpdateSchema } from "@/lib/schemas/employeeSchema";
 
@@ -377,7 +378,10 @@ export default function SettingsPage() {
 
         {isManager && (
           <TabsContent value="notifications" className="space-y-6">
-            <NotificationSettings />
+            <AlertsContent />
+            <div className="border-t pt-6">
+              <NotificationSettings />
+            </div>
           </TabsContent>
         )}
       </Tabs>
