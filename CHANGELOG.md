@@ -5,6 +5,11 @@
 
 ---
 
+## [2026-04-29]
+
+- Division page: product count KPI, create product from division, filter pickups to division products (d4b5329)
+
+<!-- last-commit: 8cf80a68782c11301ff9feeb765bf4a0f1eda12f -->
 ## [2026-04-27]
 
 - Merge branch 'main' into claude/hide-technicians-bonded-Fk98e (780eea3)
@@ -12,7 +17,6 @@
 - feat(auth): give division managers a curated manager UI (dd5df45)
 - refactor(divisions): clean up bonded division view & extend products table (d7d2bf4)
 
-<!-- last-commit: 1d624e9f72bda526c1cdfcd42cb24db4ec21fe5f -->
 ## [2026-04-27]
 
 - Merge pull request #167 from cobra-system/claude/fix-product-order-visibility-mHdRt (0d6d7c5)
