@@ -4,8 +4,8 @@ import { useData, categories, divisions, type ProductComponent } from "@/context
 import { useLiveProductMetrics } from "@/hooks/useLiveProductMetrics";
 import { usePickupMonthlyAvg } from "@/hooks/usePickupMonthlyAvg";
 import { Button } from "@/components/ui/button";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ArrowRight, ExternalLink, Info, Pencil, Trash2 } from "lucide-react";
+import ProductDeleteDialog from "@/components/products/ProductDeleteDialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import ProductIssuesTab from "@/components/ProductIssuesTab";
 import ProductLicensesTab from "@/components/ProductLicensesTab";
@@ -27,6 +27,7 @@ export default function ProductDetailPage() {
   const navigate = useNavigate();
   const { products, orders, updateProduct, suppliers, addComponent, updateComponent, deleteComponent, deleteProduct } = useData();
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const categoryOptions = useMemo(() => categories.filter(c => c !== "הכל").map(c => ({ value: c, label: c })), []);
   const supplierOptions = useMemo(() => suppliers.map(s => ({ value: s.company, label: s.company })), [suppliers]);
@@ -132,11 +133,13 @@ export default function ProductDetailPage() {
     toast.success("רכיב נמחק");
   };
 
-  const handleDeleteProduct = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    await deleteProduct(product.id);
-    toast.success("המוצר נמחק");
-    navigate("/products");
+  const handleDeleteProduct = async () => {
+    try {
+      await deleteProduct(product.id);
+      navigate("/products");
+    } catch {
+      // error already shown by context
+    }
   };
 
   return (
@@ -172,21 +175,9 @@ export default function ProductDetailPage() {
           )}
           {hasEdit && <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4 ml-1" />עריכה</Button>}
           {hasEdit && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4 ml-1" />מחק</Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>מחיקת מוצר</AlertDialogTitle>
-                  <AlertDialogDescription>האם למחוק את "{product.name}"? פעולה זו לא ניתנת לביטול.</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>ביטול</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeleteProduct} className="bg-destructive text-destructive-foreground">מחק</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="h-4 w-4 ml-1" />מחק
+            </Button>
           )}
         </div>
       </div>
@@ -271,6 +262,14 @@ export default function ProductDetailPage() {
       <div className="bg-card rounded-xl border shadow-sm p-5">
         <ProductIssuesTab productId={product.id} productName={product.name} />
       </div>
+
+      <ProductDeleteDialog
+        open={deleteOpen}
+        productId={product.id}
+        productName={product.name}
+        onConfirm={handleDeleteProduct}
+        onCancel={() => setDeleteOpen(false)}
+      />
     </div>
   );
 }
