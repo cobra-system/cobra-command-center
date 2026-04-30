@@ -5,11 +5,16 @@
 
 ---
 
+## [2026-04-30]
+
+- Move alerts page into settings notifications tab, remove nav item (de6802b)
+- Remove DailyReportWidget from dashboard display (52fc759)
+
+<!-- last-commit: 2dfdf6ea983811d4b88476c840fe53217d2ba117 -->
 ## [2026-04-29]
 
 - feat: add QuantityBar battery-style stock level indicator (cf16317)
 
-<!-- last-commit: aeba203961c302af0fe49b6bf23550b8788b7a6b -->
 ## [2026-04-29]
 
 - fix: product deletion now succeeds and shows impact preview before confirming (acdc97a)
