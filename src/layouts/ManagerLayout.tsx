@@ -310,7 +310,6 @@ export default function ManagerLayout() {
         onClose={() => setSidebarOpen(false)}
         visibleNavItems={visibleNavItems}
         pendingCount={pendingCount}
-        alertCount={alertCount}
         currentUser={currentUser}
         onLogout={handleLogout}
       />
