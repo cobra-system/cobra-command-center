@@ -25,6 +25,7 @@
 - **בדיקות יחידה** למודול `lockControlUtils` (toggle, isStale, csvEscape).
 - מודול MCP חדש `warehouse-locks` (5 כלים) למעקב סטטוס וניהול לוג הסריקות.
 - טבלאות חדשות: `warehouse_locks` (סטטוס נוכחי לכל מנעול) ו-`warehouse_lock_scans` (לוג append-only).
+- 10 קבצי PNG מודפסים של ברקודי QR ב-`docs/lock-qr/` + סקריפט `npm run qr:locks` להפקה מחדש (משתמש בחבילת `qrcode` עם error correction H, רוחב 600px).
 
 ## [2026-04-30]
 
