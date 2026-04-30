@@ -328,7 +328,7 @@ export default function ShipmentGroupsPage() {
               <Label>שם אונייה</Label>
               <Input value={formVessel} onChange={e => setFormVessel(e.target.value)} placeholder="MSC ISABELLA" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>תאריך יציאה</Label>
                 <DateInput value={formDeparture} onChange={setFormDeparture} clearable />

@@ -234,13 +234,13 @@ export function NewPickupDialog({ open, onOpenChange, onCreated, preselectedInst
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
+      <DialogContent className="sm:max-w-lg md:max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
         <DialogHeader>
           <DialogTitle>{isEdit ? "עריכת הצטיידות" : "הצטיידות חדשה"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>מתקין *</Label>
               <Combobox
@@ -305,7 +305,7 @@ export function NewPickupDialog({ open, onOpenChange, onCreated, preselectedInst
                           </div>
                         )}
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <Label className="text-xs text-muted-foreground">כמות</Label>
                           <Input

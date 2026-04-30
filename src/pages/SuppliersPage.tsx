@@ -422,7 +422,7 @@ function MergeDuplicatesDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg md:max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <GitMerge className="h-5 w-5" />
@@ -580,7 +580,7 @@ function AddSupplierDialog({ open, onOpenChange, onAdd, onUpdate, editingSupplie
       <DialogContent className="sm:max-w-lg">
         <DialogHeader><DialogTitle>{isEditing ? "עריכת ספק" : "ספק חדש"}</DialogTitle></DialogHeader>
         <div className="space-y-3 pt-2">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">שם חברה *</Label>
               <Input value={fields.company} onChange={e => set("company", e.target.value)} />

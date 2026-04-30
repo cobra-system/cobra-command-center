@@ -156,12 +156,12 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg md:max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editProduct ? "עריכת מוצר" : "הוספת מוצר חדש"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>שם מוצר *</Label>
               <Input value={form.name} onChange={e => setField("name", e.target.value)} />
@@ -231,7 +231,7 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>ספק</Label>
               <Combobox
@@ -259,7 +259,7 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>הזמנה חודשית</Label>
               <Input type="number" value={form.monthly_order} onChange={e => setField("monthly_order", e.target.value)} />

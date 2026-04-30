@@ -343,7 +343,7 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
         <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle>הוספת רכיב</DialogTitle></DialogHeader>
           <div className="space-y-3 pt-2">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">שם רכיב *</Label>
                 <Input value={newComp.name} onChange={e => setNewComp(p => ({ ...p, name: e.target.value }))} />
@@ -387,7 +387,7 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
         <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle>עריכת רכיב</DialogTitle></DialogHeader>
           <div className="space-y-3 pt-2">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">שם רכיב *</Label>
                 <Input value={mobileEditFields.name || ""} onChange={e => setMobileEditFields(p => ({ ...p, name: e.target.value }))} />

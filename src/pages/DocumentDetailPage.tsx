@@ -600,7 +600,7 @@ export default function DocumentDetailPage() {
                   displayValue={doc.document_name || <span className="text-muted-foreground">לחץ פעמיים להוספת שם</span>}
                 />
               </InfoCell>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Document number */}
                 <InfoCell label="מספר מסמך">
                   <InlineEditField
@@ -625,7 +625,7 @@ export default function DocumentDetailPage() {
                   />
                 </InfoCell>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Type */}
                 <InfoCell label="סוג">
                   <InlineEditField

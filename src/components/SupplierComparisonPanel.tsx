@@ -116,7 +116,7 @@ export default function SupplierComparisonPanel({ componentName, productId }: { 
                   <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.company}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>מחיר יחידה *</Label>
                   <Input type="number" value={formPrice} onChange={e => setFormPrice(e.target.value)} />
@@ -133,7 +133,7 @@ export default function SupplierComparisonPanel({ componentName, productId }: { 
                   </Select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1"><Label>MOQ</Label><Input type="number" value={formMoq} onChange={e => setFormMoq(e.target.value)} /></div>
                 <div className="space-y-1"><Label>Lead Time (ימים)</Label><Input type="number" value={formLeadTime} onChange={e => setFormLeadTime(e.target.value)} /></div>
               </div>

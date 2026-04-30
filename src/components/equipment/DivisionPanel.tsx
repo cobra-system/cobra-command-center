@@ -313,7 +313,7 @@ export function DivisionPanel({ division, onClose, installers, pickups, returns 
             {/* Add form */}
             {showAddForm && (
               <div className="border rounded-md p-3 space-y-2 bg-muted/20">
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <Label className="text-xs">שם *</Label>
                     <Input
@@ -342,7 +342,7 @@ export function DivisionPanel({ division, onClose, installers, pickups, returns 
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <Label className="text-xs">טלפון</Label>
                     <Input

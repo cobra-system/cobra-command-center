@@ -45,7 +45,7 @@ interface StepLog {
   completed_by: string | null;
   completed_at: string;
   notes: string | null;
-  action_data: any;
+  action_data: unknown;
 }
 
 interface WorkflowInstance {
@@ -120,18 +120,18 @@ export default function WorkflowsPage() {
 
     // Build lookup maps
     const ordersMap: Record<string, { id: string; supplier_name: string | null }> = {};
-    (ordersRes.data || []).forEach((o: any) => { ordersMap[o.id] = o; });
+    (ordersRes.data || []).forEach((o: { id: string; supplier_name: string | null }) => { ordersMap[o.id] = o; });
 
     const itemsMap: Record<string, { name: string }[]> = {};
-    (itemsRes.data || []).forEach((item: any) => {
+    (itemsRes.data || []).forEach((item: { order_id: string; name: string }) => {
       if (!itemsMap[item.order_id]) itemsMap[item.order_id] = [];
       itemsMap[item.order_id].push({ name: item.name });
     });
 
     const logsMap: Record<string, StepLog[]> = {};
-    (logsRes.data || []).forEach((log: any) => {
+    (logsRes.data || []).forEach((log: StepLog) => {
       if (!logsMap[log.instance_id]) logsMap[log.instance_id] = [];
-      logsMap[log.instance_id].push(log as StepLog);
+      logsMap[log.instance_id].push(log);
     });
 
     // Assemble enriched instances
@@ -634,7 +634,7 @@ function TemplateFormDialog({ open, onOpenChange, template, onSaved }: {
   const removeStep = (idx: number) => setSteps(steps.filter((_, i) => i !== idx));
   const updateStep = (idx: number, field: string, value: string) => {
     const updated = [...steps];
-    (updated[idx] as any)[field] = value;
+    (updated[idx] as Record<string, string>)[field] = value;
     setSteps(updated);
   };
 
@@ -674,12 +674,12 @@ function TemplateFormDialog({ open, onOpenChange, template, onSaved }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg md:max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{template ? "עריכת תבנית" : "יצירת תבנית חדשה"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <Label className="text-xs">שם התבנית</Label>
               <Input value={name} onChange={e => setName(e.target.value)} placeholder="למשל: הזמנת רכש מחו״ל" />
@@ -726,7 +726,7 @@ function TemplateFormDialog({ open, onOpenChange, template, onSaved }: {
                     </Button>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <Input placeholder="שם השלב" value={step.name} onChange={e => updateStep(idx, "name", e.target.value)} className="text-sm" />
                   <Select value={step.action} onValueChange={v => updateStep(idx, "action", v)}>
                     <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>

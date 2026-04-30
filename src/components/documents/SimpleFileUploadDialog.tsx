@@ -190,7 +190,7 @@ export default function SimpleFileUploadDialog({
           </div>
 
           {/* Document number + expiry */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>מספר מסמך</Label>
               <Input

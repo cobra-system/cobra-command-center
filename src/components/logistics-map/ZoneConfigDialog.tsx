@@ -309,7 +309,7 @@ export default function ZoneConfigDialog({
                 (שורות 1–20, עמודות 1–24)
               </span>
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <span className="text-xs text-muted-foreground">שורה — התחלה</span>
                 <Input

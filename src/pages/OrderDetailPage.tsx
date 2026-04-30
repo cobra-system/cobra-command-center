@@ -662,7 +662,7 @@ export default function OrderDetailPage() {
               <Label>שם פריט</Label>
               <Input value={itemName} onChange={e => setItemName(e.target.value)} placeholder="שם הפריט" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>כמות</Label>
                 <Input type="number" value={itemQty} onChange={e => setItemQty(e.target.value)} />

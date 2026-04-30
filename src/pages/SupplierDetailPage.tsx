@@ -538,7 +538,7 @@ function ContactForm({ contact, setContact, saving, onSubmit, submitLabel }: {
 }) {
   return (
     <div className="space-y-3 pt-2">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">שם *</Label>
           <Input value={contact.name} onChange={e => setContact((p: any) => ({ ...p, name: e.target.value }))} />
@@ -615,7 +615,7 @@ function SupplierEditDialog({ open, onOpenChange, supplier, onSave }: {
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader><DialogTitle>עריכת ספק</DialogTitle></DialogHeader>
         <div className="space-y-3 pt-2">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">שם חברה *</Label>
               <Input value={fields.company ?? ""} onChange={e => set("company", e.target.value)} />

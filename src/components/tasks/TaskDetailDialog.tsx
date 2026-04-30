@@ -31,7 +31,7 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
   profiles: { id: string; name: string; role: string }[];
   currentUser: { id: string; role: string; name: string } | null;
   onUpdate: (id: string, updates: Partial<Task>) => Promise<void>;
-  onStatusChange: (id: string, status: any) => Promise<void>;
+  onStatusChange: (id: string, status: string) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
 }) {
   const { tasks: allTasks, goals } = useData();
@@ -56,7 +56,7 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
   const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
 
   const handleInlineSave = async (field: string, value: string) => {
-    const updates: Partial<Task> & Record<string, any> = {};
+    const updates: Partial<Task> & Record<string, unknown> = {};
     if (field === "assignee_id") {
       const id = value === "__none__" ? null : value;
       updates.assignee_id = id;
@@ -116,7 +116,7 @@ export function TaskDetailDialog({ task, onClose, profiles, currentUser, onUpdat
             className="bg-muted/30 rounded-lg p-3"
           />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <InlineEditField
               value={liveTask.priority}
               onSave={v => handleInlineSave("priority", v)}
