@@ -24,6 +24,7 @@ export const MODULES: ModuleDefinition[] = [
   { key: "equipment", label: "ניהול חטיבות", route: "/equipment", category: "Warehouse" },
   { key: "shipment-groups", label: "קבוצות משלוח", route: "/shipment-groups", category: "Warehouse" },
   { key: "logistics-map", label: "מפת מחסן", route: "/logistics-map", category: "Warehouse" },
+  { key: "lock-control", label: "בקרת נעילה", route: "/lock-control", category: "Warehouse" },
 ];
 
 export function canView(permissions: RolePermissions, moduleKey: string): boolean {

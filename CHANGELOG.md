@@ -5,6 +5,13 @@
 
 ---
 
+## [Unreleased]
+
+### Added
+- **בקרת נעילה** (`/lock-control`) — דף חדש לסריקת ברקודי QR לפתיחה וסגירה של 10 מנעולים פיזיים באתר קוברה תל אביב. כולל סרגל התקדמות לסבב פתיחה/סגירה, מעקב חי לפי משתמש וזמן, ודף הדפסה (`/lock-control/print`) עם כל ה-QR להדבקה ליד המנעולים.
+- מודול MCP חדש `warehouse-locks` (5 כלים) למעקב סטטוס וניהול לוג הסריקות.
+- טבלאות חדשות: `warehouse_locks` (סטטוס נוכחי לכל מנעול) ו-`warehouse_lock_scans` (לוג append-only).
+
 ## [2026-04-30]
 
 - fix: remove undefined alertCount reference in ManagerLayout (21abe48)

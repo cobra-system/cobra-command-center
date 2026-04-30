@@ -63,6 +63,8 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 | הגדרות | `/settings` | ניהול צוות, תפקידים, הרשאות גרנולריות, נתונים |
 | התראות | `/alerts` | מרכז התראות מערכת ותזכורות |
 | מפת מחסן | `/logistics-map` | מפה אינטראקטיבית של המחסן הלוגיסטי עם מלאי בזמן אמת |
+| בקרת נעילה | `/lock-control` | סריקת ברקודי QR לפתיחה/סגירה של מנעולי מתחם, מעקב חי וסרגלי התקדמות |
+| הדפסת ברקודי נעילה | `/lock-control/print` | דף הדפסה A4 עם 10 ברקודי QR להדבקה ליד המנעולים |
 
 ---
 
@@ -132,6 +134,10 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 
 ### מפת מחסן
 - `warehouse_zone_products` — שיוך מוצרים לאזורים במחסן (zone_id, product_id)
+
+### בקרת נעילה
+- `warehouse_locks` — מנעולים פיזיים באתר (שם, ברקוד, סטטוס נוכחי, סריקה אחרונה)
+- `warehouse_lock_scans` — לוג סריקות append-only (מנעול, פעולה, סורק, זמן, שיטה)
 
 ### ניהול משתמשים
 - `profiles` — פרופילי משתמשים (שם, תפקיד, חטיבה — לניהול גישה מנהל חטיבה)
@@ -271,7 +277,7 @@ mcp-server/              # MCP Server לאינטגרציה עם Claude Code (30+
 
 ## MCP Tools
 
-שרת MCP מאפשר ל-Claude Code גישה ישירה לכל מסד הנתונים ללא ממשק גרפי — **245 כלים** ב-**32 מודולים**.
+שרת MCP מאפשר ל-Claude Code גישה ישירה לכל מסד הנתונים ללא ממשק גרפי — **250 כלים** ב-**33 מודולים**.
 
 | מודול | Domain | כלים |
 |-------|--------|-----:|
@@ -305,6 +311,7 @@ mcp-server/              # MCP Server לאינטגרציה עם Claude Code (30+
 | `team` | Team & permissions | 9 |
 | `user-preferences` | User preferences | 3 |
 | `warehouse` | Warehouse zones | 6 |
+| `warehouse-locks` | Lock control & scan log | 5 |
 | `waste` | Waste tracking | 5 |
 | `workflows` | Workflows | 4 |
 

@@ -31,6 +31,7 @@ import { registerProcurementMeetingTools } from "./tools/procurement-meeting.js"
 import { registerProcurementInventoryTools } from "./tools/procurement-inventory.js";
 import { registerDivisionTools } from "./tools/divisions.js";
 import { registerWarehouseTools } from "./tools/warehouse.js";
+import { registerWarehouseLockTools } from "./tools/warehouse-locks.js";
 import { registerWasteTools } from "./tools/waste.js";
 
 const server = new McpServer({
@@ -70,6 +71,7 @@ registerProcurementMeetingTools(server);
 registerProcurementInventoryTools(server);
 registerDivisionTools(server);
 registerWarehouseTools(server);
+registerWarehouseLockTools(server);
 registerWasteTools(server);
 
 // Start the server with stdio transport
