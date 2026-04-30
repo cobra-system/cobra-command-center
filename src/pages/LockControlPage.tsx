@@ -269,8 +269,10 @@ export default function LockControlPage() {
           return;
         }
         const action = nextActionFor(matched.current_status);
-        const ok = await performScan(matched, cleaned, method, action);
-        if (ok) closeScanner();
+        // Close the scanner BEFORE the DB write + refresh, so the camera tears
+        // down before parent state updates trigger a re-render cascade.
+        closeScanner();
+        await performScan(matched, cleaned, method, action);
         return;
       }
 
@@ -305,8 +307,9 @@ export default function LockControlPage() {
         return;
       }
 
-      const ok = await performScan(target, cleaned, method, action);
-      if (ok) closeScanner();
+      // Close the scanner BEFORE the DB write + refresh — see comment above.
+      closeScanner();
+      await performScan(target, cleaned, method, action);
     },
     [freeScan, lockByBarcode, scanningLock, performScan]
   );
