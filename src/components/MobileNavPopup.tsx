@@ -30,7 +30,6 @@ interface MobileNavPopupProps {
   onClose: () => void;
   visibleNavItems: { to: string; icon: string; label: string }[];
   pendingCount: number;
-  alertCount: number;
   currentUser: { name?: string; role?: string } | null;
   onLogout: () => void;
 }
@@ -40,7 +39,6 @@ export default function MobileNavPopup({
   onClose,
   visibleNavItems,
   pendingCount,
-  alertCount,
   currentUser,
   onLogout,
 }: MobileNavPopupProps) {
@@ -87,11 +85,7 @@ export default function MobileNavPopup({
                   {pendingCount}
                 </span>
               )}
-              {item.to === "/alerts" && alertCount > 0 && (
-                <span className="ms-auto text-xs font-semibold bg-destructive text-destructive-foreground px-2 py-0.5 rounded-full leading-none">
-                  {alertCount}
-                </span>
-              )}
+
             </NavLink>
           );
         })}
