@@ -108,7 +108,7 @@ grep -r "\"TABLE_NAME\"" mcp-server/src/tools/
 cd mcp-server && npm run build
 ```
 
-### Module inventory (32 modules · 245 tools)
+### Module inventory (33 modules · 250 tools)
 
 | Module | Domain | Key tables | Tools |
 |--------|--------|------------|------:|
@@ -142,6 +142,7 @@ cd mcp-server && npm run build
 | `team` | Team & permissions | profiles, user_roles, role_permissions | 9 |
 | `user-preferences` | User preferences | user_preferences | 3 |
 | `warehouse` | Warehouse zones | warehouse_zones, warehouse_zone_products | 6 |
+| `warehouse-locks` | Lock control & scan log | warehouse_locks, warehouse_lock_scans | 5 |
 | `waste` | Waste tracking | waste_items | 5 |
 | `workflows` | Workflows | workflow_templates, workflow_instances | 4 |
 

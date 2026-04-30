@@ -1614,6 +1614,86 @@ export type Database = {
           },
         ]
       }
+      warehouse_locks: {
+        Row: {
+          id: number
+          name: string
+          barcode_value: string
+          site: string
+          sort_order: number
+          active: boolean
+          current_status: "open" | "closed" | "unknown"
+          last_scan_at: string | null
+          last_scan_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: number
+          name: string
+          barcode_value: string
+          site?: string
+          sort_order: number
+          active?: boolean
+          current_status?: "open" | "closed" | "unknown"
+          last_scan_at?: string | null
+          last_scan_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          barcode_value?: string
+          site?: string
+          sort_order?: number
+          active?: boolean
+          current_status?: "open" | "closed" | "unknown"
+          last_scan_at?: string | null
+          last_scan_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      warehouse_lock_scans: {
+        Row: {
+          id: string
+          lock_id: number
+          action: "open" | "close"
+          scanned_by: string | null
+          barcode_value: string
+          method: "camera" | "manual"
+          scanned_at: string
+        }
+        Insert: {
+          id?: string
+          lock_id: number
+          action: "open" | "close"
+          scanned_by?: string | null
+          barcode_value: string
+          method?: "camera" | "manual"
+          scanned_at?: string
+        }
+        Update: {
+          id?: string
+          lock_id?: number
+          action?: "open" | "close"
+          scanned_by?: string | null
+          barcode_value?: string
+          method?: "camera" | "manual"
+          scanned_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "warehouse_lock_scans_lock_id_fkey"
+            columns: ["lock_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_locks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

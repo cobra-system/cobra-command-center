@@ -41,6 +41,9 @@ const DivisionDetailPage = lazy(() => import("@/pages/DivisionDetailPage"));
 const LogisticsMapPage = lazy(() => import("@/pages/LogisticsMapPage"));
 const IssueDetailPage = lazy(() => import("@/pages/IssueDetailPage"));
 const ComponentDetailPage = lazy(() => import("@/pages/ComponentDetailPage"));
+const LockControlPage = lazy(() => import("@/pages/LockControlPage"));
+const LockControlPrintPage = lazy(() => import("@/pages/LockControlPrintPage"));
+const LockControlHistoryPage = lazy(() => import("@/pages/LockControlHistoryPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -153,6 +156,9 @@ function AppRoutes() {
         <Route path="/shipment-groups" element={<Navigate to="/orders" replace />} />
         <Route path="/alerts" element={<Navigate to="/settings?tab=notifications" replace />} />
         <Route path="/logistics-map" element={<LogisticsMapPage />} />
+        <Route path="/lock-control" element={<LockControlPage />} />
+        <Route path="/lock-control/history" element={<LockControlHistoryPage />} />
+        <Route path="/lock-control/print" element={<LockControlPrintPage />} />
       </Route>
 
       <Route element={<RequireAuth />}>
