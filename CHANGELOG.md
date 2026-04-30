@@ -7,11 +7,16 @@
 
 ## [2026-04-30]
 
+- Remove 'mark all closed' and 'print barcodes' buttons from lock control (bc2e9bc)
+- Add unique icons for missing nav modules (d710547)
+
+<!-- last-commit: f4bd2042c08821ddf551e680ebde4f41e86f2132 -->
+## [2026-04-30]
+
 - feat(lock-control): printable QR PNGs, apply DB migration, fix scan crash (c20d710)
 - fix(lock-control): ErrorBoundary triggered after successful scan (17e6f51)
 - feat(lock-control): printable PNG QR codes + apply DB migration (3659362)
 
-<!-- last-commit: c20d710974234358c5ff2f3bd1ef2dd5c4f92c4e -->
 ## [2026-04-30]
 
 - fix(settings): RTL layout + collapsible permission categories (3d6225f)
