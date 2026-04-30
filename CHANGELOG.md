@@ -7,10 +7,14 @@
 
 ## [2026-04-30]
 
+- fix: remove undefined alertCount reference in ManagerLayout (21abe48)
+
+<!-- last-commit: a5d4107a2e14528e10ee99d846a8ae6799f4bfa0 -->
+## [2026-04-30]
+
 - Move alerts page into settings notifications tab, remove nav item (de6802b)
 - Remove DailyReportWidget from dashboard display (52fc759)
 
-<!-- last-commit: 2dfdf6ea983811d4b88476c840fe53217d2ba117 -->
 ## [2026-04-29]
 
 - feat: add QuantityBar battery-style stock level indicator (cf16317)
