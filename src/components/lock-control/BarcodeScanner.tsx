@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
-import { X, Camera, AlertCircle, Keyboard } from "lucide-react";
+import { X, Camera, AlertCircle, Keyboard, Flashlight, FlashlightOff } from "lucide-react";
 
 interface BarcodeScannerProps {
   open: boolean;
@@ -12,22 +12,35 @@ interface BarcodeScannerProps {
 }
 
 const SCANNER_REGION_ID = "lock-control-scanner-region";
+const SCAN_DEBOUNCE_MS = 1500;
+
+interface TorchCapabilities {
+  torch?: boolean;
+}
+
+interface TorchConstraint {
+  torch: boolean;
+}
 
 export function BarcodeScanner({ open, title, hint, onScan, onClose, onManualEntry }: BarcodeScannerProps) {
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const lastValueRef = useRef<{ value: string; at: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [manualValue, setManualValue] = useState("");
-  const handledRef = useRef(false);
+  const [torchOn, setTorchOn] = useState(false);
+  const [torchSupported, setTorchSupported] = useState(false);
 
   useEffect(() => {
     if (!open) return;
 
-    handledRef.current = false;
+    lastValueRef.current = null;
     setError(null);
     setShowManual(false);
     setManualValue("");
+    setTorchOn(false);
+    setTorchSupported(false);
 
     let cancelled = false;
     setStarting(true);
@@ -49,9 +62,12 @@ export function BarcodeScanner({ open, title, hint, onScan, onClose, onManualEnt
           { facingMode: "environment" },
           { fps: 10, qrbox: { width: 240, height: 240 }, aspectRatio: 1 },
           (decodedText) => {
-            if (handledRef.current) return;
-            handledRef.current = true;
-            onScan(decodedText.trim());
+            const value = decodedText.trim();
+            const now = Date.now();
+            const last = lastValueRef.current;
+            if (last && last.value === value && now - last.at < SCAN_DEBOUNCE_MS) return;
+            lastValueRef.current = { value, at: now };
+            onScan(value);
           },
           () => {
             // ignore per-frame decode failures
@@ -60,6 +76,17 @@ export function BarcodeScanner({ open, title, hint, onScan, onClose, onManualEnt
 
         if (cancelled) {
           await instance.stop().catch(() => {});
+          return;
+        }
+
+        // Probe torch support on the active video track (best-effort).
+        try {
+          const videoEl = document.querySelector<HTMLVideoElement>(`#${SCANNER_REGION_ID} video`);
+          const track = videoEl?.srcObject instanceof MediaStream ? videoEl.srcObject.getVideoTracks()[0] : null;
+          const caps = track?.getCapabilities?.() as TorchCapabilities | undefined;
+          if (caps?.torch) setTorchSupported(true);
+        } catch {
+          // ignore
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -88,12 +115,24 @@ export function BarcodeScanner({ open, title, hint, onScan, onClose, onManualEnt
     };
   }, [open, onScan]);
 
+  const toggleTorch = async () => {
+    try {
+      const videoEl = document.querySelector<HTMLVideoElement>(`#${SCANNER_REGION_ID} video`);
+      const track = videoEl?.srcObject instanceof MediaStream ? videoEl.srcObject.getVideoTracks()[0] : null;
+      if (!track) return;
+      const next = !torchOn;
+      await track.applyConstraints({ advanced: [{ torch: next } as TorchConstraint] } as MediaTrackConstraints);
+      setTorchOn(next);
+    } catch {
+      setTorchSupported(false);
+    }
+  };
+
   if (!open) return null;
 
   const handleManualSubmit = () => {
     const trimmed = manualValue.trim();
     if (!trimmed) return;
-    handledRef.current = true;
     if (onManualEntry) onManualEntry(trimmed);
     else onScan(trimmed);
   };
@@ -114,14 +153,31 @@ export function BarcodeScanner({ open, title, hint, onScan, onClose, onManualEnt
             <Camera className="h-4 w-4 text-primary" />
             <span className="text-sm font-semibold">{title}</span>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-muted/60"
-            aria-label="סגור"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            {torchSupported && (
+              <button
+                type="button"
+                onClick={toggleTorch}
+                className={`p-1.5 rounded-md transition-colors ${
+                  torchOn
+                    ? "bg-warning/20 text-warning"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                }`}
+                title={torchOn ? "כיבוי פנס" : "הפעלת פנס"}
+                aria-label={torchOn ? "כיבוי פנס" : "הפעלת פנס"}
+              >
+                {torchOn ? <Flashlight className="h-4 w-4" /> : <FlashlightOff className="h-4 w-4" />}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-muted/60"
+              aria-label="סגור"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <div className="relative bg-black">
