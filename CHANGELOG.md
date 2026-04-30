@@ -7,9 +7,15 @@
 
 ## [2026-04-30]
 
+- feat(lock-control): printable QR PNGs, apply DB migration, fix scan crash (c20d710)
+- fix(lock-control): ErrorBoundary triggered after successful scan (17e6f51)
+- feat(lock-control): printable PNG QR codes + apply DB migration (3659362)
+
+<!-- last-commit: c20d710974234358c5ff2f3bd1ef2dd5c4f92c4e -->
+## [2026-04-30]
+
 - fix(settings): RTL layout + collapsible permission categories (3d6225f)
 
-<!-- last-commit: 9bbc2556463ff6b68dc7d38debc48538315f9f10 -->
 ## [2026-04-30]
 
 - feat(lock-control): production polish — realtime, history, free-scan, audio (e9290c5)
