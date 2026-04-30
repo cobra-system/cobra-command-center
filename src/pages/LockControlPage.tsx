@@ -4,7 +4,6 @@ import {
   Lock,
   Unlock,
   RefreshCw,
-  Printer,
   Camera,
   User2,
   Clock,
@@ -12,7 +11,6 @@ import {
   CheckCircle2,
   ScanLine,
   History,
-  ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
@@ -63,7 +61,6 @@ const AUTO_REFRESH_MS = 30_000;
 export default function LockControlPage() {
   const { currentUser } = useAuth();
   const { profiles } = useData();
-  const isManager = currentUser?.role === "MANAGER";
 
   const [locks, setLocks] = useState<WarehouseLock[]>([]);
   const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
@@ -78,7 +75,6 @@ export default function LockControlPage() {
     method: "camera" | "manual";
     action: ScanAction;
   } | null>(null);
-  const [bulkClosing, setBulkClosing] = useState(false);
 
   const profileNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -322,61 +318,6 @@ export default function LockControlPage() {
     closeScanner();
   };
 
-  const handleMarkAllClosed = async () => {
-    if (!isManager || bulkClosing) return;
-    const stillOpen = locks.filter((l) => l.current_status !== "closed");
-    if (stillOpen.length === 0) {
-      toast.info("כל המנעולים כבר סגורים.");
-      return;
-    }
-    if (!window.confirm(`לסמן את כל ${stillOpen.length} המנעולים שאינם סגורים כסגורים?`)) return;
-
-    setBulkClosing(true);
-    try {
-      const now = new Date().toISOString();
-      const scanRows = stillOpen.map((l) => ({
-        lock_id: l.id,
-        action: "close" as const,
-        scanned_by: currentUser?.id ?? null,
-        barcode_value: l.barcode_value,
-        method: "manual" as const,
-        scanned_at: now,
-      }));
-      const { error: insertError } = await supabase.from("warehouse_lock_scans").insert(scanRows);
-      if (insertError) throw insertError;
-
-      const { error: updateError } = await supabase
-        .from("warehouse_locks")
-        .update({
-          current_status: "closed",
-          last_scan_at: now,
-          last_scan_by: currentUser?.id ?? null,
-          updated_at: now,
-        })
-        .in(
-          "id",
-          stillOpen.map((l) => l.id)
-        );
-      if (updateError) throw updateError;
-
-      logActivity({
-        action: "lock_bulk_close",
-        entityType: "warehouse_lock",
-        details: { count: stillOpen.length, lock_ids: stillOpen.map((l) => l.id) },
-      });
-
-      feedbackSuccess();
-      toast.success(`${stillOpen.length} מנעולים סומנו כסגורים`);
-      await refresh();
-    } catch (err) {
-      feedbackError();
-      const message = err instanceof Error ? err.message : "שגיאה לא ידועה";
-      toast.error("שגיאה בסימון מרובה", { description: message });
-    } finally {
-      setBulkClosing(false);
-    }
-  };
-
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -395,18 +336,6 @@ export default function LockControlPage() {
             <ScanLine className="h-3.5 w-3.5" />
             סריקה חופשית
           </button>
-          {isManager && (
-            <button
-              type="button"
-              onClick={handleMarkAllClosed}
-              disabled={bulkClosing}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-50"
-              title="סימון כל המנעולים שאינם סגורים כסגורים (מנהל בלבד)"
-            >
-              <ShieldCheck className="h-3.5 w-3.5" />
-              סמן הכל כסגור
-            </button>
-          )}
           <Link
             to="/lock-control/history"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
@@ -422,14 +351,6 @@ export default function LockControlPage() {
             <RefreshCw className="h-3.5 w-3.5" />
             רענון
           </button>
-          <Link
-            to="/lock-control/print"
-            target="_blank"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            <Printer className="h-3.5 w-3.5" />
-            הדפסת ברקודים
-          </Link>
         </div>
       </div>
 
