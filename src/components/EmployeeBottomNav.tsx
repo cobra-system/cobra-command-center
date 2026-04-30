@@ -16,6 +16,11 @@ import {
   BarChart3,
   Recycle,
   MoreHorizontal,
+  Bell,
+  Boxes,
+  Send,
+  Map,
+  Lock,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -37,6 +42,11 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
   reorder: CalendarClock,
   reports: BarChart3,
   waste: Recycle,
+  alerts: Bell,
+  equipment: Boxes,
+  "shipment-groups": Send,
+  "logistics-map": Map,
+  "lock-control": Lock,
 };
 
 interface NavItem {
