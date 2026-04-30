@@ -7,10 +7,14 @@
 
 ## [2026-04-30]
 
+- fix(settings): RTL layout + collapsible permission categories (3d6225f)
+
+<!-- last-commit: 9bbc2556463ff6b68dc7d38debc48538315f9f10 -->
+## [2026-04-30]
+
 - feat(lock-control): production polish — realtime, history, free-scan, audio (e9290c5)
 - feat(lock-control): add warehouse lock barcode scanning page (b9367d9)
 
-<!-- last-commit: f96f4fc9e1b46e3906a63a33a1b84c2b0ee6fb32 -->
 ## [Unreleased]
 
 ### Added
