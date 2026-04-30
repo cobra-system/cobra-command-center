@@ -25,6 +25,17 @@ interface TorchConstraint {
 export function BarcodeScanner({ open, title, hint, onScan, onClose, onManualEntry }: BarcodeScannerProps) {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const lastValueRef = useRef<{ value: string; at: number } | null>(null);
+  // Keep callbacks in refs so the camera-init effect can depend on `open`
+  // alone. If we put `onScan` in the dep array, parent re-renders (which
+  // recreate the inline arrow function) tear down and restart the camera
+  // mid-scan — that race surfaces as an ErrorBoundary right after a successful
+  // scan, even though the DB write already succeeded.
+  const onScanRef = useRef(onScan);
+  const onManualEntryRef = useRef(onManualEntry);
+  useEffect(() => {
+    onScanRef.current = onScan;
+    onManualEntryRef.current = onManualEntry;
+  }, [onScan, onManualEntry]);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [showManual, setShowManual] = useState(false);
@@ -67,7 +78,7 @@ export function BarcodeScanner({ open, title, hint, onScan, onClose, onManualEnt
             const last = lastValueRef.current;
             if (last && last.value === value && now - last.at < SCAN_DEBOUNCE_MS) return;
             lastValueRef.current = { value, at: now };
-            onScan(value);
+            onScanRef.current(value);
           },
           () => {
             // ignore per-frame decode failures
@@ -113,7 +124,8 @@ export function BarcodeScanner({ open, title, hint, onScan, onClose, onManualEnt
           .finally(() => instance.clear().catch(() => {}));
       }
     };
-  }, [open, onScan]);
+    // onScan/onManualEntry are intentionally read via refs — see comment above.
+  }, [open]);
 
   const toggleTorch = async () => {
     try {
@@ -133,8 +145,9 @@ export function BarcodeScanner({ open, title, hint, onScan, onClose, onManualEnt
   const handleManualSubmit = () => {
     const trimmed = manualValue.trim();
     if (!trimmed) return;
-    if (onManualEntry) onManualEntry(trimmed);
-    else onScan(trimmed);
+    const manual = onManualEntryRef.current;
+    if (manual) manual(trimmed);
+    else onScanRef.current(trimmed);
   };
 
   return (
