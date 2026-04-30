@@ -5,6 +5,12 @@
 
 ---
 
+## [2026-04-30]
+
+- feat(lock-control): production polish — realtime, history, free-scan, audio (e9290c5)
+- feat(lock-control): add warehouse lock barcode scanning page (b9367d9)
+
+<!-- last-commit: f96f4fc9e1b46e3906a63a33a1b84c2b0ee6fb32 -->
 ## [Unreleased]
 
 ### Added
@@ -24,7 +30,6 @@
 
 - fix: remove undefined alertCount reference in ManagerLayout (21abe48)
 
-<!-- last-commit: a5d4107a2e14528e10ee99d846a8ae6799f4bfa0 -->
 ## [2026-04-30]
 
 - Move alerts page into settings notifications tab, remove nav item (de6802b)
