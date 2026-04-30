@@ -27,13 +27,11 @@ import {
   Boxes,
   ArrowLeft,
   ExternalLink,
-  Bell,
   Map,
   Moon,
   Sun,
   type LucideIcon,
 } from "lucide-react";
-import { useAlertCount } from "@/hooks/useAlertCount";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { useState } from "react";
 import { useTheme } from "next-themes";
@@ -51,7 +49,6 @@ const defaultNavItems = [
   { to: "/issues", icon: "Wrench", label: "תקלות" },
   { to: "/waste-management", icon: "Recycle", label: "ניהול בלאי" },
   { to: "/reorder", icon: "CalendarClock", label: "תכנון רכש" },
-  { to: "/alerts", icon: "Bell", label: "התראות" },
   { to: "/logistics-map", icon: "Map", label: "מפת מחסן" },
   { to: "/reports", icon: "BarChart3", label: "דוחות" },
   { to: "/settings", icon: "Settings", label: "הגדרות" },
@@ -59,7 +56,7 @@ const defaultNavItems = [
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard, Package, ShoppingCart, Truck, ListTodo,
-  Settings, FileText, CalendarClock, BarChart3, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Recycle, Boxes, Bell, Map,
+  Settings, FileText, CalendarClock, BarChart3, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Recycle, Boxes, Map,
 };
 
 const NAV_ORDER_KEY = "cobra-nav-order";
@@ -110,7 +107,6 @@ export default function ManagerLayout() {
         return moduleKey ? canView(currentUserPermissions, moduleKey) : false;
       });
   const pendingCount = tasks.filter(t => t.status !== "DONE").length;
-  const alertCount = useAlertCount();
   const pageTitle =
     visibleNavItems.find(item => location.pathname.startsWith(item.to))?.label ??
     defaultNavItems.find(item => location.pathname.startsWith(item.to))?.label ??
@@ -232,14 +228,6 @@ export default function ManagerLayout() {
                   )}
                   {collapsed && item.to === "/tasks" && pendingCount > 0 && (
                     <span className="absolute top-0 right-0 h-2 w-2 bg-primary rounded-full" />
-                  )}
-                  {!collapsed && item.to === "/alerts" && alertCount > 0 && (
-                    <span className="ms-auto text-[10px] font-semibold bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded-full leading-none">
-                      {alertCount}
-                    </span>
-                  )}
-                  {collapsed && item.to === "/alerts" && alertCount > 0 && (
-                    <span className="absolute top-0 right-0 h-2 w-2 bg-destructive rounded-full" />
                   )}
                 </NavLink>
               </div>

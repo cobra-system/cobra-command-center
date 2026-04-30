@@ -122,9 +122,6 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Morning Report Widget */}
-      <DailyReportWidget />
-
       {/* Alert Banners - compact row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {lowStockCount > 0 && (
