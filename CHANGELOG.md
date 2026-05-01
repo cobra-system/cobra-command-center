@@ -7,12 +7,17 @@
 
 ## [2026-05-01]
 
+- Merge pull request #179 from cobra-system/claude/fix-dhl-api-error-CK9dq (743865e)
+- fix(track-shipment): treat DHL 404 as "no data yet" instead of an error (bb3e0ea)
+
+<!-- last-commit: 743865e81f53fd6b2fbb6c15e0a46bac05ba0add -->
+## [2026-05-01]
+
 - Employee mobile padding + cap stock thresholds at 3000 (8635f1d)
 - Mobile cards for detail-page tables, iOS safe-area, RTL polish (fb334c5)
 - Additional mobile fixes from second pass audit (12b52a9)
 - Fix mobile responsiveness across admin view (80920e2)
 
-<!-- last-commit: 2c1ce10abe6e0bed59ede547c7e11270f9e57209 -->
 ## [2026-04-30]
 
 - Remove 'mark all closed' and 'print barcodes' buttons from lock control (bc2e9bc)
