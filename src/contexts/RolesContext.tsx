@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { toast } from "sonner";
 import { handleError } from "@/lib/errorHandler";
-import { MODULES, getFullPermissionsForManager, type PermissionLevel, type RolePermissions } from "@/lib/permissions";
+import { resolveCurrentUserPermissions, type PermissionLevel, type RolePermissions } from "@/lib/permissions";
 import type { Profile, Role, RoleDefinition, RolePermissionRecord } from "@/contexts/types";
 
 interface RolesState {
@@ -164,28 +164,10 @@ export function RolesProvider({ currentUser, children }: { currentUser: Profile 
     }
   }, [queryClient]);
 
-  const currentUserPermissions: RolePermissions = useMemo(() => {
-    if (!currentUser || currentUser.role === "MANAGER") {
-      return getFullPermissionsForManager();
-    }
-    // Determine the permission lookup key:
-    // - If the user has a role_definition_id, find that definition and use system_key (for system roles)
-    //   or the UUID (for custom roles) as the key stored in role_permissions.role
-    // - Otherwise fall back to the profile's app_role value
-    let effectiveRoleKey: string = currentUser.role;
-    if (currentUser.role_definition_id) {
-      const rd = roleDefinitions.find((r) => r.id === currentUser.role_definition_id);
-      if (rd) effectiveRoleKey = rd.system_key ?? rd.id;
-    }
-    const perms: RolePermissions = {};
-    for (const mod of MODULES) {
-      const record = rolePermissions.find(
-        (rp) => rp.role === effectiveRoleKey && rp.module_key === mod.key
-      );
-      perms[mod.key] = record?.permission_level ?? "none";
-    }
-    return perms;
-  }, [currentUser, rolePermissions, roleDefinitions]);
+  const currentUserPermissions: RolePermissions = useMemo(
+    () => resolveCurrentUserPermissions(currentUser, roleDefinitions, rolePermissions),
+    [currentUser, rolePermissions, roleDefinitions],
+  );
 
   return (
     <RolesContext.Provider value={{

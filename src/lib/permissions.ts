@@ -65,3 +65,40 @@ export function isDivisionManagerAllowedPath(pathname: string): boolean {
 export function isDivisionManager(user: { role: string; division?: string | null } | null | undefined): boolean {
   return !!user && user.role !== "MANAGER" && !!user.division;
 }
+
+/**
+ * Resolves the effective per-module permission map for a user.
+ *
+ * MANAGER (or no signed-in user) gets full access. For everyone else, the
+ * lookup key into `role_permissions.role` is:
+ *   - `roleDefinition.system_key` when the user's `role_definition_id` points
+ *     at a role definition with a system_key (system roles share their key)
+ *   - the role definition's `id` (UUID) otherwise (custom roles)
+ *   - the user's `role` column when no `role_definition_id` is set
+ *
+ * Modules with no matching permission row default to `"none"`.
+ */
+export function resolveCurrentUserPermissions(
+  currentUser: { role: string; role_definition_id?: string | null } | null | undefined,
+  roleDefinitions: Array<{ id: string; system_key: string | null }>,
+  rolePermissions: Array<{ role: string; module_key: string; permission_level: PermissionLevel }>,
+): RolePermissions {
+  if (!currentUser || currentUser.role === "MANAGER") {
+    return getFullPermissionsForManager();
+  }
+
+  let effectiveRoleKey: string = currentUser.role;
+  if (currentUser.role_definition_id) {
+    const rd = roleDefinitions.find((r) => r.id === currentUser.role_definition_id);
+    if (rd) effectiveRoleKey = rd.system_key ?? rd.id;
+  }
+
+  const perms: RolePermissions = {};
+  for (const mod of MODULES) {
+    const record = rolePermissions.find(
+      (rp) => rp.role === effectiveRoleKey && rp.module_key === mod.key,
+    );
+    perms[mod.key] = record?.permission_level ?? "none";
+  }
+  return perms;
+}
