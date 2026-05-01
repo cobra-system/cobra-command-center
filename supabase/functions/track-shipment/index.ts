@@ -72,15 +72,45 @@ Deno.serve(async (req) => {
       );
     }
 
+    // DHL is strict about tracking-number format: strip whitespace and dashes.
+    const trackingNumber = order.tracking_number.replace(/[\s-]/g, "");
+
     const dhlRes = await fetch(
-      `${DHL_API_URL}?trackingNumber=${encodeURIComponent(order.tracking_number)}`,
+      `${DHL_API_URL}?trackingNumber=${encodeURIComponent(trackingNumber)}`,
       { headers: { "DHL-API-Key": dhlApiKey, "Accept": "application/json" } }
     );
+
+    // DHL Unified Tracking API returns 404 when no shipment data is available
+    // for the given tracking number — this is normal for shipments not yet
+    // scanned into DHL's system. Treat as "no data yet", not as an error.
+    if (dhlRes.status === 404) {
+      const notFoundStatus = "לא נמצא במערכת DHL";
+      await supabaseAdmin
+        .from("orders")
+        .update({
+          tracking_status: notFoundStatus,
+          tracking_last_event: null,
+          tracking_updated_at: new Date().toISOString(),
+        })
+        .eq("id", order_id);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          tracking_status: notFoundStatus,
+          tracking_last_event: null,
+          note: "DHL טרם מצא מידע על מספר מעקב זה — ייתכן שהמשלוח טרם נסרק במערכת",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!dhlRes.ok) {
       const errText = await dhlRes.text();
       const msg = dhlRes.status === 401
         ? "DHL API: מפתח לא תקף או פג תוקף — יש לעדכן DHL_API_KEY"
+        : dhlRes.status === 429
+        ? "DHL API: חרגת ממכסת הבקשות — נסה שוב מאוחר יותר"
         : `DHL API שגיאה: ${dhlRes.status}`;
       return new Response(
         JSON.stringify({ error: msg, details: errText }),
