@@ -4,6 +4,8 @@ import {
   canEdit,
   getModuleKeyFromRoute,
   getFullPermissionsForManager,
+  isDivisionManagerAllowedPath,
+  isDivisionManager,
   MODULES,
   type RolePermissions,
 } from "./permissions";
@@ -95,5 +97,48 @@ describe("MODULES", () => {
       expect(mod.label).toBeTruthy();
       expect(mod.route).toMatch(/^\//);
     }
+  });
+});
+
+describe("isDivisionManagerAllowedPath", () => {
+  it("returns true for allowed prefixes (and their nested routes)", () => {
+    expect(isDivisionManagerAllowedPath("/products")).toBe(true);
+    expect(isDivisionManagerAllowedPath("/products/abc-123")).toBe(true);
+    expect(isDivisionManagerAllowedPath("/orders")).toBe(true);
+    expect(isDivisionManagerAllowedPath("/suppliers")).toBe(true);
+    expect(isDivisionManagerAllowedPath("/waste-management")).toBe(true);
+  });
+
+  it("allows curated equipment subpaths but blocks the equipment root", () => {
+    expect(isDivisionManagerAllowedPath("/equipment/division/d1")).toBe(true);
+    expect(isDivisionManagerAllowedPath("/equipment/installer/i1")).toBe(true);
+    expect(isDivisionManagerAllowedPath("/equipment")).toBe(false);
+  });
+
+  it("blocks paths outside the curated set", () => {
+    expect(isDivisionManagerAllowedPath("/dashboard")).toBe(false);
+    expect(isDivisionManagerAllowedPath("/tasks")).toBe(false);
+    expect(isDivisionManagerAllowedPath("/team")).toBe(false);
+    expect(isDivisionManagerAllowedPath("/")).toBe(false);
+  });
+});
+
+describe("isDivisionManager", () => {
+  it("returns false for null/undefined user", () => {
+    expect(isDivisionManager(null)).toBe(false);
+    expect(isDivisionManager(undefined)).toBe(false);
+  });
+
+  it("returns false for MANAGER role even with a division", () => {
+    expect(isDivisionManager({ role: "MANAGER", division: "north" })).toBe(false);
+  });
+
+  it("returns false for non-MANAGER role without a division", () => {
+    expect(isDivisionManager({ role: "EMPLOYEE", division: null })).toBe(false);
+    expect(isDivisionManager({ role: "EMPLOYEE" })).toBe(false);
+  });
+
+  it("returns true for non-MANAGER role with a division", () => {
+    expect(isDivisionManager({ role: "EMPLOYEE", division: "north" })).toBe(true);
   });
 });
