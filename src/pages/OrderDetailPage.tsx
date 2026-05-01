@@ -236,7 +236,7 @@ export default function OrderDetailPage() {
 
   const handleRefreshTracking = async () => {
     if (!order.tracking_number) { toast.error("אין מספר מעקב להזמנה זו"); return; }
-    if (order.tracking_carrier !== "dhl") { toast.error("רענון אוטומטי זמין רק עבור משלוחי DHL — בחר \"DHL\" בשדה \"ספק המעקב\""); return; }
+    if (order.tracking_carrier !== "dhl") { toast.error("רענון אוטומטי זמין רק עבור משלוחי DHL — בחר \"DHL\" בשדה \"חברת שילוח\""); return; }
     setTrackingLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -261,7 +261,7 @@ export default function OrderDetailPage() {
     { label: "סה״כ ($)", field: "total_price", value: order.total_price?.toString() ?? "", icon: DollarSign, isReadOnly: true },
     { label: "שיטת משלוח", field: "shipping", value: order.shipping, options: shippingOptions, icon: Ship },
     { label: "מספר מעקב", field: "tracking_number", value: order.tracking_number, icon: Hash },
-    { label: "ספק המעקב", field: "tracking_carrier", value: order.tracking_carrier, icon: Truck, options: [
+    { label: "חברת שילוח", field: "tracking_carrier", value: order.tracking_carrier, icon: Truck, options: [
       { value: "dhl", label: "DHL" },
       { value: "tclog", label: "TCLOG" },
       { value: "other", label: "אחר" },
@@ -376,8 +376,8 @@ export default function OrderDetailPage() {
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-900 flex items-start gap-3">
           <Truck className="h-5 w-5 shrink-0 mt-0.5" />
           <div>
-            <div className="font-semibold mb-1">בחר את ספק המעקב להזמנה זו</div>
-            <p className="text-xs leading-relaxed">המספר <span className="font-mono">{order.tracking_number}</span> יכול להיות של DHL או של TCLOG. בחר את הספק בשדה "ספק המעקב" כדי לאפשר סנכרון אוטומטי וצפייה במצב המשלוח.</p>
+            <div className="font-semibold mb-1">בחר את חברת השילוח להזמנה זו</div>
+            <p className="text-xs leading-relaxed">המספר <span className="font-mono">{order.tracking_number}</span> יכול להיות של DHL או של TCLOG. בחר את החברה בשדה "חברת שילוח" כדי לאפשר סנכרון אוטומטי וצפייה במצב המשלוח.</p>
           </div>
         </div>
       )}
