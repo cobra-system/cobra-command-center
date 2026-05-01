@@ -1,5 +1,20 @@
-import { describe, it, expect } from "vitest";
-import { recurringMatchesDay, getNextOccurrenceDate } from "./recurringUtils";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
+const mock = vi.hoisted(() => ({
+  instance: null as ReturnType<typeof import("@/test/supabaseMock").createSupabaseMock> | null,
+}));
+
+vi.mock("@/lib/supabase", async () => {
+  const { createSupabaseMock } = await import("@/test/supabaseMock");
+  mock.instance = createSupabaseMock();
+  return { supabase: mock.instance };
+});
+
+import {
+  recurringMatchesDay,
+  getNextOccurrenceDate,
+  findOrCreateRecurringInstance,
+} from "./recurringUtils";
 import type { Task } from "@/contexts/AppContext";
 
 const makeTemplate = (overrides: Partial<Task> = {}): Task =>
@@ -128,6 +143,51 @@ describe("recurringMatchesDay", () => {
 });
 
 describe("getNextOccurrenceDate", () => {
+  describe("daily", () => {
+    it("advances by one day", () => {
+      const rt = makeTemplate({ frequency: "daily" });
+      const next = getNextOccurrenceDate(rt, new Date("2024-06-10"));
+      expect(next.getFullYear()).toBe(2024);
+      expect(next.getMonth()).toBe(5); // June
+      expect(next.getDate()).toBe(11);
+    });
+
+    it("rolls to the next month at month boundary", () => {
+      const rt = makeTemplate({ frequency: "daily" });
+      const next = getNextOccurrenceDate(rt, new Date("2024-01-31"));
+      expect(next.getMonth()).toBe(1); // February
+      expect(next.getDate()).toBe(1);
+    });
+  });
+
+  describe("weekly", () => {
+    it("advances by seven days", () => {
+      const rt = makeTemplate({ frequency: "weekly", day_of_week: 1 });
+      const next = getNextOccurrenceDate(rt, new Date("2024-06-10"));
+      expect(next.getMonth()).toBe(5);
+      expect(next.getDate()).toBe(17);
+    });
+  });
+
+  describe("biweekly", () => {
+    it("advances by fourteen days", () => {
+      const rt = makeTemplate({ frequency: "biweekly", day_of_week: 1 });
+      const next = getNextOccurrenceDate(rt, new Date("2024-06-10"));
+      expect(next.getMonth()).toBe(5);
+      expect(next.getDate()).toBe(24);
+    });
+  });
+
+  describe("unknown frequency", () => {
+    it("falls through to default and advances by one day", () => {
+      const rt = makeTemplate({ frequency: "weird" as unknown as string });
+      const next = getNextOccurrenceDate(rt, new Date("2024-06-10"));
+      expect(next.getDate()).toBe(11);
+      expect(next.getHours()).toBe(0);
+      expect(next.getMinutes()).toBe(0);
+    });
+  });
+
   describe("monthly", () => {
     it("advances by one month", () => {
       const rt = makeTemplate({ frequency: "monthly", day_of_month: 15 });
@@ -195,5 +255,67 @@ describe("getNextOccurrenceDate", () => {
       expect(next.getMonth()).toBe(1); // February
       expect(next.getDate()).toBe(28); // 2025 is not a leap year
     });
+  });
+});
+
+describe("findOrCreateRecurringInstance", () => {
+  beforeEach(() => {
+    mock.instance!.state.reset();
+  });
+
+  it("returns the existing instance when one already exists for that date", async () => {
+    const existing = {
+      id: "task-existing",
+      title: "Recurring",
+      status: "TODO",
+      recurring_task_id: "rt1",
+      due_date: "2024-06-10T00:00:00.000Z",
+    };
+    mock.instance!.state.responses.tasks = [{ data: existing }];
+
+    const rt = makeTemplate({ frequency: "daily", title: "Recurring" });
+    const result = await findOrCreateRecurringInstance(rt, new Date("2024-06-10T15:00:00Z"));
+
+    expect(result).toEqual(existing);
+    expect(mock.instance!.state.writes).toHaveLength(0);
+  });
+
+  it("inserts a new TODO instance when none exists for that date", async () => {
+    // First select (existence check) returns null; second call resolves the insert.
+    mock.instance!.state.responses.tasks = [
+      { data: null }, // .maybeSingle() in existence check
+      { data: { id: "task-new" } }, // .single() after insert (chained select)
+    ];
+
+    const rt = makeTemplate({
+      frequency: "daily",
+      title: "Daily Standup",
+      description: "10 mins",
+      priority: "בינוני",
+      assignee_id: "u-1",
+      assignee_name: "Alice",
+    });
+    const result = await findOrCreateRecurringInstance(
+      rt,
+      new Date("2024-06-10T15:00:00Z"),
+    );
+
+    expect(result).toEqual({ id: "task-new" });
+
+    const insert = mock.instance!.state.writes.find((w) => w.kind === "insert");
+    expect(insert).toBeDefined();
+    expect(insert!.table).toBe("tasks");
+    expect(insert!.payload).toMatchObject({
+      title: "Daily Standup",
+      description: "10 mins",
+      priority: "בינוני",
+      status: "TODO",
+      assignee_id: "u-1",
+      assignee_name: "Alice",
+      recurring_task_id: "rt1",
+      is_daily: false,
+    });
+    // due_date should be the start of the requested day, not the wall-clock time we passed in.
+    expect(insert!.payload.due_date).toMatch(/^2024-06-10T/);
   });
 });

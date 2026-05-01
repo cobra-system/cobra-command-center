@@ -48,22 +48,35 @@ export function createSupabaseMock() {
     let payload: Record<string, unknown> | undefined;
     const eqs: Eq[] = [];
 
-    const finalize = () => {
+    let writeRecorded = false;
+    const recordWrite = () => {
+      if (writeRecorded) return;
       if (mode === "insert") {
         state.writes.push({ kind: "insert", table, payload: payload! });
+        writeRecorded = true;
       } else if (mode === "update") {
         state.writes.push({ kind: "update", table, payload: payload!, eqs: [...eqs] });
+        writeRecorded = true;
       } else if (mode === "delete") {
         state.writes.push({ kind: "delete", table, eqs: [...eqs] });
+        writeRecorded = true;
       } else if (mode === "upsert") {
         state.writes.push({ kind: "upsert", table, payload: payload! });
+        writeRecorded = true;
       }
-      const r = mode === "select" ? takeResponse(table) : { data: null, error: null };
+    };
+
+    const finalize = () => {
+      const wasSelect = mode === "select" || writeRecorded;
+      recordWrite();
+      const r = wasSelect ? takeResponse(table) : { data: null, error: null };
       return Promise.resolve(r);
     };
 
     const b: Record<string, unknown> = {
-      select: () => { mode = "select"; return b; },
+      // Real supabase supports `insert(...).select().single()`; record the write
+      // before transitioning to select-mode so the call still shows up.
+      select: () => { recordWrite(); mode = "select"; return b; },
       insert: (p: Record<string, unknown>) => { mode = "insert"; payload = p; return b; },
       update: (p: Record<string, unknown>) => { mode = "update"; payload = p; return b; },
       delete: () => { mode = "delete"; return b; },

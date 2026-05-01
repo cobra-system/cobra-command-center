@@ -1,18 +1,20 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
-// Mock sonner toast
+const sentry = vi.hoisted(() => ({
+  captureException: vi.fn(),
+  enabled: false,
+}));
+
 vi.mock("sonner", () => ({
   toast: {
     error: vi.fn(),
   },
 }));
 
-// Mock sentry
 vi.mock("./sentry", () => ({
-  getSentry: () => null,
+  getSentry: () => (sentry.enabled ? { captureException: sentry.captureException } : null),
 }));
 
-// Mock logger to suppress console output in tests
 vi.mock("./logger", () => ({
   logger: {
     error: vi.fn(),
@@ -26,6 +28,12 @@ import { handleError } from "./errorHandler";
 import { toast } from "sonner";
 
 describe("handleError", () => {
+  beforeEach(() => {
+    sentry.captureException.mockReset();
+    sentry.enabled = false;
+    (toast.error as ReturnType<typeof vi.fn>).mockReset();
+  });
+
   it("shows Error.message via toast", () => {
     handleError(new Error("Something broke"));
     expect(toast.error).toHaveBeenCalledWith("Something broke");
@@ -64,5 +72,28 @@ describe("handleError", () => {
   it("uses userMessage override when provided", () => {
     handleError(new Error("technical"), "שגיאה בשמירה");
     expect(toast.error).toHaveBeenCalledWith("שגיאה בשמירה");
+  });
+});
+
+describe("handleError — Sentry capture path", () => {
+  beforeEach(() => {
+    sentry.captureException.mockReset();
+    sentry.enabled = true;
+    (toast.error as ReturnType<typeof vi.fn>).mockReset();
+  });
+
+  it("forwards an Error instance to Sentry verbatim", () => {
+    const err = new Error("kaboom");
+    handleError(err);
+    expect(sentry.captureException).toHaveBeenCalledTimes(1);
+    expect(sentry.captureException).toHaveBeenCalledWith(err);
+  });
+
+  it("wraps non-Error values in a fresh Error with the resolved message", () => {
+    handleError("plain string failure", "שגיאה בשמירה");
+    expect(sentry.captureException).toHaveBeenCalledTimes(1);
+    const arg = sentry.captureException.mock.calls[0][0];
+    expect(arg).toBeInstanceOf(Error);
+    expect((arg as Error).message).toBe("שגיאה בשמירה");
   });
 });
