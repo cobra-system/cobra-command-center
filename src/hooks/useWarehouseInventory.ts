@@ -1,38 +1,17 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useData } from "@/contexts/AppContext";
 import { useProductScope } from "@/hooks/useProductScope";
 import { supabase } from "@/lib/supabase";
 import type { WarehouseZone, ZoneType } from "@/data/warehouseZones";
-import type { Product } from "@/contexts/types";
+import {
+  buildZoneInventoryMap,
+  type ZoneInventoryData,
+  type ZoneProduct,
+  type ZoneProductRow,
+  type CenterInventoryRow,
+} from "@/lib/warehouseInventoryUtils";
 
-export interface ZoneProduct {
-  id: string;
-  name: string;
-  sku: string;
-  quantity: number;
-  minStock: number;
-  isLowStock: boolean;
-  stockQty: number;
-  incomingQty: number;
-}
-
-export interface ZoneInventoryData {
-  zone: WarehouseZone;
-  products: ZoneProduct[];
-  totalQuantity: number;
-  hasLowStock: boolean;
-}
-
-interface ZoneProductRow {
-  zone_id: string;
-  product_id: string;
-}
-
-interface CenterInventoryRow {
-  product_id: string;
-  quantity: number;
-  min_stock: number;
-}
+export type { ZoneInventoryData, ZoneProduct };
 
 interface WarehouseZoneRow {
   id: string;
@@ -59,10 +38,6 @@ export function useWarehouseInventory() {
   const [loading, setLoading] = useState(true);
 
   const products = isScoped ? scopedProducts : allProducts;
-  const productMap = new Map<string, Product>();
-  for (const p of products) {
-    productMap.set(p.id, p);
-  }
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -122,48 +97,18 @@ export function useWarehouseInventory() {
     fetchData();
   }, [fetchData]);
 
-  // Build the zone inventory map
-  const inventoryMap = new Map<string, CenterInventoryRow>();
-  for (const row of inventory) {
-    inventoryMap.set(row.product_id, row);
-  }
-
-  const zoneInventoryMap = new Map<string, ZoneInventoryData>();
-
-  for (const zone of zones) {
-    const assignedProductIds = zoneProductRows
-      .filter((r) => r.zone_id === zone.id)
-      .map((r) => r.product_id);
-
-    const zoneProducts: ZoneProduct[] = [];
-    for (const pid of assignedProductIds) {
-      const product = productMap.get(pid);
-      if (!product) continue;
-      if (isScoped && !scopedProductIds.has(pid)) continue;
-
-      const inv = inventoryMap.get(pid);
-      const quantity = inv?.quantity ?? 0;
-      const minStock = inv?.min_stock ?? 0;
-
-      zoneProducts.push({
-        id: product.id,
-        name: product.name,
-        sku: product.sku,
-        quantity,
-        minStock,
-        isLowStock: minStock > 0 && quantity < minStock,
-        stockQty: product.stock_qty,
-        incomingQty: product.incoming_qty,
-      });
-    }
-
-    zoneInventoryMap.set(zone.id, {
-      zone,
-      products: zoneProducts,
-      totalQuantity: zoneProducts.reduce((sum, p) => sum + p.quantity, 0),
-      hasLowStock: zoneProducts.some((p) => p.isLowStock),
-    });
-  }
+  const zoneInventoryMap = useMemo(
+    () =>
+      buildZoneInventoryMap({
+        zones,
+        zoneProductRows,
+        inventory,
+        products,
+        isScoped,
+        scopedProductIds,
+      }),
+    [zones, zoneProductRows, inventory, products, isScoped, scopedProductIds],
+  );
 
   return {
     zones,
