@@ -77,6 +77,27 @@ export function registerBulkOpsTools(server: McpServer) {
   );
 
   server.tool(
+    "bulk_update_tracking_carrier",
+    "סימון חברת שילוח להזמנות מרובות — Tag tracking_carrier for multiple orders",
+    {
+      order_ids: z.array(z.string().uuid()).describe("Array of order UUIDs"),
+      carrier: z.enum(["dhl", "tclog", "other"]).nullable().describe("Carrier: 'dhl' | 'tclog' | 'other' | null to clear"),
+    },
+    async ({ order_ids, carrier }) => {
+      const { error, count } = await supabase
+        .from("orders")
+        .update({ tracking_carrier: carrier }, { count: "exact" })
+        .in("id", order_ids);
+      if (error) {
+        return { content: [{ type: "text" as const, text: `Failed: ${error.message}` }] };
+      }
+      return {
+        content: [{ type: "text" as const, text: `Updated tracking_carrier=${carrier ?? "NULL"} for ${count ?? order_ids.length}/${order_ids.length} orders.` }],
+      };
+    }
+  );
+
+  server.tool(
     "bulk_complete_tasks",
     "סיום משימות מרובות — Mark multiple task instances as DONE",
     {

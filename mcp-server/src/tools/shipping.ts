@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { supabase } from "../supabase.js";
+import { fetchDhlTracking, persistTracking } from "../lib/dhlParse.js";
 
 export function registerShippingTools(server: McpServer) {
   // ── Shipment Groups ──────────────────────────────────────────────────────────
@@ -157,11 +158,12 @@ export function registerShippingTools(server: McpServer) {
 
   server.tool(
     "track_shipment_dhl",
-    "מעקב משלוח DHL — Track a DHL shipment using the DHL Shipment Tracking API v2",
+    "מעקב משלוח DHL — Track a DHL shipment using the DHL Shipment Tracking API v2. If order_id is provided, persists the rich tracking fields to the orders table.",
     {
       tracking_number: z.string().describe("DHL tracking number (waybill number)"),
+      order_id: z.string().uuid().optional().describe("Optional order UUID — when provided, the parsed result is persisted to orders.tracking_* columns"),
     },
-    async ({ tracking_number }) => {
+    async ({ tracking_number, order_id }) => {
       const apiKey = process.env.DHL_API_KEY;
 
       if (!apiKey) {
@@ -185,50 +187,32 @@ export function registerShippingTools(server: McpServer) {
       }
 
       try {
-        const url = `https://api.dhl.com/track/shipments?trackingNumber=${encodeURIComponent(tracking_number)}`;
-        const response = await fetch(url, {
-          headers: {
-            "DHL-API-Key": apiKey,
-            "Accept": "application/json",
-          },
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          return {
-            content: [{
-              type: "text" as const,
-              text: `DHL API error (${response.status}): ${errorText}`,
-            }],
-          };
+        const result = await fetchDhlTracking(tracking_number, apiKey);
+        if (!result.ok) {
+          return { content: [{ type: "text" as const, text: `DHL API error (${result.status}): ${result.message}` }] };
         }
-
-        const json = await response.json() as Record<string, unknown>;
-        const shipments = (json.shipments as Record<string, unknown>[]) || [];
-
-        if (shipments.length === 0) {
-          return { content: [{ type: "text" as const, text: `No DHL shipment found for tracking number: ${tracking_number}` }] };
+        const p = result.payload;
+        let persisted = false;
+        if (order_id) {
+          const { error } = await persistTracking(order_id, p);
+          if (error) {
+            return { content: [{ type: "text" as const, text: `Fetched DHL data but failed to persist to order: ${error.message}` }] };
+          }
+          persisted = true;
         }
-
-        const shipment = shipments[0];
-        const events = (shipment.events as Record<string, unknown>[]) || [];
-        const latestEvent = events[0];
-        const status = (shipment.status as Record<string, unknown>) || {};
-        const estimatedDelivery = (shipment.estimatedTimeOfDelivery as string) || null;
 
         const summary = {
           tracking_number,
-          current_status: status.description || status.status,
-          location: (latestEvent?.location as Record<string, unknown>)?.address,
-          latest_event: latestEvent?.description,
-          latest_event_time: latestEvent?.timestamp,
-          estimated_delivery: estimatedDelivery,
-          total_events: events.length,
-          recent_events: events.slice(0, 5).map((e: Record<string, unknown>) => ({
-            time: e.timestamp,
-            location: (e.location as Record<string, unknown>)?.address,
-            description: e.description,
-          })),
+          status_code: p.tracking_status_code,
+          raw_status: p.tracking_raw_status,
+          description: p.tracking_description,
+          estimated_delivery: p.tracking_eta,
+          last_location: p.tracking_last_location,
+          origin: p.tracking_origin,
+          destination: p.tracking_destination,
+          total_events: p.tracking_events.length,
+          recent_events: p.tracking_events.slice(0, 5),
+          persisted_to_order: persisted ? order_id : null,
         };
 
         return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
@@ -268,26 +252,14 @@ export function registerShippingTools(server: McpServer) {
       }
 
       try {
-        const url = `https://api.dhl.com/track/shipments?trackingNumber=${encodeURIComponent(tracking_number)}`;
-        const response = await fetch(url, {
-          headers: { "DHL-API-Key": apiKey, "Accept": "application/json" },
-        });
-
-        if (!response.ok) {
-          return { content: [{ type: "text" as const, text: `DHL API error (${response.status})` }] };
+        const result = await fetchDhlTracking(tracking_number, apiKey);
+        if (!result.ok) {
+          return { content: [{ type: "text" as const, text: `DHL API error (${result.status}): ${result.message}` }] };
         }
-
-        const json = await response.json() as Record<string, unknown>;
-        const shipments = (json.shipments as Record<string, unknown>[]) || [];
-
-        if (shipments.length === 0) {
-          return { content: [{ type: "text" as const, text: `No DHL data found for tracking number: ${tracking_number}` }] };
-        }
-
-        const dhlEta = shipments[0].estimatedTimeOfDelivery as string | null;
-        const dhlStatus = ((shipments[0].status as Record<string, unknown>)?.description as string) || "";
-        const dhlEvents = (shipments[0].events as Record<string, unknown>[]) || [];
-        const latestEvent = dhlEvents[0];
+        const p = result.payload;
+        const dhlEta = p.tracking_eta;
+        const dhlStatus = p.tracking_description ?? p.tracking_status_code;
+        const latestEvent = p.tracking_events[0];
 
         if (!dhlEta) {
           return { content: [{ type: "text" as const, text: `DHL has no estimated delivery date for ${tracking_number}.\nCurrent status: ${dhlStatus}` }] };
@@ -308,7 +280,7 @@ export function registerShippingTools(server: McpServer) {
           dhl_status: dhlStatus,
           dhl_latest_event: latestEvent ? {
             time: latestEvent.timestamp,
-            location: (latestEvent.location as Record<string, unknown>)?.address,
+            location: latestEvent.location,
             description: latestEvent.description,
           } : null,
         };
@@ -355,23 +327,22 @@ export function registerShippingTools(server: McpServer) {
           });
         }
 
-        const { data: updatedOrder, error } = await supabase
-          .from("orders")
-          .update({
-            eta: newEta,
-            tracking_number,
-            notes: `${(currentOrder?.notes as string) || ""}\n[${new Date().toISOString().split("T")[0]}] DHL ETA updated: ${newEta} (was: ${oldEta || "not set"}). Status: ${dhlStatus}`.trim(),
-          })
-          .eq("id", order_id)
-          .select()
-          .single();
+        // Persist all the rich tracking columns (matches edge function behavior)
+        // and additionally set eta + tracking_number + notes for the legacy
+        // workflow this tool supports.
+        const newNotes = `${(currentOrder?.notes as string) || ""}\n[${new Date().toISOString().split("T")[0]}] DHL ETA updated: ${newEta} (was: ${oldEta || "not set"}). Status: ${dhlStatus}`.trim();
+        const { error } = await persistTracking(order_id, p, {
+          eta: newEta,
+          tracking_number,
+          notes: newNotes,
+        });
 
         if (error) return { content: [{ type: "text" as const, text: `Error updating order: ${error.message}` }] };
 
         return {
           content: [{
             type: "text" as const,
-            text: `✅ Order ETA updated from DHL:\n  Old ETA: ${oldEta || "not set"}\n  New ETA: ${newEta}\n  DHL Status: ${dhlStatus}\n\nUpdated order:\n${JSON.stringify(updatedOrder, null, 2)}`,
+            text: `✅ Order ETA + tracking columns updated from DHL:\n  Old ETA: ${oldEta || "not set"}\n  New ETA: ${newEta}\n  DHL Status: ${dhlStatus}\n  Status code: ${p.tracking_status_code}\n  Events recorded: ${p.tracking_events.length}`,
           }],
         };
       } catch (err) {

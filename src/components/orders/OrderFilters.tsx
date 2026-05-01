@@ -32,6 +32,10 @@ interface OrderFiltersProps {
   setPaymentFilter: (v: string) => void;
   workflowFilter: string;
   setWorkflowFilter: (v: string) => void;
+  carrierFilter: string;
+  setCarrierFilter: (v: string) => void;
+  trackingStateFilter: string;
+  setTrackingStateFilter: (v: string) => void;
   orderCounts: Record<string, number>;
 }
 
@@ -46,6 +50,10 @@ export function OrderFilters({
   setPaymentFilter,
   workflowFilter,
   setWorkflowFilter,
+  carrierFilter,
+  setCarrierFilter,
+  trackingStateFilter,
+  setTrackingStateFilter,
   orderCounts,
 }: OrderFiltersProps) {
   return (
@@ -96,6 +104,28 @@ export function OrderFilters({
           <SelectItem value="active">תהליך פעיל</SelectItem>
           <SelectItem value="completed">ארכיון (הושלמו)</SelectItem>
           <SelectItem value="none">ללא תהליך</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select value={carrierFilter} onValueChange={setCarrierFilter}>
+        <SelectTrigger className="w-[120px] sm:w-[140px]"><SelectValue placeholder="חברת שילוח" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">כל חברות השילוח</SelectItem>
+          <SelectItem value="dhl">DHL</SelectItem>
+          <SelectItem value="tclog">TCLOG</SelectItem>
+          <SelectItem value="other">אחר</SelectItem>
+          <SelectItem value="none">לא מוגדר</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select value={trackingStateFilter} onValueChange={setTrackingStateFilter}>
+        <SelectTrigger className="w-[130px] sm:w-[150px]"><SelectValue placeholder="מצב מעקב" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">כל מצבי המעקב</SelectItem>
+          <SelectItem value="pre-transit">ממתין לאיסוף</SelectItem>
+          <SelectItem value="transit">בדרך</SelectItem>
+          <SelectItem value="delivered">נמסר</SelectItem>
+          <SelectItem value="failure">תקלה</SelectItem>
+          <SelectItem value="unsynced">טרם סונכרן</SelectItem>
+          <SelectItem value="error">שגיאת סנכרון</SelectItem>
         </SelectContent>
       </Select>
     </div>

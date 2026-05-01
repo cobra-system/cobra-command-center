@@ -96,27 +96,32 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
   }, []);
 
   const handleBulkRefreshTracking = async () => {
-    const trackableOrders = activeOrders.filter(o => o.tracking_number);
-    if (trackableOrders.length === 0) { toast.error("אין הזמנות פעילות עם מספר מעקב"); return; }
+    const trackableOrders = activeOrders.filter(o => o.tracking_number && o.tracking_carrier === "dhl");
+    if (trackableOrders.length === 0) { toast.error("אין הזמנות פעילות עם ספק מעקב DHL מוגדר"); return; }
     abortRef.current = false;
     setBulkTracking({ running: true, done: 0, total: trackableOrders.length });
     const { data: { session } } = await supabase.auth.getSession();
     const baseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    const CHUNK_SIZE = 25;
+    let updated = 0;
     let done = 0;
-    for (const order of trackableOrders) {
+    for (let i = 0; i < trackableOrders.length; i += CHUNK_SIZE) {
       if (abortRef.current) break;
+      const chunk = trackableOrders.slice(i, i + CHUNK_SIZE);
       try {
-        await fetch(`${baseUrl}/functions/v1/track-shipment`, {
+        const res = await fetch(`${baseUrl}/functions/v1/track-shipments-bulk`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
-          body: JSON.stringify({ order_id: order.id }),
+          body: JSON.stringify({ order_ids: chunk.map(o => o.id) }),
         });
-      } catch { /* continue on individual failure */ }
-      done++;
+        const json = await res.json().catch(() => null);
+        if (json && typeof json.updated === "number") updated += json.updated;
+      } catch { /* continue on chunk failure */ }
+      done += chunk.length;
       setBulkTracking(prev => ({ ...prev, done }));
     }
     setBulkTracking({ running: false, done, total: trackableOrders.length });
-    toast.success(`עודכן מעקב ל-${done} הזמנות`);
+    toast.success(`עודכן מעקב ל-${updated} הזמנות`);
     await refreshOrders();
   };
 
@@ -327,7 +332,7 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
     </div>
   );
 
-  const trackableCount = activeOrders.filter(o => o.tracking_number).length;
+  const trackableCount = activeOrders.filter(o => o.tracking_number && o.tracking_carrier === "dhl").length;
 
   return (
     <div className="space-y-6">

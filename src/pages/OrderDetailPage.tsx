@@ -4,11 +4,14 @@ import { useState, useEffect, useMemo } from "react";
 import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Trash2, CreditCard, Zap, Check, Ship, Hash, Plus, Pencil, ChevronLeft, ChevronRight, Warehouse, RefreshCw } from "lucide-react";
+import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Trash2, CreditCard, Zap, Check, Ship, Hash, Plus, Pencil, ChevronLeft, ChevronRight, Warehouse } from "lucide-react";
 import DocumentsSection from "@/components/DocumentsSection";
 import { OrderPaymentsSection } from "@/components/orders/OrderPaymentsSection";
 import { OrderAuditLog } from "@/components/orders/OrderAuditLog";
 import { ShipmentGroupSelector } from "@/components/orders/ShipmentGroupSelector";
+import { DhlTrackingWidget } from "@/components/orders/DhlTrackingWidget";
+import { TclogTrackingWidget } from "@/components/orders/TclogTrackingWidget";
+import { detectCarrier, carrierLabel } from "@/lib/trackingCarrierDetect";
 import { supabase } from "@/lib/supabase";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -234,6 +237,7 @@ export default function OrderDetailPage() {
 
   const handleRefreshTracking = async () => {
     if (!order.tracking_number) { toast.error("אין מספר מעקב להזמנה זו"); return; }
+    if (order.tracking_carrier !== "dhl") { toast.error("רענון אוטומטי זמין רק עבור משלוחי DHL — בחר \"DHL\" בשדה \"חברת שילוח\""); return; }
     setTrackingLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -258,6 +262,11 @@ export default function OrderDetailPage() {
     { label: "סה״כ ($)", field: "total_price", value: order.total_price?.toString() ?? "", icon: DollarSign, isReadOnly: true },
     { label: "שיטת משלוח", field: "shipping", value: order.shipping, options: shippingOptions, icon: Ship },
     { label: "מספר מעקב", field: "tracking_number", value: order.tracking_number, icon: Hash },
+    { label: "חברת שילוח", field: "tracking_carrier", value: order.tracking_carrier, icon: Truck, options: [
+      { value: "dhl", label: "DHL" },
+      { value: "tclog", label: "TCLOG" },
+      { value: "other", label: "אחר" },
+    ] },
     { label: "מספר PI", field: "pi_number", value: order.pi_number, icon: Hash },
     { label: "שם אונייה", field: "vessel_name", value: order.vessel_name, icon: Ship },
     { label: "מספר הזמנת מקום", field: "booking_number", value: order.booking_number, icon: Hash },
@@ -363,51 +372,57 @@ export default function OrderDetailPage() {
         </div>
       </div>
 
-      {/* DHL Tracking */}
-      {order.tracking_number && (
-        <div className="bg-card rounded-xl border shadow-sm p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Truck className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold text-foreground">מעקב DHL</h2>
-            </div>
-            <button
-              onClick={handleRefreshTracking}
-              disabled={trackingLoading}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border rounded-lg px-3 py-1.5 transition-colors hover:bg-muted/30 disabled:opacity-50"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${trackingLoading ? "animate-spin" : ""}`} />
-              רענן מעקב
-            </button>
-          </div>
-          <div className="space-y-2">
-            {order.tracking_status ? (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">סטטוס:</span>
-                <span className="text-sm font-semibold">{order.tracking_status}</span>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">טרם בוצע עדכון מעקב — לחץ "רענן מעקב"</p>
-            )}
-            {order.tracking_last_event && (
-              <div className="flex items-start gap-2">
-                <span className="text-sm text-muted-foreground shrink-0">אירוע אחרון:</span>
-                <span className="text-sm">{order.tracking_last_event}</span>
-              </div>
-            )}
-            {order.tracking_updated_at && (
-              <p className="text-xs text-muted-foreground">
-                עודכן: {new Date(order.tracking_updated_at).toLocaleString("he-IL")}
+      {/* Carrier prompt — tracking_number is set but the carrier hasn't been chosen */}
+      {order.tracking_number && !order.tracking_carrier && (() => {
+        const guess = detectCarrier(order.tracking_number, order.tclog_reference);
+        return (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-900 flex items-start gap-3 flex-wrap">
+            <Truck className="h-5 w-5 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-[14rem]">
+              <div className="font-semibold mb-1">בחר את חברת השילוח להזמנה זו</div>
+              <p className="text-xs leading-relaxed">
+                המספר <span className="font-mono">{order.tracking_number}</span> יכול להיות של DHL או של TCLOG.
+                {guess && <> לפי הפורמט נראה שזו <strong>{carrierLabel(guess.carrier)}</strong>{guess.confidence === "low" && " (לא בטוח)"}.</>}
               </p>
-            )}
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {guess && hasEdit && (
+                <Button size="sm" variant="default" onClick={() => handleInlineSave("tracking_carrier", guess.carrier)}>
+                  סמן כ-{carrierLabel(guess.carrier)}
+                </Button>
+              )}
+              {hasEdit && guess?.carrier !== "dhl" && (
+                <Button size="sm" variant="outline" onClick={() => handleInlineSave("tracking_carrier", "dhl")}>סמן כ-DHL</Button>
+              )}
+              {hasEdit && guess?.carrier !== "tclog" && (
+                <Button size="sm" variant="outline" onClick={() => handleInlineSave("tracking_carrier", "tclog")}>סמן כ-TCLOG</Button>
+              )}
+            </div>
           </div>
-        </div>
+        );
+      })()}
+
+      {/* DHL Tracking */}
+      {order.tracking_carrier === "dhl" && order.tracking_number && (
+        <DhlTrackingWidget order={order} loading={trackingLoading} onRefresh={handleRefreshTracking} />
+      )}
+
+      {/* TCLOG Tracking — show whenever there's a TCLOG signal (carrier=tclog OR tclog_reference filled) */}
+      {(order.tracking_carrier === "tclog" || order.tclog_reference) && (
+        <TclogTrackingWidget order={order} />
       )}
 
       {/* Dates Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {dateFields.map(d => {
           const date = d.value ? new Date(d.value) : undefined;
+          // For the ETA card, surface DHL's tracking_eta when it differs from the user's eta
+          // by more than 24 hours (or when the user hasn't set one).
+          const isEta = d.field === "eta";
+          const trackingEta = isEta && order.tracking_eta ? new Date(order.tracking_eta) : undefined;
+          const showDhlEta = !!trackingEta && (
+            !date || Math.abs(date.getTime() - trackingEta.getTime()) > 24 * 3600 * 1000
+          );
           return (
             <div key={d.field} className="bg-card rounded-xl border p-4 space-y-1">
               <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
@@ -417,6 +432,16 @@ export default function OrderDetailPage() {
                 <DateInput value={date} onChange={dt => handleDateSave(d.field, dt)} clearable />
               ) : (
                 <div className="text-sm font-semibold text-foreground">{date ? date.toLocaleDateString("he-IL") : "—"}</div>
+              )}
+              {isEta && showDhlEta && trackingEta && hasEdit && (
+                <button
+                  type="button"
+                  onClick={() => handleDateSave("eta", trackingEta)}
+                  className="text-xs text-primary hover:underline flex items-center gap-1 mt-1"
+                  title="עדכן ETA לפי DHL"
+                >
+                  DHL: {trackingEta.toLocaleDateString("he-IL")} — סנכרן
+                </button>
               )}
             </div>
           );

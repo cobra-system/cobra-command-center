@@ -7,12 +7,16 @@ const ShipmentGroupsTab = lazy(() =>
 );
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useProductScope } from "@/hooks/useProductScope";
+import { useBackgroundTrackingSync } from "@/hooks/useBackgroundTrackingSync";
+import { useTableSelection } from "@/hooks/useTableSelection";
+import { OrderBulkActionsBar } from "@/components/orders/OrderBulkActionsBar";
+import { TrackingSyncErrorsBanner } from "@/components/orders/TrackingSyncErrorsBanner";
 import { NewOrderDialog } from "@/components/orders/NewOrderDialog";
 import { OrdersDashboardView } from "@/components/orders/OrdersDashboardView";
 import { OrderFilters } from "@/components/orders/OrderFilters";
@@ -35,8 +39,10 @@ const priorityOrder: Record<string, number> = { "דחוף": 0, "גבוה": 1, "�
 const statusOrder: Record<string, number> = { PENDING: 0, ORDERED: 1, SHIPPED: 2, ARRIVED_PORT: 3, CUSTOMS_CLEARANCE: 4, DELIVERED: 5, ARRIVED: 6, CANCELLED: 7 };
 
 export default function OrdersPage() {
-  const { updateOrderStatus, updateOrder, addOrder, deleteOrder, suppliers } = useData();
+  const { updateOrderStatus, updateOrder, addOrder, deleteOrder, suppliers, refreshOrders } = useData();
   const { scopedOrders: orders, scopedProducts: products, scopeOrderItems } = useProductScope();
+  const trackingSync = useBackgroundTrackingSync(orders);
+  const selection = useTableSelection();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [orderWorkflows, setOrderWorkflows] = useState<Record<string, WorkflowInfo>>({});
@@ -105,12 +111,16 @@ export default function OrdersPage() {
   const priorityFilter = searchParams.get("priority") || "all";
   const paymentFilter = searchParams.get("payment") || "all";
   const workflowFilter = searchParams.get("wf") || "all";
+  const carrierFilter = searchParams.get("carrier") || "all";
+  const trackingStateFilter = searchParams.get("tracking_state") || "all";
 
   const setSearch = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v) { n.set("q", v); } else { n.delete("q"); } return n; }, { replace: true }), [setSearchParams]);
   const setStatusFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("status"); } else { n.set("status", v); } return n; }, { replace: true }), [setSearchParams]);
   const setPriorityFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("priority"); } else { n.set("priority", v); } return n; }, { replace: true }), [setSearchParams]);
   const setPaymentFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("payment"); } else { n.set("payment", v); } return n; }, { replace: true }), [setSearchParams]);
   const setWorkflowFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("wf"); } else { n.set("wf", v); } return n; }, { replace: true }), [setSearchParams]);
+  const setCarrierFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("carrier"); } else { n.set("carrier", v); } return n; }, { replace: true }), [setSearchParams]);
+  const setTrackingStateFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("tracking_state"); } else { n.set("tracking_state", v); } return n; }, { replace: true }), [setSearchParams]);
 
   // Sort — localStorage only (personal preference, no need to pollute the URL)
   const [sortField, setSortField] = useState<SortField | null>(() => {
@@ -164,6 +174,22 @@ export default function OrdersPage() {
       if (statusFilter !== "all" && o.status !== statusFilter) return false;
       if (priorityFilter !== "all" && o.priority !== priorityFilter) return false;
       if (paymentFilter !== "all" && (o as Record<string, unknown>).payment_status !== paymentFilter) return false;
+      if (carrierFilter !== "all") {
+        if (carrierFilter === "none") {
+          if (o.tracking_carrier) return false;
+        } else if (o.tracking_carrier !== carrierFilter) {
+          return false;
+        }
+      }
+      if (trackingStateFilter !== "all") {
+        if (trackingStateFilter === "unsynced") {
+          if (!(o.tracking_carrier === "dhl" && !o.tracking_status_code)) return false;
+        } else if (trackingStateFilter === "error") {
+          if (!o.tracking_sync_error) return false;
+        } else if (o.tracking_status_code !== trackingStateFilter) {
+          return false;
+        }
+      }
       {
         const wf = orderWorkflows[o.id];
         if (workflowFilter === "all") {
@@ -206,6 +232,7 @@ export default function OrdersPage() {
           case "total_price": cmp = (a.total_price || 0) - (b.total_price || 0); break;
           case "payment": cmp = (a.payment_date || "").localeCompare(b.payment_date || ""); break;
           case "tracking_number": cmp = (a.tracking_number || "").localeCompare(b.tracking_number || "", "he"); break;
+          case "tracking_carrier": cmp = (a.tracking_carrier || "zz").localeCompare(b.tracking_carrier || "zz", "he"); break;
           case "pi_number": cmp = (a.pi_number || "").localeCompare(b.pi_number || "", "he"); break;
           case "updated_at": {
             const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
@@ -233,7 +260,7 @@ export default function OrdersPage() {
     }
 
     return result;
-  }, [orders, statusFilter, priorityFilter, paymentFilter, workflowFilter, search, sortField, sortDir, orderWorkflows, scopeOrderItems]);
+  }, [orders, statusFilter, priorityFilter, paymentFilter, workflowFilter, carrierFilter, trackingStateFilter, search, sortField, sortDir, orderWorkflows, scopeOrderItems]);
 
   const orderCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -315,8 +342,14 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <h1 className="text-2xl font-bold text-foreground">הזמנות</h1>
+        {trackingSync.syncing && (
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 rounded-full px-2.5 py-1">
+            <RefreshCw className="h-3 w-3 animate-spin" />
+            מעדכן מעקב {trackingSync.done}/{trackingSync.total}
+          </span>
+        )}
         <NewOrderDialog
           suppliers={suppliers}
           products={products}
@@ -327,6 +360,11 @@ export default function OrdersPage() {
           defaultSupplierId={defaultSupplierId}
         />
       </div>
+
+      <TrackingSyncErrorsBanner
+        orders={orders}
+        onShowFailed={() => setTrackingStateFilter("error")}
+      />
 
       <Tabs defaultValue="dashboard" className="space-y-4">
         <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-1">
@@ -363,6 +401,10 @@ export default function OrdersPage() {
             setPaymentFilter={setPaymentFilter}
             workflowFilter={workflowFilter}
             setWorkflowFilter={setWorkflowFilter}
+            carrierFilter={carrierFilter}
+            setCarrierFilter={setCarrierFilter}
+            trackingStateFilter={trackingStateFilter}
+            setTrackingStateFilter={setTrackingStateFilter}
             orderCounts={orderCounts}
           />
           <OrderTable
@@ -381,7 +423,15 @@ export default function OrdersPage() {
             handleWorkflowStepChange={handleWorkflowStepChange}
             updateOrderStatus={updateOrderStatus}
             updateOrder={updateOrder}
+            selection={hasEdit ? selection : undefined}
           />
+          {hasEdit && (
+            <OrderBulkActionsBar
+              selectedIds={selection.selectedIds}
+              onClear={selection.clear}
+              onAfterUpdate={refreshOrders}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="archive" className="mt-0 space-y-4">
