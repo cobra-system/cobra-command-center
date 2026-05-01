@@ -5,12 +5,19 @@
 
 ---
 
+## [2026-05-01]
+
+- Employee mobile padding + cap stock thresholds at 3000 (8635f1d)
+- Mobile cards for detail-page tables, iOS safe-area, RTL polish (fb334c5)
+- Additional mobile fixes from second pass audit (12b52a9)
+- Fix mobile responsiveness across admin view (80920e2)
+
+<!-- last-commit: 2c1ce10abe6e0bed59ede547c7e11270f9e57209 -->
 ## [2026-04-30]
 
 - Remove 'mark all closed' and 'print barcodes' buttons from lock control (bc2e9bc)
 - Add unique icons for missing nav modules (d710547)
 
-<!-- last-commit: f4bd2042c08821ddf551e680ebde4f41e86f2132 -->
 ## [2026-04-30]
 
 - feat(lock-control): printable QR PNGs, apply DB migration, fix scan crash (c20d710)
