@@ -5,6 +5,14 @@
 
 ---
 
+## [2026-05-01]
+
+- feat(tracking): phase 2 — auto-detect, bulk tagging, filters, MCP parity (7cdfdd0)
+- ui(tracking): rename "ספק המעקב" to "חברת שילוח" (b64723c)
+- fix(tracking): tracking_number can be DHL or TCLOG — require explicit carrier (a0fbb57)
+- feat(tracking): rich DHL tracking widget + auto-sync on orders page (ab12a9d)
+
+<!-- last-commit: eef32e15af7656bf913cb40da99aa110aad59c04 -->
 ## [Unreleased]
 
 ### Added (Phase 2)
@@ -39,7 +47,6 @@
 - Merge pull request #179 from cobra-system/claude/fix-dhl-api-error-CK9dq (743865e)
 - fix(track-shipment): treat DHL 404 as "no data yet" instead of an error (bb3e0ea)
 
-<!-- last-commit: 743865e81f53fd6b2fbb6c15e0a46bac05ba0add -->
 ## [2026-05-01]
 
 - Employee mobile padding + cap stock thresholds at 3000 (8635f1d)
