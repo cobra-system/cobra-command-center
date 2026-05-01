@@ -6,7 +6,11 @@ interface TclogTrackingWidgetProps {
 }
 
 export function TclogTrackingWidget({ order }: TclogTrackingWidgetProps) {
-  if (!order.tclog_reference) return null;
+  // Either an explicit TCLOG reference, or a tracking_number that the user
+  // marked as TCLOG (since tracking_number is a generic field — DHL or TCLOG).
+  const reference = order.tclog_reference
+    ?? (order.tracking_carrier === "tclog" ? order.tracking_number : null);
+  if (!reference) return null;
 
   return (
     <div className="bg-card rounded-xl border shadow-sm p-5">
@@ -16,7 +20,7 @@ export function TclogTrackingWidget({ order }: TclogTrackingWidgetProps) {
       </div>
       <div className="flex items-center gap-2">
         <span className="text-sm text-muted-foreground">אסמכתא:</span>
-        <span className="text-sm font-semibold font-mono">{order.tclog_reference}</span>
+        <span className="text-sm font-semibold font-mono">{reference}</span>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { Truck } from "lucide-react";
+import { Ship, Truck, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DHL_LEVELS, describeStatus, normalizeLevel } from "@/lib/dhlStatusMap";
 import type { Order } from "@/contexts/types";
@@ -8,8 +8,18 @@ interface TrackingBadgeProps {
 }
 
 export function TrackingBadge({ order }: TrackingBadgeProps) {
-  // Prefer the new normalized status_code; fall back to legacy string-match for orders not yet re-synced.
-  if (order.tracking_status_code) {
+  // TCLOG: no live data, just signal the carrier.
+  if (order.tracking_carrier === "tclog") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium bg-purple-100 text-purple-700">
+        <Ship className="h-3 w-3" />
+        TCLOG
+      </span>
+    );
+  }
+
+  // DHL with normalized status code.
+  if (order.tracking_carrier === "dhl" && order.tracking_status_code) {
     const level = normalizeLevel(order.tracking_status_code);
     const meta = DHL_LEVELS[level];
     const code = order.tracking_events?.[0]?.code ?? order.tracking_raw_status ?? null;
@@ -22,16 +32,22 @@ export function TrackingBadge({ order }: TrackingBadgeProps) {
     );
   }
 
-  if (order.tracking_status) {
-    const lc = order.tracking_status.toLowerCase();
-    const cls = lc.includes("delivered") || lc.includes("נמסר") ? "bg-green-100 text-green-700"
-      : lc.includes("transit") || lc.includes("shipment") || lc.includes("בדרך") ? "bg-blue-100 text-blue-700"
-      : lc.includes("exception") || lc.includes("failure") || lc.includes("תקלה") ? "bg-red-100 text-red-700"
-      : "bg-muted text-muted-foreground";
+  // DHL marked but not yet synced.
+  if (order.tracking_carrier === "dhl") {
     return (
-      <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium", cls)}>
+      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium bg-muted text-muted-foreground">
         <Truck className="h-3 w-3" />
-        {order.tracking_status}
+        ממתין לסנכרון
+      </span>
+    );
+  }
+
+  // Tracking number present but carrier not selected — prompt the user.
+  if (order.tracking_number) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium bg-amber-100 text-amber-800">
+        <HelpCircle className="h-3 w-3" />
+        בחר ספק מעקב
       </span>
     );
   }

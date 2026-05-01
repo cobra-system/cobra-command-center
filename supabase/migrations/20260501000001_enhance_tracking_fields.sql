@@ -31,8 +31,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_tracking_sync
   ON public.orders(tracking_last_synced_at)
   WHERE tracking_number IS NOT NULL;
 
-UPDATE public.orders SET tracking_carrier =
-  CASE WHEN tracking_number IS NOT NULL THEN 'dhl'
-       WHEN tclog_reference IS NOT NULL THEN 'tclog'
-       ELSE NULL END
-WHERE tracking_carrier IS NULL;
+-- NOTE: tracking_carrier is intentionally left NULL for existing rows. A
+-- tracking_number can be either a DHL waybill or a TCLOG reference, and we
+-- can't reliably infer which. Users must set the carrier per order via the UI
+-- before any carrier-specific API call is attempted.

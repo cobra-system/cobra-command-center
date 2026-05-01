@@ -29,9 +29,9 @@ export function useBackgroundTrackingSync(orders: Order[]): SyncState {
     const staleMs = STALE_HOURS * 3600 * 1000;
     const stale = orders.filter(o => {
       if (!o.tracking_number) return false;
-      // tracking_carrier is the explicit signal; fall back to "has tracking_number means DHL".
-      const isDhl = o.tracking_carrier ? o.tracking_carrier === "dhl" : !!o.tracking_number;
-      if (!isDhl) return false;
+      // Only sync orders explicitly marked as DHL — tracking_number can also
+      // hold TCLOG references and we must not call DHL with those.
+      if (o.tracking_carrier !== "dhl") return false;
       if (INACTIVE_STATUSES.includes(o.status as OrderStatus)) return false;
       const last = o.tracking_last_synced_at ? new Date(o.tracking_last_synced_at).getTime() : 0;
       return now - last > staleMs;

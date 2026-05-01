@@ -96,8 +96,8 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
   }, []);
 
   const handleBulkRefreshTracking = async () => {
-    const trackableOrders = activeOrders.filter(o => o.tracking_number);
-    if (trackableOrders.length === 0) { toast.error("אין הזמנות פעילות עם מספר מעקב"); return; }
+    const trackableOrders = activeOrders.filter(o => o.tracking_number && o.tracking_carrier === "dhl");
+    if (trackableOrders.length === 0) { toast.error("אין הזמנות פעילות עם ספק מעקב DHL מוגדר"); return; }
     abortRef.current = false;
     setBulkTracking({ running: true, done: 0, total: trackableOrders.length });
     const { data: { session } } = await supabase.auth.getSession();
@@ -332,7 +332,7 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
     </div>
   );
 
-  const trackableCount = activeOrders.filter(o => o.tracking_number).length;
+  const trackableCount = activeOrders.filter(o => o.tracking_number && o.tracking_carrier === "dhl").length;
 
   return (
     <div className="space-y-6">
