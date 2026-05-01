@@ -1,5 +1,8 @@
+import { useEffect } from "react";
 import { RefreshCw, Truck, MapPin, Calendar, AlertTriangle, Check, Package } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useData } from "@/contexts/AppContext";
 import {
   DHL_LEVELS,
   DHL_PROGRESS_STAGES,
@@ -10,6 +13,8 @@ import {
   type TrackingLevel,
 } from "@/lib/dhlStatusMap";
 import type { Order } from "@/contexts/types";
+
+const INACTIVE_STATUSES = ["DELIVERED", "ARRIVED", "CANCELLED"];
 
 interface DhlTrackingWidgetProps {
   order: Order;
@@ -68,10 +73,26 @@ function ProgressBar({ level, eventCode }: { level: TrackingLevel; eventCode: st
 }
 
 export function DhlTrackingWidget({ order, loading, onRefresh }: DhlTrackingWidgetProps) {
+  const { updateOrderStatus } = useData();
   const level = normalizeLevel(order.tracking_status_code);
   const meta = DHL_LEVELS[level];
   const headlineCode = order.tracking_events?.[0]?.code ?? order.tracking_raw_status ?? null;
   const headline = describeStatus(level, headlineCode, order.tracking_description);
+
+  // When DHL reports the package as delivered but the order's own status hasn't
+  // been updated yet, surface a one-time toast (per session) suggesting the
+  // user advance the order. We never auto-update the status — only suggest.
+  useEffect(() => {
+    if (level !== "delivered") return;
+    if (INACTIVE_STATUSES.includes(order.status)) return;
+    const key = `tracking:delivered-suggested:${order.id}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+    toast.info("DHL מדווח שהמשלוח נמסר. לסמן את ההזמנה כהגיעה?", {
+      action: { label: "סמן כהגיעה", onClick: () => updateOrderStatus(order.id, "DELIVERED") },
+      duration: 30000,
+    });
+  }, [level, order.id, order.status, updateOrderStatus]);
 
   const events = order.tracking_events ?? [];
   const hasAnyData = !!(order.tracking_status_code || order.tracking_description || events.length || order.tracking_status);

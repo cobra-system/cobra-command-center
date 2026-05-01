@@ -7,6 +7,18 @@
 
 ## [Unreleased]
 
+### Added (Phase 2)
+- זיהוי אוטומטי של חברת שילוח לפי פורמט מספר מעקב (`src/lib/trackingCarrierDetect.ts`) + bachfill בטוח של 19 הזמנות קיימות
+- בחירת חברת שילוח inline בטבלת ההזמנות עם הצעה אוטומטית
+- בחירה מרובה (checkbox) ב-OrderTable + סרגל פעולות bulk לסימון חברת שילוח להמוני הזמנות
+- כלי MCP `bulk_update_tracking_carrier` לסימון חברת שילוח להזמנות מרובות
+- סינון בעמוד ההזמנות לפי חברת שילוח ולפי מצב מעקב (במעבר/נמסר/תקלה/לא סונכרן/שגיאה)
+- סנכרון ETA: כפתור inline בכרטיס ה-ETA כש-DHL חזה תאריך שונה מהידני
+- הצעת "סמן כהגיעה" כש-DHL מדווח על מסירה (toast חד-פעמי לכל סשן)
+- כלי MCP `track_shipment_dhl` ו-`update_order_eta_from_dhl` כותבים עכשיו את כל השדות המנורמלים (`tracking_status_code`, `tracking_eta`, `tracking_events`, ...) בנוסף ל-`eta` הישן
+- באנר שגיאות סנכרון ב-OrdersPage כשיש הזמנות עם `tracking_sync_error`, עם פירוק לפי קוד שגיאה וקישור לסינון
+- בדיקות יחידה ל-`trackingCarrierDetect` ול-`dhlStatusMap`
+
 ### Added
 - מעקב DHL מורחב: וידג'ט חדש עם פס התקדמות 5 שלבים (נקלט → נאסף → במעבר → במשלוח → נמסר), הגעה משוערת (ETA), מיקום אחרון, מוצא/יעד, וטיימליין של עד 10 אירועים אחרונים
 - מפת קודי DHL Express לעברית (`src/lib/dhlStatusMap.ts`) — תרגום קוד 102 ושאר הקודים הנפוצים

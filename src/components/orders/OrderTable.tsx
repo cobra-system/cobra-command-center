@@ -15,8 +15,12 @@ import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/c
 import type { ColDef } from "@/hooks/useColumnVisibility";
 import { TrackingBadge } from "@/components/orders/TrackingBadge";
 import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
+import { detectCarrier, carrierLabel } from "@/lib/trackingCarrierDetect";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import type { TableSelectionState } from "@/hooks/useTableSelection";
 
-export type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment" | "workflow" | "tracking_number" | "tracking_status" | "updated_at" | "pi_number";
+export type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment" | "workflow" | "tracking_number" | "tracking_status" | "tracking_carrier" | "updated_at" | "pi_number";
 export type SortDir = "asc" | "desc" | null;
 
 export interface WorkflowInfo {
@@ -41,6 +45,7 @@ const COLUMN_DEFS: ColDef[] = [
   { id: "payment",         label: "תשלום",          sortField: "payment" },
   { id: "workflow",        label: "תהליך",          sortField: "workflow" },
   { id: "tracking_number", label: "מספר מעקב",      sortField: "tracking_number" },
+  { id: "tracking_carrier", label: "חברת שילוח",    sortField: "tracking_carrier" },
   { id: "tracking_status", label: "מצב מעקב DHL",   sortField: "tracking_status" },
   { id: "pi_number",       label: "PI Number",       sortField: "pi_number" },
   { id: "updated_at",      label: "עודכן לאחרונה",  sortField: "updated_at" },
@@ -63,6 +68,7 @@ interface OrderTableProps {
   handleWorkflowStepChange: (orderId: string, wf: WorkflowInfo, newStep: number) => void;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   updateOrder: (orderId: string, updates: Partial<Order>) => void;
+  selection?: TableSelectionState;
 }
 
 // ─── Sort icon ───────────────────────────────────────────────────────────────
@@ -88,13 +94,15 @@ export function OrderTable({
   handleWorkflowStepChange,
   updateOrderStatus,
   updateOrder,
+  selection,
 }: OrderTableProps) {
   const navigate = useNavigate();
   const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility("orders:hidden-columns", COLUMN_DEFS, ["total_price", "pi_number"]);
   const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
   const { scopeOrderItems } = useProductScope();
 
-  const totalColSpan = visibleCount + 1 + (hasEdit ? 1 : 0);
+  const totalColSpan = visibleCount + 1 + (hasEdit ? 1 : 0) + (selection ? 1 : 0);
+  const allFilteredIds = filtered.map(o => o.id);
 
   return (
     <>
@@ -206,6 +214,15 @@ export function OrderTable({
               className="border-b bg-muted/50"
               onContextMenu={trContextMenu(hiddenCols, setColMenu)}
             >
+              {selection && (
+                <th className="text-right p-3 font-semibold text-foreground w-10">
+                  <Checkbox
+                    aria-label="בחר הכל"
+                    checked={selection.isAllSelected(allFilteredIds) ? true : selection.isPartiallySelected(allFilteredIds) ? "indeterminate" : false}
+                    onCheckedChange={() => selection.selectAll(allFilteredIds)}
+                  />
+                </th>
+              )}
               {COLUMN_DEFS.map(col => {
                 if (!isVisible(col.id)) return null;
                 return (
@@ -274,10 +291,22 @@ export function OrderTable({
               return (
                 <EntityContextMenu key={order.id} groups={orderMenuGroups}>
                   <tr
-                    className="cursor-pointer hover:bg-muted/30 transition-colors"
+                    className={cn(
+                      "cursor-pointer hover:bg-muted/30 transition-colors",
+                      selection?.isSelected(order.id) && "bg-primary/5",
+                    )}
                     onClick={(e) => { if (e.detail !== 1) return; navigate(`/orders/${order.id}`); }}
                     data-navigate-to={`/orders/${order.id}`}
                   >
+                    {selection && (
+                      <td className="p-3 w-10" onClick={e => e.stopPropagation()}>
+                        <Checkbox
+                          aria-label="בחר הזמנה"
+                          checked={selection.isSelected(order.id)}
+                          onCheckedChange={() => selection.toggle(order.id)}
+                        />
+                      </td>
+                    )}
                     {isVisible("priority") && (
                       <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
                     )}
@@ -467,6 +496,34 @@ export function OrderTable({
                     )}
                     {isVisible("tracking_number") && (
                       <td className="p-3 text-muted-foreground text-xs">{order.tracking_number || "—"}</td>
+                    )}
+                    {isVisible("tracking_carrier") && (
+                      <td className="p-3 text-xs" onClick={e => e.stopPropagation()}>
+                        {hasEdit && order.tracking_number && !order.tracking_carrier ? (
+                          (() => {
+                            const guess = detectCarrier(order.tracking_number, order.tclog_reference);
+                            return (
+                              <Select
+                                value={order.tracking_carrier ?? ""}
+                                onValueChange={(v) => updateOrder(order.id, { tracking_carrier: (v || null) as Order["tracking_carrier"] })}
+                              >
+                                <SelectTrigger className="h-7 text-xs w-28">
+                                  <SelectValue placeholder={guess ? `${carrierLabel(guess.carrier)}?` : "בחר..."} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="dhl">DHL</SelectItem>
+                                  <SelectItem value="tclog">TCLOG</SelectItem>
+                                  <SelectItem value="other">אחר</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            );
+                          })()
+                        ) : (
+                          <span className={cn(order.tracking_carrier ? "text-foreground font-medium" : "text-muted-foreground")}>
+                            {carrierLabel(order.tracking_carrier)}
+                          </span>
+                        )}
+                      </td>
                     )}
                     {isVisible("tracking_status") && (
                       <td className="p-3 text-xs">
