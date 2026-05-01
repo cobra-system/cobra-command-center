@@ -62,7 +62,7 @@ export function ShipmentGroupSelector({ orderId, currentGroupId, hasEdit, onUpda
                 : <span className="text-muted-foreground italic">ללא קבוצת משלוח</span>}
             </button>
           </PopoverTrigger>
-          <PopoverContent className="w-72 p-2" align="start">
+          <PopoverContent className="w-72 max-w-[calc(100vw-1rem)] p-2" align="start">
             <div className="space-y-2">
               <Combobox
                 options={options}

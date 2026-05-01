@@ -97,7 +97,7 @@ export function QuantityBar({
         </button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-72" align="center" dir="rtl" sideOffset={8}>
+      <PopoverContent className="w-72 max-w-[calc(100vw-1rem)]" align="center" dir="rtl" sideOffset={8}>
         <div className="space-y-4">
           {/* Header */}
           <div className="flex items-center justify-between">

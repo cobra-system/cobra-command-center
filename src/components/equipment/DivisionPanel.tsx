@@ -227,7 +227,7 @@ export function DivisionPanel({ division, onClose, installers, pickups, returns 
 
   return (
     <Sheet open={!!division} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent side="left" className="w-full sm:max-w-lg overflow-y-auto p-0">
+      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto p-0">
         <div className="p-5 space-y-5">
           {/* Header */}
           <SheetHeader className="text-start">

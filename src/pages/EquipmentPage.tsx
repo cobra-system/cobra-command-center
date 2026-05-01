@@ -560,7 +560,7 @@ export default function EquipmentPage() {
     return (
       <div className="p-4 md:p-6 space-y-4">
         <Skeleton className="h-8 w-64" />
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[...Array(3)].map((_, i) => (
             <Skeleton key={i} className="h-24 rounded-xl" />
           ))}
@@ -865,7 +865,7 @@ export default function EquipmentPage() {
 
         {/* ── Tab 3: Field inventory grouped by division ── */}
         <TabsContent value="inventory" className="mt-4 space-y-4">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Card>
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground">כמות כוללת בשטח</p>
