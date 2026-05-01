@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { handleError } from "@/lib/errorHandler";
 import { logActivity } from "@/lib/activityLogger";
+import { syncDivisionProducts } from "@/lib/divisionUtils";
 import type { Product, ProductComponent } from "@/contexts/types";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -19,29 +20,6 @@ interface ProductsState {
 }
 
 const ProductsContext = createContext<ProductsState | null>(null);
-
-// Syncs division_products for a product.
-// Trigger B (division_products → products.division) keeps products.division in sync automatically.
-async function syncDivisionProducts(productId: string, newDivision: string | null | undefined) {
-  const newDivs = new Set(
-    (newDivision || "").split(",").map(d => d.trim()).filter(Boolean)
-  );
-  const { data: current } = await supabase
-    .from("division_products")
-    .select("id, division")
-    .eq("product_id", productId);
-  const existing = current || [];
-  const existingDivs = new Set(existing.map(dp => dp.division));
-
-  const toDelete = existing.filter(dp => !newDivs.has(dp.division));
-  if (toDelete.length > 0) {
-    await supabase.from("division_products").delete().in("id", toDelete.map(dp => dp.id));
-  }
-  const toInsert = [...newDivs].filter(d => !existingDivs.has(d));
-  if (toInsert.length > 0) {
-    await supabase.from("division_products").insert(toInsert.map(d => ({ division: d, product_id: productId })));
-  }
-}
 
 export function useProducts() {
   const ctx = useContext(ProductsContext);
