@@ -1,26 +1,6 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders, handleCors } from "../_shared/cors.ts";
 import { verifyAuth } from "../_shared/auth.ts";
-
-const DHL_API_URL = "https://api-eu.dhl.com/track/shipments";
-
-interface DhlEvent {
-  timestamp: string;
-  location?: { address?: { addressLocality?: string } };
-  description: string;
-}
-
-interface DhlShipment {
-  status?: {
-    status?: string;
-    description?: string;
-  };
-  events?: DhlEvent[];
-}
-
-interface DhlResponse {
-  shipments?: DhlShipment[];
-}
+import { fetchDhlTracking, persistTracking, persistTrackingError } from "../_shared/dhlParse.ts";
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -72,68 +52,26 @@ Deno.serve(async (req) => {
       );
     }
 
-    // DHL is strict about tracking-number format: strip whitespace and dashes.
-    const trackingNumber = order.tracking_number.replace(/[\s-]/g, "");
-
-    const dhlRes = await fetch(
-      `${DHL_API_URL}?trackingNumber=${encodeURIComponent(trackingNumber)}`,
-      { headers: { "DHL-API-Key": dhlApiKey, "Accept": "application/json" } }
-    );
-
-    // DHL Unified Tracking API returns 404 when no shipment data is available
-    // for the given tracking number — this is normal for shipments not yet
-    // scanned into DHL's system. Treat as "no data yet", not as an error.
-    if (dhlRes.status === 404) {
-      const notFoundStatus = "לא נמצא במערכת DHL";
-      await supabaseAdmin
-        .from("orders")
-        .update({
-          tracking_status: notFoundStatus,
-          tracking_last_event: null,
-          tracking_updated_at: new Date().toISOString(),
-        })
-        .eq("id", order_id);
-
+    const result = await fetchDhlTracking(order.tracking_number, dhlApiKey);
+    if (!result.ok) {
+      await persistTrackingError(supabaseAdmin, order_id, result.errorCode);
       return new Response(
-        JSON.stringify({
-          success: true,
-          tracking_status: notFoundStatus,
-          tracking_last_event: null,
-          note: "DHL טרם מצא מידע על מספר מעקב זה — ייתכן שהמשלוח טרם נסרק במערכת",
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (!dhlRes.ok) {
-      const errText = await dhlRes.text();
-      const msg = dhlRes.status === 401
-        ? "DHL API: מפתח לא תקף או פג תוקף — יש לעדכן DHL_API_KEY"
-        : dhlRes.status === 429
-        ? "DHL API: חרגת ממכסת הבקשות — נסה שוב מאוחר יותר"
-        : `DHL API שגיאה: ${dhlRes.status}`;
-      return new Response(
-        JSON.stringify({ error: msg, details: errText }),
+        JSON.stringify({ error: result.message, error_code: result.errorCode }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const dhlData = await dhlRes.json() as DhlResponse;
-    const shipment = dhlData.shipments?.[0];
-    const trackingStatus = shipment?.status?.status ?? null;
-    const lastEvent = shipment?.events?.[0]?.description ?? shipment?.status?.description ?? null;
-
-    await supabaseAdmin
-      .from("orders")
-      .update({
-        tracking_status: trackingStatus,
-        tracking_last_event: lastEvent,
-        tracking_updated_at: new Date().toISOString(),
-      })
-      .eq("id", order_id);
+    await persistTracking(supabaseAdmin, order_id, result.payload);
 
     return new Response(
-      JSON.stringify({ success: true, tracking_status: trackingStatus, tracking_last_event: lastEvent }),
+      JSON.stringify({
+        success: true,
+        tracking_status_code: result.payload.tracking_status_code,
+        tracking_description: result.payload.tracking_description,
+        tracking_eta: result.payload.tracking_eta,
+        tracking_last_location: result.payload.tracking_last_location,
+        events_count: result.payload.tracking_events.length,
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

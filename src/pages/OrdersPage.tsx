@@ -7,12 +7,13 @@ const ShipmentGroupsTab = lazy(() =>
 );
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useProductScope } from "@/hooks/useProductScope";
+import { useBackgroundTrackingSync } from "@/hooks/useBackgroundTrackingSync";
 import { NewOrderDialog } from "@/components/orders/NewOrderDialog";
 import { OrdersDashboardView } from "@/components/orders/OrdersDashboardView";
 import { OrderFilters } from "@/components/orders/OrderFilters";
@@ -37,6 +38,7 @@ const statusOrder: Record<string, number> = { PENDING: 0, ORDERED: 1, SHIPPED: 2
 export default function OrdersPage() {
   const { updateOrderStatus, updateOrder, addOrder, deleteOrder, suppliers } = useData();
   const { scopedOrders: orders, scopedProducts: products, scopeOrderItems } = useProductScope();
+  const trackingSync = useBackgroundTrackingSync(orders);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [orderWorkflows, setOrderWorkflows] = useState<Record<string, WorkflowInfo>>({});
@@ -315,8 +317,14 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <h1 className="text-2xl font-bold text-foreground">הזמנות</h1>
+        {trackingSync.syncing && (
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 rounded-full px-2.5 py-1">
+            <RefreshCw className="h-3 w-3 animate-spin" />
+            מעדכן מעקב {trackingSync.done}/{trackingSync.total}
+          </span>
+        )}
         <NewOrderDialog
           suppliers={suppliers}
           products={products}

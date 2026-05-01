@@ -5,6 +5,23 @@
 
 ---
 
+## [Unreleased]
+
+### Added
+- מעקב DHL מורחב: וידג'ט חדש עם פס התקדמות 5 שלבים (נקלט → נאסף → במעבר → במשלוח → נמסר), הגעה משוערת (ETA), מיקום אחרון, מוצא/יעד, וטיימליין של עד 10 אירועים אחרונים
+- מפת קודי DHL Express לעברית (`src/lib/dhlStatusMap.ts`) — תרגום קוד 102 ושאר הקודים הנפוצים
+- רענון אוטומטי ברקע: כשנפתח עמוד ההזמנות, הזמנות פעילות עם מעקב DHL שלא סונכרנו 24 שעות מתעדכנות אוטומטית. אינדיקטור התקדמות בכותרת
+- Edge function חדש `track-shipments-bulk` — עיבוד עד 50 הזמנות בקריאה אחת עם concurrency=4, חוסך round-trips
+- וידג'ט TCLOG נפרד שמציג את אסמכתת המשלוח
+- `tracking_carrier` לזיהוי מפורש בין DHL ל-TCLOG, וכן עמודות מורחבות: `tracking_status_code`, `tracking_eta`, `tracking_last_location`, `tracking_origin`, `tracking_destination`, `tracking_events` (JSONB), `tracking_last_synced_at`, `tracking_sync_error`
+
+### Changed
+- Edge function `track-shipment` משתמש ב-`_shared/dhlParse.ts` ושומר 11 שדות (במקום 3) מתשובת DHL
+- `OrderTable` משתמש ב-`<TrackingBadge>` משותף הנשען על הקוד המנורמל
+- `OrdersDashboardView.handleBulkRefreshTracking` קורא ל-`track-shipments-bulk` במקום לולאה סדרתית
+
+---
+
 ## [2026-05-01]
 
 - Merge pull request #179 from cobra-system/claude/fix-dhl-api-error-CK9dq (743865e)

@@ -4,11 +4,13 @@ import { useState, useEffect, useMemo } from "react";
 import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Trash2, CreditCard, Zap, Check, Ship, Hash, Plus, Pencil, ChevronLeft, ChevronRight, Warehouse, RefreshCw } from "lucide-react";
+import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Trash2, CreditCard, Zap, Check, Ship, Hash, Plus, Pencil, ChevronLeft, ChevronRight, Warehouse } from "lucide-react";
 import DocumentsSection from "@/components/DocumentsSection";
 import { OrderPaymentsSection } from "@/components/orders/OrderPaymentsSection";
 import { OrderAuditLog } from "@/components/orders/OrderAuditLog";
 import { ShipmentGroupSelector } from "@/components/orders/ShipmentGroupSelector";
+import { DhlTrackingWidget } from "@/components/orders/DhlTrackingWidget";
+import { TclogTrackingWidget } from "@/components/orders/TclogTrackingWidget";
 import { supabase } from "@/lib/supabase";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -365,43 +367,12 @@ export default function OrderDetailPage() {
 
       {/* DHL Tracking */}
       {order.tracking_number && (
-        <div className="bg-card rounded-xl border shadow-sm p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Truck className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold text-foreground">מעקב DHL</h2>
-            </div>
-            <button
-              onClick={handleRefreshTracking}
-              disabled={trackingLoading}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border rounded-lg px-3 py-1.5 transition-colors hover:bg-muted/30 disabled:opacity-50"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${trackingLoading ? "animate-spin" : ""}`} />
-              רענן מעקב
-            </button>
-          </div>
-          <div className="space-y-2">
-            {order.tracking_status ? (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">סטטוס:</span>
-                <span className="text-sm font-semibold">{order.tracking_status}</span>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">טרם בוצע עדכון מעקב — לחץ "רענן מעקב"</p>
-            )}
-            {order.tracking_last_event && (
-              <div className="flex items-start gap-2">
-                <span className="text-sm text-muted-foreground shrink-0">אירוע אחרון:</span>
-                <span className="text-sm">{order.tracking_last_event}</span>
-              </div>
-            )}
-            {order.tracking_updated_at && (
-              <p className="text-xs text-muted-foreground">
-                עודכן: {new Date(order.tracking_updated_at).toLocaleString("he-IL")}
-              </p>
-            )}
-          </div>
-        </div>
+        <DhlTrackingWidget order={order} loading={trackingLoading} onRefresh={handleRefreshTracking} />
+      )}
+
+      {/* TCLOG Tracking */}
+      {order.tclog_reference && (
+        <TclogTrackingWidget order={order} />
       )}
 
       {/* Dates Grid */}
