@@ -145,7 +145,7 @@ export function NewInstallerDialog({ open, onOpenChange, onCreated, installer, o
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>מספר מחסן</Label>
               <Input
@@ -170,7 +170,7 @@ export function NewInstallerDialog({ open, onOpenChange, onCreated, installer, o
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>טלפון</Label>
               <Input

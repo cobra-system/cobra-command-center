@@ -715,7 +715,7 @@ export default function DivisionDetailPage() {
     return (
       <div className="p-4 md:p-6 space-y-4">
         <Skeleton className="h-8 w-64" />
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
         </div>
         <Skeleton className="h-64 rounded-md" />
@@ -795,7 +795,7 @@ export default function DivisionDetailPage() {
             <CardContent className="p-4">
               {showEditBonded ? (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs">מחסן</Label>
                       <Input value={bondedEditForm.warehouse_number} onChange={(e) => setBondedEditForm((f) => ({ ...f, warehouse_number: e.target.value }))} className="h-7 text-sm" type="number" />
@@ -811,7 +811,7 @@ export default function DivisionDetailPage() {
                       </Select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs">מתאם</Label>
                       <Input value={bondedEditForm.coordinator} onChange={(e) => setBondedEditForm((f) => ({ ...f, coordinator: e.target.value }))} className="h-7 text-sm" />
@@ -1441,7 +1441,7 @@ export default function DivisionDetailPage() {
                                 <div className="bg-muted/20 px-6 py-3 border-b space-y-2">
                                   {isEditing ? (
                                     <div className="space-y-2 max-w-sm" onClick={(e) => e.stopPropagation()}>
-                                      <div className="grid grid-cols-2 gap-2">
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                         <div className="space-y-1">
                                           <Label className="text-xs">תאריך</Label>
                                           <Input
@@ -1585,7 +1585,7 @@ export default function DivisionDetailPage() {
         {showAddForm && (
           <Card className="mb-3">
             <CardContent className="p-3 space-y-2">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label className="text-xs">שם *</Label>
                   <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="שם מלא" className="h-7 text-sm" />
@@ -1600,7 +1600,7 @@ export default function DivisionDetailPage() {
                   </Select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label className="text-xs">טלפון</Label>
                   <Input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="05X-XXXXXXX" className="h-7 text-sm" dir="ltr" />

@@ -275,13 +275,13 @@ export default function OrderDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/orders")}>
+      <div className="flex items-center gap-3 flex-wrap">
+        <Button variant="ghost" size="icon" onClick={() => navigate("/orders")} className="shrink-0">
           <ArrowRight className="h-5 w-5" />
         </Button>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold text-foreground">תיק הזמנה</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground line-clamp-2">
             {visibleItems.map((i, idx) => {
               const linkedProduct = i.product_id ? products.find(p => p.id === i.product_id) : products.find(p => p.name === i.name);
               return (
@@ -662,7 +662,7 @@ export default function OrderDetailPage() {
               <Label>שם פריט</Label>
               <Input value={itemName} onChange={e => setItemName(e.target.value)} placeholder="שם הפריט" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>כמות</Label>
                 <Input type="number" value={itemQty} onChange={e => setItemQty(e.target.value)} />

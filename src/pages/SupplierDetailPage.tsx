@@ -162,7 +162,7 @@ export default function SupplierDetailPage() {
       <div className="flex items-center gap-3 flex-wrap">
         <Button variant="ghost" size="icon" onClick={() => navigate("/suppliers")} data-navigate-to="/suppliers"><ArrowRight className="h-5 w-5" /></Button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold text-foreground">{supplier.company}</h1>
+          <h1 className="text-2xl font-bold text-foreground truncate">{supplier.company}</h1>
           <div className="flex items-center gap-2">
             <p className="text-sm text-muted-foreground">{supplier.country === "ישראל" ? "🇮🇱 ישראל" : "🌍 חו״ל"}</p>
           </div>
@@ -335,36 +335,68 @@ export default function SupplierDetailPage() {
           )}
         </div>
         {(relatedProducts.length > 0 || componentProducts.length > 0) ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="border-b bg-muted/50">
-                <th className="text-right p-3 font-semibold text-foreground">מוצר</th>
-                <th className="text-right p-3 font-semibold text-foreground">מק״ט</th>
-                <th className="text-right p-3 font-semibold text-foreground">קטגוריה</th>
-                <th className="text-right p-3 font-semibold text-foreground">מלאי</th>
-              </tr></thead>
-              <tbody className="divide-y">
-                {relatedProducts.map(p => (
-                  <tr key={p.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/products/${p.id}`)} data-navigate-to={`/products/${p.id}`}>
-                    <td className="p-3 font-medium text-foreground">{p.name}</td>
-                    <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">{p.sku}</td>
-                    <td className="p-3 text-muted-foreground">{p.category}</td>
-                    <td className="p-3 text-muted-foreground">{p.stock_qty}</td>
-                  </tr>
-                ))}
-                {componentProducts.map(({ product: p, components: comps }) => (
-                  <tr key={p.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/products/${p.id}`)} data-navigate-to={`/products/${p.id}`}>
-                    <td className="p-3 font-medium text-foreground">
-                      {p.name} <span className="text-xs text-muted-foreground">({comps.map(c => c.name).join(", ")})</span>
-                    </td>
-                    <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">{p.sku}</td>
-                    <td className="p-3 text-muted-foreground">{p.category}</td>
-                    <td className="p-3 text-muted-foreground">{p.stock_qty}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* Mobile card list */}
+            <div className="md:hidden space-y-2">
+              {relatedProducts.map(p => (
+                <div key={p.id} className="rounded-lg border bg-muted/20 p-3 cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/products/${p.id}`)} data-navigate-to={`/products/${p.id}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-medium text-foreground truncate flex-1 min-w-0">{p.name}</p>
+                    <span className="text-xs font-bold text-foreground shrink-0">×{p.stock_qty}</span>
+                  </div>
+                  <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                    <span className="font-mono" dir="ltr">{p.sku}</span>
+                    {p.category && <span className="truncate">{p.category}</span>}
+                  </div>
+                </div>
+              ))}
+              {componentProducts.map(({ product: p, components: comps }) => (
+                <div key={p.id} className="rounded-lg border bg-muted/20 p-3 cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/products/${p.id}`)} data-navigate-to={`/products/${p.id}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-medium text-foreground truncate flex-1 min-w-0">{p.name}</p>
+                    <span className="text-xs font-bold text-foreground shrink-0">×{p.stock_qty}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">({comps.map(c => c.name).join(", ")})</p>
+                  <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                    <span className="font-mono" dir="ltr">{p.sku}</span>
+                    {p.category && <span className="truncate">{p.category}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b bg-muted/50">
+                  <th className="text-right p-3 font-semibold text-foreground">מוצר</th>
+                  <th className="text-right p-3 font-semibold text-foreground">מק״ט</th>
+                  <th className="text-right p-3 font-semibold text-foreground">קטגוריה</th>
+                  <th className="text-right p-3 font-semibold text-foreground">מלאי</th>
+                </tr></thead>
+                <tbody className="divide-y">
+                  {relatedProducts.map(p => (
+                    <tr key={p.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/products/${p.id}`)} data-navigate-to={`/products/${p.id}`}>
+                      <td className="p-3 font-medium text-foreground">{p.name}</td>
+                      <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">{p.sku}</td>
+                      <td className="p-3 text-muted-foreground">{p.category}</td>
+                      <td className="p-3 text-muted-foreground">{p.stock_qty}</td>
+                    </tr>
+                  ))}
+                  {componentProducts.map(({ product: p, components: comps }) => (
+                    <tr key={p.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/products/${p.id}`)} data-navigate-to={`/products/${p.id}`}>
+                      <td className="p-3 font-medium text-foreground">
+                        {p.name} <span className="text-xs text-muted-foreground">({comps.map(c => c.name).join(", ")})</span>
+                      </td>
+                      <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">{p.sku}</td>
+                      <td className="p-3 text-muted-foreground">{p.category}</td>
+                      <td className="p-3 text-muted-foreground">{p.stock_qty}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         ) : (
           <p className="text-sm text-muted-foreground py-4 text-center">אין מוצרים משויכים לספק זה</p>
         )}
@@ -381,28 +413,50 @@ export default function SupplierDetailPage() {
           )}
         </div>
         {relatedOrders.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="border-b bg-muted/50">
-                <th className="text-right p-3 font-semibold text-foreground">עדיפות</th>
-                <th className="text-right p-3 font-semibold text-foreground">פריטים</th>
-                <th className="text-right p-3 font-semibold text-foreground">סה״כ</th>
-                <th className="text-right p-3 font-semibold text-foreground">סטטוס</th>
-                <th className="text-right p-3 font-semibold text-foreground">תאריך</th>
-              </tr></thead>
-              <tbody className="divide-y">
-                {relatedOrders.map(order => (
-                  <tr key={order.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/orders/${order.id}`)} data-navigate-to={`/orders/${order.id}`}>
-                    <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
-                    <td className="p-3 text-muted-foreground text-xs">{order.items.map(i => i.name).join(", ")}</td>
-                    <td className="p-3 text-muted-foreground">{order.total_price ? `$${order.total_price}` : "—"}</td>
-                    <td className="p-3"><OrderStatusBadge status={order.status as OrderStatus} /></td>
-                    <td className="p-3 text-muted-foreground text-xs">{order.order_date ? new Date(order.order_date).toLocaleDateString("he-IL") : "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* Mobile card list */}
+            <div className="md:hidden space-y-2">
+              {relatedOrders.map(order => (
+                <div key={order.id} className="rounded-lg border bg-muted/20 p-3 cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/orders/${order.id}`)} data-navigate-to={`/orders/${order.id}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-foreground line-clamp-2">{order.items.map(i => i.name).join(", ")}</p>
+                    </div>
+                    <OrderStatusBadge status={order.status as OrderStatus} />
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    <PriorityBadge priority={order.priority as Priority} />
+                    {order.total_price && <span className="text-xs font-semibold text-foreground">${order.total_price}</span>}
+                    <span className="text-xs text-muted-foreground ms-auto">{order.order_date ? new Date(order.order_date).toLocaleDateString("he-IL") : "—"}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b bg-muted/50">
+                  <th className="text-right p-3 font-semibold text-foreground">עדיפות</th>
+                  <th className="text-right p-3 font-semibold text-foreground">פריטים</th>
+                  <th className="text-right p-3 font-semibold text-foreground">סה״כ</th>
+                  <th className="text-right p-3 font-semibold text-foreground">סטטוס</th>
+                  <th className="text-right p-3 font-semibold text-foreground">תאריך</th>
+                </tr></thead>
+                <tbody className="divide-y">
+                  {relatedOrders.map(order => (
+                    <tr key={order.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/orders/${order.id}`)} data-navigate-to={`/orders/${order.id}`}>
+                      <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
+                      <td className="p-3 text-muted-foreground text-xs">{order.items.map(i => i.name).join(", ")}</td>
+                      <td className="p-3 text-muted-foreground">{order.total_price ? `$${order.total_price}` : "—"}</td>
+                      <td className="p-3"><OrderStatusBadge status={order.status as OrderStatus} /></td>
+                      <td className="p-3 text-muted-foreground text-xs">{order.order_date ? new Date(order.order_date).toLocaleDateString("he-IL") : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         ) : (
           <p className="text-sm text-muted-foreground py-4 text-center">אין הזמנות קשורות לספק זה</p>
         )}
@@ -538,7 +592,7 @@ function ContactForm({ contact, setContact, saving, onSubmit, submitLabel }: {
 }) {
   return (
     <div className="space-y-3 pt-2">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">שם *</Label>
           <Input value={contact.name} onChange={e => setContact((p: any) => ({ ...p, name: e.target.value }))} />
@@ -615,7 +669,7 @@ function SupplierEditDialog({ open, onOpenChange, supplier, onSave }: {
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader><DialogTitle>עריכת ספק</DialogTitle></DialogHeader>
         <div className="space-y-3 pt-2">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">שם חברה *</Label>
               <Input value={fields.company ?? ""} onChange={e => set("company", e.target.value)} />

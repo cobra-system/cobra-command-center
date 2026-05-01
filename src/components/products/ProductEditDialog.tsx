@@ -108,13 +108,13 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg md:max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader><DialogTitle>עריכת מוצר</DialogTitle></DialogHeader>
         <div className="space-y-5 pt-2">
           {/* Basic Info */}
           <div>
             <h3 className="text-sm font-semibold text-foreground mb-2">פרטים בסיסיים</h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {textField("name", "שם מוצר")}
               {textField("sku", "מק״ט")}
               <div className="space-y-1">
@@ -167,7 +167,7 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
           {/* Supplier & Shipping */}
           <div>
             <h3 className="text-sm font-semibold text-foreground mb-2">ספק ומשלוח</h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">ספק</Label>
                 <Select value={fields.supplier || ""} onValueChange={v => set("supplier", v)}>
@@ -193,7 +193,7 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
           {/* Pricing */}
           <div>
             <h3 className="text-sm font-semibold text-foreground mb-2">מחירים</h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {numField("purchase_price", "מחיר רכישה ($)")}
               {numField("sale_price", "מחיר מכירה ($)")}
             </div>
@@ -202,7 +202,7 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
           {/* Inventory */}
           <div>
             <h3 className="text-sm font-semibold text-foreground mb-2">מלאי והזמנות</h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {numField("stock_qty", "מלאי קיים")}
               {numField("monthly_order", "הזמנה חודשית")}
               {numField("monthly_sales_avg", "ממוצע צריכה שנתי (SAP)")}

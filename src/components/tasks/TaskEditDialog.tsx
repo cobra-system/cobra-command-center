@@ -116,7 +116,7 @@ export default function TaskEditDialog({ open, onOpenChange, task, onSaved }: Pr
       await updateTaskStatus(task.id, status);
     }
 
-    const updates: Partial<Task> & Record<string, any> = {
+    const updates: Partial<Task> & Record<string, unknown> = {
       title: title.trim(),
       description: description.trim() || null,
       priority,
@@ -191,7 +191,7 @@ export default function TaskEditDialog({ open, onOpenChange, task, onSaved }: Pr
             </div>
 
             {/* Priority + Status */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">עדיפות</Label>
                 <Select value={priority} onValueChange={v => setPriority(v as Priority)}>
@@ -241,7 +241,7 @@ export default function TaskEditDialog({ open, onOpenChange, task, onSaved }: Pr
             </div>
 
             {/* Dates */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">תאריך התחלה</Label>
                 <DateInput value={startDate} onChange={setStartDate} clearable />

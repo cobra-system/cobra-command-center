@@ -29,7 +29,7 @@ interface WorkflowTemplate {
 }
 interface StepLog {
   id: string; instance_id: string; step_index: number;
-  completed_by: string | null; completed_at: string; notes: string | null; action_data: any;
+  completed_by: string | null; completed_at: string; notes: string | null; action_data: unknown;
 }
 interface WorkflowInstance {
   id: string; template_id: string; order_id: string | null; current_step: number;
@@ -137,7 +137,7 @@ export default function WorkflowsPanel() {
       name: `${tpl.name} (עותק)`,
       description: tpl.description || null,
       category: tpl.category,
-      steps: tpl.steps as any,
+      steps: tpl.steps as unknown,
     });
     if (error) { toast.error("שגיאה בשכפול: " + error.message); return; }
     toast.success("תבנית שוכפלה");
@@ -379,10 +379,10 @@ function TemplateFormDialog({ open, onOpenChange, template, onSaved }: { open: b
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg md:max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader><DialogTitle>{template ? "עריכת תבנית" : "תבנית חדשה"}</DialogTitle></DialogHeader>
         <div className="space-y-4 pt-2">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1"><Label className="text-xs">שם</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
             <div className="space-y-1"><Label className="text-xs">קטגוריה</Label>
               <Select value={category} onValueChange={setCategory}><SelectTrigger><SelectValue /></SelectTrigger>
@@ -409,7 +409,7 @@ function TemplateFormDialog({ open, onOpenChange, template, onSaved }: { open: b
                 </span>
                 {steps.length > 1 && <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => setSteps(steps.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3" /></Button>}
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <Input placeholder="שם" value={step.name} onChange={e => { const u = [...steps]; u[idx].name = e.target.value; setSteps(u); }} className="text-sm" />
                 <Select value={step.action} onValueChange={v => { const u = [...steps]; u[idx].action = v; setSteps(u); }}>
                   <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>

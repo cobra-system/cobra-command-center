@@ -29,6 +29,8 @@ function getStatusInfo(value: number, min: number, max: number) {
   return { label: "תקין", bg: "bg-success/15", fg: "text-success" };
 }
 
+const MAX_THRESHOLD = 3000;
+
 export function QuantityBar({
   value,
   min = 0,
@@ -39,11 +41,11 @@ export function QuantityBar({
   readOnly = false,
   className,
 }: QuantityBarProps) {
-  const [localMin, setLocalMin] = useState(min);
-  const [localMax, setLocalMax] = useState(max);
+  const [localMin, setLocalMin] = useState(Math.min(MAX_THRESHOLD, Math.max(0, min)));
+  const [localMax, setLocalMax] = useState(Math.min(MAX_THRESHOLD, Math.max(0, max)));
 
-  useEffect(() => { setLocalMin(min); }, [min]);
-  useEffect(() => { setLocalMax(max); }, [max]);
+  useEffect(() => { setLocalMin(Math.min(MAX_THRESHOLD, Math.max(0, min))); }, [min]);
+  useEffect(() => { setLocalMax(Math.min(MAX_THRESHOLD, Math.max(0, max))); }, [max]);
 
   const hasMin = localMin > 0;
   const hasMax = localMax > 0;
@@ -58,7 +60,9 @@ export function QuantityBar({
   const fillColor = getFillColor(value, localMin, localMax);
   const status = getStatusInfo(value, localMin, localMax);
 
-  const sliderMax = Math.max(value * 3, localMax * 2, localMin * 3, 100);
+  // Slider range scales with current data but is hard-capped so users
+  // cannot drag in absurd values (a previous bug allowed trillions).
+  const sliderMax = Math.min(MAX_THRESHOLD, Math.max(value * 3, localMax * 2, localMin * 3, 100));
 
   const title = `מלאי: ${value}${hasMin ? ` | מינ׳: ${localMin}` : ""}${hasMax ? ` | מקס׳: ${localMax}` : ""}`;
 
@@ -97,7 +101,7 @@ export function QuantityBar({
         </button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-72" align="center" dir="rtl" sideOffset={8}>
+      <PopoverContent className="w-72 max-w-[calc(100vw-1rem)]" align="center" dir="rtl" sideOffset={8}>
         <div className="space-y-4">
           {/* Header */}
           <div className="flex items-center justify-between">

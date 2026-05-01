@@ -600,7 +600,7 @@ export default function DocumentDetailPage() {
                   displayValue={doc.document_name || <span className="text-muted-foreground">לחץ פעמיים להוספת שם</span>}
                 />
               </InfoCell>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Document number */}
                 <InfoCell label="מספר מסמך">
                   <InlineEditField
@@ -625,7 +625,7 @@ export default function DocumentDetailPage() {
                   />
                 </InfoCell>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Type */}
                 <InfoCell label="סוג">
                   <InlineEditField
@@ -872,45 +872,78 @@ export default function DocumentDetailPage() {
         {linkedPayments.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">אין תשלומים מקושרים למסמך זה</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="border-b bg-muted/50">
-                <th className="text-right p-3 font-semibold text-foreground">סכום</th>
-                <th className="text-right p-3 font-semibold text-foreground">סוג</th>
-                <th className="text-right p-3 font-semibold text-foreground">מועד פירעון</th>
-                <th className="text-right p-3 font-semibold text-foreground">סטטוס</th>
-                <th className="text-right p-3 font-semibold text-foreground">פעולה</th>
-              </tr></thead>
-              <tbody className="divide-y">
-                {linkedPayments.map(p => {
-                  const isOverdue = p.status !== "שולם" && p.due_date && isPast(new Date(p.due_date));
-                  const displayStatus = isOverdue ? "מאוחר" : p.status;
-                  return (
-                    <tr key={p.id} className={isOverdue ? "bg-destructive/5" : ""}>
-                      <td className="p-3 font-mono" dir="ltr">{currencySymbol[p.currency] || ""}{p.amount.toLocaleString()}</td>
-                      <td className="p-3 text-muted-foreground">{paymentTypeLabels[p.payment_type] || p.payment_type}</td>
-                      <td className="p-3 text-muted-foreground text-xs">{p.due_date ? format(new Date(p.due_date), "dd/MM/yy") : "—"}</td>
-                      <td className="p-3">
-                        <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", payStatusColors[displayStatus] || "bg-muted text-muted-foreground")}>
-                          {displayStatus}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        {hasEdit && p.status !== "שולם" && (
-                          <Button variant="outline" size="sm" onClick={async () => {
-                            const { error } = await supabase.from("supplier_payments").update({ status: "שולם", paid_date: new Date().toISOString().split("T")[0] }).eq("id", p.id);
-                            if (error) { toast.error("שגיאה בעדכון תשלום: " + error.message); return; }
-                            toast.success("סומן כשולם");
-                            fetchDoc();
-                          }}>סמן כשולם</Button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* Mobile card list */}
+            <div className="md:hidden space-y-2">
+              {linkedPayments.map(p => {
+                const isOverdue = p.status !== "שולם" && p.due_date && isPast(new Date(p.due_date));
+                const displayStatus = isOverdue ? "מאוחר" : p.status;
+                return (
+                  <div key={p.id} className={cn("rounded-lg border p-3 space-y-2", isOverdue ? "bg-destructive/5 border-destructive/30" : "bg-muted/20")}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-mono font-bold text-foreground" dir="ltr">{currencySymbol[p.currency] || ""}{p.amount.toLocaleString()}</span>
+                      <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium shrink-0", payStatusColors[displayStatus] || "bg-muted text-muted-foreground")}>
+                        {displayStatus}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                      <span>{paymentTypeLabels[p.payment_type] || p.payment_type}</span>
+                      <span>{p.due_date ? format(new Date(p.due_date), "dd/MM/yy") : "—"}</span>
+                    </div>
+                    {hasEdit && p.status !== "שולם" && (
+                      <Button variant="outline" size="sm" className="w-full" onClick={async () => {
+                        const { error } = await supabase.from("supplier_payments").update({ status: "שולם", paid_date: new Date().toISOString().split("T")[0] }).eq("id", p.id);
+                        if (error) { toast.error("שגיאה בעדכון תשלום: " + error.message); return; }
+                        toast.success("סומן כשולם");
+                        fetchDoc();
+                      }}>סמן כשולם</Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b bg-muted/50">
+                  <th className="text-right p-3 font-semibold text-foreground">סכום</th>
+                  <th className="text-right p-3 font-semibold text-foreground">סוג</th>
+                  <th className="text-right p-3 font-semibold text-foreground">מועד פירעון</th>
+                  <th className="text-right p-3 font-semibold text-foreground">סטטוס</th>
+                  <th className="text-right p-3 font-semibold text-foreground">פעולה</th>
+                </tr></thead>
+                <tbody className="divide-y">
+                  {linkedPayments.map(p => {
+                    const isOverdue = p.status !== "שולם" && p.due_date && isPast(new Date(p.due_date));
+                    const displayStatus = isOverdue ? "מאוחר" : p.status;
+                    return (
+                      <tr key={p.id} className={isOverdue ? "bg-destructive/5" : ""}>
+                        <td className="p-3 font-mono" dir="ltr">{currencySymbol[p.currency] || ""}{p.amount.toLocaleString()}</td>
+                        <td className="p-3 text-muted-foreground">{paymentTypeLabels[p.payment_type] || p.payment_type}</td>
+                        <td className="p-3 text-muted-foreground text-xs">{p.due_date ? format(new Date(p.due_date), "dd/MM/yy") : "—"}</td>
+                        <td className="p-3">
+                          <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", payStatusColors[displayStatus] || "bg-muted text-muted-foreground")}>
+                            {displayStatus}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          {hasEdit && p.status !== "שולם" && (
+                            <Button variant="outline" size="sm" onClick={async () => {
+                              const { error } = await supabase.from("supplier_payments").update({ status: "שולם", paid_date: new Date().toISOString().split("T")[0] }).eq("id", p.id);
+                              if (error) { toast.error("שגיאה בעדכון תשלום: " + error.message); return; }
+                              toast.success("סומן כשולם");
+                              fetchDoc();
+                            }}>סמן כשולם</Button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

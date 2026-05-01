@@ -251,7 +251,7 @@ export default function MyTaskDetailPage() {
       </div>
 
       {/* Bottom action bar */}
-      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-card/95 backdrop-blur-md border-t p-4 space-y-2.5 z-20">
+      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-card/95 backdrop-blur-md border-t p-4 pb-[max(1rem,env(safe-area-inset-bottom))] space-y-2.5 z-20">
         {!isDone && (
           <Button
             className="w-full h-12 rounded-2xl text-base font-bold bg-success hover:bg-success/90 text-success-foreground shadow-lg active:scale-[0.98] transition-all"

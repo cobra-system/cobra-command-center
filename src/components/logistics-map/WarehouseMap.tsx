@@ -248,6 +248,10 @@ export default function WarehouseMap({
       className="relative overflow-auto rounded-xl border border-border bg-white shadow-sm"
       style={{ WebkitOverflowScrolling: "touch" }}
     >
+      {/* Mobile hint: pinch-to-zoom + horizontal scroll */}
+      <div className="md:hidden absolute top-2 left-2 z-10 px-2 py-1 rounded-md bg-card/90 backdrop-blur-sm border text-[10px] text-muted-foreground shadow-sm pointer-events-none">
+        ↔ צבוט להגדלה / החלק לניווט
+      </div>
       <div
         ref={containerRef}
         className="min-w-[800px] p-3 sm:p-4 origin-top-right"

@@ -267,7 +267,7 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
           </div>
 
           {/* Priority + Assignee */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">עדיפות</Label>
               <Select value={priority} onValueChange={v => setPriority(v as Priority)}>
@@ -307,7 +307,7 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
 
           {/* Dates (shown if not recurring) */}
           {!isRecurring && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">תאריך התחלה</Label>
                 <DateInput value={startDate} onChange={setStartDate} clearable />

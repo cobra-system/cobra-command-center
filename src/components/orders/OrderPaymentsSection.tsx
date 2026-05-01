@@ -354,7 +354,7 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit }: Props) {
             <DialogTitle>{editingPayment ? "עריכת תשלום" : "הוספת תשלום"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>סוג תשלום</Label>
                 <Select value={formType} onValueChange={v => setFormType(v as "Deposit" | "Balance" | "Full")}>
@@ -371,7 +371,7 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit }: Props) {
                 <Input value={formPct} onChange={e => setFormPct(e.target.value)} placeholder="15" type="number" min="0" max="100" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>סכום</Label>
                 <Input value={formAmount} onChange={e => setFormAmount(e.target.value)} placeholder="0" type="number" min="0" />

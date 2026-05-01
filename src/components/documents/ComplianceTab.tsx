@@ -74,7 +74,7 @@ export default function ComplianceTab({ productId }: { productId?: string } = {}
     const { data: links } = await supabase.from("compliance_product_links").select("compliance_item_id, product_id");
     if (links) {
       const map: Record<string, string[]> = {};
-      links.forEach((l: any) => {
+      links.forEach((l: { compliance_item_id: string; product_id: string }) => {
         if (!map[l.compliance_item_id]) map[l.compliance_item_id] = [];
         map[l.compliance_item_id].push(l.product_id);
       });
@@ -335,7 +335,7 @@ function ComplianceFormDialog({ open, onOpenChange, item, products, onSaved }: {
             <Label className="text-xs">שם</Label>
             <Input value={name} onChange={e => setName(e.target.value)} placeholder="שם הרישיון או האישור" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">קטגוריה</Label>
               <Select value={category} onValueChange={setCategory}>

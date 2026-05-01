@@ -133,7 +133,7 @@ export default function TaskBoard() {
             <div className="space-y-4 pt-2">
               <div className="space-y-2"><Label>כותרת *</Label><Input value={title} onChange={e => setTitle(e.target.value)} placeholder="תאר את המשימה..." /></div>
               <div className="space-y-2"><Label>תיאור</Label><Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="פרטים נוספים..." rows={3} /></div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>עדיפות</Label>
                   <Select value={priority} onValueChange={v => setPriority(v as Priority)}>

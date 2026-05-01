@@ -126,7 +126,7 @@ export default function MeetingDetailDialog({ meeting, onClose, onRefresh }: Pro
 
   return (
     <Dialog open={!!meeting} onOpenChange={open => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg md:max-w-2xl max-h-[85vh] overflow-y-auto">
         {meeting && (
           <>
             <DialogHeader>

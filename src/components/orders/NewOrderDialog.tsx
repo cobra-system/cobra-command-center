@@ -195,7 +195,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader><DialogTitle>יצירת הזמנה חדשה</DialogTitle></DialogHeader>
         <div className="space-y-4 pt-2">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>עדיפות</Label>
               <Select value={priority} onValueChange={v => setPriority(v as Priority)}>
@@ -245,7 +245,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>ETD (תאריך יציאה)</Label>
               <DateInput value={etd} onChange={setEtd} clearable />
