@@ -55,7 +55,7 @@ export default function EmployeeLayout() {
         </div>
       </header>
 
-      <div key={location.pathname} className="flex-1 overflow-y-auto overflow-x-hidden pb-16 page-fade-in">
+      <div key={location.pathname} className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-4 pt-3 sm:pt-4 pb-20 page-fade-in">
         <Outlet />
       </div>
 
