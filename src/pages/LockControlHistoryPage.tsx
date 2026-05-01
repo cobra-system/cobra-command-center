@@ -224,7 +224,48 @@ export default function LockControlHistoryPage() {
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-sm">
+          {/* Mobile card list */}
+          <div className="md:hidden p-3 space-y-2">
+            {loading ? (
+              <p className="p-5 text-center text-muted-foreground text-sm">טוען...</p>
+            ) : scans.length === 0 ? (
+              <p className="p-5 text-center text-muted-foreground text-sm">אין רשומות בטווח שנבחר.</p>
+            ) : (
+              scans.map((s) => (
+                <div key={s.id} className="rounded-lg border bg-muted/20 p-3 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-foreground">{formatScanTime(s.scanned_at)}</span>
+                    {s.action === "open" ? (
+                      <span className="inline-flex items-center gap-1 text-warning text-xs font-medium shrink-0">
+                        <Unlock className="h-3 w-3" /> פתיחה
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-success text-xs font-medium shrink-0">
+                        <Lock className="h-3 w-3" /> סגירה
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-foreground">
+                    <span className="text-xs font-mono text-muted-foreground me-1">#{s.lock_id}</span>
+                    {lockNameById.get(s.lock_id) ?? "—"}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    {s.scanned_by && (
+                      <span className="inline-flex items-center gap-1">
+                        <User2 className="h-3 w-3" />
+                        {profileNameById.get(s.scanned_by) ?? "—"}
+                      </span>
+                    )}
+                    <span>{s.method === "camera" ? "מצלמה" : "ידני"}</span>
+                    {s.barcode_value && <span className="font-mono truncate" dir="ltr">{s.barcode_value}</span>}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop table */}
+          <table className="hidden md:table w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 <th className="text-right p-3 font-semibold">תאריך ושעה</th>

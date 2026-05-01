@@ -524,36 +524,56 @@ export default function InstallerDetailPage() {
             אין הצטיידויות עדיין
           </div>
         ) : (
-          <div className="rounded-md border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>תאריך</TableHead>
-                  <TableHead>מוצר</TableHead>
-                  <TableHead className="text-center">כמות</TableHead>
-                  <TableHead className="hidden md:table-cell">מספרים סידוריים</TableHead>
-                  <TableHead className="hidden md:table-cell">הערות</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pickupRows.map((row, idx) => (
-                  <TableRow key={idx}>
-                    <TableCell className="text-sm">
-                      {format(new Date(row.pickup_date), "dd/MM/yyyy")}
-                    </TableCell>
-                    <TableCell>{row.product_name}</TableCell>
-                    <TableCell className="text-center">{row.quantity}</TableCell>
-                    <TableCell className="hidden md:table-cell text-xs text-muted-foreground dir-ltr">
-                      {row.serial_numbers?.join(", ") ?? "—"}
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                      {row.notes ?? "—"}
-                    </TableCell>
+          <>
+            {/* Mobile card list */}
+            <div className="md:hidden space-y-2">
+              {pickupRows.map((row, idx) => (
+                <div key={idx} className="rounded-lg border bg-muted/20 p-3 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-foreground truncate">{row.product_name}</span>
+                    <span className="text-xs font-bold text-foreground shrink-0">×{row.quantity}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{format(new Date(row.pickup_date), "dd/MM/yyyy")}</p>
+                  {row.serial_numbers && row.serial_numbers.length > 0 && (
+                    <p className="text-xs text-muted-foreground font-mono break-all" dir="ltr">{row.serial_numbers.join(", ")}</p>
+                  )}
+                  {row.notes && <p className="text-xs text-muted-foreground">{row.notes}</p>}
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block rounded-md border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>תאריך</TableHead>
+                    <TableHead>מוצר</TableHead>
+                    <TableHead className="text-center">כמות</TableHead>
+                    <TableHead>מספרים סידוריים</TableHead>
+                    <TableHead>הערות</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {pickupRows.map((row, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell className="text-sm">
+                        {format(new Date(row.pickup_date), "dd/MM/yyyy")}
+                      </TableCell>
+                      <TableCell>{row.product_name}</TableCell>
+                      <TableCell className="text-center">{row.quantity}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground" dir="ltr">
+                        {row.serial_numbers?.join(", ") ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {row.notes ?? "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </div>
 
@@ -567,55 +587,90 @@ export default function InstallerDetailPage() {
             אין החזרות עדיין ✅
           </div>
         ) : (
-          <div className="rounded-md border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>תאריך</TableHead>
-                  <TableHead>מוצר</TableHead>
-                  <TableHead className="text-center">כמות</TableHead>
-                  <TableHead>סיבה</TableHead>
-                  <TableHead className="hidden md:table-cell">מדבקה</TableHead>
-                  <TableHead className="text-center">תמונה</TableHead>
-                  <TableHead className="text-center">באמת פגום?</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {returnRows.map((row, idx) => (
-                  <TableRow key={idx}>
-                    <TableCell className="text-sm">
-                      {format(new Date(row.return_date), "dd/MM/yyyy")}
-                    </TableCell>
-                    <TableCell>{row.product_name}</TableCell>
-                    <TableCell className="text-center">{row.quantity}</TableCell>
-                    <TableCell>
-                      <div>
-                        <Badge variant="secondary" className="text-xs">{row.reason}</Badge>
-                        {row.reason_detail && (
-                          <p className="text-xs text-muted-foreground mt-0.5">{row.reason_detail}</p>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
-                      {row.sticker_label ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex justify-center">
-                        <PhotoCaptureButton
-                          imageUrl={row.photo_url}
-                          storagePath={`wear-return-items/${row.return_item_id}`}
-                          onSave={(url) => handlePhotoSave(row.return_item_id, url)}
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <FaultyCell row={row} />
-                    </TableCell>
+          <>
+            {/* Mobile card list */}
+            <div className="md:hidden space-y-2">
+              {returnRows.map((row, idx) => (
+                <div key={idx} className="rounded-lg border bg-muted/20 p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{row.product_name}</p>
+                      <p className="text-xs text-muted-foreground">{format(new Date(row.return_date), "dd/MM/yyyy")} · ×{row.quantity}</p>
+                    </div>
+                    <PhotoCaptureButton
+                      imageUrl={row.photo_url}
+                      storagePath={`wear-return-items/${row.return_item_id}`}
+                      onSave={(url) => handlePhotoSave(row.return_item_id, url)}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="secondary" className="text-xs">{row.reason}</Badge>
+                    {row.sticker_label && (
+                      <span className="text-xs text-muted-foreground">מדבקה: {row.sticker_label}</span>
+                    )}
+                  </div>
+                  {row.reason_detail && (
+                    <p className="text-xs text-muted-foreground">{row.reason_detail}</p>
+                  )}
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/50">
+                    <span className="text-xs text-muted-foreground">באמת פגום?</span>
+                    <FaultyCell row={row} />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block rounded-md border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>תאריך</TableHead>
+                    <TableHead>מוצר</TableHead>
+                    <TableHead className="text-center">כמות</TableHead>
+                    <TableHead>סיבה</TableHead>
+                    <TableHead>מדבקה</TableHead>
+                    <TableHead className="text-center">תמונה</TableHead>
+                    <TableHead className="text-center">באמת פגום?</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {returnRows.map((row, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell className="text-sm">
+                        {format(new Date(row.return_date), "dd/MM/yyyy")}
+                      </TableCell>
+                      <TableCell>{row.product_name}</TableCell>
+                      <TableCell className="text-center">{row.quantity}</TableCell>
+                      <TableCell>
+                        <div>
+                          <Badge variant="secondary" className="text-xs">{row.reason}</Badge>
+                          {row.reason_detail && (
+                            <p className="text-xs text-muted-foreground mt-0.5">{row.reason_detail}</p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {row.sticker_label ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex justify-center">
+                          <PhotoCaptureButton
+                            imageUrl={row.photo_url}
+                            storagePath={`wear-return-items/${row.return_item_id}`}
+                            onSave={(url) => handlePhotoSave(row.return_item_id, url)}
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <FaultyCell row={row} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </div>
 

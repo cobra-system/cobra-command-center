@@ -108,7 +108,7 @@ export default function BulkActionsBar({ selectedIds, docs, folders, onClearSele
   return (
     <div
       className={cn(
-        "fixed bottom-6 left-1/2 -translate-x-1/2 z-50",
+        "fixed bottom-[max(1.5rem,calc(env(safe-area-inset-bottom)+0.75rem))] left-1/2 -translate-x-1/2 z-50",
         "flex items-center gap-2 px-4 py-2.5 rounded-2xl shadow-2xl border",
         "bg-background/95 backdrop-blur-sm",
         "animate-in slide-in-from-bottom-4 duration-200"

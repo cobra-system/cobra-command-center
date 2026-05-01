@@ -592,7 +592,7 @@ export default function WasteManagementPage() {
         {hasEdit && (
           <button
             onClick={openNewItemDrawer}
-            className="fixed bottom-24 left-5 z-40 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 flex items-center justify-center active:scale-90 transition-transform duration-150 hover:shadow-xl"
+            className="fixed bottom-[max(6rem,calc(env(safe-area-inset-bottom)+5rem))] left-5 z-40 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 flex items-center justify-center active:scale-90 transition-transform duration-150 hover:shadow-xl"
           >
             <Plus className="h-7 w-7" strokeWidth={2.5} />
           </button>
