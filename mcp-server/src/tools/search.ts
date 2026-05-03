@@ -107,7 +107,7 @@ export function registerSearchTools(server: McpServer) {
     async ({ supplier_id }) => {
       const [supplierRes, ordersRes, paymentsRes, docsRes, contactsRes] = await Promise.all([
         supabase.from("suppliers").select("*").eq("id", supplier_id).single(),
-        supabase.from("orders").select("id, status, total_price, payment_status, eta, priority, created_at")
+        supabase.from("orders").select("id, status, total_price, eta, priority, created_at")
           .eq("supplier_id", supplier_id).order("created_at", { ascending: false }),
         supabase.from("supplier_payments").select("id, amount, currency, payment_type, status, due_date, paid_date")
           .eq("supplier_id", supplier_id).order("created_at", { ascending: false }),

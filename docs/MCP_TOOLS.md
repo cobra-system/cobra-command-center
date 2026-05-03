@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-ה-MCP Server של Cobra Command Center מספק **250 כלים** ב-**33 מודולים** לשימוש Claude Code — גישה ישירה לכל ה-DB ללא דרישת ממשק גרפי.
+ה-MCP Server של Cobra Command Center מספק **246 כלים** ב-**32 מודולים** לשימוש Claude Code — גישה ישירה לכל ה-DB ללא דרישת ממשק גרפי.
 
 - **Server entry point:** `mcp-server/src/index.ts`
 - **Tool modules:** `mcp-server/src/tools/`
@@ -45,7 +45,6 @@
 | `warehouse` | Warehouse zones | 6 | warehouse_zones, warehouse_zone_products, warehouse_zone_log |
 | `warehouse-locks` | Lock control & scan log | 5 | warehouse_locks, warehouse_lock_scans |
 | `waste` | Waste tracking | 5 | waste_items |
-| `workflows` | Workflows | 4 | workflow_templates, workflow_instances, workflow_step_logs |
 
 ---
 
@@ -108,9 +107,6 @@ Use this to find which module(s) to update when a table's schema changes.
 | `warehouse_zone_products` | warehouse |
 | `warehouse_zones` | warehouse |
 | `waste_items` | waste, equipment |
-| `workflow_instances` | workflows |
-| `workflow_step_logs` | workflows |
-| `workflow_templates` | workflows |
 
 ### Tables without MCP coverage (intentional)
 

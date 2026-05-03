@@ -220,7 +220,12 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit }: Props) {
           <div className="px-4 py-3 bg-muted/30 border-b grid grid-cols-3 gap-4 text-sm">
             <div>
               <span className="text-muted-foreground text-xs">סה״כ מתוכנן: </span>
-              <span className="font-semibold">${totalScheduled.toLocaleString()}</span>
+              <span className={cn("font-semibold", orderTotal && Math.abs(totalScheduled - orderTotal) > 1 ? "text-warning" : "")}>
+                ${totalScheduled.toLocaleString()}
+              </span>
+              {orderTotal && Math.abs(totalScheduled - orderTotal) > 1 && (
+                <span className="text-xs text-muted-foreground mr-1">(ס״כ הזמנה: ${orderTotal.toLocaleString()})</span>
+              )}
             </div>
             <div>
               <span className="text-muted-foreground text-xs">שולם: </span>

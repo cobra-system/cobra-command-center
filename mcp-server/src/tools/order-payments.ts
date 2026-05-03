@@ -38,28 +38,6 @@ export function registerOrderPaymentTools(server: McpServer) {
 
       if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
 
-      // Also update the order's legacy payment_status for backward compatibility
-      if (status === "שולם" || paid_date) {
-        const { data: allPayments } = await supabase
-          .from("order_payments")
-          .select("payment_type, status, paid_date")
-          .eq("order_id", order_id);
-
-        const payments = allPayments || [];
-        const hasFullOrBalance = payments.some(
-          (p: Record<string, unknown>) =>
-            (p.payment_type === "Full" || p.payment_type === "Balance") &&
-            (p.status === "שולם" || p.paid_date)
-        );
-        const hasDeposit = payments.some(
-          (p: Record<string, unknown>) =>
-            p.payment_type === "Deposit" && (p.status === "שולם" || p.paid_date)
-        );
-
-        const legacyStatus = hasFullOrBalance ? "שולם" : hasDeposit ? "שולם פיקדון" : "ממתין";
-        await supabase.from("orders").update({ payment_status: legacyStatus }).eq("id", order_id);
-      }
-
       return { content: [{ type: "text" as const, text: `Payment added:\n${JSON.stringify(data, null, 2)}` }] };
     }
   );
@@ -72,7 +50,7 @@ export function registerOrderPaymentTools(server: McpServer) {
     },
     async ({ order_id }) => {
       const [orderRes, paymentsRes] = await Promise.all([
-        supabase.from("orders").select("id, supplier_name, total_price, payment_status, pi_number").eq("id", order_id).single(),
+        supabase.from("orders").select("id, supplier_name, total_price, pi_number").eq("id", order_id).single(),
         supabase.from("order_payments").select("*").eq("order_id", order_id).order("created_at", { ascending: true }),
       ]);
 
@@ -187,29 +165,6 @@ export function registerOrderPaymentTools(server: McpServer) {
         .single();
 
       if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
-
-      // If marking as paid, update legacy order payment_status
-      if (updates.status === "שולם" || updates.paid_date) {
-        const orderId = data.order_id as string;
-        const { data: allPayments } = await supabase
-          .from("order_payments")
-          .select("payment_type, status, paid_date")
-          .eq("order_id", orderId);
-
-        const payments = allPayments || [];
-        const hasFullOrBalance = payments.some(
-          (p: Record<string, unknown>) =>
-            (p.payment_type === "Full" || p.payment_type === "Balance") &&
-            (p.status === "שולם" || p.paid_date)
-        );
-        const hasDeposit = payments.some(
-          (p: Record<string, unknown>) =>
-            p.payment_type === "Deposit" && (p.status === "שולם" || p.paid_date)
-        );
-
-        const legacyStatus = hasFullOrBalance ? "שולם" : hasDeposit ? "שולם פיקדון" : "ממתין";
-        await supabase.from("orders").update({ payment_status: legacyStatus }).eq("id", orderId);
-      }
 
       return { content: [{ type: "text" as const, text: `Payment updated:\n${JSON.stringify(data, null, 2)}` }] };
     }

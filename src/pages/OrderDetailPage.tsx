@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Trash2, CreditCard, Zap, Check, Ship, Hash, Plus, Pencil, ChevronLeft, ChevronRight, Warehouse } from "lucide-react";
+import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Trash2, CreditCard, Check, Ship, Hash, Plus, Pencil, ChevronRight, Warehouse } from "lucide-react";
 import DocumentsSection from "@/components/DocumentsSection";
 import { OrderPaymentsSection } from "@/components/orders/OrderPaymentsSection";
 import { OrderAuditLog } from "@/components/orders/OrderAuditLog";
@@ -13,7 +13,6 @@ import { DhlTrackingWidget } from "@/components/orders/DhlTrackingWidget";
 import { TclogTrackingWidget } from "@/components/orders/TclogTrackingWidget";
 import { detectCarrier, carrierLabel } from "@/lib/trackingCarrierDetect";
 import { supabase } from "@/lib/supabase";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Combobox } from "@/components/ui/combobox";
@@ -22,7 +21,6 @@ import { InlineEditField } from "@/components/InlineEditField";
 import { DateInput } from "@/components/ui/date-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useProductScope } from "@/hooks/useProductScope";
@@ -123,16 +121,6 @@ export default function OrderDetailPage() {
   const handleDateSave = async (field: string, date: Date | undefined) => {
     await updateOrder(order.id, { [field]: date ? date.toISOString() : null } as any);
     toast.success("עודכן");
-  };
-
-  // Payment status options
-  const paymentStatuses = ["ממתין", "שולם פיקדון", "שולם"] as const;
-  const setPaymentStatus = async (next: string) => {
-    if (!hasEdit) return;
-    await updateOrder(order.id, {
-      payment_status: next,
-      payment_date: next === "שולם" || next === "שולם פיקדון" ? new Date().toISOString() : null,
-    } as any);
   };
 
   // Item CRUD
@@ -278,7 +266,6 @@ export default function OrderDetailPage() {
     { label: "תאריך הזמנה", field: "order_date", value: order.order_date, icon: Calendar },
     { label: "ETD (יציאה)", field: "etd", value: order.etd, icon: Calendar },
     { label: "ETA (הגעה)", field: "eta", value: order.eta, icon: Calendar },
-    { label: "תאריך תשלום", field: "payment_date", value: order.payment_date, icon: CreditCard },
   ];
 
   return (
@@ -501,69 +488,8 @@ export default function OrderDetailPage() {
         </table>
       </div>
 
-      {/* Payment Tracking - click to toggle */}
-      <div className="bg-card rounded-xl border shadow-sm p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <CreditCard className="h-5 w-5 text-primary" />
-          <h2 className="font-semibold text-foreground">מעקב תשלומים</h2>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">סה״כ לתשלום</p>
-            <p className="text-lg font-bold text-foreground">{order.total_price ? `$${order.total_price.toLocaleString()}` : "—"}</p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">תאריך תשלום</p>
-            <p className="text-sm font-medium text-foreground">{order.payment_date ? new Date(order.payment_date).toLocaleDateString("he-IL") : "טרם שולם"}</p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">סטטוס תשלום</p>
-            {(() => {
-              const ps = (order as any).payment_status || "ממתין";
-              const colors: Record<string, string> = {
-                "שולם": "bg-success/15 text-success",
-                "שולם פיקדון": "bg-accent/15 text-accent",
-                "ממתין": "bg-warning/15 text-warning",
-              };
-              if (!hasEdit) {
-                return (
-                  <span className={cn("inline-block px-2 py-0.5 rounded-full text-xs font-medium", colors[ps] || "bg-muted text-muted-foreground")}>
-                    {ps}
-                  </span>
-                );
-              }
-              return (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button className={cn("px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer", colors[ps] || "bg-muted text-muted-foreground")}>
-                      {ps}
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-1" align="start">
-                    <div className="flex flex-col gap-0.5">
-                      {paymentStatuses.map(s => (
-                        <button
-                          key={s}
-                          onClick={() => setPaymentStatus(s)}
-                          className={cn("px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted", ps === s && "bg-muted")}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              );
-            })()}
-          </div>
-        </div>
-      </div>
-
       {/* Payment Schedule */}
       <OrderPaymentsSection orderId={order.id} orderTotal={order.total_price} hasEdit={hasEdit} />
-
-      {/* Workflow Timeline with advance */}
-      <OrderWorkflowTimeline orderId={order.id} hasEdit={hasEdit} />
 
       {/* Documents */}
       <DocumentsSection orderId={order.id} />
@@ -707,132 +633,3 @@ export default function OrderDetailPage() {
   );
 }
 
-function OrderWorkflowTimeline({ orderId, hasEdit }: { orderId: string; hasEdit: boolean }) {
-  const [workflow, setWorkflow] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  const fetchWorkflow = async () => {
-    const { data: inst } = await supabase
-      .from("workflow_instances")
-      .select("*")
-      .eq("order_id", orderId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (!inst) { setLoading(false); return; }
-
-    const { data: tpl } = await supabase.from("workflow_templates").select("*").eq("id", inst.template_id).single();
-    const { data: logs } = await supabase.from("workflow_step_logs").select("*").eq("instance_id", inst.id).order("step_index", { ascending: true });
-
-    setWorkflow({ ...inst, steps: (tpl?.steps as any[]) || [], logs: logs || [], templateName: tpl?.name });
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchWorkflow(); }, [orderId]);
-
-  if (loading || !workflow) return null;
-
-  const totalSteps = workflow.steps.length;
-  const progress = workflow.status === "completed" ? 100 : Math.round((workflow.current_step / totalSteps) * 100);
-
-  const advanceStep = async () => {
-    if (workflow.current_step >= totalSteps - 1) {
-      // Complete workflow
-      const { error: updErr } = await supabase.from("workflow_instances").update({ status: "completed", current_step: totalSteps }).eq("id", workflow.id);
-      if (updErr) { toast.error("שגיאה בסיום התהליך: " + updErr.message); return; }
-      await supabase.from("workflow_step_logs").insert({
-        instance_id: workflow.id,
-        step_index: workflow.current_step,
-        completed_by: "מנהל",
-      });
-    } else {
-      const { error: logErr } = await supabase.from("workflow_step_logs").insert({
-        instance_id: workflow.id,
-        step_index: workflow.current_step,
-        completed_by: "מנהל",
-      });
-      if (logErr) { toast.error("שגיאה בתיעוד השלב: " + logErr.message); return; }
-      const { error: updErr } = await supabase.from("workflow_instances").update({ current_step: workflow.current_step + 1 }).eq("id", workflow.id);
-      if (updErr) { toast.error("שגיאה בקידום השלב: " + updErr.message); return; }
-    }
-    toast.success(workflow.current_step >= totalSteps - 1 ? "תהליך הושלם" : "שלב קודם הושלם");
-    await fetchWorkflow();
-  };
-
-  const goToStep = async (stepIdx: number) => {
-    if (stepIdx === workflow.current_step) return;
-    const newStatus = stepIdx >= totalSteps ? "completed" : "active";
-    const { error } = await supabase.from("workflow_instances").update({ current_step: stepIdx, status: newStatus }).eq("id", workflow.id);
-    if (error) { toast.error("שגיאה בעדכון שלב: " + error.message); return; }
-    // Remove logs for steps after the new current step
-    if (stepIdx < workflow.current_step) {
-      await supabase.from("workflow_step_logs").delete().eq("instance_id", workflow.id).gte("step_index", stepIdx);
-    }
-    toast.success(`שלב ${stepIdx + 1}`);
-    await fetchWorkflow();
-  };
-
-  return (
-    <div className="bg-card rounded-xl border shadow-sm p-5">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Zap className="h-5 w-5 text-primary" />
-          <h2 className="font-semibold text-foreground">{workflow.templateName || "תהליך רכש"}</h2>
-        </div>
-        <div className="flex items-center gap-2">
-          {hasEdit && workflow.status === "active" && (
-            <Button size="sm" variant="default" onClick={advanceStep}>
-              {workflow.current_step >= totalSteps - 1 ? "סיים תהליך" : "קדם שלב"}
-              <ChevronLeft className="h-3.5 w-3.5 mr-1" />
-            </Button>
-          )}
-          <span className={cn(
-            "px-2 py-0.5 rounded-full text-xs font-medium",
-            workflow.status === "completed" ? "bg-success/15 text-success" :
-            workflow.status === "cancelled" ? "bg-destructive/15 text-destructive" :
-            "bg-primary/15 text-primary"
-          )}>
-            {workflow.status === "completed" ? "הושלם" : workflow.status === "cancelled" ? "בוטל" : "פעיל"}
-          </span>
-        </div>
-      </div>
-      <Progress value={progress} className="h-2 mb-4" />
-      <div className="space-y-1">
-        {workflow.steps.map((step: any, idx: number) => {
-          const isCompleted = idx < workflow.current_step || workflow.status === "completed";
-          const isCurrent = idx === workflow.current_step && workflow.status === "active";
-          const log = workflow.logs.find((l: any) => l.step_index === idx);
-          return (
-            <div
-              key={idx}
-              className={cn(
-                "flex items-start gap-3 py-2 px-2 rounded-lg transition-colors",
-                hasEdit && "cursor-pointer hover:bg-muted/50"
-              )}
-              onClick={() => hasEdit && goToStep(idx)}
-            >
-              <div className={cn(
-                "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 text-xs",
-                isCompleted && "bg-success text-success-foreground",
-                isCurrent && "bg-primary text-primary-foreground",
-                !isCompleted && !isCurrent && "bg-muted text-muted-foreground"
-              )}>
-                {isCompleted ? <Check className="h-3.5 w-3.5" /> : idx + 1}
-              </div>
-              <div className="min-w-0">
-                <p className={cn("text-sm font-medium", isCurrent ? "text-primary" : isCompleted ? "text-foreground" : "text-muted-foreground")}>{step.name}</p>
-                {log && (
-                  <p className="text-xs text-muted-foreground">
-                    {log.completed_by} • {new Date(log.completed_at).toLocaleDateString("he-IL")}
-                    {log.notes && ` — ${log.notes}`}
-                  </p>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
