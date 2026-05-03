@@ -87,22 +87,6 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
           handleError(itemsError, "שגיאה בהוספת פריטים: " + (itemsError.message || "נסה שוב"));
           return;
         }
-        // Auto-start procurement workflow — use different template for Israeli suppliers
-        let workflowCategory = "procurement";
-        if (order.supplier_id) {
-          const { data: supplierData } = await supabase
-            .from("suppliers")
-            .select("country")
-            .eq("id", order.supplier_id)
-            .maybeSingle();
-          if (supplierData?.country === "ישראל") {
-            workflowCategory = "procurement_israel";
-          }
-        }
-        const { data: tpl } = await supabase.from("workflow_templates").select("id").eq("category", workflowCategory).limit(1).maybeSingle();
-        if (tpl) {
-          await supabase.from("workflow_instances").insert({ template_id: tpl.id, order_id: newOrder.id });
-        }
         await queryClient.refetchQueries({ queryKey: ["orders"] });
         toast.success("הזמנה נוצרה בהצלחה");
         logActivity({ action: "order.create", entityType: "order", entityId: newOrder.id });
@@ -130,13 +114,6 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
 
   const deleteOrder = useCallback(async (id: string) => {
     try {
-      // Delete workflow step logs first (referenced by workflow_instances)
-      const { data: instances } = await supabase.from("workflow_instances").select("id").eq("order_id", id);
-      if (instances && instances.length > 0) {
-        const instanceIds = instances.map((i: { id: string }) => i.id);
-        await supabase.from("workflow_step_logs").delete().in("instance_id", instanceIds);
-        await supabase.from("workflow_instances").delete().eq("order_id", id);
-      }
       const { error: itemsError } = await supabase.from("order_items").delete().eq("order_id", id);
       if (itemsError) throw itemsError;
       const { error: orderError } = await supabase.from("orders").delete().eq("id", id);

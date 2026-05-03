@@ -143,7 +143,6 @@ function AppRoutes() {
         <Route path="/issues/:id" element={<IssueDetailPage />} />
         <Route path="/meetings" element={<Navigate to="/orders" replace />} />
         <Route path="/inventory" element={<Navigate to="/equipment?tab=warehouses" replace />} />
-        <Route path="/workflows" element={<Navigate to="/tasks" replace />} />
         <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/documents/:id" element={<DocumentDetailPage />} />
         <Route path="/reorder" element={<ReorderPage />} />

@@ -30,8 +30,6 @@ interface OrderFiltersProps {
   setPriorityFilter: (v: string) => void;
   paymentFilter: string;
   setPaymentFilter: (v: string) => void;
-  workflowFilter: string;
-  setWorkflowFilter: (v: string) => void;
   carrierFilter: string;
   setCarrierFilter: (v: string) => void;
   trackingStateFilter: string;
@@ -48,8 +46,6 @@ export function OrderFilters({
   setPriorityFilter,
   paymentFilter,
   setPaymentFilter,
-  workflowFilter,
-  setWorkflowFilter,
   carrierFilter,
   setCarrierFilter,
   trackingStateFilter,
@@ -93,17 +89,8 @@ export function OrderFilters({
         <SelectContent>
           <SelectItem value="all">כל התשלומים</SelectItem>
           <SelectItem value="שולם">שולם</SelectItem>
-          <SelectItem value="שולם פיקדון">שולם פיקדון</SelectItem>
+          <SelectItem value="שולם חלקי">שולם חלקי</SelectItem>
           <SelectItem value="ממתין">ממתין</SelectItem>
-        </SelectContent>
-      </Select>
-      <Select value={workflowFilter} onValueChange={setWorkflowFilter}>
-        <SelectTrigger className="w-[110px] sm:w-[130px]"><SelectValue placeholder="תהליך" /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">כל התהליכים</SelectItem>
-          <SelectItem value="active">תהליך פעיל</SelectItem>
-          <SelectItem value="completed">ארכיון (הושלמו)</SelectItem>
-          <SelectItem value="none">ללא תהליך</SelectItem>
         </SelectContent>
       </Select>
       <Select value={carrierFilter} onValueChange={setCarrierFilter}>

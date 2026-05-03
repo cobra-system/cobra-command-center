@@ -12,7 +12,7 @@ export function registerAnalyticsTools(server: McpServer) {
     },
     async ({ date_from, date_to }) => {
       const [ordersRes, productsRes, paymentsRes, complianceRes, tasksRes] = await Promise.all([
-        supabase.from("orders").select("id, status, total_price, payment_status, created_at"),
+        supabase.from("orders").select("id, status, total_price, created_at"),
         supabase.from("products").select("id, name, sku, stock_qty, reorder_point"),
         supabase.from("supplier_payments").select("id, amount, status, currency"),
         supabase.from("compliance_items").select("id, status, expiry_date"),

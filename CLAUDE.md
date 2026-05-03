@@ -77,6 +77,7 @@ const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 - `reorder:hidden-columns` — ReorderPage
 - `documents:hidden-columns` — DocumentsTable
 - `payments:hidden-columns` — PaymentsTable
+- `order-payments:hidden-columns` — OrderPaymentsSection
 
 Use a new unique key for each new table (e.g. `"invoices:hidden-columns"`).
 
@@ -108,7 +109,7 @@ grep -r "\"TABLE_NAME\"" mcp-server/src/tools/
 cd mcp-server && npm run build
 ```
 
-### Module inventory (33 modules · 250 tools)
+### Module inventory (32 modules · 246 tools)
 
 | Module | Domain | Key tables | Tools |
 |--------|--------|------------|------:|
@@ -144,7 +145,6 @@ cd mcp-server && npm run build
 | `warehouse` | Warehouse zones | warehouse_zones, warehouse_zone_products | 6 |
 | `warehouse-locks` | Lock control & scan log | warehouse_locks, warehouse_lock_scans | 5 |
 | `waste` | Waste tracking | waste_items | 5 |
-| `workflows` | Workflows | workflow_templates, workflow_instances | 4 |
 
 See `docs/MCP_TOOLS.md` for the full reference including table→module mapping.
 

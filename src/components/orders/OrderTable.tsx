@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { type Order, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { Trash2, Copy, ArrowUpDown, ArrowUp, ArrowDown, Zap, CheckCircle, Eye, RefreshCw, CreditCard, Truck, ShoppingCart } from "lucide-react";
+import { Trash2, Copy, ArrowUpDown, ArrowUp, ArrowDown, Eye, RefreshCw, Truck, ShoppingCart } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -20,15 +20,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import type { TableSelectionState } from "@/hooks/useTableSelection";
 
-export type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment" | "workflow" | "tracking_number" | "tracking_status" | "tracking_carrier" | "updated_at" | "pi_number";
+export type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment" | "tracking_number" | "tracking_status" | "tracking_carrier" | "updated_at" | "pi_number";
 export type SortDir = "asc" | "desc" | null;
-
-export interface WorkflowInfo {
-  id: string;
-  status: string;
-  current_step: number;
-  steps: { name: string }[];
-}
 
 // ─── Column configuration ────────────────────────────────────────────────────
 const COLUMN_DEFS: ColDef[] = [
@@ -43,7 +36,6 @@ const COLUMN_DEFS: ColDef[] = [
   { id: "eta",             label: "ETA",             sortField: "eta" },
   { id: "total_price",     label: "סה״כ",           sortField: "total_price" },
   { id: "payment",         label: "תשלום",          sortField: "payment" },
-  { id: "workflow",        label: "תהליך",          sortField: "workflow" },
   { id: "tracking_number", label: "מספר מעקב",      sortField: "tracking_number" },
   { id: "tracking_carrier", label: "חברת שילוח",    sortField: "tracking_carrier" },
   { id: "tracking_status", label: "מצב מעקב DHL",   sortField: "tracking_status" },
@@ -54,7 +46,7 @@ const COLUMN_DEFS: ColDef[] = [
 // ─── Props ───────────────────────────────────────────────────────────────────
 interface OrderTableProps {
   filtered: Order[];
-  orderWorkflows: Record<string, WorkflowInfo>;
+  orderPaymentStatuses: Record<string, string>;
   hasEdit: boolean;
   sortField: SortField | null;
   sortDir: SortDir;
@@ -65,7 +57,6 @@ interface OrderTableProps {
   navigateToProduct: (productId: string, e?: React.MouseEvent) => void;
   handleDeleteOrder: (orderId: string, e?: React.MouseEvent) => void;
   handleDuplicateOrder: (orderId: string, e?: React.MouseEvent) => void;
-  handleWorkflowStepChange: (orderId: string, wf: WorkflowInfo, newStep: number) => void;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   updateOrder: (orderId: string, updates: Partial<Order>) => void;
   selection?: TableSelectionState;
@@ -80,7 +71,7 @@ const SortIcon = ({ field, sortField, sortDir }: { field: SortField; sortField: 
 // ─── Main component ──────────────────────────────────────────────────────────
 export function OrderTable({
   filtered,
-  orderWorkflows,
+  orderPaymentStatuses,
   hasEdit,
   sortField,
   sortDir,
@@ -91,7 +82,6 @@ export function OrderTable({
   navigateToProduct,
   handleDeleteOrder,
   handleDuplicateOrder,
-  handleWorkflowStepChange,
   updateOrderStatus,
   updateOrder,
   selection,
@@ -117,10 +107,10 @@ export function OrderTable({
             <p className="text-xs text-muted-foreground">נסה לשנות את הסינון או לחפש שם אחר</p>
           </div>
         ) : filtered.map(order => {
-          const paymentStatus = (order as Record<string, unknown>).payment_status as string || "ממתין";
+          const paymentStatus = orderPaymentStatuses[order.id] || "ממתין";
           const paymentColors: Record<string, string> = {
             "שולם": "bg-success/15 text-success",
-            "שולם פיקדון": "bg-accent/15 text-accent",
+            "שולם חלקי": "bg-accent/15 text-accent",
             "ממתין": "bg-warning/15 text-warning",
           };
           return (
@@ -254,7 +244,6 @@ export function OrderTable({
                 </div>
               </td></tr>
             ) : filtered.map((order) => {
-              const isAlreadyPaid = (order as Record<string, unknown>).payment_status === "שולם";
               const orderMenuGroups: ContextMenuGroupItem[][] = [
                 [
                   { label: "צפה בהזמנה", icon: Eye, onClick: () => navigate(`/orders/${order.id}`) },
@@ -268,17 +257,6 @@ export function OrderTable({
                       disabled: order.status === s.value,
                     })),
                   },
-                  {
-                    label: "שנה סטטוס תשלום", icon: CreditCard, hidden: !hasEdit,
-                    items: ["ממתין", "שולם פיקדון", "שולם"].map(ps => ({
-                      label: ps, onClick: () => updateOrder(order.id, {
-                        payment_status: ps,
-                        payment_date: ps === "שולם" || ps === "שולם פיקדון" ? new Date().toISOString() : null,
-                      } as Record<string, unknown>),
-                      disabled: (order as Record<string, unknown>).payment_status === ps,
-                    })),
-                  },
-                  { label: "סמן כשולם", icon: CheckCircle, onClick: () => updateOrder(order.id, { payment_status: "שולם", payment_date: new Date().toISOString() } as Record<string, unknown>), hidden: isAlreadyPaid || !hasEdit },
                 ],
                 [
                   { label: "שכפל הזמנה", icon: Copy, onClick: () => handleDuplicateOrder(order.id) },
@@ -394,104 +372,15 @@ export function OrderTable({
                     )}
                     {isVisible("payment") && (
                       <td className="p-3" onClick={e => e.stopPropagation()}>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <button className="cursor-pointer">
-                              {(() => {
-                                const ps = (order as Record<string, unknown>).payment_status || "ממתין";
-                                const colors: Record<string, string> = {
-                                  "שולם": "bg-success/15 text-success",
-                                  "שולם פיקדון": "bg-accent/15 text-accent",
-                                  "ממתין": "bg-warning/15 text-warning",
-                                };
-                                return <span className={cn("inline-block px-2 py-0.5 rounded-full text-xs font-medium", colors[ps as string] || "bg-muted text-muted-foreground")}>{ps as string}</span>;
-                              })()}
-                            </button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-1" align="start">
-                            <div className="flex flex-col gap-0.5">
-                              {["ממתין", "שולם פיקדון", "שולם"].map(ps => (
-                                <button
-                                  key={ps}
-                                  onClick={() => updateOrder(order.id, {
-                                    payment_status: ps,
-                                    payment_date: ps === "שולם" ? new Date().toISOString() : ps === "שולם פיקדון" ? new Date().toISOString() : null,
-                                  } as Record<string, unknown>)}
-                                  className={cn("px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted", (order as Record<string, unknown>).payment_status === ps && "bg-muted")}
-                                >
-                                  {ps === "שולם" ? "שולם ✓" : ps}
-                                </button>
-                              ))}
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      </td>
-                    )}
-                    {isVisible("workflow") && (
-                      <td className="p-3" onClick={e => e.stopPropagation()}>
-                        {orderWorkflows[order.id] ? (
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <button className={cn(
-                                "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium cursor-pointer",
-                                orderWorkflows[order.id].status === "completed"
-                                  ? "bg-success/15 text-success"
-                                  : orderWorkflows[order.id].status === "cancelled"
-                                  ? "bg-destructive/15 text-destructive"
-                                  : "bg-primary/15 text-primary"
-                              )}>
-                                {orderWorkflows[order.id].status === "completed" ? (
-                                  <><CheckCircle className="h-3 w-3" />הושלם</>
-                                ) : orderWorkflows[order.id].status === "cancelled" ? (
-                                  <>בוטל</>
-                                ) : (
-                                  <><Zap className="h-3 w-3" />שלב {orderWorkflows[order.id].current_step + 1}</>
-                                )}
-                              </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-56 p-1" align="start">
-                              <div className="flex flex-col gap-0.5">
-                                {orderWorkflows[order.id].steps.map((step: { name: string }, idx: number) => {
-                                  const wf = orderWorkflows[order.id];
-                                  const isCompleted = idx < wf.current_step || wf.status === "completed";
-                                  const isCurrent = idx === wf.current_step && wf.status === "active";
-                                  return (
-                                    <button
-                                      key={idx}
-                                      onClick={() => handleWorkflowStepChange(order.id, wf, idx)}
-                                      className={cn(
-                                        "px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted flex items-center gap-2",
-                                        isCurrent && "bg-primary/10"
-                                      )}
-                                    >
-                                      <span className={cn(
-                                        "w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0",
-                                        isCompleted ? "bg-success text-success-foreground" :
-                                        isCurrent ? "bg-primary text-primary-foreground" :
-                                        "bg-muted text-muted-foreground"
-                                      )}>
-                                        {isCompleted ? "✓" : idx + 1}
-                                      </span>
-                                      {step.name}
-                                    </button>
-                                  );
-                                })}
-                                <button
-                                  onClick={() => handleWorkflowStepChange(order.id, orderWorkflows[order.id], orderWorkflows[order.id].steps.length)}
-                                  className={cn(
-                                    "px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted flex items-center gap-2 border-t mt-1 pt-2",
-                                    orderWorkflows[order.id].status === "completed" && "bg-success/10"
-                                  )}
-                                >
-                                  <CheckCircle className="h-3.5 w-3.5 text-success" />
-                                  סיים תהליך
-                                </button>
-                              </div>
-                            </PopoverContent>
-                          </Popover>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
+                        {(() => {
+                          const ps = orderPaymentStatuses[order.id] || "ממתין";
+                          const colors: Record<string, string> = {
+                            "שולם": "bg-success/15 text-success",
+                            "שולם חלקי": "bg-accent/15 text-accent",
+                            "ממתין": "bg-warning/15 text-warning",
+                          };
+                          return <span className={cn("inline-block px-2 py-0.5 rounded-full text-xs font-medium", colors[ps] || "bg-muted text-muted-foreground")}>{ps}</span>;
+                        })()}
                       </td>
                     )}
                     {isVisible("tracking_number") && (

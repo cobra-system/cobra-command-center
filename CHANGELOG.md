@@ -5,6 +5,13 @@
 
 ---
 
+## [Unreleased]
+
+### Changed
+- **Payment system unified** — removed the legacy `orders.payment_status` / `orders.payment_date` fields. Payment status is now derived exclusively from the `order_payments` table (ממתין / שולם חלקי / שולם). The "מעקב תשלומים" summary card on the order detail page is gone; "תזמון תשלומים" is the single payment UI. Discrepancies between scheduled total and order total now surface in the payment schedule summary bar.
+- **Workflow feature removed** — the "הזמנת רכש מחו"ל" procurement workflow (6-step process) has been removed entirely: WorkflowsPage, WorkflowsPanel, OrderWorkflowTimeline, workflow MCP tools, DB tables (`workflow_templates`, `workflow_instances`, `workflow_step_logs`), and all auto-start/cleanup logic. 32 MCP modules (246 tools) remain.
+- **Map view** — Kanban columns switched from workflow-step grouping to order status grouping (ממתין / הוזמן / נשלח / נמל-מכס-נמסר).
+
 ## [2026-05-03]
 
 - Merge pull request #182 from cobra-system/claude/collapsible-tracking-widgets-vjttq (7671a1b)

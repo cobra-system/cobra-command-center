@@ -72,29 +72,34 @@ export function registerPaymentTools(server: McpServer) {
       order_id: z.string().uuid().describe("Order UUID"),
     },
     async ({ order_id }) => {
-      const [orderRes, paymentsRes] = await Promise.all([
-        supabase.from("orders").select("id, total_price, payment_status, supplier_name").eq("id", order_id).single(),
+      const [orderRes, paymentsRes, orderPaymentsRes] = await Promise.all([
+        supabase.from("orders").select("id, total_price, supplier_name").eq("id", order_id).single(),
         supabase.from("supplier_payments").select("*").eq("order_id", order_id).order("created_at", { ascending: true }),
+        supabase.from("order_payments").select("id, payment_type, amount, currency, status, paid_date, due_date, swift_reference").eq("order_id", order_id).order("created_at", { ascending: true }),
       ]);
 
       if (orderRes.error) return { content: [{ type: "text" as const, text: `Error fetching order: ${orderRes.error.message}` }] };
 
       const payments = paymentsRes.data || [];
-      const totalPaid = payments
-        .filter((p: Record<string, unknown>) => p.status === "שולם" || p.paid_date)
+      const schedule = orderPaymentsRes.data || [];
+      const schedulePaid = schedule
+        .filter((p: Record<string, unknown>) => p.status === "שולם")
         .reduce((sum: number, p: Record<string, unknown>) => sum + (Number(p.amount) || 0), 0);
+      const scheduleTotal = schedule.reduce((sum: number, p: Record<string, unknown>) => sum + (Number(p.amount) || 0), 0);
 
       const orderTotal = Number(orderRes.data.total_price) || 0;
-      const remaining = orderTotal - totalPaid;
+      const derivedStatus = schedule.length === 0 ? "ממתין" : schedulePaid === 0 ? "ממתין" : schedulePaid >= scheduleTotal ? "שולם" : "שולם חלקי";
 
       const result = {
         order_id,
         supplier_name: orderRes.data.supplier_name,
         order_total: orderTotal,
-        payment_status: orderRes.data.payment_status,
-        total_paid: totalPaid,
-        remaining_balance: remaining,
-        payments,
+        payment_status: derivedStatus,
+        payment_schedule: schedule,
+        schedule_total: scheduleTotal,
+        schedule_paid: schedulePaid,
+        schedule_remaining: scheduleTotal - schedulePaid,
+        supplier_payments_history: payments,
       };
 
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };

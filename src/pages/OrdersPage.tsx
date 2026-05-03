@@ -20,7 +20,7 @@ import { TrackingSyncErrorsBanner } from "@/components/orders/TrackingSyncErrors
 import { NewOrderDialog } from "@/components/orders/NewOrderDialog";
 import { OrdersDashboardView } from "@/components/orders/OrdersDashboardView";
 import { OrderFilters } from "@/components/orders/OrderFilters";
-import { OrderTable, type SortField, type SortDir, type WorkflowInfo } from "@/components/orders/OrderTable";
+import { OrderTable, type SortField, type SortDir } from "@/components/orders/OrderTable";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -45,7 +45,7 @@ export default function OrdersPage() {
   const selection = useTableSelection();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [orderWorkflows, setOrderWorkflows] = useState<Record<string, WorkflowInfo>>({});
+  const [orderPaymentStatuses, setOrderPaymentStatuses] = useState<Record<string, string>>({});
   const { hasEdit } = usePermissions("orders");
   const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
   const [defaultProductId, setDefaultProductId] = useState<string | undefined>();
@@ -53,33 +53,26 @@ export default function OrdersPage() {
   const [archiveSearch, setArchiveSearch] = useState("");
 
   useEffect(() => {
-    const fetchWorkflows = async () => {
+    const fetchPaymentStatuses = async () => {
       const { data } = await supabase
-        .from("workflow_instances")
-        .select("id, order_id, status, current_step, template_id")
-        .not("order_id", "is", null);
-      if (data) {
-        const templateIds = [...new Set(data.map(w => w.template_id).filter(Boolean))];
-        const templates: Record<string, { name: string }[]> = {};
-        if (templateIds.length > 0) {
-          const { data: tpls } = await supabase.from("workflow_templates").select("id, steps").in("id", templateIds);
-          if (tpls) tpls.forEach(t => { templates[t.id] = (t.steps as { name: string }[]) || []; });
-        }
-        const map: Record<string, WorkflowInfo> = {};
-        data.forEach(w => {
-          if (w.order_id) {
-            map[w.order_id] = {
-              id: w.id,
-              status: w.status,
-              current_step: w.current_step,
-              steps: templates[w.template_id!] || []
-            };
-          }
-        });
-        setOrderWorkflows(map);
+        .from("order_payments")
+        .select("order_id, status");
+      if (!data) return;
+      const map: Record<string, { total: number; paid: number }> = {};
+      for (const p of data) {
+        if (!map[p.order_id]) map[p.order_id] = { total: 0, paid: 0 };
+        map[p.order_id].total++;
+        if (p.status === "שולם") map[p.order_id].paid++;
       }
+      const result: Record<string, string> = {};
+      for (const [orderId, counts] of Object.entries(map)) {
+        if (counts.paid === 0) result[orderId] = "ממתין";
+        else if (counts.paid === counts.total) result[orderId] = "שולם";
+        else result[orderId] = "שולם חלקי";
+      }
+      setOrderPaymentStatuses(result);
     };
-    fetchWorkflows();
+    fetchPaymentStatuses();
   }, [orders]);
 
   // Handle create-from-URL params (one-time, not persisted as filter state)
@@ -110,7 +103,6 @@ export default function OrdersPage() {
   const statusFilter = searchParams.get("status") || "all";
   const priorityFilter = searchParams.get("priority") || "all";
   const paymentFilter = searchParams.get("payment") || "all";
-  const workflowFilter = searchParams.get("wf") || "all";
   const carrierFilter = searchParams.get("carrier") || "all";
   const trackingStateFilter = searchParams.get("tracking_state") || "all";
 
@@ -118,7 +110,6 @@ export default function OrdersPage() {
   const setStatusFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("status"); } else { n.set("status", v); } return n; }, { replace: true }), [setSearchParams]);
   const setPriorityFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("priority"); } else { n.set("priority", v); } return n; }, { replace: true }), [setSearchParams]);
   const setPaymentFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("payment"); } else { n.set("payment", v); } return n; }, { replace: true }), [setSearchParams]);
-  const setWorkflowFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("wf"); } else { n.set("wf", v); } return n; }, { replace: true }), [setSearchParams]);
   const setCarrierFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("carrier"); } else { n.set("carrier", v); } return n; }, { replace: true }), [setSearchParams]);
   const setTrackingStateFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("tracking_state"); } else { n.set("tracking_state", v); } return n; }, { replace: true }), [setSearchParams]);
 
@@ -173,7 +164,7 @@ export default function OrdersPage() {
       if (o.status === "ARRIVED" || o.status === "CANCELLED") return false;
       if (statusFilter !== "all" && o.status !== statusFilter) return false;
       if (priorityFilter !== "all" && o.priority !== priorityFilter) return false;
-      if (paymentFilter !== "all" && (o as Record<string, unknown>).payment_status !== paymentFilter) return false;
+      if (paymentFilter !== "all" && orderPaymentStatuses[o.id] !== paymentFilter) return false;
       if (carrierFilter !== "all") {
         if (carrierFilter === "none") {
           if (o.tracking_carrier) return false;
@@ -189,15 +180,6 @@ export default function OrdersPage() {
         } else if (o.tracking_status_code !== trackingStateFilter) {
           return false;
         }
-      }
-      {
-        const wf = orderWorkflows[o.id];
-        if (workflowFilter === "all") {
-          // By default, hide completed workflow orders (archive)
-          if (wf && wf.status === "completed") return false;
-        } else if (workflowFilter === "active" && (!wf || wf.status !== "active")) return false;
-        else if (workflowFilter === "completed" && (!wf || wf.status !== "completed")) return false;
-        else if (workflowFilter === "none" && wf) return false;
       }
       if (search) {
         const q = search.toLowerCase();
@@ -230,7 +212,11 @@ export default function OrdersPage() {
           case "etd": cmp = (a.etd || "").localeCompare(b.etd || ""); break;
           case "eta": cmp = (a.eta || "").localeCompare(b.eta || ""); break;
           case "total_price": cmp = (a.total_price || 0) - (b.total_price || 0); break;
-          case "payment": cmp = (a.payment_date || "").localeCompare(b.payment_date || ""); break;
+          case "payment": {
+            const order = ["ממתין", "שולם חלקי", "שולם"];
+            cmp = (order.indexOf(orderPaymentStatuses[a.id] || "ממתין")) - (order.indexOf(orderPaymentStatuses[b.id] || "ממתין"));
+            break;
+          }
           case "tracking_number": cmp = (a.tracking_number || "").localeCompare(b.tracking_number || "", "he"); break;
           case "tracking_carrier": cmp = (a.tracking_carrier || "zz").localeCompare(b.tracking_carrier || "zz", "he"); break;
           case "pi_number": cmp = (a.pi_number || "").localeCompare(b.pi_number || "", "he"); break;
@@ -238,12 +224,6 @@ export default function OrdersPage() {
             const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
             const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
             cmp = dateA - dateB;
-            break;
-          }
-          case "workflow": {
-            const stepA = orderWorkflows[a.id] ? (orderWorkflows[a.id].status === "completed" ? 999 : orderWorkflows[a.id].current_step) : -1;
-            const stepB = orderWorkflows[b.id] ? (orderWorkflows[b.id].status === "completed" ? 999 : orderWorkflows[b.id].current_step) : -1;
-            cmp = stepA - stepB;
             break;
           }
         }
@@ -260,7 +240,7 @@ export default function OrdersPage() {
     }
 
     return result;
-  }, [orders, statusFilter, priorityFilter, paymentFilter, workflowFilter, carrierFilter, trackingStateFilter, search, sortField, sortDir, orderWorkflows, scopeOrderItems]);
+  }, [orders, statusFilter, priorityFilter, paymentFilter, carrierFilter, trackingStateFilter, search, sortField, sortDir, orderPaymentStatuses, scopeOrderItems]);
 
   const orderCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -314,32 +294,6 @@ export default function OrdersPage() {
     toast.success("ההזמנה שוכפלה");
   };
 
-  const handleWorkflowStepChange = async (orderId: string, wf: WorkflowInfo, newStep: number) => {
-    const totalSteps = wf.steps.length;
-    const newStatus = newStep >= totalSteps ? "completed" : "active";
-    const { error: updErr } = await supabase.from("workflow_instances").update({
-      current_step: Math.min(newStep, totalSteps),
-      status: newStatus
-    }).eq("id", wf.id);
-    if (updErr) { toast.error("שגיאה בעדכון שלב: " + updErr.message); return; }
-    if (newStep > wf.current_step) {
-      for (let i = wf.current_step; i < newStep && i < totalSteps; i++) {
-        await supabase.from("workflow_step_logs").insert({
-          instance_id: wf.id,
-          step_index: i,
-          completed_by: "מנהל",
-        });
-      }
-    } else if (newStep < wf.current_step) {
-      await supabase.from("workflow_step_logs").delete().eq("instance_id", wf.id).gte("step_index", newStep);
-    }
-    setOrderWorkflows(prev => ({
-      ...prev,
-      [orderId]: { ...wf, current_step: Math.min(newStep, totalSteps), status: newStatus }
-    }));
-    toast.success(newStatus === "completed" ? "תהליך הושלם" : `שלב ${newStep + 1}`);
-  };
-
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3 flex-wrap">
@@ -386,7 +340,7 @@ export default function OrdersPage() {
         </div>
 
         <TabsContent value="dashboard" className="mt-0">
-          <OrdersDashboardView orders={orders} orderWorkflows={orderWorkflows} suppliers={suppliers} />
+          <OrdersDashboardView orders={orders} orderPaymentStatuses={orderPaymentStatuses} suppliers={suppliers} />
         </TabsContent>
 
         <TabsContent value="table" className="mt-0 space-y-4">
@@ -399,8 +353,6 @@ export default function OrdersPage() {
             setPriorityFilter={setPriorityFilter}
             paymentFilter={paymentFilter}
             setPaymentFilter={setPaymentFilter}
-            workflowFilter={workflowFilter}
-            setWorkflowFilter={setWorkflowFilter}
             carrierFilter={carrierFilter}
             setCarrierFilter={setCarrierFilter}
             trackingStateFilter={trackingStateFilter}
@@ -409,7 +361,7 @@ export default function OrdersPage() {
           />
           <OrderTable
             filtered={filtered}
-            orderWorkflows={orderWorkflows}
+            orderPaymentStatuses={orderPaymentStatuses}
             hasEdit={hasEdit}
             sortField={sortField}
             sortDir={sortDir}
@@ -420,7 +372,6 @@ export default function OrdersPage() {
             navigateToProduct={navigateToProduct}
             handleDeleteOrder={handleDeleteOrder}
             handleDuplicateOrder={handleDuplicateOrder}
-            handleWorkflowStepChange={handleWorkflowStepChange}
             updateOrderStatus={updateOrderStatus}
             updateOrder={updateOrder}
             selection={hasEdit ? selection : undefined}
@@ -446,7 +397,7 @@ export default function OrdersPage() {
           </div>
           <OrderTable
             filtered={archivedOrders}
-            orderWorkflows={orderWorkflows}
+            orderPaymentStatuses={orderPaymentStatuses}
             hasEdit={hasEdit}
             sortField={null}
             sortDir={null}
@@ -457,7 +408,6 @@ export default function OrdersPage() {
             navigateToProduct={navigateToProduct}
             handleDeleteOrder={handleDeleteOrder}
             handleDuplicateOrder={handleDuplicateOrder}
-            handleWorkflowStepChange={handleWorkflowStepChange}
             updateOrderStatus={updateOrderStatus}
             updateOrder={updateOrder}
           />

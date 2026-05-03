@@ -4,16 +4,9 @@ import { type Priority, type Order, type Supplier } from "@/contexts/AppContext"
 import { cn } from "@/lib/utils";
 import { Package, Calendar, DollarSign, Truck } from "lucide-react";
 
-interface WorkflowInfo {
-  id: string;
-  status: string;
-  current_step: number;
-  steps: { name: string }[];
-}
-
 interface OrdersMapViewProps {
   orders: Order[];
-  orderWorkflows: Record<string, WorkflowInfo>;
+  orderPaymentStatuses: Record<string, string>;
   suppliers: Supplier[];
 }
 
@@ -34,38 +27,32 @@ const priorityBorderColor: Record<string, string> = {
 
 const paymentColors: Record<string, string> = {
   "שולם": "bg-emerald-100 text-emerald-700",
-  "שולם פיקדון": "bg-amber-100 text-amber-700",
+  "שולם חלקי": "bg-amber-100 text-amber-700",
   "ממתין": "bg-gray-100 text-gray-500",
 };
 
-export function OrdersMapView({ orders, orderWorkflows, suppliers }: OrdersMapViewProps) {
+export function OrdersMapView({ orders, orderPaymentStatuses, suppliers }: OrdersMapViewProps) {
   const navigate = useNavigate();
 
-  // Group orders into Kanban columns based on workflow status
+  // Group orders into Kanban columns based on order status
   const columns: KanbanColumn[] = (() => {
-    const noWorkflow: Order[] = [];
-    const waiting: Order[] = [];
-    const inProgress: Order[] = [];
-    const completed: Order[] = [];
+    const pending: Order[] = [];
+    const ordered: Order[] = [];
+    const shipped: Order[] = [];
+    const clearing: Order[] = [];
 
     orders.forEach(order => {
-      const wf = orderWorkflows[order.id];
-      if (!wf) {
-        noWorkflow.push(order);
-      } else if (wf.status === "completed") {
-        completed.push(order);
-      } else if (wf.current_step === 0) {
-        waiting.push(order);
-      } else {
-        inProgress.push(order);
-      }
+      if (order.status === "PENDING") pending.push(order);
+      else if (order.status === "ORDERED") ordered.push(order);
+      else if (order.status === "SHIPPED") shipped.push(order);
+      else clearing.push(order);
     });
 
     return [
-      { key: "waiting", title: "ממתין", color: "text-amber-600", bgColor: "bg-amber-50 border-amber-200", orders: waiting },
-      { key: "in_progress", title: "בתהליך", color: "text-blue-600", bgColor: "bg-blue-50 border-blue-200", orders: inProgress },
-      { key: "completed", title: "הושלם", color: "text-emerald-600", bgColor: "bg-emerald-50 border-emerald-200", orders: completed },
-      { key: "no_workflow", title: "ללא תהליך", color: "text-gray-500", bgColor: "bg-gray-50 border-gray-200", orders: noWorkflow },
+      { key: "pending",   title: "ממתין",       color: "text-amber-600",   bgColor: "bg-amber-50 border-amber-200",   orders: pending },
+      { key: "ordered",   title: "הוזמן",        color: "text-blue-600",    bgColor: "bg-blue-50 border-blue-200",     orders: ordered },
+      { key: "shipped",   title: "נשלח",         color: "text-violet-600",  bgColor: "bg-violet-50 border-violet-200", orders: shipped },
+      { key: "clearing",  title: "נמל / מכס / נמסר", color: "text-emerald-600", bgColor: "bg-emerald-50 border-emerald-200", orders: clearing },
     ];
   })();
 
@@ -88,8 +75,7 @@ export function OrdersMapView({ orders, orderWorkflows, suppliers }: OrdersMapVi
                 אין הזמנות
               </div>
             ) : col.orders.map(order => {
-              const wf = orderWorkflows[order.id];
-              const paymentStatus = (order as any).payment_status || "ממתין";
+              const paymentStatus = orderPaymentStatuses[order.id] || "ממתין";
               const productNames = order.items.map(i => i.name).join(", ") || "ללא פריטים";
               const totalQty = order.items.reduce((s, i) => s + i.qty, 0);
 
@@ -140,29 +126,6 @@ export function OrdersMapView({ orders, orderWorkflows, suppliers }: OrdersMapVi
                       </span>
                     ) : null}
                   </div>
-
-                  {/* Workflow progress */}
-                  {wf && wf.steps.length > 0 && (
-                    <div className="mb-2">
-                      <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
-                        <span className="truncate max-w-[150px]">
-                          {wf.status === "completed"
-                            ? "הושלם"
-                            : wf.steps[wf.current_step]?.name || `שלב ${wf.current_step + 1}`}
-                        </span>
-                        <span>{wf.status === "completed" ? wf.steps.length : wf.current_step}/{wf.steps.length}</span>
-                      </div>
-                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={cn(
-                            "h-full rounded-full transition-all",
-                            wf.status === "completed" ? "bg-emerald-500" : "bg-blue-500"
-                          )}
-                          style={{ width: `${(wf.status === "completed" ? 100 : (wf.current_step / wf.steps.length) * 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
 
                   {/* Payment badge */}
                   <div className="flex items-center justify-end">

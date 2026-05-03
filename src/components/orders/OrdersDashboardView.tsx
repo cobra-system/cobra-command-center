@@ -20,16 +20,9 @@ interface OrderPayment {
   order_items?: string;
 }
 
-interface WorkflowInfo {
-  id: string;
-  status: string;
-  current_step: number;
-  steps: { name: string }[];
-}
-
 interface OrdersDashboardViewProps {
   orders: Order[];
-  orderWorkflows: Record<string, WorkflowInfo>;
+  orderPaymentStatuses: Record<string, string>;
   suppliers: Supplier[];
 }
 
@@ -53,7 +46,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 
 const ACTIVE_STATUSES = ["PENDING", "ORDERED", "SHIPPED", "ARRIVED_PORT", "CUSTOMS_CLEARANCE", "DELIVERED"];
 
-export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: OrdersDashboardViewProps) {
+export function OrdersDashboardView({ orders, orderPaymentStatuses, suppliers }: OrdersDashboardViewProps) {
   const navigate = useNavigate();
   const [timelineExpanded, setTimelineExpanded] = useState(false);
   const [paymentSupplierFilter, setPaymentSupplierFilter] = useState<string>("all");
@@ -206,13 +199,13 @@ export function OrdersDashboardView({ orders, orderWorkflows, suppliers }: Order
 
     const total = filtered.length || 1;
     const counts = filtered.reduce((acc, o) => {
-      const status = (o as Record<string, unknown>).payment_status as string || "ממתין";
+      const status = orderPaymentStatuses[o.id] || "ממתין";
       acc[status] = (acc[status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     return { counts, total };
-  }, [activeOrders, paymentSupplierFilter]);
+  }, [activeOrders, paymentSupplierFilter, orderPaymentStatuses]);
 
   const timelineOrders = useMemo(() => {
     return [...activeOrders]

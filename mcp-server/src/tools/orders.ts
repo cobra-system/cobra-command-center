@@ -114,7 +114,6 @@ export function registerOrderTools(server: McpServer) {
       order_date: z.string().optional().describe("Order date (YYYY-MM-DD)"),
       total_price: z.number().optional().describe("Total order price"),
       contact_name: z.string().optional().describe("Contact person name"),
-      payment_status: z.enum(["ממתין", "שולם פיקדון", "שולם"]).optional().describe("Payment status: ממתין (pending), שולם פיקדון (deposit paid), שולם (fully paid)"),
       notes: z.string().optional().describe("Order notes"),
       eta: z.string().optional().describe("Estimated arrival date (YYYY-MM-DD)"),
       etd: z.string().optional().describe("Estimated departure date (YYYY-MM-DD)"),
@@ -134,7 +133,7 @@ export function registerOrderTools(server: McpServer) {
       })).optional().describe("Order line items"),
     },
     async ({ supplier_id, supplier_name, status, priority, order_date, total_price, contact_name,
-             payment_status, notes, eta, etd, tracking_number, pi_number, vessel_name,
+             notes, eta, etd, tracking_number, pi_number, vessel_name,
              booking_number, tclog_reference, shipment_group_id,
              destination_supplier_id, destination_supplier_name, items }) => {
       let resolvedSupplierName = supplier_name || null;
@@ -153,7 +152,6 @@ export function registerOrderTools(server: McpServer) {
           order_date: order_date || null,
           total_price: total_price ?? null,
           contact_name: contact_name || null,
-          payment_status: payment_status || null,
           notes: notes || null,
           eta: eta || null,
           etd: etd || null,
@@ -203,8 +201,6 @@ export function registerOrderTools(server: McpServer) {
       priority: z.enum(["דחוף", "גבוה", "בינוני", "נמוך"]).optional().describe("New priority"),
       order_date: z.string().optional().describe("Order date (YYYY-MM-DD)"),
       total_price: z.number().optional().describe("Total order price"),
-      payment_status: z.enum(["ממתין", "שולם פיקדון", "שולם"]).optional().describe("Payment status"),
-      payment_date: z.string().optional().describe("Payment date (YYYY-MM-DD)"),
       contact_name: z.string().optional().describe("Contact person name"),
       supplier_name: z.string().optional().describe("Supplier name"),
       notes: z.string().optional().describe("Updated notes — previous value is saved to history"),
