@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { RefreshCw, Truck, MapPin, Calendar, AlertTriangle, Check, Package } from "lucide-react";
+import { useEffect, useState } from "react";
+import { RefreshCw, Truck, MapPin, Calendar, AlertTriangle, Check, Package, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useData } from "@/contexts/AppContext";
@@ -74,6 +74,7 @@ function ProgressBar({ level, eventCode }: { level: TrackingLevel; eventCode: st
 
 export function DhlTrackingWidget({ order, loading, onRefresh }: DhlTrackingWidgetProps) {
   const { updateOrderStatus } = useData();
+  const [expanded, setExpanded] = useState(false);
   const level = normalizeLevel(order.tracking_status_code);
   const meta = DHL_LEVELS[level];
   const headlineCode = order.tracking_events?.[0]?.code ?? order.tracking_raw_status ?? null;
@@ -103,93 +104,134 @@ export function DhlTrackingWidget({ order, loading, onRefresh }: DhlTrackingWidg
     : Package;
 
   return (
-    <div className="bg-card rounded-xl border shadow-sm p-5">
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <Truck className="h-5 w-5 text-primary" />
+    <div className="bg-card rounded-xl border shadow-sm">
+      <button
+        type="button"
+        onClick={() => setExpanded(v => !v)}
+        className="w-full p-5 flex items-center justify-between gap-3 flex-wrap text-right hover:bg-muted/20 transition-colors rounded-xl"
+        aria-expanded={expanded}
+      >
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          <Truck className="h-5 w-5 text-primary shrink-0" />
           <h2 className="text-lg font-semibold text-foreground">מעקב DHL</h2>
-          <span className="text-xs text-muted-foreground font-mono">{order.tracking_number}</span>
-        </div>
-        <button
-          onClick={onRefresh}
-          disabled={loading}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border rounded-lg px-3 py-1.5 transition-colors hover:bg-muted/30 disabled:opacity-50"
-        >
-          <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-          רענן מעקב
-        </button>
-      </div>
-
-      {!hasAnyData && (
-        <p className="text-sm text-muted-foreground">טרם בוצע עדכון מעקב — לחץ "רענן מעקב"</p>
-      )}
-
-      {hasAnyData && (
-        <>
-          <div className="flex items-center gap-3 flex-wrap mb-4">
-            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold", meta.badgeClass)}>
-              <Icon className="h-4 w-4" />
+          {order.tracking_number && (
+            <span className="text-xs text-muted-foreground font-mono truncate">{order.tracking_number}</span>
+          )}
+          {hasAnyData && (
+            <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold", meta.badgeClass)}>
+              <Icon className="h-3 w-3" />
               {meta.he}
             </span>
-            <span className={cn("text-sm", meta.textClass)}>{headline}</span>
-          </div>
+          )}
+          {order.tracking_eta && (
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <Calendar className="h-3 w-3" />
+              {formatDateOnly(order.tracking_eta)}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={e => { e.stopPropagation(); if (!loading) onRefresh(); }}
+            onKeyDown={e => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!loading) onRefresh();
+              }
+            }}
+            aria-disabled={loading}
+            className={cn(
+              "inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border rounded-lg px-3 py-1.5 transition-colors hover:bg-muted/30",
+              loading && "opacity-50 pointer-events-none"
+            )}
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+            רענן מעקב
+          </span>
+          {expanded
+            ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          }
+        </div>
+      </button>
 
-          <div className="mb-5">
-            <ProgressBar level={level} eventCode={headlineCode} />
-          </div>
+      {expanded && (
+        <div className="px-5 pb-5">
+          {!hasAnyData && (
+            <p className="text-sm text-muted-foreground">טרם בוצע עדכון מעקב — לחץ "רענן מעקב"</p>
+          )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-            {order.tracking_eta && (
-              <InfoCard icon={Calendar} label="הגעה משוערת" value={formatDateOnly(order.tracking_eta)} />
-            )}
-            {order.tracking_last_location && (
-              <InfoCard icon={MapPin} label="מיקום אחרון" value={order.tracking_last_location} />
-            )}
-            {order.tracking_origin && (
-              <InfoCard icon={MapPin} label="מוצא" value={order.tracking_origin} />
-            )}
-            {order.tracking_destination && (
-              <InfoCard icon={MapPin} label="יעד" value={order.tracking_destination} />
-            )}
-            {order.tracking_last_synced_at && (
-              <InfoCard
-                icon={RefreshCw}
-                label="עודכן"
-                value={formatDate(order.tracking_last_synced_at)}
-              />
-            )}
-          </div>
-
-          {order.tracking_sync_error && (
-            <div className="flex items-start gap-2 mb-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
-              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-              <div>
-                <div className="font-semibold mb-0.5">שגיאת סנכרון אחרונה</div>
-                <div className="font-mono">{order.tracking_sync_error}</div>
+          {hasAnyData && (
+            <>
+              <div className="flex items-center gap-3 flex-wrap mb-4">
+                <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold", meta.badgeClass)}>
+                  <Icon className="h-4 w-4" />
+                  {meta.he}
+                </span>
+                <span className={cn("text-sm", meta.textClass)}>{headline}</span>
               </div>
-            </div>
-          )}
 
-          {events.length > 0 && (
-            <div>
-              <div className="text-xs font-semibold text-muted-foreground mb-2">היסטוריית אירועים</div>
-              <ul className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                {events.slice(0, 10).map((ev, i) => (
-                  <li key={i} className="flex gap-3 text-sm border-r-2 border-muted pr-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-foreground">{describeEvent(ev.code, ev.description)}</div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
-                        <span>{formatDate(ev.timestamp)}</span>
-                        {ev.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{ev.location}</span>}
-                        {ev.code && <span className="font-mono opacity-70">[{ev.code}]</span>}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
+              <div className="mb-5">
+                <ProgressBar level={level} eventCode={headlineCode} />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                {order.tracking_eta && (
+                  <InfoCard icon={Calendar} label="הגעה משוערת" value={formatDateOnly(order.tracking_eta)} />
+                )}
+                {order.tracking_last_location && (
+                  <InfoCard icon={MapPin} label="מיקום אחרון" value={order.tracking_last_location} />
+                )}
+                {order.tracking_origin && (
+                  <InfoCard icon={MapPin} label="מוצא" value={order.tracking_origin} />
+                )}
+                {order.tracking_destination && (
+                  <InfoCard icon={MapPin} label="יעד" value={order.tracking_destination} />
+                )}
+                {order.tracking_last_synced_at && (
+                  <InfoCard
+                    icon={RefreshCw}
+                    label="עודכן"
+                    value={formatDate(order.tracking_last_synced_at)}
+                  />
+                )}
+              </div>
+
+              {order.tracking_sync_error && (
+                <div className="flex items-start gap-2 mb-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-semibold mb-0.5">שגיאת סנכרון אחרונה</div>
+                    <div className="font-mono">{order.tracking_sync_error}</div>
+                  </div>
+                </div>
+              )}
+
+              {events.length > 0 && (
+                <div>
+                  <div className="text-xs font-semibold text-muted-foreground mb-2">היסטוריית אירועים</div>
+                  <ul className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                    {events.slice(0, 10).map((ev, i) => (
+                      <li key={i} className="flex gap-3 text-sm border-r-2 border-muted pr-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-foreground">{describeEvent(ev.code, ev.description)}</div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+                            <span>{formatDate(ev.timestamp)}</span>
+                            {ev.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{ev.location}</span>}
+                            {ev.code && <span className="font-mono opacity-70">[{ev.code}]</span>}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
           )}
-        </>
+        </div>
       )}
     </div>
   );
