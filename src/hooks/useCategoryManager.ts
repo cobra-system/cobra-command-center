@@ -1,48 +1,46 @@
-import { useState, useCallback } from "react";
-import { categories as defaultCats } from "@/contexts/AppContext";
-
-const STORAGE_KEY = "product-categories:custom";
-const BASE_CATEGORIES = defaultCats.filter(c => c !== "הכל");
-
-function loadCustom(): string[] {
-  try {
-    const s = localStorage.getItem(STORAGE_KEY);
-    return s ? JSON.parse(s) : [];
-  } catch {
-    return [];
-  }
-}
+/**
+ * Thin adapter so CategorySelect can call add/rename/delete without knowing
+ * whether the backing store is localStorage or the DB.
+ *
+ * Now delegates entirely to CategoriesContext (DB-backed).
+ * The `custom` array is the subset of categories where is_default = false.
+ */
+import { useCallback } from "react";
+import { useProductCategories } from "@/contexts/CategoriesContext";
 
 export function useCategoryManager() {
-  const [custom, setCustom] = useState<string[]>(loadCustom);
-  const allCategories = [...BASE_CATEGORIES, ...custom.filter(c => !BASE_CATEGORIES.includes(c))];
+  const { categories, addCategory: dbAdd, renameCategory: dbRename, deleteCategory: dbDelete } = useProductCategories();
 
-  const save = (updated: string[]) => {
-    setCustom(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  };
+  const allCategories = categories.map(c => c.name);
+  const custom = categories.filter(c => !c.is_default).map(c => c.name);
 
-  const addCategory = useCallback((name: string): boolean => {
+  const findId = useCallback(
+    (name: string) => categories.find(c => c.name === name)?.id ?? null,
+    [categories]
+  );
+
+  const addCategory = useCallback(async (name: string): Promise<boolean> => {
     const trimmed = name.trim();
     if (!trimmed || allCategories.includes(trimmed)) return false;
-    save([...custom, trimmed]);
+    await dbAdd(trimmed);
     return true;
-     
-  }, [custom, allCategories]);
+  }, [allCategories, dbAdd]);
 
-  const removeCategory = useCallback((name: string) => {
-    if (BASE_CATEGORIES.includes(name)) return;
-    save(custom.filter(c => c !== name));
-     
-  }, [custom]);
+  const removeCategory = useCallback(async (name: string) => {
+    const id = findId(name);
+    const cat = categories.find(c => c.name === name);
+    if (!id || cat?.is_default) return;
+    await dbDelete(id);
+  }, [findId, categories, dbDelete]);
 
-  const renameCategory = useCallback((oldName: string, newName: string): boolean => {
+  const renameCategory = useCallback(async (oldName: string, newName: string): Promise<boolean> => {
     const trimmed = newName.trim();
-    if (!trimmed || allCategories.includes(trimmed) || BASE_CATEGORIES.includes(oldName)) return false;
-    save(custom.map(c => (c === oldName ? trimmed : c)));
+    const id = findId(oldName);
+    const cat = categories.find(c => c.name === oldName);
+    if (!id || cat?.is_default || !trimmed || allCategories.includes(trimmed)) return false;
+    await dbRename(id, trimmed);
     return true;
-     
-  }, [custom, allCategories]);
+  }, [findId, categories, allCategories, dbRename]);
 
   return { allCategories, custom, addCategory, removeCategory, renameCategory };
 }

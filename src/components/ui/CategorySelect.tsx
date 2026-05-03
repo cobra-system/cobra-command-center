@@ -23,16 +23,21 @@ export function CategorySelect({ value, onValueChange, className }: CategorySele
 
   const { allCategories, custom, addCategory, removeCategory, renameCategory } = useCategoryManager();
 
-  const handleAdd = () => {
-    if (addCategory(newName)) {
-      onValueChange(newName.trim());
+  const handleAdd = async () => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    const ok = await addCategory(trimmed);
+    if (ok) {
+      onValueChange(trimmed);
       setNewName("");
       setAdding(false);
     }
   };
 
-  const handleRename = () => {
-    if (editingName && renameCategory(editingName, editValue)) {
+  const handleRename = async () => {
+    if (!editingName) return;
+    const ok = await renameCategory(editingName, editValue);
+    if (ok) {
       if (value === editingName) onValueChange(editValue.trim());
       setEditingName(null);
       setEditValue("");
@@ -128,7 +133,7 @@ export function CategorySelect({ value, onValueChange, className }: CategorySele
                         <button
                           className="p-1 hover:text-destructive"
                           title="מחק קטגוריה"
-                          onClick={e => { e.stopPropagation(); removeCategory(cat); if (value === cat) onValueChange(""); }}
+                          onClick={e => { e.stopPropagation(); void removeCategory(cat); if (value === cat) onValueChange(""); }}
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>
