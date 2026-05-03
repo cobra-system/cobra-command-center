@@ -5,6 +5,13 @@
 
 ---
 
+## [2026-05-03]
+
+- Merge remote-tracking branch 'origin/main' into claude/fix-order-payments-ihQUE (ef5205c)
+- fix(migration): backfill order_payments from legacy payment_status before dropping columns (fe80935)
+- refactor(orders): unify payment system, remove procurement workflow (436b5aa)
+
+<!-- last-commit: 427048e95dec7a057073e45a7d102607464bf6c2 -->
 ## [Unreleased]
 
 ### Changed
@@ -17,7 +24,6 @@
 - Persist product categories in DB (product_categories table) (4bf4895)
 - Add category management and number inputs for inventory thresholds (7faa5bc)
 
-<!-- last-commit: 6ad003a7dd642f96718c8bc0d84793a06b88c7ef -->
 ## [2026-05-03]
 
 - Merge pull request #182 from cobra-system/claude/collapsible-tracking-widgets-vjttq (7671a1b)
