@@ -6,10 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { type Product, categories, divisions } from "@/contexts/AppContext";
+import { CategorySelect } from "@/components/ui/CategorySelect";
+import { type Product, divisions } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
-
-const productCategories = categories.filter(c => c !== "הכל");
 const productTypes = ["מוגמר", "מורכב"];
 const shippingMethods = ["אוויר", "ים", "יבשה", "שילוב", "בין ספקים"];
 
@@ -119,12 +118,7 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
               {textField("sku", "מק״ט")}
               <div className="space-y-1">
                 <Label className="text-xs">קטגוריה</Label>
-                <Select value={fields.category || ""} onValueChange={v => set("category", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {productCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <CategorySelect value={fields.category || ""} onValueChange={v => set("category", v)} />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">חטיבות</Label>

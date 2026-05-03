@@ -156,15 +156,35 @@ export function QuantityBar({
           {/* Min / Max controls */}
           <div className="space-y-3 pt-2 border-t">
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <div
                     className="h-3 w-0.5 rounded-full shrink-0"
                     style={{ backgroundColor: "hsl(var(--warning))" }}
                   />
                   <span className="text-xs text-muted-foreground">מינימום (נקודת הזמנה)</span>
                 </div>
-                <span className="text-sm font-bold tabular-nums">{localMin}</span>
+                {readOnly ? (
+                  <span className="text-sm font-bold tabular-nums">{localMin}</span>
+                ) : (
+                  <input
+                    type="number"
+                    dir="ltr"
+                    className="w-16 text-sm font-bold tabular-nums text-center border border-input rounded px-1 py-0.5 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                    value={localMin}
+                    min={0}
+                    max={MAX_THRESHOLD}
+                    onChange={e => {
+                      const v = Math.min(MAX_THRESHOLD, Math.max(0, Number(e.target.value) || 0));
+                      setLocalMin(v);
+                    }}
+                    onBlur={e => {
+                      const v = Math.min(MAX_THRESHOLD, Math.max(0, Number(e.target.value) || 0));
+                      setLocalMin(v);
+                      onMinChange?.(v);
+                    }}
+                  />
+                )}
               </div>
               {!readOnly && (
                 <div dir="ltr">
@@ -181,15 +201,35 @@ export function QuantityBar({
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <div
                     className="h-3 w-0.5 rounded-full shrink-0"
                     style={{ backgroundColor: "hsl(var(--warning))" }}
                   />
                   <span className="text-xs text-muted-foreground">מקסימום (יעד מלאי)</span>
                 </div>
-                <span className="text-sm font-bold tabular-nums">{localMax}</span>
+                {readOnly ? (
+                  <span className="text-sm font-bold tabular-nums">{localMax}</span>
+                ) : (
+                  <input
+                    type="number"
+                    dir="ltr"
+                    className="w-16 text-sm font-bold tabular-nums text-center border border-input rounded px-1 py-0.5 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                    value={localMax}
+                    min={0}
+                    max={MAX_THRESHOLD}
+                    onChange={e => {
+                      const v = Math.min(MAX_THRESHOLD, Math.max(0, Number(e.target.value) || 0));
+                      setLocalMax(v);
+                    }}
+                    onBlur={e => {
+                      const v = Math.min(MAX_THRESHOLD, Math.max(0, Number(e.target.value) || 0));
+                      setLocalMax(v);
+                      onMaxChange?.(v);
+                    }}
+                  />
+                )}
               </div>
               {!readOnly && (
                 <div dir="ltr">
@@ -207,7 +247,7 @@ export function QuantityBar({
           </div>
 
           {!readOnly && (
-            <p className="text-xs text-muted-foreground text-center">גרור לשינוי הסף</p>
+            <p className="text-xs text-muted-foreground text-center">גרור לשינוי הסף או הזן מספר</p>
           )}
         </div>
       </PopoverContent>
