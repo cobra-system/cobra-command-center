@@ -5,6 +5,12 @@
 
 ---
 
+## [2026-05-03]
+
+- feat(lock-control): add open-all button, remove refresh (faa6e31)
+- fix: add end_date column to tasks for recurring templates (f35b24f)
+
+<!-- last-commit: 84dec0c15e262acb575b42219009e3b866136fae -->
 ## [2026-05-01]
 
 - feat(tracking): phase 2 — auto-detect, bulk tagging, filters, MCP parity (7cdfdd0)
@@ -12,7 +18,6 @@
 - fix(tracking): tracking_number can be DHL or TCLOG — require explicit carrier (a0fbb57)
 - feat(tracking): rich DHL tracking widget + auto-sync on orders page (ab12a9d)
 
-<!-- last-commit: eef32e15af7656bf913cb40da99aa110aad59c04 -->
 ## [Unreleased]
 
 ### Added (Phase 2)
