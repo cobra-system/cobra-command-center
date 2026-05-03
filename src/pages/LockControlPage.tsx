@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import {
   Lock,
   Unlock,
-  RefreshCw,
   Camera,
   User2,
   Clock,
@@ -75,6 +74,8 @@ export default function LockControlPage() {
     method: "camera" | "manual";
     action: ScanAction;
   } | null>(null);
+  const [openAllConfirm, setOpenAllConfirm] = useState(false);
+  const [openAllRunning, setOpenAllRunning] = useState(false);
 
   const profileNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -318,6 +319,32 @@ export default function LockControlPage() {
     closeScanner();
   };
 
+  const locksToOpen = useMemo(
+    () => locks.filter((l) => l.current_status !== "open"),
+    [locks]
+  );
+
+  const confirmOpenAll = async () => {
+    if (openAllRunning) return;
+    setOpenAllRunning(true);
+    let successCount = 0;
+    let failCount = 0;
+    for (const lock of locksToOpen) {
+      const ok = await performScan(lock, lock.barcode_value, "manual", "open");
+      if (ok) successCount++;
+      else failCount++;
+    }
+    setOpenAllRunning(false);
+    setOpenAllConfirm(false);
+    if (failCount === 0 && successCount > 0) {
+      toast.success(`כל המנעולים סומנו כפתוחים (${successCount})`);
+    } else if (successCount > 0) {
+      toast.warning(`נפתחו ${successCount} מנעולים, ${failCount} נכשלו`);
+    } else if (failCount > 0) {
+      toast.error("פתיחת המנעולים נכשלה");
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -336,6 +363,15 @@ export default function LockControlPage() {
             <ScanLine className="h-3.5 w-3.5" />
             סריקה חופשית
           </button>
+          <button
+            type="button"
+            onClick={() => setOpenAllConfirm(true)}
+            disabled={locksToOpen.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-warning/40 bg-warning/5 text-warning text-sm font-medium hover:bg-warning/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Unlock className="h-3.5 w-3.5" />
+            פתח הכל
+          </button>
           <Link
             to="/lock-control/history"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
@@ -343,14 +379,6 @@ export default function LockControlPage() {
             <History className="h-3.5 w-3.5" />
             היסטוריה
           </Link>
-          <button
-            type="button"
-            onClick={() => refresh()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            רענון
-          </button>
         </div>
       </div>
 
@@ -550,6 +578,50 @@ export default function LockControlPage() {
         onManualEntry={(value) => handleScan(value, "manual")}
         onClose={closeScanner}
       />
+
+      {openAllConfirm && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+          onClick={() => !openAllRunning && setOpenAllConfirm(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="bg-card rounded-2xl shadow-2xl w-full max-w-sm p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 mb-3">
+              <Unlock className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">פתיחת כל המנעולים</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {locksToOpen.length === 0
+                    ? "כל המנעולים כבר פתוחים."
+                    : `פעולה זו תסמן ${locksToOpen.length} מנעולים כפתוחים ותירשם ביומן הסריקות.`}
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => setOpenAllConfirm(false)}
+                disabled={openAllRunning}
+                className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 disabled:opacity-50"
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                onClick={confirmOpenAll}
+                disabled={openAllRunning || locksToOpen.length === 0}
+                className="px-3 py-1.5 rounded-lg bg-warning text-warning-foreground text-sm font-medium hover:bg-warning/90 disabled:opacity-50"
+              >
+                {openAllRunning ? "פותח..." : "פתח הכל"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {pendingConfirm && (
         <div

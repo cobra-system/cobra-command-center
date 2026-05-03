@@ -65,9 +65,10 @@ export function registerTaskTools(server: McpServer) {
       day_of_week: z.number().min(0).max(6).optional().describe("Day of week (0=Sunday) for weekly tasks"),
       day_of_month: z.number().min(1).max(31).optional().describe("Day of month for monthly/annual tasks"),
       month_of_year: z.number().min(0).max(11).optional().describe("Month of year (0=January) for annual tasks"),
+      end_date: z.string().optional().describe("Optional cutoff date (YYYY-MM-DD) after which the recurring template stops"),
       category: z.string().optional().describe("Task category"),
     },
-    async ({ title, description, frequency, priority, assignee_name, day_of_week, day_of_month, month_of_year, category }) => {
+    async ({ title, description, frequency, priority, assignee_name, day_of_week, day_of_month, month_of_year, end_date, category }) => {
       const insert: Record<string, unknown> = {
         title,
         description: description || null,
@@ -76,6 +77,7 @@ export function registerTaskTools(server: McpServer) {
         day_of_week: day_of_week ?? null,
         day_of_month: day_of_month ?? null,
         month_of_year: month_of_year ?? null,
+        end_date: end_date || null,
         category: category || null,
         is_active: true,
         status: "TEMPLATE",
@@ -152,6 +154,7 @@ export function registerTaskTools(server: McpServer) {
       day_of_week: z.number().min(0).max(6).optional().describe("Day of week (0=Sunday) for weekly tasks"),
       day_of_month: z.number().min(1).max(31).optional().describe("Day of month for monthly/annual tasks"),
       month_of_year: z.number().min(0).max(11).optional().describe("Month of year (0=January) for annual tasks"),
+      end_date: z.string().optional().describe("Optional cutoff date (YYYY-MM-DD) for recurring template"),
     },
     async ({ id, assignee_name, ...fields }) => {
       const updates: Record<string, unknown> = {};
