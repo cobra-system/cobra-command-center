@@ -108,7 +108,7 @@ grep -r "\"TABLE_NAME\"" mcp-server/src/tools/
 cd mcp-server && npm run build
 ```
 
-### Module inventory (33 modules · 250 tools)
+### Module inventory (33 modules · 254 tools)
 
 | Module | Domain | Key tables | Tools |
 |--------|--------|------------|------:|
@@ -133,7 +133,7 @@ cd mcp-server && npm run build
 | `procurement-agenda` | Procurement agenda | orders | 2 |
 | `procurement-inventory` | Procurement inventory | center_inventory, orders | 6 |
 | `procurement-meeting` | Procurement meetings | meetings, procurement_meeting_orders | 7 |
-| `products` | Products & components | products, product_components | 13 |
+| `products` | Products & components | products, product_components, product_categories | 17 |
 | `reminders` | Reminders | compliance_items, orders, tasks | 3 |
 | `search` | Global search | (multi-table) | 4 |
 | `shipping` | Shipping & logistics | orders, shipment_groups | 9 |

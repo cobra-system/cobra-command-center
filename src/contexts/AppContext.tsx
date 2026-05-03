@@ -12,6 +12,7 @@ import { TasksProvider, useTasks } from "@/contexts/TasksContext";
 import { GoalsProvider, useGoals } from "@/contexts/GoalsContext";
 import { SuppliersProvider, useSuppliers } from "@/contexts/SuppliersContext";
 import { RolesProvider, useRoles } from "@/contexts/RolesContext";
+import { CategoriesProvider, useProductCategories } from "@/contexts/CategoriesContext";
 
 // Re-export types for backward compatibility
 export type { Role, OrderStatus, Priority, TaskStatus } from "@/contexts/types";
@@ -27,6 +28,7 @@ export { useTasks } from "@/contexts/TasksContext";
 export { useGoals } from "@/contexts/GoalsContext";
 export { useSuppliers } from "@/contexts/SuppliersContext";
 export { useRoles } from "@/contexts/RolesContext";
+export { useProductCategories } from "@/contexts/CategoriesContext";
 
 // Helper constants
 export const categories = ["הכל", "מיגון ואיתור", "מולטימדיה", "בטיחות", "נוחות וקישוריות", "בית"];
@@ -124,19 +126,21 @@ function InnerProviders({ children }: { children: ReactNode }) {
 
   return (
     <RolesProvider currentUser={currentUser}>
-      <ProductsProvider>
-        <OrdersProvider>
-          <TasksProvider session={session}>
-            <GoalsProvider>
-              <SuppliersProvider>
-                <DataLoader>
-                  {children}
-                </DataLoader>
-              </SuppliersProvider>
-            </GoalsProvider>
-          </TasksProvider>
-        </OrdersProvider>
-      </ProductsProvider>
+      <CategoriesProvider>
+        <ProductsProvider>
+          <OrdersProvider>
+            <TasksProvider session={session}>
+              <GoalsProvider>
+                <SuppliersProvider>
+                  <DataLoader>
+                    {children}
+                  </DataLoader>
+                </SuppliersProvider>
+              </GoalsProvider>
+            </TasksProvider>
+          </OrdersProvider>
+        </ProductsProvider>
+      </CategoriesProvider>
     </RolesProvider>
   );
 }
