@@ -435,4 +435,77 @@ export function registerProductTools(server: McpServer) {
       };
     }
   );
+
+  // ── Category management ────────────────────────────────────────────────────
+
+  server.tool(
+    "list_product_categories",
+    "רשימת קטגוריות מוצרים — List all product categories (default + custom)",
+    {},
+    async () => {
+      const { data, error } = await supabase
+        .from("product_categories")
+        .select("id, name, is_default, sort_order")
+        .order("sort_order")
+        .order("name");
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "add_product_category",
+    "הוספת קטגוריה — Add a new custom product category",
+    {
+      name: z.string().describe("Category name (Hebrew or any text)"),
+    },
+    async ({ name }) => {
+      const { data, error } = await supabase
+        .from("product_categories")
+        .insert({ name: name.trim(), is_default: false })
+        .select("id, name")
+        .single();
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Category added: ${JSON.stringify(data)}` }] };
+    }
+  );
+
+  server.tool(
+    "rename_product_category",
+    "שינוי שם קטגוריה — Rename a custom product category (cannot rename default categories)",
+    {
+      id: z.string().uuid().describe("Category UUID"),
+      new_name: z.string().describe("New category name"),
+    },
+    async ({ id, new_name }) => {
+      const { data, error } = await supabase
+        .from("product_categories")
+        .update({ name: new_name.trim() })
+        .eq("id", id)
+        .eq("is_default", false)
+        .select("id, name")
+        .single();
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      if (!data) return { content: [{ type: "text" as const, text: "Category not found or is a default category (cannot rename)" }] };
+      return { content: [{ type: "text" as const, text: `Category renamed: ${JSON.stringify(data)}` }] };
+    }
+  );
+
+  server.tool(
+    "delete_product_category",
+    "מחיקת קטגוריה — Delete a custom product category (cannot delete default categories)",
+    {
+      id: z.string().uuid().describe("Category UUID"),
+    },
+    async ({ id }) => {
+      const { error, count } = await supabase
+        .from("product_categories")
+        .delete({ count: "exact" })
+        .eq("id", id)
+        .eq("is_default", false);
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      if (count === 0) return { content: [{ type: "text" as const, text: "Category not found or is a default category (cannot delete)" }] };
+      return { content: [{ type: "text" as const, text: "Category deleted successfully" }] };
+    }
+  );
 }

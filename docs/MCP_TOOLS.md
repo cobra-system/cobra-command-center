@@ -34,7 +34,7 @@
 | `procurement-agenda` | Procurement agenda | 2 | orders, order_payments |
 | `procurement-inventory` | Procurement inventory | 6 | center_inventory, orders, order_items, purchase_documents, supplier_bank_details, procurement_meeting_orders |
 | `procurement-meeting` | Procurement meetings | 7 | meetings, orders, order_payments, procurement_meeting_orders, supplier_bank_details |
-| `products` | Products & components | 13 | products, product_components, product_issues, order_items |
+| `products` | Products & components | 17 | products, product_components, product_issues, order_items, product_categories |
 | `reminders` | Reminders | 3 | compliance_items, orders, tasks, daily_reports, product_issues, supplier_payments |
 | `search` | Global search | 4 | products, orders, suppliers, tasks, compliance_items, center_inventory, purchase_documents, product_components, product_issues, order_items, supplier_contacts, supplier_payments |
 | `shipping` | Shipping & logistics | 9 | orders, order_payments, order_notes_history, shipment_groups |
@@ -82,6 +82,7 @@ Use this to find which module(s) to update when a table's schema changes.
 | `order_notes_history` | orders, shipping |
 | `order_payments` | order-payments, orders, procurement-agenda, procurement-inventory, procurement-meeting, shipping |
 | `orders` | orders, analytics, bulk-ops, finance, notifications, order-payments, payments, procurement-agenda, procurement-inventory, procurement-meeting, reminders, search, shipping |
+| `product_categories` | products |
 | `product_components` | products, search |
 | `product_issues` | issues, analytics, notifications, products, reminders, search |
 | `products` | products, analytics, bulk-ops, equipment, issues, notifications, reminders, search |

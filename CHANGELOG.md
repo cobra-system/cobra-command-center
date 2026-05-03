@@ -14,11 +14,16 @@
 
 ## [2026-05-03]
 
+- Persist product categories in DB (product_categories table) (4bf4895)
+- Add category management and number inputs for inventory thresholds (7faa5bc)
+
+<!-- last-commit: 6ad003a7dd642f96718c8bc0d84793a06b88c7ef -->
+## [2026-05-03]
+
 - Merge pull request #182 from cobra-system/claude/collapsible-tracking-widgets-vjttq (7671a1b)
 - ui(tracking): compact status badge in orders table (dab3af2)
 - ui(tracking): collapse DHL/TCLOG widgets by default (3306a01)
 
-<!-- last-commit: 7671a1b6da9208f112b72351fd316aaf740786ba -->
 ## [2026-05-03]
 
 - feat(lock-control): add open-all button, remove refresh (faa6e31)

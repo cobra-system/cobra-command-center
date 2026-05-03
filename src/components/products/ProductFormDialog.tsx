@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Combobox } from "@/components/ui/combobox";
+import { CategorySelect } from "@/components/ui/CategorySelect";
 import { Plus, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { productSchema, productComponentSchema } from "@/lib/schemas/productSchema";
@@ -192,10 +193,7 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div className="space-y-1">
               <Label>קטגוריה</Label>
-              <Select value={form.category} onValueChange={v => setField("category", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{catOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-              </Select>
+              <CategorySelect value={form.category} onValueChange={v => setField("category", v)} />
             </div>
             <div className="space-y-1">
               <Label>סוג</Label>
