@@ -7,10 +7,16 @@
 
 ## [2026-05-03]
 
+- Merge pull request #182 from cobra-system/claude/collapsible-tracking-widgets-vjttq (7671a1b)
+- ui(tracking): compact status badge in orders table (dab3af2)
+- ui(tracking): collapse DHL/TCLOG widgets by default (3306a01)
+
+<!-- last-commit: 7671a1b6da9208f112b72351fd316aaf740786ba -->
+## [2026-05-03]
+
 - feat(lock-control): add open-all button, remove refresh (faa6e31)
 - fix: add end_date column to tasks for recurring templates (f35b24f)
 
-<!-- last-commit: 84dec0c15e262acb575b42219009e3b866136fae -->
 ## [2026-05-01]
 
 - feat(tracking): phase 2 — auto-detect, bulk tagging, filters, MCP parity (7cdfdd0)
