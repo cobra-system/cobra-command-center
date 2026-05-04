@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useFileDropPaste } from "@/hooks/useFileDropPaste";
 import { useData, useAuth } from "@/contexts/AppContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
@@ -243,11 +244,9 @@ export default function IssueDetailPage() {
 
   // ── Media ────────────────────────────────────────────────────────────────────
 
-  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !issue) return;
+  const uploadMediaFile = useCallback(async (file: File) => {
+    if (!issue) return;
     if (file.size > 50 * 1024 * 1024) { toast.error("הקובץ גדול מדי (מקסימום 50MB)"); return; }
-
     const isVideo = file.type.startsWith("video/");
     const isImage = file.type.startsWith("image/");
     if (!isVideo && !isImage) { toast.error("סוג קובץ לא נתמך"); return; }
@@ -259,7 +258,6 @@ export default function IssueDetailPage() {
     if (uploadError) { toast.error("שגיאה בהעלאה"); setUploading(false); return; }
 
     const { data: { publicUrl } } = supabase.storage.from("issue-media").getPublicUrl(path);
-
     const { data: { user } } = await supabase.auth.getUser();
     const { error: insertError } = await supabase.from("issue_attachments").insert({
       issue_id: issue.id,
@@ -274,7 +272,18 @@ export default function IssueDetailPage() {
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
     await fetchAttachments();
+  }, [issue, fetchAttachments]);
+
+  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadMediaFile(file);
   };
+
+  const isMediaFile = (f: File) => f.type.startsWith("image/") || f.type.startsWith("video/");
+  const { isDragging: isMediaDragging, dropProps: mediaDropProps } = useFileDropPaste(uploadMediaFile, {
+    accept: isMediaFile,
+    disabled: uploading,
+  });
 
   const handleDeleteAttachment = async (attachmentId: string) => {
     const { error } = await supabase.from("issue_attachments").delete().eq("id", attachmentId);
@@ -613,7 +622,15 @@ export default function IssueDetailPage() {
       </div>
 
       {/* ── Media Gallery ───────────────────────────────────────────────────── */}
-      <div className="bg-card rounded-xl border shadow-sm">
+      <div
+        className={cn(
+          "bg-card rounded-xl border shadow-sm transition-colors",
+          isMediaDragging && "border-primary ring-2 ring-primary/20"
+        )}
+        onDragOver={mediaDropProps.onDragOver}
+        onDragLeave={mediaDropProps.onDragLeave}
+        onDrop={mediaDropProps.onDrop}
+      >
         <div className="p-4 border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ImageIcon className="h-4 w-4 text-primary" />
@@ -642,7 +659,14 @@ export default function IssueDetailPage() {
 
         <div className="p-4">
           {totalMediaCount === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">אין קבצי מדיה</p>
+            <div
+              className={cn(
+                "border-2 border-dashed rounded-lg p-6 text-center transition-colors",
+                isMediaDragging ? "border-primary bg-primary/5" : "border-muted-foreground/20"
+              )}
+            >
+              <p className="text-sm text-muted-foreground">גרור מדיה לכאן, הדבק (Ctrl+V) או לחץ &ldquo;העלה מדיה&rdquo;</p>
+            </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {/* Legacy image_url */}
