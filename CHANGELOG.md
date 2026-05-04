@@ -5,13 +5,17 @@
 
 ---
 
+## [2026-05-04]
+
+- feat: add download button to compliance license cards (69b9147)
+
+<!-- last-commit: e86ff57e163230a381bfebe21fa380e0d8aaf716 -->
 ## [2026-05-03]
 
 - Merge remote-tracking branch 'origin/main' into claude/fix-order-payments-ihQUE (ef5205c)
 - fix(migration): backfill order_payments from legacy payment_status before dropping columns (fe80935)
 - refactor(orders): unify payment system, remove procurement workflow (436b5aa)
 
-<!-- last-commit: 427048e95dec7a057073e45a7d102607464bf6c2 -->
 ## [Unreleased]
 
 ### Changed
