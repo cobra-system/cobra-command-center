@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { useFileDropPaste } from "@/hooks/useFileDropPaste";
 import { useData } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,15 +51,19 @@ export default function SimpleFileUploadDialog({
     setOrderId(defaultOrderId || "");
   };
 
+  const handleDroppedFile = useCallback((f: File) => {
+    setFile(f);
+    if (!docName) setDocName(f.name.replace(/\.[^/.]+$/, ""));
+  }, [docName]);
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     const f = e.dataTransfer.files?.[0];
-    if (f) {
-      setFile(f);
-      if (!docName) setDocName(f.name.replace(/\.[^/.]+$/, ""));
-    }
-  }, [docName]);
+    if (f) handleDroppedFile(f);
+  }, [handleDroppedFile]);
+
+  useFileDropPaste(handleDroppedFile, { disabled: !open });
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -153,7 +158,7 @@ export default function SimpleFileUploadDialog({
             ) : (
               <div className="flex flex-col items-center gap-2">
                 <Upload className="h-8 w-8 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">גרור קובץ לכאן או לחץ לבחירה</p>
+                <p className="text-sm text-muted-foreground">גרור, הדבק (Ctrl+V) או לחץ לבחירה</p>
                 <p className="text-xs text-muted-foreground">PDF, Word, Excel, תמונה</p>
               </div>
             )}

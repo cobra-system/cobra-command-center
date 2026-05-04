@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useFileDropPaste } from "@/hooks/useFileDropPaste";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Upload, FileText, Trash2, Loader2, X, ExternalLink } from "lucide-react";
@@ -33,7 +34,7 @@ export default function MeetingDocumentsList({ meetingId }: Props) {
     })();
   }, [meetingId]);
 
-  const uploadFile = async (file: File) => {
+  const uploadFile = useCallback(async (file: File) => {
     setUploading(true);
     const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").replace(/_{2,}/g, "_");
     const path = `meeting-documents/${meetingId}/${Date.now()}_${sanitized}`;
@@ -61,14 +62,16 @@ export default function MeetingDocumentsList({ meetingId }: Props) {
       await fetchDocs();
     }
     setUploading(false);
-  };
+  }, [meetingId, fetchDocs]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files?.[0];
     if (file) uploadFile(file);
-  }, [meetingId]);
+  }, [uploadFile]);
+
+  useFileDropPaste(uploadFile, { disabled: uploading });
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -139,7 +142,7 @@ export default function MeetingDocumentsList({ meetingId }: Props) {
         ) : (
           <div className="flex flex-col items-center gap-1.5">
             <Upload className="h-6 w-6 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">גרור קובץ לכאן או לחץ להעלאה</p>
+            <p className="text-sm text-muted-foreground">גרור, הדבק (Ctrl+V) או לחץ להעלאה</p>
             <p className="text-xs text-muted-foreground">PDF, Word, Excel, תמונה</p>
           </div>
         )}

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useFileDropPaste } from "@/hooks/useFileDropPaste";
 import { supabase } from "@/lib/supabase";
 import { useData } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
@@ -61,12 +62,23 @@ function ImagePicker({ imageFile, setImageFile, previewUrl, setPreviewUrl }: {
   imageFile: File | null; setImageFile: (f: File | null) => void;
   previewUrl: string | null; setPreviewUrl: (u: string | null) => void;
 }) {
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const processFile = useCallback((f: File) => {
+    if (!f.type.startsWith("image/")) { toast.error("נא לבחור קובץ תמונה"); return; }
     if (f.size > 5 * 1024 * 1024) { toast.error("הקובץ גדול מדי (מקסימום 5MB)"); return; }
     setImageFile(f);
     setPreviewUrl(URL.createObjectURL(f));
+  }, [setImageFile, setPreviewUrl]);
+
+  const { isDragging, dropProps } = useFileDropPaste(processFile, {
+    accept: (f) => f.type.startsWith("image/"),
+    disabled: !!previewUrl,
+  });
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) processFile(f);
   };
 
   return (
@@ -84,11 +96,20 @@ function ImagePicker({ imageFile, setImageFile, previewUrl, setPreviewUrl }: {
           </button>
         </div>
       ) : (
-        <label className="flex items-center gap-2 border border-dashed rounded-lg p-3 cursor-pointer hover:bg-muted/30 transition-colors">
-          <ImagePlus className="h-5 w-5 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">הוסף תמונה</span>
-          <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
-        </label>
+        <div
+          className={cn(
+            "flex items-center gap-2 border border-dashed rounded-lg p-3 cursor-pointer transition-colors",
+            isDragging ? "border-primary bg-primary/5" : "hover:bg-muted/30"
+          )}
+          onClick={() => inputRef.current?.click()}
+          onDragOver={dropProps.onDragOver}
+          onDragLeave={dropProps.onDragLeave}
+          onDrop={dropProps.onDrop}
+        >
+          <ImagePlus className="h-5 w-5 text-muted-foreground shrink-0" />
+          <span className="text-sm text-muted-foreground">גרור, הדבק (Ctrl+V) או לחץ לבחירה</span>
+          <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+        </div>
       )}
     </div>
   );
@@ -134,7 +155,7 @@ export function DiagnosticWizard({ productId, onClose, onSaved }: { productId: s
       diagnostic_source: source,
       diagnostic_steps: diagnosticSteps,
       image_url: imageUrl,
-    } as any);
+    } as Record<string, unknown>);
 
     if (error) {
       toast.error("שגיאה בדיווח התקלה: " + error.message);
@@ -271,7 +292,7 @@ export function SimpleIssueForm({ productId, onClose, onSaved }: { productId: st
       description: description.trim(),
       severity,
       image_url: imageUrl,
-    } as any);
+    } as Record<string, unknown>);
     toast.success("תקלה דווחה בהצלחה");
     setSaving(false);
     onClose();
@@ -327,7 +348,7 @@ export default function ProductIssuesTab({ productId, productName }: { productId
 
   useEffect(() => { fetchIssues(); }, [fetchIssues]);
 
-  const updateIssueField = async (issueId: string, updates: Record<string, any>) => {
+  const updateIssueField = async (issueId: string, updates: Record<string, unknown>) => {
     if (updates.status === "נסגר") updates.resolved_date = new Date().toISOString().split("T")[0];
     await supabase.from("product_issues").update(updates).eq("id", issueId);
     toast.success("עודכן");

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useFileDropPaste } from "@/hooks/useFileDropPaste";
 import * as XLSX from "xlsx";
 import mammoth from "mammoth";
 import { useParams, useNavigate } from "react-router-dom";
@@ -426,16 +427,10 @@ export default function DocumentDetailPage() {
     fetchDoc();
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !doc) return;
+  const uploadDocFile = useCallback(async (file: File) => {
+    if (!doc) return;
     setUploading(true);
-
-    // Sanitize filename: replace spaces and special chars with underscores
-    const sanitizedName = file.name
-      .replace(/[^a-zA-Z0-9._-]/g, "_")
-      .replace(/_{2,}/g, "_");
-
+    const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").replace(/_{2,}/g, "_");
     const path = `uploads/${Date.now()}_${sanitizedName}`;
     const { error } = await supabase.storage.from("documents").upload(path, file);
     if (error) { toast.error("שגיאה בהעלאה"); setUploading(false); return; }
@@ -445,7 +440,14 @@ export default function DocumentDetailPage() {
     toast.success("קובץ הועלה");
     setUploading(false);
     fetchDoc();
+  }, [doc, fetchDoc]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadDocFile(file);
   };
+
+  useFileDropPaste(uploadDocFile, { disabled: uploading || !doc });
 
   const handleRemoveFile = async () => {
     if (!doc) return;
@@ -473,31 +475,12 @@ export default function DocumentDetailPage() {
     setDragOver(false);
   }, []);
 
-  const handleDrop = useCallback(async (e: React.DragEvent) => {
+  const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files?.[0];
-    if (!file || !doc) return;
-
-    setUploading(true);
-    const sanitizedName = file.name
-      .replace(/[^a-zA-Z0-9._-]/g, "_")
-      .replace(/_{2,}/g, "_");
-
-    const path = `uploads/${Date.now()}_${sanitizedName}`;
-    const { error } = await supabase.storage.from("documents").upload(path, file);
-    if (error) {
-      toast.error("שגיאה בהעלאה");
-      setUploading(false);
-      return;
-    }
-    const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
-    const { error: dbErr } = await supabase.from("purchase_documents").update({ file_url: urlData.publicUrl }).eq("id", doc.id);
-    if (dbErr) { toast.error("שגיאה בשמירת הקובץ: " + dbErr.message); setUploading(false); return; }
-    toast.success("קובץ הועלה");
-    setUploading(false);
-    fetchDoc();
-  }, [doc, fetchDoc]);
+    if (file) uploadDocFile(file);
+  }, [uploadDocFile]);
 
   const handleDownloadFile = async () => {
     if (!doc?.file_url) return;
@@ -810,7 +793,7 @@ export default function DocumentDetailPage() {
               >
                 <label className="flex items-center gap-2 cursor-pointer">
                   {uploading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : <Upload className="h-5 w-5 text-muted-foreground" />}
-                  <span className="text-sm text-muted-foreground">{uploading ? "מעלה..." : "גרור קובץ או לחץ להעלאה (PDF, Word, Excel, תמונה)"}</span>
+                  <span className="text-sm text-muted-foreground">{uploading ? "מעלה..." : "גרור, הדבק (Ctrl+V) או לחץ להעלאה (PDF, Word, Excel, תמונה)"}</span>
                   <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt,.csv" className="hidden" onChange={handleFileUpload} disabled={uploading} />
                 </label>
               </div>

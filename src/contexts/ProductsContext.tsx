@@ -137,7 +137,6 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
       const nullifyOps = [
         supabase.from("order_items").update({ product_id: null }).eq("product_id", id),
         supabase.from("compliance_items").update({ product_id: null }).eq("product_id", id),
-        supabase.from("inventory_change_log").update({ product_id: null }).eq("product_id", id),
         supabase.from("inventory_transfers").update({ product_id: null }).eq("product_id", id),
         supabase.from("purchase_documents").update({ product_id: null }).eq("product_id", id),
         supabase.from("supplier_price_quotes").update({ product_id: null }).eq("product_id", id),
