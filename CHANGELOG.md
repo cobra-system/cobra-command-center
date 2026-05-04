@@ -7,9 +7,14 @@
 
 ## [2026-05-04]
 
+- feat: add drag-and-drop and paste (Ctrl+V) to all file upload areas (fb1f7df)
+- fix: remove non-existent inventory_change_log from product deletion (aa7fb31)
+
+<!-- last-commit: d112e59199c224880f5ea02d6bc13fc2e43816b6 -->
+## [2026-05-04]
+
 - Allow toggling payment status directly from table (a7e88b7)
 
-<!-- last-commit: e78cb101933c5b6b7c3dba3ca776bfacce4540f4 -->
 ## [2026-05-04]
 
 - feat: add download button to compliance license cards (69b9147)
