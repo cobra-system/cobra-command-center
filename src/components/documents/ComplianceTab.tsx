@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DateInput } from "@/components/ui/date-input";
-import { Plus, Upload, Loader2, Pencil, Trash2, Package } from "lucide-react";
+import { Plus, Upload, Loader2, Pencil, Trash2, Package, Download } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
@@ -202,7 +202,12 @@ export default function ComplianceTab({ productId }: { productId?: string } = {}
 
                     <div className="flex items-center gap-1 flex-wrap">
                       {item.document_url ? (
-                        <a href={item.document_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">📄 צפה במסמך</a>
+                        <>
+                          <a href={item.document_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">📄 צפה במסמך</a>
+                          <a href={item.document_url} download className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                            <Download className="h-3 w-3" />הורד
+                          </a>
+                        </>
                       ) : (
                         <span className="text-xs text-muted-foreground">אין מסמך</span>
                       )}
