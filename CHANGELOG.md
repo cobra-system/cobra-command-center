@@ -7,9 +7,13 @@
 
 ## [2026-05-04]
 
+- Allow toggling payment status directly from table (a7e88b7)
+
+<!-- last-commit: e78cb101933c5b6b7c3dba3ca776bfacce4540f4 -->
+## [2026-05-04]
+
 - feat: add download button to compliance license cards (69b9147)
 
-<!-- last-commit: e86ff57e163230a381bfebe21fa380e0d8aaf716 -->
 ## [2026-05-03]
 
 - Merge remote-tracking branch 'origin/main' into claude/fix-order-payments-ihQUE (ef5205c)
