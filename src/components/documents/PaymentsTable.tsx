@@ -103,6 +103,12 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
     onRefresh();
   };
 
+  const markPending = async (id: string) => {
+    await supabase.from("supplier_payments").update({ status: "ממתין", paid_date: null }).eq("id", id);
+    toast.success("סומן כממתין");
+    onRefresh();
+  };
+
   return (
     <div>
       <div className="flex gap-2 mb-3">
@@ -221,7 +227,7 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
                     <td className="p-3">
                       <Popover>
                         <PopoverTrigger asChild>
-                          <button className={cn("px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer", payStatusColors[displayStatus] || "bg-muted text-muted-foreground")}>
+                          <button className={cn("px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity", payStatusColors[displayStatus] || "bg-muted text-muted-foreground")}>
                             {displayStatus}
                           </button>
                         </PopoverTrigger>
@@ -230,9 +236,17 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
                             {p.status !== "שולם" && (
                               <button
                                 onClick={() => markPaid(p.id)}
-                                className="px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted"
+                                className="px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted text-success"
                               >
                                 ✓ סמן כשולם
+                              </button>
+                            )}
+                            {p.status === "שולם" && (
+                              <button
+                                onClick={() => markPending(p.id)}
+                                className="px-3 py-1.5 rounded text-xs font-medium text-right transition-colors hover:bg-muted text-warning"
+                              >
+                                ↺ סמן כממתין
                               </button>
                             )}
                           </div>
