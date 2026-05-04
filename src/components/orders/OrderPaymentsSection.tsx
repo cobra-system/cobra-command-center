@@ -176,6 +176,16 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit }: Props) {
     fetchPayments();
   };
 
+  const markPending = async (id: string) => {
+    const { error } = await supabase
+      .from("order_payments")
+      .update({ status: "ממתין", paid_date: null })
+      .eq("id", id);
+    if (error) { toast.error("שגיאה"); return; }
+    toast.success("תשלום סומן כממתין");
+    fetchPayments();
+  };
+
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("order_payments").delete().eq("id", id);
     if (error) { toast.error("שגיאה במחיקה"); return; }
@@ -290,20 +300,30 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit }: Props) {
                   )}
                   {isVisible("status") && (
                     <td className="p-3" onClick={e => e.stopPropagation()}>
-                      {hasEdit && p.status === "ממתין" ? (
+                      {hasEdit ? (
                         <Popover>
                           <PopoverTrigger asChild>
-                            <button className={cn("px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer", statusColors[p.status] || "bg-muted text-muted-foreground")}>
+                            <button className={cn("px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity", statusColors[p.status] || "bg-muted text-muted-foreground")}>
                               {p.status}
                             </button>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-1" align="start">
-                            <button
-                              onClick={() => markPaid(p.id)}
-                              className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium hover:bg-muted rounded transition-colors text-success"
-                            >
-                              <Check className="h-3 w-3" />סמן כשולם
-                            </button>
+                            {p.status === "ממתין" && (
+                              <button
+                                onClick={() => markPaid(p.id)}
+                                className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium hover:bg-muted rounded transition-colors text-success"
+                              >
+                                <Check className="h-3 w-3" />סמן כשולם
+                              </button>
+                            )}
+                            {p.status === "שולם" && (
+                              <button
+                                onClick={() => markPending(p.id)}
+                                className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium hover:bg-muted rounded transition-colors text-warning"
+                              >
+                                ↺ סמן כממתין
+                              </button>
+                            )}
                           </PopoverContent>
                         </Popover>
                       ) : (
