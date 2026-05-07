@@ -11,7 +11,7 @@ interface OrdersState {
   orders: Order[];
   refreshOrders: () => Promise<void>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
-  addOrder: (order: Omit<Order, "id" | "items"> & { items: Omit<OrderItem, "id" | "order_id">[] }) => Promise<void>;
+  addOrder: (order: Omit<Order, "id" | "items"> & { items: Omit<OrderItem, "id" | "order_id">[] }) => Promise<string | undefined>;
   updateOrder: (id: string, updates: Partial<Order>) => Promise<void>;
   deleteOrder: (id: string) => Promise<void>;
 }
@@ -72,28 +72,30 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     }
   }, [queryClient]);
 
-  const addOrder = useCallback(async (order: Omit<Order, "id" | "items"> & { items: Omit<OrderItem, "id" | "order_id">[] }) => {
+  const addOrder = useCallback(async (order: Omit<Order, "id" | "items"> & { items: Omit<OrderItem, "id" | "order_id">[] }): Promise<string | undefined> => {
     try {
       const { items, ...orderData } = order;
       const { data: newOrder, error: orderError } = await supabase.from("orders").insert(orderData).select("id").single();
       if (orderError) {
         handleError(orderError, "שגיאה ביצירת הזמנה: " + (orderError.message || "נסה שוב"));
-        return;
+        return undefined;
       }
       if (newOrder) {
         const orderItems = items.map(item => ({ ...item, order_id: newOrder.id }));
         const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
         if (itemsError) {
           handleError(itemsError, "שגיאה בהוספת פריטים: " + (itemsError.message || "נסה שוב"));
-          return;
+          return undefined;
         }
         await queryClient.refetchQueries({ queryKey: ["orders"] });
         toast.success("הזמנה נוצרה בהצלחה");
         logActivity({ action: "order.create", entityType: "order", entityId: newOrder.id });
+        return newOrder.id;
       }
     } catch (err) {
       handleError(err, "שגיאה בלתי צפויה: " + (err instanceof Error ? err.message : "נסה שוב"));
     }
+    return undefined;
   }, [queryClient]);
 
   const updateOrder = useCallback(async (id: string, updates: Partial<Order>) => {

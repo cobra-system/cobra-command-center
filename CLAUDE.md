@@ -78,6 +78,8 @@ const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 - `documents:hidden-columns` — DocumentsTable
 - `payments:hidden-columns` — PaymentsTable
 - `order-payments:hidden-columns` — OrderPaymentsSection
+- `order-requests:hidden-columns` — DivisionDetailPage (bonded requests section)
+- `manager-order-requests:hidden-columns` — OrderRequestsTab (manager view)
 
 Use a new unique key for each new table (e.g. `"invoices:hidden-columns"`).
 
@@ -109,7 +111,7 @@ grep -r "\"TABLE_NAME\"" mcp-server/src/tools/
 cd mcp-server && npm run build
 ```
 
-### Module inventory (32 modules · 250 tools)
+### Module inventory (32 modules · 253 tools)
 
 | Module | Domain | Key tables | Tools |
 |--------|--------|------------|------:|
@@ -118,7 +120,7 @@ cd mcp-server && npm run build
 | `bulk-ops` | Bulk operations | orders, products, tasks | 5 |
 | `compliance` | Compliance items | compliance_items, compliance_product_links | 7 |
 | `daily-reports` | Daily reports | daily_reports, tasks | 5 |
-| `divisions` | Division management | division_products, profiles | 4 |
+| `divisions` | Division management | division_products, order_requests, profiles | 7 |
 | `documents` | Documents | documents, purchase_documents | 10 |
 | `equipment` | Equipment tracking | installers, equipment_pickups, equipment_returns | 36 |
 | `finance` | Finance & payments | orders, supplier_payments | 4 |

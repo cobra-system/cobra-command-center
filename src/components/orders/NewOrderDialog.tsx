@@ -27,15 +27,17 @@ interface FlatComponent extends ProductComponent { productName: string; }
 interface Props {
   suppliers: Supplier[];
   products: Product[];
-  addOrder: (order: Omit<Order, "id" | "items"> & { items: Omit<OrderItem, "id" | "order_id">[] }) => Promise<void>;
+  addOrder: (order: Omit<Order, "id" | "items"> & { items: Omit<OrderItem, "id" | "order_id">[] }) => Promise<string | undefined>;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   defaultProductId?: string;
   defaultSupplierId?: string;
+  defaultQuantity?: number;
   hideTrigger?: boolean;
+  onOrderCreated?: (orderId: string) => void;
 }
 
-export function NewOrderDialog({ suppliers, products, addOrder, open: controlledOpen, onOpenChange, defaultProductId, defaultSupplierId, hideTrigger }: Props) {
+export function NewOrderDialog({ suppliers, products, addOrder, open: controlledOpen, onOpenChange, defaultProductId, defaultSupplierId, defaultQuantity, hideTrigger, onOrderCreated }: Props) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setOpen = (v: boolean) => {
@@ -84,7 +86,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
         setItems([{
           type: "product",
           name: prod.name,
-          qty: "1",
+          qty: defaultQuantity ? String(defaultQuantity) : "1",
           price: prod.purchase_price?.toString() || "",
           productId: prod.id,
           componentId: ""
@@ -160,7 +162,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
     const supplier = suppliers.find(s => s.id === supplierId);
     const destSupplier = destinationSupplierId ? suppliers.find(s => s.id === destinationSupplierId) : undefined;
 
-    await addOrder({
+    const newOrderId = await addOrder({
       priority,
       supplier_id: supplierId || undefined,
       supplier_name: supplier?.company || undefined,
@@ -181,6 +183,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
         product_id: item.product_id || undefined,
       })),
     });
+    if (newOrderId && onOrderCreated) onOrderCreated(newOrderId);
     resetForm();
     setOpen(false);
   };

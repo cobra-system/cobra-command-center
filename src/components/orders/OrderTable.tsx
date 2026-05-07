@@ -44,6 +44,8 @@ const COLUMN_DEFS: ColDef[] = [
 ];
 
 // ─── Props ───────────────────────────────────────────────────────────────────
+const PRICE_COLS = new Set(["total_price", "payment", "pi_number"]);
+
 interface OrderTableProps {
   filtered: Order[];
   orderPaymentStatuses: Record<string, string>;
@@ -60,6 +62,7 @@ interface OrderTableProps {
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   updateOrder: (orderId: string, updates: Partial<Order>) => void;
   selection?: TableSelectionState;
+  hidePrices?: boolean;
 }
 
 // ─── Sort icon ───────────────────────────────────────────────────────────────
@@ -85,9 +88,12 @@ export function OrderTable({
   updateOrderStatus,
   updateOrder,
   selection,
+  hidePrices,
 }: OrderTableProps) {
   const navigate = useNavigate();
-  const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility("orders:hidden-columns", COLUMN_DEFS, ["total_price", "pi_number"]);
+  const colVis = useColumnVisibility("orders:hidden-columns", COLUMN_DEFS, ["total_price", "pi_number"]);
+  const isVisible = (id: string) => hidePrices && PRICE_COLS.has(id) ? false : colVis.isVisible(id);
+  const { hide, show, hiddenCols, visibleCount } = colVis;
   const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
   const { scopeOrderItems } = useProductScope();
 

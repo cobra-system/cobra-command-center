@@ -220,6 +220,30 @@ export interface RolePermissionRecord {
   permission_level: PermissionLevel;
 }
 
+export type OrderRequestUrgency = "דחוף" | "רגיל" | "נמוך";
+export type OrderRequestType = "מיידית" | "חודשית" | "רבעונית" | "חצי שנתית";
+export type OrderRequestStatus = "pending" | "ordered";
+
+export interface OrderRequest {
+  id: string;
+  division: string;
+  product_id?: string | null;
+  product_name: string;
+  supplier?: string | null;
+  current_consumption?: string | null;
+  reason?: string | null;
+  quantity: number;
+  urgency: OrderRequestUrgency;
+  order_type: OrderRequestType;
+  status: OrderRequestStatus;
+  order_id?: string | null;
+  ordered_at?: string | null;
+  ordered_by?: string | null;
+  ordered_by_name?: string | null;
+  created_at: string;
+  created_by?: string | null;
+}
+
 export interface AuthState {
   currentUser: Profile | null;
   session: Session | null;

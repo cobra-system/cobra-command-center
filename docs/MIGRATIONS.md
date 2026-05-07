@@ -3,7 +3,7 @@
 ## Overview
 This project uses PostgreSQL migrations managed through Supabase. All migration files are stored in `supabase/migrations/`.
 
-**Total migrations: 105** (last: `20260503000002_create_product_categories.sql`)
+**Total migrations: 108** (last: `20260508000003_fix_derive_order_division_aggregate_all.sql`)
 
 ## How to Apply Migrations
 
