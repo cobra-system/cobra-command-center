@@ -46,14 +46,18 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  // Client-side division filtering (backup to RLS)
+  // Client-side division filtering (backup to RLS).
+  // orders.division is a comma-separated aggregate of every division covered by
+  // the order's items (see derive_order_division). Exact equality would drop
+  // multi-division rows like "AWACS, פריזבי קרסו" for a user whose division is
+  // just "פריזבי קרסו" — so we split and check membership instead.
   const orders = useMemo(() => {
-    // If user is manager or has no division, return all orders
     if (!currentUser || currentUser.role === "MANAGER" || !currentUser.division) {
       return rawOrders;
     }
-    // Non-managers see only orders where division matches their division
-    return rawOrders.filter(order => order.division === currentUser.division);
+    return rawOrders.filter(order =>
+      order.division?.split(",").map(d => d.trim()).includes(currentUser.division)
+    );
   }, [rawOrders, currentUser]);
 
   const refreshOrders = useCallback(async () => {

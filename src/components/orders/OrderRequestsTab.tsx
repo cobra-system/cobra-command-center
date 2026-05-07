@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { useData, useAuth } from "@/contexts/AppContext";
 import { toast } from "sonner";
@@ -10,12 +10,14 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { NewOrderDialog } from "@/components/orders/NewOrderDialog";
+import { OrderRequestDialog } from "@/components/orders/OrderRequestDialog";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
-import { ArrowUpDown, ArrowUp, ArrowDown, ShoppingCart } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, ShoppingCart, Plus } from "lucide-react";
 import type { ColDef } from "@/hooks/useColumnVisibility";
 import type { OrderRequest } from "@/contexts/types";
-import { DIVISIONS } from "@/components/equipment/constants";
+import { DIVISIONS, BONDED_DIVISIONS } from "@/components/equipment/constants";
+import { isDivisionManager } from "@/lib/permissions";
 
 const COLUMN_DEFS: ColDef[] = [
   { id: "division", label: "חטיבה", sortField: "division" },
@@ -48,6 +50,14 @@ export function OrderRequestsTab() {
   const [sortField, setSortField] = useState<string | null>("created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [fulfillingRequest, setFulfillingRequest] = useState<OrderRequest | null>(null);
+  const [showNewRequest, setShowNewRequest] = useState(false);
+  const [divisionProductIds, setDivisionProductIds] = useState<string[]>([]);
+
+  // Bonded division managers can submit requests for their own division.
+  // Procurement managers fulfill requests but don't create them here.
+  const userDivision = currentUser?.division ?? "";
+  const canCreateRequest =
+    isDivisionManager(currentUser) && BONDED_DIVISIONS.has(userDivision);
 
   const { isVisible, hide, show, hiddenCols } = useColumnVisibility(
     "manager-order-requests:hidden-columns",
@@ -68,6 +78,31 @@ export function OrderRequestsTab() {
   }, []);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
+
+  // Load this user's division products so the new-request dialog
+  // can offer the same product list as DivisionDetailPage does.
+  useEffect(() => {
+    if (!canCreateRequest) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("division_products")
+        .select("product_id")
+        .eq("division", userDivision);
+      if (cancelled) return;
+      if (error) { setDivisionProductIds([]); return; }
+      setDivisionProductIds((data ?? []).map(d => d.product_id as string));
+    })();
+    return () => { cancelled = true; };
+  }, [canCreateRequest, userDivision]);
+
+  const dialogDivisionProducts = useMemo(
+    () => divisionProductIds.map(product_id => ({
+      product_id,
+      products: { id: product_id, name: "", sku: "" },
+    })),
+    [divisionProductIds],
+  );
 
   const toggleSort = (field: string) => {
     if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -136,6 +171,16 @@ export function OrderRequestsTab() {
             {DIVISIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
           </SelectContent>
         </Select>
+        {canCreateRequest && (
+          <Button
+            size="sm"
+            className="h-8 text-sm gap-1 ms-auto"
+            onClick={() => setShowNewRequest(true)}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            בקשה חדשה
+          </Button>
+        )}
       </div>
 
       {/* Table */}
@@ -236,6 +281,18 @@ export function OrderRequestsTab() {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {/* New-request dialog (bonded division managers) */}
+      {canCreateRequest && (
+        <OrderRequestDialog
+          open={showNewRequest}
+          onOpenChange={setShowNewRequest}
+          division={userDivision}
+          divisionProducts={dialogDivisionProducts}
+          allProducts={products}
+          onCreated={fetchRequests}
+        />
       )}
 
       {/* Fulfill dialog */}
