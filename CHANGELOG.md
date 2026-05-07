@@ -5,6 +5,12 @@
 
 ---
 
+## [2026-05-07]
+
+- fix(orders): division managers now see all orders containing their products (3749f35)
+- feat(divisions): add order requests workflow for bonded division managers (16229f7)
+
+<!-- last-commit: ccf1f3e24574861e6b47cbc84f68eb589cfb8bc1 -->
 ## [Unreleased]
 
 ### Added
@@ -18,7 +24,6 @@
 - feat: add drag-and-drop and paste (Ctrl+V) to all file upload areas (fb1f7df)
 - fix: remove non-existent inventory_change_log from product deletion (aa7fb31)
 
-<!-- last-commit: d112e59199c224880f5ea02d6bc13fc2e43816b6 -->
 ## [2026-05-04]
 
 - Allow toggling payment status directly from table (a7e88b7)
