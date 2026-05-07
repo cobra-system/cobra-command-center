@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-ה-MCP Server של Cobra Command Center מספק **246 כלים** ב-**32 מודולים** לשימוש Claude Code — גישה ישירה לכל ה-DB ללא דרישת ממשק גרפי.
+ה-MCP Server של Cobra Command Center מספק **249 כלים** ב-**32 מודולים** לשימוש Claude Code — גישה ישירה לכל ה-DB ללא דרישת ממשק גרפי.
 
 - **Server entry point:** `mcp-server/src/index.ts`
 - **Tool modules:** `mcp-server/src/tools/`
@@ -18,7 +18,7 @@
 | `bulk-ops` | Bulk operations | 5 | orders, products, tasks |
 | `compliance` | Compliance & licensing | 7 | compliance_items, compliance_product_links |
 | `daily-reports` | Daily reports | 5 | daily_reports, tasks |
-| `divisions` | Division management | 4 | division_products, profiles |
+| `divisions` | Division management | 7 | division_products, order_requests, profiles |
 | `documents` | Documents (PI/PO) | 10 | documents, document_products, purchase_documents |
 | `equipment` | Equipment & installers | 36 | installers, equipment_pickups, equipment_pickup_items, equipment_returns, equipment_return_items, division_contacts, center_inventory, waste_items |
 | `finance` | Finance summary | 4 | orders, supplier_payments, suppliers |

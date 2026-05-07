@@ -129,6 +129,7 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 - `equipment_returns` — החזרות בלאי (header)
 - `equipment_return_items` — פריטי החזרה (סיבה, מצב, תוית)
 - `division_products` — מוצרי חטיבה (מלאי שטח ידני, דרישה לרבעון, צריכה חודשית מחושבת)
+- `order_requests` — בקשות הזמנה ממנהלי חטיבות בונדד (מוצר, כמות, דחיפות, סוג הזמנה, סטטוס, קישור להזמנה)
 
 ### ניהול פסולת
 - `waste_items` — פריטי פסולת/בלאי (מוצר, כמות, מקור, המלצות, `product_id → products`, `component_id → product_components`)

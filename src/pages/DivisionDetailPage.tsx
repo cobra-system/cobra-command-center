@@ -47,9 +47,11 @@ import {
 import { NewPickupDialog } from "@/components/equipment/NewPickupDialog";
 import { NewReturnDialog } from "@/components/equipment/NewReturnDialog";
 import { NewInstallerDialog } from "@/components/equipment/NewInstallerDialog";
+import { OrderRequestDialog } from "@/components/orders/OrderRequestDialog";
 import { Combobox } from "@/components/ui/combobox";
 import ProductFormDialog from "@/components/products/ProductFormDialog";
 import { DIVISION_COLORS, BONDED_DIVISIONS } from "@/components/equipment/constants";
+import type { OrderRequest } from "@/contexts/types";
 import { canEdit } from "@/lib/permissions";
 import type { ColDef } from "@/hooks/useColumnVisibility";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
@@ -171,6 +173,19 @@ const DP_COLS: ColDef[] = [
   { id: "last_pickup", label: "שינוי אחרון", sortField: "last_pickup" },
 ];
 
+const OR_COLS: ColDef[] = [
+  { id: "product", label: "מוצר" },
+  { id: "supplier", label: "ספק" },
+  { id: "quantity", label: "כמות", sortField: "quantity" },
+  { id: "urgency", label: "דחיפות", sortField: "urgency" },
+  { id: "order_type", label: "סוג הזמנה" },
+  { id: "consumption", label: "צריכה נוכחית" },
+  { id: "reason", label: "סיבה" },
+  { id: "created_at", label: "תאריך בקשה", sortField: "created_at" },
+  { id: "status", label: "סטטוס" },
+  { id: "ordered_at", label: "תאריך הזמנה", sortField: "ordered_at" },
+];
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function returnPctColor(pct: number) {
@@ -254,6 +269,14 @@ export default function DivisionDetailPage() {
   const [showEditBonded, setShowEditBonded] = useState(false);
   const [bondedEditForm, setBondedEditForm] = useState({ warehouse_number: "", coordinator: "", phone: "", status: "פעיל" });
   const [savingBondedEdit, setSavingBondedEdit] = useState(false);
+
+  // Order requests state
+  const [orderRequests, setOrderRequests] = useState<OrderRequest[]>([]);
+  const [showNewOrderRequest, setShowNewOrderRequest] = useState(false);
+  const [orSortField, setOrSortField] = useState<string | null>("created_at");
+  const [orSortDir, setOrSortDir] = useState<"asc" | "desc">("desc");
+  const orColVis = useColumnVisibility("order-requests:hidden-columns", OR_COLS, ["consumption", "reason", "ordered_at"]);
+  const { menu: orMenu, setMenu: setOrMenu, closeMenu: closeOrMenu } = useColMenu();
 
   // Contact form state
   const [showAddForm, setShowAddForm] = useState(false);
@@ -353,11 +376,18 @@ export default function DivisionDetailPage() {
       .select("id, product_id, field_stock, field_stock_updated_at, quarterly_demand, quarterly_demand_updated_at, notes, products(id, name, sku, category)")
       .eq("division", division);
 
+    const orRes = await supabase
+      .from("order_requests")
+      .select("*")
+      .eq("division", division)
+      .order("created_at", { ascending: false });
+
     setInstallers(divInstallers);
     setPickups(pickRes.error ? [] : (pickRes.data ?? []) as PickupRaw[]);
     setReturns(retRes.error ? [] : (retRes.data ?? []) as ReturnRaw[]);
     setContacts(contactRes.error ? [] : (contactRes.data ?? []) as DivisionContact[]);
     setDivisionProducts(dpRes.error ? [] : (dpRes.data ?? []) as unknown as DivisionProduct[]);
+    setOrderRequests(orRes.error ? [] : (orRes.data ?? []) as OrderRequest[]);
 
     if (pickRes.error) toast.error("שגיאה בטעינת הצטיידויות");
     if (retRes.error) toast.error("שגיאה בטעינת החזרות");
@@ -1697,6 +1727,107 @@ export default function DivisionDetailPage() {
         )}
       </div>
 
+      {/* ── Section: Order Requests (bonded only) ── */}
+      {isBonded && (
+        <div className="space-y-3 mt-6">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">בקשות הזמנה</h2>
+            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowNewOrderRequest(true)}>
+              <Plus className="h-3 w-3 me-1" />
+              בקשה חדשה
+            </Button>
+          </div>
+          <Card>
+            <CardContent className="p-0">
+              {orderRequests.length === 0 ? (
+                <div className="p-6 text-center text-sm text-muted-foreground">אין בקשות הזמנה</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow
+                        className="border-b bg-muted/50"
+                        onContextMenu={canCustomizeColumns ? trContextMenu(orColVis.hiddenCols, setOrMenu) : undefined}
+                      >
+                        {OR_COLS.map(col => orColVis.isVisible(col.id) ? (
+                          <TableHead
+                            key={col.id}
+                            className="text-right p-3 font-semibold text-foreground text-xs"
+                            onContextMenu={canCustomizeColumns ? colThContextMenu(col, setOrMenu) : undefined}
+                          >
+                            {col.sortField ? (
+                              <button
+                                onClick={() => { if (orSortField === col.sortField) setOrSortDir(d => d === "asc" ? "desc" : "asc"); else { setOrSortField(col.sortField!); setOrSortDir("desc"); } }}
+                                className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors"
+                              >
+                                {col.label}
+                                <SortIcon field={col.sortField} currentField={orSortField} currentDir={orSortDir} />
+                              </button>
+                            ) : col.label}
+                          </TableHead>
+                        ) : null)}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {[...orderRequests]
+                        .sort((a, b) => {
+                          if (!orSortField) return 0;
+                          const av = (a as Record<string, unknown>)[orSortField] ?? "";
+                          const bv = (b as Record<string, unknown>)[orSortField] ?? "";
+                          return orSortDir === "asc"
+                            ? String(av).localeCompare(String(bv))
+                            : String(bv).localeCompare(String(av));
+                        })
+                        .map(req => (
+                          <TableRow key={req.id} className="text-sm">
+                            {orColVis.isVisible("product") && <TableCell className="p-3 font-medium">{req.product_name}</TableCell>}
+                            {orColVis.isVisible("supplier") && <TableCell className="p-3 text-muted-foreground">{req.supplier ?? "—"}</TableCell>}
+                            {orColVis.isVisible("quantity") && <TableCell className="p-3">{req.quantity}</TableCell>}
+                            {orColVis.isVisible("urgency") && (
+                              <TableCell className="p-3">
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
+                                  req.urgency === "דחוף" ? "bg-red-50 text-red-700 border-red-200" :
+                                  req.urgency === "רגיל" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                  "bg-gray-50 text-gray-600 border-gray-200"
+                                }`}>{req.urgency}</span>
+                              </TableCell>
+                            )}
+                            {orColVis.isVisible("order_type") && <TableCell className="p-3 text-muted-foreground">{req.order_type}</TableCell>}
+                            {orColVis.isVisible("consumption") && <TableCell className="p-3 text-muted-foreground">{req.current_consumption ?? "—"}</TableCell>}
+                            {orColVis.isVisible("reason") && <TableCell className="p-3 text-muted-foreground max-w-[160px] truncate">{req.reason ?? "—"}</TableCell>}
+                            {orColVis.isVisible("created_at") && (
+                              <TableCell className="p-3 text-muted-foreground text-xs">
+                                {format(new Date(req.created_at), "dd/MM/yyyy")}
+                              </TableCell>
+                            )}
+                            {orColVis.isVisible("status") && (
+                              <TableCell className="p-3">
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
+                                  req.status === "ordered"
+                                    ? "bg-green-50 text-green-700 border-green-200"
+                                    : "bg-amber-50 text-amber-700 border-amber-200"
+                                }`}>
+                                  {req.status === "ordered" ? "הוזמן" : "ממתינה"}
+                                </span>
+                              </TableCell>
+                            )}
+                            {orColVis.isVisible("ordered_at") && (
+                              <TableCell className="p-3 text-muted-foreground text-xs">
+                                {req.ordered_at ? format(new Date(req.ordered_at), "dd/MM/yyyy") : "—"}
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))
+                      }
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Dialogs */}
       <NewPickupDialog
         open={showNewPickup}
@@ -1806,6 +1937,29 @@ export default function DivisionDetailPage() {
           onShow={dpColVis.show}
           onSortAsc={(field) => { setDpSortField(field); setDpSortDir("asc"); closeDpMenu(); }}
           onSortDesc={(field) => { setDpSortField(field); setDpSortDir("desc"); closeDpMenu(); }}
+        />
+      )}
+      {orMenu && canCustomizeColumns && (
+        <ColContextMenu
+          menu={orMenu}
+          sortField={orSortField}
+          sortDir={orSortDir}
+          hiddenCols={orColVis.hiddenCols}
+          onClose={closeOrMenu}
+          onHide={orColVis.hide}
+          onShow={orColVis.show}
+          onSortAsc={(field) => { setOrSortField(field); setOrSortDir("asc"); closeOrMenu(); }}
+          onSortDesc={(field) => { setOrSortField(field); setOrSortDir("desc"); closeOrMenu(); }}
+        />
+      )}
+      {isBonded && (
+        <OrderRequestDialog
+          open={showNewOrderRequest}
+          onOpenChange={setShowNewOrderRequest}
+          division={division}
+          divisionProducts={divisionProducts}
+          allProducts={products}
+          onCreated={fetchData}
         />
       )}
     </div>

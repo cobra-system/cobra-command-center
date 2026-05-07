@@ -21,6 +21,9 @@ import { NewOrderDialog } from "@/components/orders/NewOrderDialog";
 import { OrdersDashboardView } from "@/components/orders/OrdersDashboardView";
 import { OrderFilters } from "@/components/orders/OrderFilters";
 import { OrderTable, type SortField, type SortDir } from "@/components/orders/OrderTable";
+import { OrderRequestsTab } from "@/components/orders/OrderRequestsTab";
+import { useAuth } from "@/contexts/AppContext";
+import { canSeePrices, isDivisionManager } from "@/lib/permissions";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -44,9 +47,12 @@ export default function OrdersPage() {
   const trackingSync = useBackgroundTrackingSync(orders);
   const selection = useTableSelection();
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [orderPaymentStatuses, setOrderPaymentStatuses] = useState<Record<string, string>>({});
   const { hasEdit } = usePermissions("orders");
+  const hidePrices = !canSeePrices(currentUser);
+  const isDivMgr = isDivisionManager(currentUser);
   const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
   const [defaultProductId, setDefaultProductId] = useState<string | undefined>();
   const [defaultSupplierId, setDefaultSupplierId] = useState<string | undefined>();
@@ -304,15 +310,17 @@ export default function OrdersPage() {
             מעדכן מעקב {trackingSync.done}/{trackingSync.total}
           </span>
         )}
-        <NewOrderDialog
-          suppliers={suppliers}
-          products={products}
-          addOrder={addOrder}
-          open={showNewOrderDialog}
-          onOpenChange={setShowNewOrderDialog}
-          defaultProductId={defaultProductId}
-          defaultSupplierId={defaultSupplierId}
-        />
+        {!isDivMgr && (
+          <NewOrderDialog
+            suppliers={suppliers}
+            products={products}
+            addOrder={addOrder}
+            open={showNewOrderDialog}
+            onOpenChange={setShowNewOrderDialog}
+            defaultProductId={defaultProductId}
+            defaultSupplierId={defaultSupplierId}
+          />
+        )}
       </div>
 
       <TrackingSyncErrorsBanner
@@ -320,22 +328,25 @@ export default function OrdersPage() {
         onShowFailed={() => setTrackingStateFilter("error")}
       />
 
-      <Tabs defaultValue="dashboard" className="space-y-4">
+      <Tabs defaultValue={isDivMgr ? "order-requests" : "dashboard"} className="space-y-4">
         <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-1">
           <TabsList className="w-max min-w-full">
-            <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>
+            {!isDivMgr && <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>}
             <TabsTrigger value="table">טבלת הזמנות</TabsTrigger>
-            <TabsTrigger value="archive" className="gap-1.5" dir="ltr">
-              ארכיון הזמנות
-              {archivedOrders.length > 0 && (
-                <span className="bg-muted text-muted-foreground text-xs font-medium px-1.5 py-0.5 rounded-full">
-                  {archivedOrders.length}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="agenda">סדר יום רכש</TabsTrigger>
-            <TabsTrigger value="meeting">ישיבת רכש</TabsTrigger>
-            <TabsTrigger value="shipment-groups">קבוצות משלוח</TabsTrigger>
+            {!isDivMgr && (
+              <TabsTrigger value="archive" className="gap-1.5" dir="ltr">
+                ארכיון הזמנות
+                {archivedOrders.length > 0 && (
+                  <span className="bg-muted text-muted-foreground text-xs font-medium px-1.5 py-0.5 rounded-full">
+                    {archivedOrders.length}
+                  </span>
+                )}
+              </TabsTrigger>
+            )}
+            {!isDivMgr && <TabsTrigger value="agenda">סדר יום רכש</TabsTrigger>}
+            {!isDivMgr && <TabsTrigger value="meeting">ישיבת רכש</TabsTrigger>}
+            {!isDivMgr && <TabsTrigger value="shipment-groups">קבוצות משלוח</TabsTrigger>}
+            <TabsTrigger value="order-requests">בקשות הזמנה</TabsTrigger>
           </TabsList>
         </div>
 
@@ -375,6 +386,7 @@ export default function OrdersPage() {
             updateOrderStatus={updateOrderStatus}
             updateOrder={updateOrder}
             selection={hasEdit ? selection : undefined}
+            hidePrices={hidePrices}
           />
           {hasEdit && (
             <OrderBulkActionsBar
@@ -399,6 +411,7 @@ export default function OrdersPage() {
             filtered={archivedOrders}
             orderPaymentStatuses={orderPaymentStatuses}
             hasEdit={hasEdit}
+            hidePrices={hidePrices}
             sortField={null}
             sortDir={null}
             toggleSort={() => {}}
@@ -429,6 +442,10 @@ export default function OrdersPage() {
           <Suspense fallback={<div className="p-8 text-center text-muted-foreground">טוען...</div>}>
             <ShipmentGroupsTab />
           </Suspense>
+        </TabsContent>
+
+        <TabsContent value="order-requests" className="mt-0">
+          <OrderRequestsTab />
         </TabsContent>
       </Tabs>
     </div>

@@ -65,3 +65,7 @@ export function isDivisionManagerAllowedPath(pathname: string): boolean {
 export function isDivisionManager(user: { role: string; division?: string | null } | null | undefined): boolean {
   return !!user && user.role !== "MANAGER" && !!user.division;
 }
+
+export function canSeePrices(user: { role: string } | null | undefined): boolean {
+  return !!user && user.role === "MANAGER";
+}
