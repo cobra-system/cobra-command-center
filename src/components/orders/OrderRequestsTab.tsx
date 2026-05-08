@@ -15,6 +15,8 @@ import { RequestDetailPanel } from "@/components/orders/RequestDetailPanel";
 import { BulkFulfillDialog } from "@/components/orders/BulkFulfillDialog";
 import { ExcelImportDialog } from "@/components/orders/ExcelImportDialog";
 import { SnapshotsDialog } from "@/components/orders/SnapshotsDialog";
+import { OrderRequestNotificationSettings } from "@/components/orders/OrderRequestNotificationSettings";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
@@ -22,7 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   ArrowUpDown, ArrowUp, ArrowDown, ShoppingCart, Plus, ClipboardList, Inbox,
   Search, X, ExternalLink, Pencil, Trash2, RotateCcw, Ban, Eye, Layers, Rows3, Rows4,
-  AlertTriangle, Lightbulb, Download, Upload, Copy, Camera,
+  AlertTriangle, Lightbulb, Download, Upload, Copy, Camera, Bell,
 } from "lucide-react";
 import { downloadCsv } from "./orderRequestExcel";
 import type { ColDef } from "@/hooks/useColumnVisibility";
@@ -93,6 +95,8 @@ export function OrderRequestsTab() {
   const [showExcelImport, setShowExcelImport] = useState(false);
   const [showSnapshots, setShowSnapshots] = useState(false);
   const [cloneTemplate, setCloneTemplate] = useState<OrderRequest | null>(null);
+  const [showNotifSettings, setShowNotifSettings] = useState(false);
+  const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY ?? "";
   const [groupBy, setGroupBy] = usePersistedState<"none" | "supplier" | "urgency">("order-requests:group-by", "none");
   const [density, setDensity] = usePersistedState<"comfortable" | "compact">("order-requests:density", "comfortable");
   const cellPadding = density === "compact" ? "p-1.5" : "p-3";
@@ -373,6 +377,16 @@ export function OrderRequestsTab() {
                 <Camera className="h-3.5 w-3.5" /> צילומים
               </Button>
             )}
+            {/* Notification settings */}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 w-8 p-0"
+              onClick={() => setShowNotifSettings(true)}
+              title="הגדרות התראות"
+            >
+              <Bell className="h-3.5 w-3.5" />
+            </Button>
             {canCreateRequest && (
               <Button size="sm" onClick={() => setShowNewRequest(true)} className="gap-1.5">
                 <Plus className="h-4 w-4" />בקשה חדשה
@@ -946,6 +960,16 @@ export function OrderRequestsTab() {
           current={requests}
         />
       )}
+
+      {/* Notification settings */}
+      <Dialog open={showNotifSettings} onOpenChange={setShowNotifSettings}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>הגדרות התראות</DialogTitle>
+          </DialogHeader>
+          <OrderRequestNotificationSettings vapidPublicKey={vapidPublicKey} />
+        </DialogContent>
+      </Dialog>
 
       {/* Detail panel */}
       <RequestDetailPanel

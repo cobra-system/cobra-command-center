@@ -157,8 +157,8 @@ interface DivisionContact {
 interface DivisionProduct {
   id: string;
   product_id: string;
-  field_stock: number;
-  field_stock_updated_at: string | null;
+  division_stock: number;
+  division_stock_updated_at: string | null;
   quarterly_demand: number | null;
   quarterly_demand_updated_at: string | null;
   notes: string | null;
@@ -199,7 +199,7 @@ const RETURN_COLS: ColDef[] = [
 
 const DP_COLS: ColDef[] = [
   { id: "product", label: "מוצר" },
-  { id: "field_stock", label: "מלאי בשטח", sortField: "field_stock" },
+  { id: "division_stock", label: "מלאי בשטח", sortField: "division_stock" },
   { id: "monthly_avg", label: "צריכה חודשית" },
   { id: "quarterly_demand", label: "דרישה לרבעון", sortField: "quarterly_demand" },
   { id: "main_stock", label: "מלאי מרכז לוגיסטי", sortField: "main_stock" },
@@ -320,7 +320,7 @@ export default function DivisionDetailPage() {
   const [dpSortField, setDpSortField] = useState<string | null>("product");
   const [dpSortDir, setDpSortDir] = useState<"asc" | "desc">("asc");
   const [editingDpId, setEditingDpId] = useState<string | null>(null);
-  const [dpEditField, setDpEditField] = useState<"field_stock" | "quarterly_demand">("field_stock");
+  const [dpEditField, setDpEditField] = useState<"division_stock" | "quarterly_demand">("division_stock");
   const [dpEditVal, setDpEditVal] = useState<string>("");
   const [savingDp, setSavingDp] = useState(false);
 
@@ -446,7 +446,7 @@ export default function DivisionDetailPage() {
 
     const dpRes = await supabase
       .from("division_products")
-      .select("id, product_id, field_stock, field_stock_updated_at, quarterly_demand, quarterly_demand_updated_at, notes, products(id, name, sku, category)")
+      .select("id, product_id, division_stock, division_stock_updated_at, quarterly_demand, quarterly_demand_updated_at, notes, products(id, name, sku, category)")
       .eq("division", division);
 
     const orRes = await supabase
@@ -643,7 +643,7 @@ export default function DivisionDetailPage() {
   const sortedDivisionProducts = useMemo(() => {
     return [...divisionProducts].sort((a, b) => {
       const dir = dpSortDir === "asc" ? 1 : -1;
-      if (dpSortField === "field_stock") return (a.field_stock - b.field_stock) * dir;
+      if (dpSortField === "division_stock") return (a.division_stock - b.division_stock) * dir;
       if (dpSortField === "quarterly_demand") return ((a.quarterly_demand ?? 0) - (b.quarterly_demand ?? 0)) * dir;
       if (dpSortField === "main_stock") {
         return ((productMap.get(a.product_id)?.stock_qty ?? 0) - (productMap.get(b.product_id)?.stock_qty ?? 0)) * dir;
@@ -728,11 +728,11 @@ export default function DivisionDetailPage() {
   }
 
   // ── Division products CRUD ──
-  async function saveDpField(dpId: string, field: "field_stock" | "quarterly_demand", rawVal: string) {
+  async function saveDpField(dpId: string, field: "division_stock" | "quarterly_demand", rawVal: string) {
     const value = parseInt(rawVal) || 0;
     setSavingDp(true);
     const updates: Record<string, unknown> = { [field]: value };
-    if (field === "field_stock") updates.field_stock_updated_at = new Date().toISOString();
+    if (field === "division_stock") updates.division_stock_updated_at = new Date().toISOString();
     else updates.quarterly_demand_updated_at = new Date().toISOString();
     const { error } = await supabase.from("division_products").update(updates).eq("id", dpId);
     if (error) toast.error("שגיאה בשמירה");
@@ -1243,7 +1243,7 @@ export default function DivisionDetailPage() {
                   ) : sortedDivisionProducts.map((dp) => {
                     const monthlyAvg = monthlyAvgByProduct.get(dp.product_id) ?? 0;
                     const lastDate = lastPickupByProduct.get(dp.product_id);
-                    const isEditingStock = editingDpId === dp.id && dpEditField === "field_stock";
+                    const isEditingStock = editingDpId === dp.id && dpEditField === "division_stock";
                     const isEditingDemand = editingDpId === dp.id && dpEditField === "quarterly_demand";
                     return (
                       <tr key={dp.id} className="hover:bg-muted/30 transition-colors">
@@ -1260,7 +1260,7 @@ export default function DivisionDetailPage() {
                             </div>
                           </td>
                         )}
-                        {dpColVis.isVisible("field_stock") && (
+                        {dpColVis.isVisible("division_stock") && (
                           <td className="p-3">
                             {isEditingStock ? (
                               <div className="flex items-center gap-1">
@@ -1270,10 +1270,10 @@ export default function DivisionDetailPage() {
                                   value={dpEditVal}
                                   onChange={(e) => setDpEditVal(e.target.value)}
                                   onKeyDown={(e) => {
-                                    if (e.key === "Enter") saveDpField(dp.id, "field_stock", dpEditVal);
+                                    if (e.key === "Enter") saveDpField(dp.id, "division_stock", dpEditVal);
                                     if (e.key === "Escape") setEditingDpId(null);
                                   }}
-                                  onBlur={() => saveDpField(dp.id, "field_stock", dpEditVal)}
+                                  onBlur={() => saveDpField(dp.id, "division_stock", dpEditVal)}
                                   className="h-7 w-20"
                                   autoFocus
                                   disabled={savingDp}
@@ -1285,14 +1285,14 @@ export default function DivisionDetailPage() {
                                 onClick={() => {
                                   if (!canEdit(currentUserPermissions, "equipment")) return;
                                   setEditingDpId(dp.id);
-                                  setDpEditField("field_stock");
-                                  setDpEditVal(String(dp.field_stock));
+                                  setDpEditField("division_stock");
+                                  setDpEditVal(String(dp.division_stock));
                                 }}
                               >
-                                <span className="font-medium">{dp.field_stock}</span>
-                                {dp.field_stock_updated_at && (
+                                <span className="font-medium">{dp.division_stock}</span>
+                                {dp.division_stock_updated_at && (
                                   <div className="text-[10px] text-muted-foreground">
-                                    עודכן: {format(new Date(dp.field_stock_updated_at), "dd/MM/yy")}
+                                    עודכן: {format(new Date(dp.division_stock_updated_at), "dd/MM/yy")}
                                   </div>
                                 )}
                               </div>

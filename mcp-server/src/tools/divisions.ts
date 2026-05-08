@@ -18,7 +18,7 @@ export function registerDivisionTools(server: McpServer) {
       let query = supabase
         .from("division_products")
         .select(`
-          id, division, product_id, field_stock, field_stock_updated_at,
+          id, division, product_id, division_stock, division_stock_updated_at,
           quarterly_demand, quarterly_demand_updated_at, notes, created_at, updated_at,
           products(id, name, sku)
         `)
@@ -36,24 +36,24 @@ export function registerDivisionTools(server: McpServer) {
 
   server.tool(
     "upsert_division_product",
-    "עדכון מוצר חטיבה — Create or update a product entry for a division. Updates field_stock, quarterly_demand, and/or notes.",
+    "עדכון מוצר חטיבה — Create or update a product entry for a division. Updates division_stock, quarterly_demand, and/or notes.",
     {
       division: z.string().describe("Division name: 'AWACS' | 'כפתור' | 'DOORE' | 'דלק מוטורס' | 'פריזבי קרסו' | 'לובינסקי'"),
       product_id: z.string().uuid().describe("Product UUID"),
-      field_stock: z.number().int().min(0).optional().describe("Current field stock quantity"),
+      division_stock: z.number().int().min(0).optional().describe("Current field stock quantity"),
       quarterly_demand: z.number().int().min(0).optional().describe("Quarterly demand forecast"),
       notes: z.string().optional().describe("Free-text notes"),
     },
-    async ({ division, product_id, field_stock, quarterly_demand, notes }) => {
+    async ({ division, product_id, division_stock, quarterly_demand, notes }) => {
       const now = new Date().toISOString();
       const payload: Record<string, unknown> = {
         division,
         product_id,
         updated_at: now,
       };
-      if (field_stock !== undefined) {
-        payload.field_stock = field_stock;
-        payload.field_stock_updated_at = now;
+      if (division_stock !== undefined) {
+        payload.division_stock = division_stock;
+        payload.division_stock_updated_at = now;
       }
       if (quarterly_demand !== undefined) {
         payload.quarterly_demand = quarterly_demand;

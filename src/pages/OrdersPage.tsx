@@ -350,7 +350,7 @@ export default function OrdersPage() {
             {/* Division managers see "בקשות הזמנה" first (their primary surface). */}
             {isDivMgr && <TabsTrigger value="order-requests">בקשות הזמנה</TabsTrigger>}
             {!isDivMgr && <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>}
-            <TabsTrigger value="table">טבלת הזמנות</TabsTrigger>
+            <TabsTrigger value="table">{isDivMgr ? "רכש מוצרי חטיבה" : "טבלת הזמנות"}</TabsTrigger>
             {!isDivMgr && (
               <TabsTrigger value="archive" className="gap-1.5" dir="ltr">
                 ארכיון הזמנות
