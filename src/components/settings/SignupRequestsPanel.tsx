@@ -117,8 +117,8 @@ export default function SignupRequestsPanel() {
         const selectedRd = nonManagerRoleDefs.find(rd => rd.id === roleDefId);
         const sysKey = selectedRd?.system_key as Role | undefined;
         const resolvedRole: Role = sysKey && VALID_BASE_ROLES.includes(sysKey) ? sysKey : "DRIVER";
-        if (!password || password.length < 8) {
-          toast.error("סיסמה צריכה להיות באורך 8 תווים לפחות");
+        if (!password || password.length < 10) {
+          toast.error("סיסמה צריכה להיות באורך 10 תווים לפחות עם אות גדולה, קטנה, ספרה ותו מיוחד");
           setSubmitting(false);
           return;
         }
@@ -366,10 +366,25 @@ function StatusBadge({ status }: { status: SignupRequest["status"] }) {
 }
 
 function generatePassword(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-  let out = "";
-  const arr = new Uint32Array(12);
-  crypto.getRandomValues(arr);
-  for (const n of arr) out += chars[n % chars.length];
-  return out;
+  // Must satisfy server validatePassword: 10+ chars, upper, lower, digit, special.
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const digit = "23456789";
+  const special = "!@#$%^&*";
+  const all = upper + lower + digit + special;
+  const pick = (set: string) => {
+    const arr = new Uint32Array(1);
+    crypto.getRandomValues(arr);
+    return set[arr[0] % set.length];
+  };
+  const chars = [pick(upper), pick(lower), pick(digit), pick(special)];
+  for (let i = 0; i < 8; i++) chars.push(pick(all));
+  // Fisher-Yates shuffle
+  for (let i = chars.length - 1; i > 0; i--) {
+    const r = new Uint32Array(1);
+    crypto.getRandomValues(r);
+    const j = r[0] % (i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join("");
 }
