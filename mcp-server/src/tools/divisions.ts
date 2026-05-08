@@ -364,6 +364,66 @@ export function registerDivisionTools(server: McpServer) {
   );
 
   server.tool(
+    "list_order_request_comments",
+    "תגובות בבקשת הזמנה — Discussion thread for one request.",
+    {
+      request_id: z.string().uuid().describe("Order request UUID"),
+    },
+    async ({ request_id }) => {
+      const { data, error } = await supabase
+        .from("order_request_comments")
+        .select("*")
+        .eq("request_id", request_id)
+        .order("created_at", { ascending: false });
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "add_order_request_comment",
+    "הוספת תגובה לבקשת הזמנה — Post a comment on a request thread.",
+    {
+      request_id: z.string().uuid().describe("Order request UUID"),
+      body: z.string().min(1).describe("Comment text"),
+      created_by_name: z.string().optional(),
+      created_by_role: z.string().optional(),
+    },
+    async ({ request_id, body, created_by_name, created_by_role }) => {
+      const { data, error } = await supabase
+        .from("order_request_comments")
+        .insert({
+          request_id,
+          body,
+          created_by_name: created_by_name ?? null,
+          created_by_role: created_by_role ?? null,
+        })
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "delete_order_request_comment",
+    "מחיקת תגובה — Delete a comment by id.",
+    {
+      comment_id: z.string().uuid().describe("Comment UUID"),
+    },
+    async ({ comment_id }) => {
+      const { error } = await supabase
+        .from("order_request_comments")
+        .delete()
+        .eq("id", comment_id);
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify({ success: true, deleted_id: comment_id }) }] };
+    }
+  );
+
+  server.tool(
     "fulfill_order_request",
     "מימוש בקשת הזמנה — Mark an order request as ordered and link it to an order.",
     {

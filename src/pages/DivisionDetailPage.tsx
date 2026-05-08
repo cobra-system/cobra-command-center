@@ -47,12 +47,16 @@ import {
   ShoppingCart,
   ExternalLink,
   RotateCcw,
+  Eye,
+  Ban,
 } from "lucide-react";
 import { NewPickupDialog } from "@/components/equipment/NewPickupDialog";
 import { NewReturnDialog } from "@/components/equipment/NewReturnDialog";
 import { NewInstallerDialog } from "@/components/equipment/NewInstallerDialog";
 import { OrderRequestDialog } from "@/components/orders/OrderRequestDialog";
 import { OrderRequestsDashboard } from "@/components/orders/OrderRequestsDashboard";
+import { RequestDetailPanel } from "@/components/orders/RequestDetailPanel";
+import { RejectRequestDialog } from "@/components/orders/RejectRequestDialog";
 import { InlineEditCell } from "@/components/orders/InlineEditCell";
 import { InlineSelectCell } from "@/components/orders/InlineSelectCell";
 import {
@@ -319,6 +323,8 @@ export default function DivisionDetailPage() {
   const [orderRequests, setOrderRequests] = useState<OrderRequest[]>([]);
   const [showNewOrderRequest, setShowNewOrderRequest] = useState(false);
   const [editingOrderRequest, setEditingOrderRequest] = useState<OrderRequest | null>(null);
+  const [detailOrderRequest, setDetailOrderRequest] = useState<OrderRequest | null>(null);
+  const [rejectingOrderRequest, setRejectingOrderRequest] = useState<OrderRequest | null>(null);
   const [orSortField, setOrSortField] = useState<string | null>("created_at");
   const [orSortDir, setOrSortDir] = useState<"asc" | "desc">("desc");
   const [orSearch, setOrSearch] = useState("");
@@ -452,6 +458,18 @@ export default function DivisionDetailPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Realtime: refresh planning rows when other users edit them
+  useEffect(() => {
+    if (!isBonded) return;
+    const ch = supabase
+      .channel(`div-${division}-or`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_requests", filter: `division=eq.${division}` }, () => {
+        void fetchData();
+      })
+      .subscribe();
+    return () => { void supabase.removeChannel(ch); };
+  }, [division, isBonded, fetchData]);
 
   // ── KPI computations ──
   const totalTaken = useMemo(
@@ -2184,6 +2202,9 @@ export default function DivisionDetailPage() {
                               {canManagePlanning && (
                                 <TableCell className="p-2">
                                   <div className="flex gap-0.5 justify-end">
+                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setDetailOrderRequest(req)} title="פרטים מלאים">
+                                      <Eye className="h-3 w-3" />
+                                    </Button>
                                     {req.status === "pending" && orderQty > 0 && (
                                       <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600" onClick={() => sendToProcurement(req)} title="שלח לרכש">
                                         <ShoppingCart className="h-3 w-3" />
@@ -2369,6 +2390,32 @@ export default function DivisionDetailPage() {
           allProducts={products}
           onCreated={fetchData}
           editingRequest={editingOrderRequest}
+        />
+      )}
+
+      {isBonded && (
+        <RejectRequestDialog
+          open={!!rejectingOrderRequest}
+          onOpenChange={(o) => { if (!o) setRejectingOrderRequest(null); }}
+          requestId={rejectingOrderRequest?.id ?? null}
+          productName={rejectingOrderRequest?.product_name}
+          onRejected={fetchData}
+        />
+      )}
+
+      {isBonded && (
+        <RequestDetailPanel
+          request={detailOrderRequest}
+          onOpenChange={(o) => { if (!o) setDetailOrderRequest(null); }}
+          onEdit={(r) => { setDetailOrderRequest(null); setEditingOrderRequest(r); }}
+          onFulfill={() => { /* division-side: only managers can fulfill */ }}
+          onReject={(r) => { setDetailOrderRequest(null); setRejectingOrderRequest(r); }}
+          onDelete={(r) => { setDetailOrderRequest(null); void deleteRequest(r); }}
+          onRevert={(r) => { setDetailOrderRequest(null); void revertRequest(r); }}
+          onRefresh={fetchData}
+          navigateToOrder={(id) => { setDetailOrderRequest(null); navigate(`/orders?focus=${id}`); }}
+          navigateToProduct={(id) => { setDetailOrderRequest(null); navigate(`/products/${id}`); }}
+          navigateToSupplier={() => { /* no-op: division view doesn't expose supplier nav */ }}
         />
       )}
     </div>

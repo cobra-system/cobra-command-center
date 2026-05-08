@@ -282,6 +282,16 @@ export interface OrderRequestHistory {
   note?: string | null;
 }
 
+export interface OrderRequestComment {
+  id: string;
+  request_id: string;
+  body: string;
+  created_at: string;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  created_by_role?: string | null;
+}
+
 export interface AuthState {
   currentUser: Profile | null;
   session: Session | null;
