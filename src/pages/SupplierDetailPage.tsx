@@ -17,11 +17,13 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useProductScope } from "@/hooks/useProductScope";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { canSeePrices } from "@/lib/permissions";
 
 export default function SupplierDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const showPrices = canSeePrices(currentUser);
   const { updateSupplier, deleteSupplier, refreshSuppliers, updateProduct } = useData();
   const { scopedSuppliers: suppliers, scopedOrders: orders, scopedProducts: products, isScoped } = useProductScope();
   const { hasEdit } = usePermissions("suppliers");
@@ -426,7 +428,7 @@ export default function SupplierDetailPage() {
                   </div>
                   <div className="flex items-center gap-2 mt-2 flex-wrap">
                     <PriorityBadge priority={order.priority as Priority} />
-                    {order.total_price && <span className="text-xs font-semibold text-foreground">${order.total_price}</span>}
+                    {showPrices && order.total_price && <span className="text-xs font-semibold text-foreground">${order.total_price}</span>}
                     <span className="text-xs text-muted-foreground ms-auto">{order.order_date ? new Date(order.order_date).toLocaleDateString("he-IL") : "—"}</span>
                   </div>
                 </div>
@@ -439,7 +441,7 @@ export default function SupplierDetailPage() {
                 <thead><tr className="border-b bg-muted/50">
                   <th className="text-right p-3 font-semibold text-foreground">עדיפות</th>
                   <th className="text-right p-3 font-semibold text-foreground">פריטים</th>
-                  <th className="text-right p-3 font-semibold text-foreground">סה״כ</th>
+                  {showPrices && <th className="text-right p-3 font-semibold text-foreground">סה״כ</th>}
                   <th className="text-right p-3 font-semibold text-foreground">סטטוס</th>
                   <th className="text-right p-3 font-semibold text-foreground">תאריך</th>
                 </tr></thead>
@@ -448,7 +450,7 @@ export default function SupplierDetailPage() {
                     <tr key={order.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/orders/${order.id}`)} data-navigate-to={`/orders/${order.id}`}>
                       <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
                       <td className="p-3 text-muted-foreground text-xs">{order.items.map(i => i.name).join(", ")}</td>
-                      <td className="p-3 text-muted-foreground">{order.total_price ? `$${order.total_price}` : "—"}</td>
+                      {showPrices && <td className="p-3 text-muted-foreground">{order.total_price ? `$${order.total_price}` : "—"}</td>}
                       <td className="p-3"><OrderStatusBadge status={order.status as OrderStatus} /></td>
                       <td className="p-3 text-muted-foreground text-xs">{order.order_date ? new Date(order.order_date).toLocaleDateString("he-IL") : "—"}</td>
                     </tr>

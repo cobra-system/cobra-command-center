@@ -11,6 +11,8 @@ import { InlineEditField } from "@/components/InlineEditField";
 import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 import { toast } from "sonner";
 import type { Product, Supplier, ProductComponent } from "@/contexts/AppContext";
+import { useAuth } from "@/contexts/AppContext";
+import { canSeePrices } from "@/lib/permissions";
 
 interface BOMTableProps {
   product: Product;
@@ -35,6 +37,8 @@ const emptyNewComp = { name: "", sku: "", supplier: "", origin: "", stock_qty: "
 
 export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddComponent, onUpdateComponent, onDeleteComponent }: BOMTableProps) {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const showPrices = canSeePrices(currentUser);
   const [addCompOpen, setAddCompOpen] = useState(false);
   const [editingCompId, setEditingCompId] = useState<string | null>(null);
   const [editCompFields, setEditCompFields] = useState<Record<string, string>>({});
@@ -190,7 +194,7 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
                         </span>
                       )}
                       <span>מלאי: {comp.stock_qty ?? "—"}</span>
-                      {comp.price != null && <span>${comp.price}</span>}
+                      {showPrices && comp.price != null && <span>${comp.price}</span>}
                       {comp.notes && <span className="truncate max-w-[200px]">💡 {comp.notes}</span>}
                     </div>
                   </div>
@@ -207,7 +211,7 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
                     <th className="text-right p-3 font-semibold text-foreground">מק״ט</th>
                     <th className="text-right p-3 font-semibold text-foreground">ספק</th>
                     <th className="text-right p-3 font-semibold text-foreground">מלאי</th>
-                    <th className="text-right p-3 font-semibold text-foreground">מחיר</th>
+                    {showPrices && <th className="text-right p-3 font-semibold text-foreground">מחיר</th>}
                     <th className="text-right p-3 font-semibold text-foreground">הערות</th>
                     {hasEdit && <th className="text-right p-3 font-semibold text-foreground">פעולות</th>}
                   </tr>
@@ -242,9 +246,11 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
                         <td className="p-2">
                           <Input type="number" value={editCompFields.stock_qty} onChange={e => setEditCompFields(p => ({ ...p, stock_qty: e.target.value }))} className="h-8 text-sm w-20" />
                         </td>
-                        <td className="p-2">
-                          <Input type="number" value={editCompFields.price} onChange={e => setEditCompFields(p => ({ ...p, price: e.target.value }))} className="h-8 text-sm w-20" />
-                        </td>
+                        {showPrices && (
+                          <td className="p-2">
+                            <Input type="number" value={editCompFields.price} onChange={e => setEditCompFields(p => ({ ...p, price: e.target.value }))} className="h-8 text-sm w-20" />
+                          </td>
+                        )}
                         <td className="p-2">
                           <Input value={editCompFields.notes} onChange={e => setEditCompFields(p => ({ ...p, notes: e.target.value }))} className="h-8 text-sm" />
                         </td>
@@ -304,7 +310,7 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
                             comp.stock_qty ?? "—"
                           )}
                         </td>
-                        <td className="p-3 text-muted-foreground">{comp.price ? `$${comp.price}` : "—"}</td>
+                        {showPrices && <td className="p-3 text-muted-foreground">{comp.price ? `$${comp.price}` : "—"}</td>}
                         <td className="p-3 text-muted-foreground text-xs">{comp.notes || "—"}</td>
                         {hasEdit && (
                           <td className="p-3">
@@ -328,7 +334,7 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
           ) : (
             <p className="text-sm text-muted-foreground py-4 text-center">לא הוגדרו רכיבים למוצר זה</p>
           )}
-          {product.components && product.components.length > 0 && (
+          {showPrices && product.components && product.components.length > 0 && (
             <div className="mt-4 space-y-3">
               {product.components.map(comp => (
                 <SupplierComparisonPanel key={comp.id} componentName={comp.name} productId={product.id} />
@@ -366,10 +372,12 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
                 <Label className="text-xs">מלאי</Label>
                 <Input type="number" value={newComp.stock_qty} onChange={e => setNewComp(p => ({ ...p, stock_qty: e.target.value }))} />
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">מחיר ($)</Label>
-                <Input type="number" value={newComp.price} onChange={e => setNewComp(p => ({ ...p, price: e.target.value }))} />
-              </div>
+              {showPrices && (
+                <div className="space-y-1">
+                  <Label className="text-xs">מחיר ($)</Label>
+                  <Input type="number" value={newComp.price} onChange={e => setNewComp(p => ({ ...p, price: e.target.value }))} />
+                </div>
+              )}
             </div>
             <div className="space-y-1">
               <Label className="text-xs">הערות</Label>
@@ -410,10 +418,12 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
                 <Label className="text-xs">מלאי</Label>
                 <Input type="number" value={mobileEditFields.stock_qty || ""} onChange={e => setMobileEditFields(p => ({ ...p, stock_qty: e.target.value }))} />
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">מחיר ($)</Label>
-                <Input type="number" value={mobileEditFields.price || ""} onChange={e => setMobileEditFields(p => ({ ...p, price: e.target.value }))} />
-              </div>
+              {showPrices && (
+                <div className="space-y-1">
+                  <Label className="text-xs">מחיר ($)</Label>
+                  <Input type="number" value={mobileEditFields.price || ""} onChange={e => setMobileEditFields(p => ({ ...p, price: e.target.value }))} />
+                </div>
+              )}
             </div>
             <div className="space-y-1">
               <Label className="text-xs">הערות</Label>

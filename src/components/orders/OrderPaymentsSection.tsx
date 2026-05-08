@@ -14,6 +14,8 @@ import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import type { ColDef } from "@/hooks/useColumnVisibility";
 import type { OrderPayment } from "@/contexts/types";
+import { useAuth } from "@/contexts/AppContext";
+import { canSeePrices } from "@/lib/permissions";
 
 const COLUMN_DEFS: ColDef[] = [
   { id: "payment_type", label: "סוג",          sortField: "payment_type" },
@@ -54,6 +56,7 @@ const statusColors: Record<string, string> = {
 };
 
 export function OrderPaymentsSection({ orderId, orderTotal, hasEdit }: Props) {
+  const { currentUser } = useAuth();
   const [payments, setPayments] = useState<OrderPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -209,6 +212,7 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit }: Props) {
   };
 
   if (loading) return null;
+  if (!canSeePrices(currentUser)) return null;
 
   return (
     <>
