@@ -292,6 +292,33 @@ export interface OrderRequestComment {
   created_by_role?: string | null;
 }
 
+export interface OrderRequestAttachment {
+  id: string;
+  request_id: string;
+  file_name: string;
+  file_url: string;
+  file_type?: string | null;
+  file_size?: number | null;
+  description?: string | null;
+  created_at: string;
+  created_by?: string | null;
+  created_by_name?: string | null;
+}
+
+export interface OrderRequestSnapshot {
+  id: string;
+  label: string;
+  division?: string | null;
+  captured_at: string;
+  captured_by?: string | null;
+  captured_by_name?: string | null;
+  notes?: string | null;
+  total_requests: number;
+  total_required_qty?: number | null;
+  total_estimated_value?: number | null;
+  payload: OrderRequest[];
+}
+
 export interface AuthState {
   currentUser: Profile | null;
   session: Session | null;

@@ -49,6 +49,10 @@ import {
   RotateCcw,
   Eye,
   Ban,
+  Download,
+  Upload,
+  AlertTriangle,
+  Lightbulb,
 } from "lucide-react";
 import { NewPickupDialog } from "@/components/equipment/NewPickupDialog";
 import { NewReturnDialog } from "@/components/equipment/NewReturnDialog";
@@ -57,6 +61,8 @@ import { OrderRequestDialog } from "@/components/orders/OrderRequestDialog";
 import { OrderRequestsDashboard } from "@/components/orders/OrderRequestsDashboard";
 import { RequestDetailPanel } from "@/components/orders/RequestDetailPanel";
 import { RejectRequestDialog } from "@/components/orders/RejectRequestDialog";
+import { ExcelImportDialog } from "@/components/orders/ExcelImportDialog";
+import { downloadCsv } from "@/components/orders/orderRequestExcel";
 import { InlineEditCell } from "@/components/orders/InlineEditCell";
 import { InlineSelectCell } from "@/components/orders/InlineSelectCell";
 import {
@@ -325,6 +331,7 @@ export default function DivisionDetailPage() {
   const [editingOrderRequest, setEditingOrderRequest] = useState<OrderRequest | null>(null);
   const [detailOrderRequest, setDetailOrderRequest] = useState<OrderRequest | null>(null);
   const [rejectingOrderRequest, setRejectingOrderRequest] = useState<OrderRequest | null>(null);
+  const [showExcelImportOR, setShowExcelImportOR] = useState(false);
   const [orSortField, setOrSortField] = useState<string | null>("created_at");
   const [orSortDir, setOrSortDir] = useState<"asc" | "desc">("desc");
   const [orSearch, setOrSearch] = useState("");
@@ -1868,12 +1875,36 @@ export default function DivisionDetailPage() {
         <div className="space-y-3 mt-6">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">בקשות הזמנה</h2>
-            {canManagePlanning && (
-              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowNewOrderRequest(true)}>
-                <Plus className="h-3 w-3 me-1" />
-                בקשה חדשה
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs gap-1.5"
+                onClick={() => downloadCsv(orderRequests, `${division}-planning-${new Date().toISOString().slice(0, 10)}.csv`)}
+                title="ייצוא לאקסל"
+              >
+                <Download className="h-3 w-3" />
+                ייצוא
               </Button>
-            )}
+              {canManagePlanning && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs gap-1.5"
+                  onClick={() => setShowExcelImportOR(true)}
+                  title="ייבוא מאקסל (הדבקה)"
+                >
+                  <Upload className="h-3 w-3" />
+                  ייבוא
+                </Button>
+              )}
+              {canManagePlanning && (
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowNewOrderRequest(true)}>
+                  <Plus className="h-3 w-3 me-1" />
+                  בקשה חדשה
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* KPI dashboard for the division */}
@@ -1956,7 +1987,93 @@ export default function DivisionDetailPage() {
                 const totalEstValue = filteredOR.reduce((s, r) => s + ((r.required_to_order ?? r.quantity ?? 0) * (r.estimated_unit_price ?? 0)), 0);
 
                 return (
-                  <div className="overflow-x-auto max-h-[70vh]">
+                  <>
+                    {/* Mobile: card view */}
+                    <div className="md:hidden divide-y">
+                      {filteredOR.map(req => {
+                        const orderQty = req.required_to_order ?? req.quantity ?? 0;
+                        const overdueDate = isOverdue(req.order_execution_date) && req.status === "pending";
+                        const stale = (() => { const d = daysSince(req.updated_at ?? req.created_at); return d !== null && d >= 30; })();
+                        const suggested = suggestUrgency(req);
+                        return (
+                          <div key={req.id} className={`p-3 ${overdueDate ? "bg-red-50/40" : ""}`}>
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <div className="min-w-0 flex-1">
+                                <div className="font-medium text-sm flex items-center gap-1.5">
+                                  {req.product_id ? (
+                                    <button onClick={() => navigateToProductOR(req.product_id)} className="hover:underline text-right truncate">
+                                      {req.product_name}
+                                    </button>
+                                  ) : <span className="truncate">{req.product_name}</span>}
+                                  {stale && <AlertTriangle className="h-3 w-3 text-orange-500 shrink-0" />}
+                                  {suggested && suggested !== req.urgency && <Lightbulb className="h-3 w-3 text-purple-600 shrink-0" />}
+                                </div>
+                                {req.product_sku && <div className="text-[11px] text-muted-foreground" dir="ltr">{req.product_sku}</div>}
+                              </div>
+                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap shrink-0 ${statusClass(req.status)}`}>
+                                {STATUS_LABELS[req.status]}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 my-2">
+                              <div>
+                                <div className="text-[10px] text-muted-foreground">מלאי חטיבה</div>
+                                <div className="text-sm tabular-nums">{fmtNumOR(req.division_stock)}</div>
+                              </div>
+                              <div>
+                                <div className="text-[10px] text-muted-foreground">צפי רבעון</div>
+                                <div className="text-sm tabular-nums">{fmtNumOR(req.quarterly_forecast)}</div>
+                              </div>
+                              <div>
+                                <div className="text-[10px] text-muted-foreground">% מימוש</div>
+                                <div className={`text-sm tabular-nums ${utilizationColor(req.utilization_pct)}`}>{fmtPctOR(req.utilization_pct)}</div>
+                              </div>
+                              <div className="col-span-3 border-t pt-2 mt-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[10px] text-muted-foreground">נדרש להזמין</span>
+                                  <span className={`text-sm font-semibold tabular-nums ${orderQty > 0 ? "text-foreground" : "text-muted-foreground"}`}>
+                                    {fmtNumOR(orderQty)} יח׳
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 flex-wrap pt-2 border-t">
+                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${urgencyClass(req.urgency)}`}>{req.urgency}</span>
+                              {req.order_execution_date && (
+                                <span className={`text-xs ${overdueDate ? "text-red-600 font-semibold" : "text-muted-foreground"}`}>
+                                  ביצוע: {format(new Date(req.order_execution_date), "dd/MM/yyyy")}
+                                </span>
+                              )}
+                              <div className="flex gap-1 ms-auto">
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setDetailOrderRequest(req)} title="פרטים">
+                                  <Eye className="h-3 w-3" />
+                                </Button>
+                                {req.status === "pending" && orderQty > 0 && canManagePlanning && (
+                                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => sendToProcurement(req)}>
+                                    <ShoppingCart className="h-3 w-3" /> שלח לרכש
+                                  </Button>
+                                )}
+                                {req.status === "pending" && canManagePlanning && (
+                                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditingOrderRequest(req)} title="ערוך">
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {/* Aggregations */}
+                      <div className="px-3 py-2 bg-muted/30 text-xs text-muted-foreground space-y-0.5">
+                        <div>מציג {filteredOR.length} מתוך {orderRequests.length} שורות</div>
+                        <div>סה״כ נדרש להזמין: <span className="text-foreground font-semibold tabular-nums">{fmtNumOR(totalRequired)}</span> יח׳</div>
+                        {totalEstValue > 0 && (
+                          <div>ערך משוער: <span className="text-foreground font-semibold tabular-nums">{fmtMoneyOR(totalEstValue)}</span></div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Desktop: table */}
+                    <div className="hidden md:block overflow-x-auto max-h-[70vh]">
                     <Table>
                       <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
                         <TableRow
@@ -2238,7 +2355,7 @@ export default function DivisionDetailPage() {
                         })}
                       </TableBody>
                     </Table>
-                    {/* Aggregations footer */}
+                    {/* Aggregations footer (desktop only) */}
                     <div className="px-4 py-2 border-t bg-muted/30 text-xs text-muted-foreground flex flex-wrap gap-4">
                       <span>מציג {filteredOR.length} מתוך {orderRequests.length}</span>
                       <span>סה״כ נדרש להזמין: <span className="text-foreground font-semibold tabular-nums">{fmtNumOR(totalRequired)}</span> יח׳</span>
@@ -2246,7 +2363,8 @@ export default function DivisionDetailPage() {
                         <span>ערך משוער: <span className="text-foreground font-semibold tabular-nums">{fmtMoneyOR(totalEstValue)}</span></span>
                       )}
                     </div>
-                  </div>
+                    </div>
+                  </>
                 );
               })()}
             </CardContent>
@@ -2400,6 +2518,16 @@ export default function DivisionDetailPage() {
           requestId={rejectingOrderRequest?.id ?? null}
           productName={rejectingOrderRequest?.product_name}
           onRejected={fetchData}
+        />
+      )}
+
+      {isBonded && canManagePlanning && (
+        <ExcelImportDialog
+          open={showExcelImportOR}
+          onOpenChange={setShowExcelImportOR}
+          division={division}
+          existing={orderRequests}
+          onDone={fetchData}
         />
       )}
 

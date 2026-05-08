@@ -424,6 +424,116 @@ export function registerDivisionTools(server: McpServer) {
   );
 
   server.tool(
+    "list_order_request_attachments",
+    "קבצים מצורפים — List attachments for one request.",
+    {
+      request_id: z.string().uuid().describe("Order request UUID"),
+    },
+    async ({ request_id }) => {
+      const { data, error } = await supabase
+        .from("order_request_attachments")
+        .select("*")
+        .eq("request_id", request_id)
+        .order("created_at", { ascending: false });
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "add_order_request_attachment",
+    "הוספת קובץ מצורף — Attach a file (URL) to a request.",
+    {
+      request_id: z.string().uuid(),
+      file_name: z.string().min(1),
+      file_url: z.string().url(),
+      file_type: z.string().optional(),
+      file_size: z.number().optional(),
+      description: z.string().optional(),
+      created_by_name: z.string().optional(),
+    },
+    async ({ request_id, file_name, file_url, file_type, file_size, description, created_by_name }) => {
+      const { data, error } = await supabase
+        .from("order_request_attachments")
+        .insert({ request_id, file_name, file_url, file_type, file_size, description, created_by_name: created_by_name ?? null })
+        .select()
+        .single();
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "delete_order_request_attachment",
+    "מחיקת קובץ — Delete an attachment by id.",
+    {
+      attachment_id: z.string().uuid(),
+    },
+    async ({ attachment_id }) => {
+      const { error } = await supabase
+        .from("order_request_attachments")
+        .delete()
+        .eq("id", attachment_id);
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify({ success: true, deleted_id: attachment_id }) }] };
+    }
+  );
+
+  server.tool(
+    "capture_order_request_snapshot",
+    "צילום מצב בקשות — Capture the current planning state into a snapshot (e.g. quarterly closing).",
+    {
+      label: z.string().min(1).describe('Snapshot label, e.g. "סגירת Q1 2026"'),
+      division: z.string().optional().describe("Optional: limit snapshot to a single division"),
+      notes: z.string().optional(),
+    },
+    async ({ label, division, notes }) => {
+      const { data, error } = await supabase.rpc("capture_order_request_snapshot", {
+        p_label: label,
+        p_division: division ?? null,
+        p_notes: notes ?? null,
+      });
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify({ snapshot_id: data }, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "list_order_request_snapshots",
+    "רשימת צילומי מצב — List snapshots, optionally filtered by division.",
+    {
+      division: z.string().optional(),
+    },
+    async ({ division }) => {
+      let query = supabase
+        .from("order_request_snapshots")
+        .select("id, label, division, captured_at, captured_by_name, notes, total_requests, total_required_qty, total_estimated_value")
+        .order("captured_at", { ascending: false });
+      if (division) query = query.eq("division", division);
+      const { data, error } = await query;
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "get_order_request_snapshot",
+    "צילום מצב — Read a single snapshot with full payload.",
+    {
+      snapshot_id: z.string().uuid(),
+    },
+    async ({ snapshot_id }) => {
+      const { data, error } = await supabase
+        .from("order_request_snapshots")
+        .select("*")
+        .eq("id", snapshot_id)
+        .single();
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
     "fulfill_order_request",
     "מימוש בקשת הזמנה — Mark an order request as ordered and link it to an order.",
     {

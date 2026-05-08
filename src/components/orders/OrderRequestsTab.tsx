@@ -13,14 +13,16 @@ import { RejectRequestDialog } from "@/components/orders/RejectRequestDialog";
 import { OrderRequestsDashboard } from "@/components/orders/OrderRequestsDashboard";
 import { RequestDetailPanel } from "@/components/orders/RequestDetailPanel";
 import { BulkFulfillDialog } from "@/components/orders/BulkFulfillDialog";
+import { ExcelImportDialog } from "@/components/orders/ExcelImportDialog";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   ArrowUpDown, ArrowUp, ArrowDown, ShoppingCart, Plus, ClipboardList, Inbox,
   Search, X, ExternalLink, Pencil, Trash2, RotateCcw, Ban, Eye, Layers, Rows3, Rows4,
-  AlertTriangle, Lightbulb,
+  AlertTriangle, Lightbulb, Download, Upload,
 } from "lucide-react";
+import { downloadCsv } from "./orderRequestExcel";
 import type { ColDef } from "@/hooks/useColumnVisibility";
 import type { OrderRequest } from "@/contexts/types";
 import { DIVISIONS, BONDED_DIVISIONS } from "@/components/equipment/constants";
@@ -82,6 +84,7 @@ export function OrderRequestsTab() {
   const [divisionProductIds, setDivisionProductIds] = useState<string[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showBulkFulfill, setShowBulkFulfill] = useState(false);
+  const [showExcelImport, setShowExcelImport] = useState(false);
   const [groupBy, setGroupBy] = useState<"none" | "supplier" | "urgency">("none");
   const [density, setDensity] = useState<"comfortable" | "compact">(() =>
     (localStorage.getItem("order-requests:density") as "comfortable" | "compact") ?? "comfortable"
@@ -324,6 +327,28 @@ export function OrderRequestsTab() {
                 <SelectItem value="urgency">לפי דחיפות</SelectItem>
               </SelectContent>
             </Select>
+            {/* Excel export */}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => downloadCsv(filtered, `order-requests-${new Date().toISOString().slice(0, 10)}.csv`)}
+              title="ייצא לאקסל"
+            >
+              <Download className="h-3.5 w-3.5" /> ייצוא
+            </Button>
+            {/* Excel import (bonded division managers only) */}
+            {canCreateRequest && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 gap-1.5 text-xs"
+                onClick={() => setShowExcelImport(true)}
+                title="ייבוא מאקסל"
+              >
+                <Upload className="h-3.5 w-3.5" /> ייבוא
+              </Button>
+            )}
             {canCreateRequest && (
               <Button size="sm" onClick={() => setShowNewRequest(true)} className="gap-1.5">
                 <Plus className="h-4 w-4" />בקשה חדשה
@@ -822,6 +847,17 @@ export function OrderRequestsTab() {
           requests={selectedRequests}
           addOrder={addOrder}
           onDone={() => { clearSelected(); fetchRequests(); }}
+        />
+      )}
+
+      {/* Excel import */}
+      {canCreateRequest && (
+        <ExcelImportDialog
+          open={showExcelImport}
+          onOpenChange={setShowExcelImport}
+          division={userDivision}
+          existing={requests.filter(r => r.division === userDivision)}
+          onDone={fetchRequests}
         />
       )}
 
