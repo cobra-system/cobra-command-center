@@ -93,7 +93,12 @@ export default function ProductsPage() {
   const { avgByProduct } = usePickupMonthlyAvg();
 
   const { hasEdit } = usePermissions("products");
-  const sortKey = prefs.sortField as SortKey | null;
+  // If a stored sort preference points to a hidden price column, fall
+  // back to "name" so non-managers don't sort by an invisible field.
+  const rawSortKey = prefs.sortField as SortKey | null;
+  const sortKey: SortKey | null = !showPrices && rawSortKey && PRICE_COLS.has(rawSortKey)
+    ? "name"
+    : rawSortKey;
   const sortDir = prefs.sortDir;
   const typeFilter = (prefs.filters.typeFilter || "all") as "all" | "מוגמר" | "מורכב";
   const supplierFilter = prefs.filters.supplierFilter || "all";

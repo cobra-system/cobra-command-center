@@ -189,6 +189,8 @@ export default function OrdersPage() {
       }
       if (search) {
         const q = search.toLowerCase();
+        // Notes are managerOnly; excluding them from the searchable
+        // string avoids leaking note contents via search (value oracle).
         const searchable = [
           scopeOrderItems(o.items).map(i => i.name).join(" "),
           o.supplier_name,
@@ -197,7 +199,7 @@ export default function OrdersPage() {
           o.vessel_name,
           o.booking_number,
           o.contact_name,
-          o.notes,
+          ...(hidePrices ? [] : [o.notes]),
         ].filter(Boolean).join(" ").toLowerCase();
         if (!searchable.includes(q)) return false;
       }

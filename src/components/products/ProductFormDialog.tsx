@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useData, categories, divisions, type Product, type ProductComponent } from "@/contexts/AppContext";
+import { useData, useAuth, categories, divisions, type Product, type ProductComponent } from "@/contexts/AppContext";
+import { canSeePrices } from "@/lib/permissions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,8 @@ const emptyComp = (): CompDraft => ({ name: "", sku: "", supplier: "", origin: "
 export default function ProductFormDialog({ open, onOpenChange, editProduct, presetSupplierId, presetSupplierName, presetProductName, presetDivision, onCreated }: Props) {
   const { addProduct, updateProduct, suppliers, products } = useData();
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const showPrices = canSeePrices(currentUser);
 
   const [form, setForm] = useState(() => initForm(editProduct, presetDivision));
   const [comps, setComps] = useState<CompDraft[]>(() =>
@@ -242,19 +245,23 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className={showPrices ? "grid grid-cols-2 sm:grid-cols-3 gap-3" : "grid grid-cols-1 gap-3"}>
             <div className="space-y-1">
               <Label>מלאי</Label>
               <Input type="number" value={form.stock_qty} onChange={e => setField("stock_qty", e.target.value)} />
             </div>
-            <div className="space-y-1">
-              <Label>מחיר רכישה</Label>
-              <Input type="number" value={form.purchase_price} onChange={e => setField("purchase_price", e.target.value)} />
-            </div>
-            <div className="space-y-1 col-span-2 sm:col-span-1">
-              <Label>מחיר מכירה</Label>
-              <Input type="number" value={form.sale_price} onChange={e => setField("sale_price", e.target.value)} />
-            </div>
+            {showPrices && (
+              <>
+                <div className="space-y-1">
+                  <Label>מחיר רכישה</Label>
+                  <Input type="number" value={form.purchase_price} onChange={e => setField("purchase_price", e.target.value)} />
+                </div>
+                <div className="space-y-1 col-span-2 sm:col-span-1">
+                  <Label>מחיר מכירה</Label>
+                  <Input type="number" value={form.sale_price} onChange={e => setField("sale_price", e.target.value)} />
+                </div>
+              </>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
