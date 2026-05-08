@@ -24,6 +24,8 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useProductScope } from "@/hooks/useProductScope";
+import { useAuth } from "@/contexts/AppContext";
+import { canSeePrices } from "@/lib/permissions";
 import { toast } from "sonner";
 
 const allStatuses: { value: OrderStatus; label: string }[] = [
@@ -60,6 +62,8 @@ export default function OrderDetailPage() {
   const navigate = useNavigate();
   const { updateOrderStatus, updateOrder, deleteOrder, refreshOrders, updateProduct, updateComponent } = useData();
   const { scopedOrders: orders, scopedSuppliers: suppliers, scopedProducts: products, scopeOrderItems } = useProductScope();
+  const { currentUser } = useAuth();
+  const showPrices = canSeePrices(currentUser);
 
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleteItemConfirm, setDeleteItemConfirm] = useState<string | null>(null);
@@ -243,11 +247,11 @@ export default function OrderDetailPage() {
     }
   };
 
-  const details: { label: string; field: string; value: string | number | null | undefined; options?: { value: string; label: string }[]; isDate?: boolean; isSupplierLink?: boolean; icon?: any; isReadOnly?: boolean }[] = [
+  const allDetails: { label: string; field: string; value: string | number | null | undefined; options?: { value: string; label: string }[]; isDate?: boolean; isSupplierLink?: boolean; icon?: any; isReadOnly?: boolean; priceGated?: boolean }[] = [
     { label: "סטטוס", field: "status", value: order.status, options: statusOptions, icon: Check },
     { label: "עדיפות", field: "priority", value: order.priority, options: priorityOptions, icon: Hash },
     { label: "ספק", field: "supplier_id", value: order.supplier_id, options: supplierOptions, isSupplierLink: true, icon: Truck },
-    { label: "סה״כ ($)", field: "total_price", value: order.total_price?.toString() ?? "", icon: DollarSign, isReadOnly: true },
+    { label: "סה״כ ($)", field: "total_price", value: order.total_price?.toString() ?? "", icon: DollarSign, isReadOnly: true, priceGated: true },
     { label: "שיטת משלוח", field: "shipping", value: order.shipping, options: shippingOptions, icon: Ship },
     { label: "מספר מעקב", field: "tracking_number", value: order.tracking_number, icon: Hash },
     { label: "חברת שילוח", field: "tracking_carrier", value: order.tracking_carrier, icon: Truck, options: [
@@ -255,12 +259,13 @@ export default function OrderDetailPage() {
       { value: "tclog", label: "TCLOG" },
       { value: "other", label: "אחר" },
     ] },
-    { label: "מספר PI", field: "pi_number", value: order.pi_number, icon: Hash },
+    { label: "מספר PI", field: "pi_number", value: order.pi_number, icon: Hash, priceGated: true },
     { label: "שם אונייה", field: "vessel_name", value: order.vessel_name, icon: Ship },
     { label: "מספר הזמנת מקום", field: "booking_number", value: order.booking_number, icon: Hash },
     { label: "אסמכתא TCLOG", field: "tclog_reference", value: order.tclog_reference, icon: FileText },
     { label: "הערות", field: "notes", value: order.notes, icon: FileText },
   ];
+  const details = allDetails.filter(d => showPrices || !d.priceGated);
 
   const dateFields = [
     { label: "תאריך הזמנה", field: "order_date", value: order.order_date, icon: Calendar },
@@ -453,8 +458,8 @@ export default function OrderDetailPage() {
             <tr className="border-b bg-muted/50">
               <th className="text-right p-3 font-semibold text-foreground">מוצר</th>
               <th className="text-right p-3 font-semibold text-foreground">כמות</th>
-              <th className="text-right p-3 font-semibold text-foreground">מחיר יחידה</th>
-              <th className="text-right p-3 font-semibold text-foreground">סה״כ</th>
+              {showPrices && <th className="text-right p-3 font-semibold text-foreground">מחיר יחידה</th>}
+              {showPrices && <th className="text-right p-3 font-semibold text-foreground">סה״כ</th>}
               {hasEdit && <th className="text-right p-3 font-semibold text-foreground w-20">פעולות</th>}
             </tr>
           </thead>
@@ -467,8 +472,8 @@ export default function OrderDetailPage() {
                     {linkedProduct ? <span className="text-primary hover:underline">{item.name}</span> : item.name}
                   </td>
                   <td className="p-3 text-muted-foreground">{item.qty}</td>
-                  <td className="p-3 text-muted-foreground">{item.price ? `$${item.price}` : "—"}</td>
-                  <td className="p-3 text-muted-foreground">{item.price ? `$${(item.price * item.qty).toLocaleString()}` : "—"}</td>
+                  {showPrices && <td className="p-3 text-muted-foreground">{item.price ? `$${item.price}` : "—"}</td>}
+                  {showPrices && <td className="p-3 text-muted-foreground">{item.price ? `$${(item.price * item.qty).toLocaleString()}` : "—"}</td>}
                   {hasEdit && (
                     <td className="p-3" onClick={e => e.stopPropagation()}>
                       <div className="flex gap-1">
@@ -488,8 +493,10 @@ export default function OrderDetailPage() {
         </table>
       </div>
 
-      {/* Payment Schedule */}
-      <OrderPaymentsSection orderId={order.id} orderTotal={order.total_price} hasEdit={hasEdit} />
+      {/* Payment Schedule — pricing is hidden from division managers */}
+      {showPrices && (
+        <OrderPaymentsSection orderId={order.id} orderTotal={order.total_price} hasEdit={hasEdit} />
+      )}
 
       {/* Documents */}
       <DocumentsSection orderId={order.id} />
