@@ -142,7 +142,7 @@ export default function ManagerLayout() {
     <div className="min-h-screen flex bg-background">
       {/* Sidebar (desktop only) */}
       <aside className={`
-        hidden lg:flex inset-y-0 right-0 z-50 flex-col
+        hidden lg:flex sticky top-0 h-screen z-50 flex-col shrink-0
         bg-card/95 backdrop-blur-xl border-l border-border/50
         transition-all duration-300 ease-out
         ${collapsed ? "w-[72px]" : "w-[280px]"}
