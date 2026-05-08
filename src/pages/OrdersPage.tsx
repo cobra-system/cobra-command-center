@@ -2,9 +2,6 @@ import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from "react
 const ProcurementMeetingTab = lazy(() =>
   import("@/components/meetings/ProcurementMeetingTab")
 );
-const ShipmentGroupsTab = lazy(() =>
-  import("@/components/orders/ShipmentGroupsTab").then(m => ({ default: m.ShipmentGroupsTab }))
-);
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { Plus, Search, RefreshCw } from "lucide-react";
@@ -331,12 +328,12 @@ export default function OrdersPage() {
       />
 
       <Tabs defaultValue={isDivMgr ? "order-requests" : "dashboard"} className="space-y-4">
-        <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-1">
+        <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-1" dir="rtl">
           <TabsList className="w-max min-w-full">
             {!isDivMgr && <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>}
             <TabsTrigger value="table">טבלת הזמנות</TabsTrigger>
             {!isDivMgr && (
-              <TabsTrigger value="archive" className="gap-1.5" dir="ltr">
+              <TabsTrigger value="archive" className="gap-1.5">
                 ארכיון הזמנות
                 {archivedOrders.length > 0 && (
                   <span className="bg-muted text-muted-foreground text-xs font-medium px-1.5 py-0.5 rounded-full">
@@ -345,9 +342,7 @@ export default function OrdersPage() {
                 )}
               </TabsTrigger>
             )}
-            {!isDivMgr && <TabsTrigger value="agenda">סדר יום רכש</TabsTrigger>}
             {!isDivMgr && <TabsTrigger value="meeting">ישיבת רכש</TabsTrigger>}
-            {!isDivMgr && <TabsTrigger value="shipment-groups">קבוצות משלוח</TabsTrigger>}
             <TabsTrigger value="order-requests">בקשות הזמנה</TabsTrigger>
           </TabsList>
         </div>
@@ -428,21 +423,9 @@ export default function OrdersPage() {
           />
         </TabsContent>
 
-        <TabsContent value="agenda" className="mt-0">
-          <Suspense fallback={<div className="p-8 text-center text-muted-foreground">טוען...</div>}>
-            <ProcurementMeetingTab />
-          </Suspense>
-        </TabsContent>
-
         <TabsContent value="meeting" className="mt-0">
           <Suspense fallback={<div className="p-8 text-center text-muted-foreground">טוען...</div>}>
             <ProcurementMeetingTab />
-          </Suspense>
-        </TabsContent>
-
-        <TabsContent value="shipment-groups" className="mt-0">
-          <Suspense fallback={<div className="p-8 text-center text-muted-foreground">טוען...</div>}>
-            <ShipmentGroupsTab />
           </Suspense>
         </TabsContent>
 
