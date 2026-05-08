@@ -29,7 +29,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (sess?.user) {
         setTimeout(async () => {
           const profile = await fetchProfile(sess.user.id);
-          setCurrentUser(profile);
+          if (!profile) {
+            // Defense-in-depth: a session without a profile shouldn't enter the app.
+            await supabase.auth.signOut();
+            setCurrentUser(null);
+          } else {
+            setCurrentUser(profile);
+          }
           setAuthLoading(false);
         }, 0);
       } else {
@@ -42,7 +48,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(sess);
       if (sess?.user) {
         const profile = await fetchProfile(sess.user.id);
-        setCurrentUser(profile);
+        if (!profile) {
+          await supabase.auth.signOut();
+          setCurrentUser(null);
+        } else {
+          setCurrentUser(profile);
+        }
       }
       setAuthLoading(false);
 

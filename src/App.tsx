@@ -13,6 +13,7 @@ import { ThemeProvider } from "next-themes";
 
 // Eager: needed on first render
 import LoginPage from "@/pages/LoginPage";
+import SignupPage from "@/pages/SignupPage";
 import ManagerLayout from "@/layouts/ManagerLayout";
 import EmployeeLayout from "@/layouts/EmployeeLayout";
 import NotFound from "@/pages/NotFound";
@@ -123,6 +124,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
 
       <Route element={<RequireManager />}>
         <Route path="/settings" element={<SettingsPage />} />
