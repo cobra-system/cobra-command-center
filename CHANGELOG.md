@@ -7,9 +7,16 @@
 
 ## [2026-05-08]
 
+- revert(auth): drop Google OAuth from login (633092c)
+- fix(auth): generated password meets server validatePassword rules (3b7f9ca)
+- docs: add signup route and signup edge functions to README (872b6cc)
+- feat(auth): account approval workflow with Google OAuth + email signup (f0ff4cf)
+
+<!-- last-commit: 3dae8a12028bfbb8cccc86eabaf0f5e9d0e48b56 -->
+## [2026-05-08]
+
 - feat(order-requests): SKU search + bonded division Excel-style table (c3811f1)
 
-<!-- last-commit: eda6abc825bbbaa788bd993d9a7dccf48852a0ad -->
 ## [2026-05-08]
 
 - fix(rls): products SELECT policy referenced products.division in subquery (7f5735f)
