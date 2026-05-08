@@ -7,12 +7,20 @@
 
 ## [2026-05-08]
 
+- fix(security): close payment-terms / global-search leaks; add regression tests (9eeed7c)
+- fix(order-requests): redesign tab with proper RTL, header card, and mobile cards (aa4701e)
+- fix(security): column-mask product prices via _safe views; tighten edge cases (08bc1fc)
+- fix(security): hide order notes + audit log from division managers; add RLS migration (71c9e34)
+- fix(security): hide all money and documents from division managers (ada1144)
+
+<!-- last-commit: 8dd2d8f13e3ea5312947a18404456e5a9cd2a3ca -->
+## [2026-05-08]
+
 - revert(auth): drop Google OAuth from login (633092c)
 - fix(auth): generated password meets server validatePassword rules (3b7f9ca)
 - docs: add signup route and signup edge functions to README (872b6cc)
 - feat(auth): account approval workflow with Google OAuth + email signup (f0ff4cf)
 
-<!-- last-commit: 3dae8a12028bfbb8cccc86eabaf0f5e9d0e48b56 -->
 ## [2026-05-08]
 
 - feat(order-requests): SKU search + bonded division Excel-style table (c3811f1)
