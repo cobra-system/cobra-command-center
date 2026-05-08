@@ -5,12 +5,17 @@
 
 ---
 
+## [2026-05-08]
+
+- fix(rls): products SELECT policy referenced products.division in subquery (7f5735f)
+- fix(orders): close Phase 2 division-manager gaps (3a7c7a6)
+
+<!-- last-commit: ada50068f18cfe952af392c09a2267b1b7de1ebf -->
 ## [2026-05-07]
 
 - fix(orders): division managers now see all orders containing their products (3749f35)
 - feat(divisions): add order requests workflow for bonded division managers (16229f7)
 
-<!-- last-commit: ccf1f3e24574861e6b47cbc84f68eb589cfb8bc1 -->
 ## [Unreleased]
 
 ### Added
