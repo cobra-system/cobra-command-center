@@ -48,7 +48,12 @@ export function OrderRequestDialog({ open, onOpenChange, division, divisionProdu
   const divisionProductIds = new Set(divisionProducts.map(dp => dp.product_id));
   const productOptions = allProducts
     .filter(p => divisionProductIds.has(p.id))
-    .map(p => ({ value: p.id, label: p.name }));
+    .map(p => ({
+      value: p.id,
+      label: p.name,
+      hint: p.sku || undefined,
+      keywords: p.sku ? [p.sku] : undefined,
+    }));
 
   useEffect(() => {
     if (!open) {
@@ -111,7 +116,7 @@ export function OrderRequestDialog({ open, onOpenChange, division, divisionProdu
               onValueChange={handleProductChange}
               options={productOptions}
               placeholder="בחר מוצר..."
-              searchPlaceholder="חיפוש מוצר..."
+              searchPlaceholder='חיפוש לפי שם או מק"ט...'
               emptyText="לא נמצאו מוצרים"
             />
           </div>

@@ -227,7 +227,7 @@ export function OrderRequestsTab() {
                   )}
                   {isVisible("product") && <TableCell className="p-3 font-medium">{req.product_name}</TableCell>}
                   {isVisible("supplier") && <TableCell className="p-3 text-muted-foreground">{req.supplier ?? "—"}</TableCell>}
-                  {isVisible("quantity") && <TableCell className="p-3">{req.quantity}</TableCell>}
+                  {isVisible("quantity") && <TableCell className="p-3">{req.quantity ?? "—"}</TableCell>}
                   {isVisible("urgency") && (
                     <TableCell className="p-3">
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
@@ -305,7 +305,7 @@ export function OrderRequestsTab() {
           addOrder={addOrder}
           defaultProductId={fulfillingRequest.product_id ?? undefined}
           defaultSupplierId={prefillSupplier?.id}
-          defaultQuantity={fulfillingRequest.quantity}
+          defaultQuantity={fulfillingRequest.quantity ?? undefined}
           hideTrigger
           onOrderCreated={handleOrderCreated}
         />
