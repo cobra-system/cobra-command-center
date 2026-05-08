@@ -42,7 +42,7 @@ import GlobalSearch from "@/components/GlobalSearch";
 const defaultNavItems = [
   { to: "/dashboard", icon: "LayoutDashboard", label: "דשבורד" },
   { to: "/products", icon: "Package", label: "מוצרים" },
-  { to: "/orders", icon: "ShoppingCart", label: "הזמנות" },
+  { to: "/orders", icon: "ShoppingCart", label: "רכש" },
   { to: "/equipment", icon: "Boxes", label: "חטיבות" },
   { to: "/tasks", icon: "ListTodo", label: "משימות" },
   { to: "/documents", icon: "FileText", label: "מסמכים" },
@@ -98,7 +98,7 @@ export default function ManagerLayout() {
     ? [
         { to: `/equipment/division/${encodeURIComponent(currentUser!.division!)}`, icon: "Boxes", label: "החטיבה שלי" },
         { to: "/products", icon: "Package", label: "מוצרים" },
-        { to: "/orders", icon: "ShoppingCart", label: "הזמנות" },
+        { to: "/orders", icon: "ShoppingCart", label: "רכש" },
         { to: "/suppliers", icon: "Truck", label: "ספקים" },
         { to: "/waste-management", icon: "Recycle", label: "ניהול בלאי" },
       ]

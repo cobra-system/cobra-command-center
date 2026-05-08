@@ -302,7 +302,7 @@ export default function OrdersPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3 flex-wrap">
-        <h1 className="text-2xl font-bold text-foreground">הזמנות</h1>
+        <h1 className="text-2xl font-bold text-foreground">רכש</h1>
         {trackingSync.syncing && (
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 rounded-full px-2.5 py-1">
             <RefreshCw className="h-3 w-3 animate-spin" />
@@ -331,7 +331,7 @@ export default function OrdersPage() {
         <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-1" dir="rtl">
           <TabsList className="w-max min-w-full">
             {!isDivMgr && <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>}
-            <TabsTrigger value="table">טבלת הזמנות</TabsTrigger>
+            <TabsTrigger value="table">הזמנות פעילות</TabsTrigger>
             {!isDivMgr && (
               <TabsTrigger value="archive" className="gap-1.5">
                 ארכיון הזמנות
@@ -343,7 +343,7 @@ export default function OrdersPage() {
               </TabsTrigger>
             )}
             {!isDivMgr && <TabsTrigger value="meeting">ישיבת רכש</TabsTrigger>}
-            <TabsTrigger value="order-requests">בקשות הזמנה</TabsTrigger>
+            <TabsTrigger value="order-requests">בקשת רכש</TabsTrigger>
           </TabsList>
         </div>
 
