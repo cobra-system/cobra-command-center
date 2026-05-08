@@ -53,6 +53,8 @@ import {
   Upload,
   AlertTriangle,
   Lightbulb,
+  Camera,
+  Copy,
 } from "lucide-react";
 import { NewPickupDialog } from "@/components/equipment/NewPickupDialog";
 import { NewReturnDialog } from "@/components/equipment/NewReturnDialog";
@@ -62,7 +64,9 @@ import { OrderRequestsDashboard } from "@/components/orders/OrderRequestsDashboa
 import { RequestDetailPanel } from "@/components/orders/RequestDetailPanel";
 import { RejectRequestDialog } from "@/components/orders/RejectRequestDialog";
 import { ExcelImportDialog } from "@/components/orders/ExcelImportDialog";
+import { SnapshotsDialog } from "@/components/orders/SnapshotsDialog";
 import { downloadCsv } from "@/components/orders/orderRequestExcel";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { InlineEditCell } from "@/components/orders/InlineEditCell";
 import { InlineSelectCell } from "@/components/orders/InlineSelectCell";
 import {
@@ -331,12 +335,14 @@ export default function DivisionDetailPage() {
   const [editingOrderRequest, setEditingOrderRequest] = useState<OrderRequest | null>(null);
   const [detailOrderRequest, setDetailOrderRequest] = useState<OrderRequest | null>(null);
   const [rejectingOrderRequest, setRejectingOrderRequest] = useState<OrderRequest | null>(null);
+  const [cloneTemplate, setCloneTemplate] = useState<OrderRequest | null>(null);
   const [showExcelImportOR, setShowExcelImportOR] = useState(false);
-  const [orSortField, setOrSortField] = useState<string | null>("created_at");
-  const [orSortDir, setOrSortDir] = useState<"asc" | "desc">("desc");
+  const [showSnapshots, setShowSnapshots] = useState(false);
+  const [orSortField, setOrSortField] = usePersistedState<string | null>("order-requests:div-sort-field", "created_at");
+  const [orSortDir, setOrSortDir] = usePersistedState<"asc" | "desc">("order-requests:div-sort-dir", "desc");
   const [orSearch, setOrSearch] = useState("");
-  const [orStatusFilter, setOrStatusFilter] = useState<"all" | "active" | "pending" | "ordered" | "rejected" | "cancelled">("active");
-  const [orUrgencyFilter, setOrUrgencyFilter] = useState<string>("all");
+  const [orStatusFilter, setOrStatusFilter] = usePersistedState<"all" | "active" | "pending" | "ordered" | "rejected" | "cancelled">("order-requests:div-status-filter", "active");
+  const [orUrgencyFilter, setOrUrgencyFilter] = usePersistedState<string>("order-requests:div-urgency-filter", "all");
   const orColVis = useColumnVisibility(
     "order-requests:hidden-columns",
     OR_COLS,
@@ -1898,6 +1904,18 @@ export default function DivisionDetailPage() {
                   ייבוא
                 </Button>
               )}
+              {isManagerRole && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs gap-1.5"
+                  onClick={() => setShowSnapshots(true)}
+                  title="צילומי מצב היסטוריים"
+                >
+                  <Camera className="h-3 w-3" />
+                  צילומים
+                </Button>
+              )}
               {canManagePlanning && (
                 <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowNewOrderRequest(true)}>
                   <Plus className="h-3 w-3 me-1" />
@@ -2332,6 +2350,9 @@ export default function DivisionDetailPage() {
                                         <Pencil className="h-3 w-3" />
                                       </Button>
                                     )}
+                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setCloneTemplate(req)} title="שכפל">
+                                      <Copy className="h-3 w-3" />
+                                    </Button>
                                     {req.status === "ordered" && req.order_id && (
                                       <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => navigateToOrderOR(req.order_id)} title="פתח הזמנה">
                                         <ExternalLink className="h-3 w-3" />
@@ -2498,9 +2519,9 @@ export default function DivisionDetailPage() {
       )}
       {isBonded && (
         <OrderRequestDialog
-          open={showNewOrderRequest || !!editingOrderRequest}
+          open={showNewOrderRequest || !!editingOrderRequest || !!cloneTemplate}
           onOpenChange={(o) => {
-            if (!o) { setShowNewOrderRequest(false); setEditingOrderRequest(null); }
+            if (!o) { setShowNewOrderRequest(false); setEditingOrderRequest(null); setCloneTemplate(null); }
             else setShowNewOrderRequest(true);
           }}
           division={division}
@@ -2508,6 +2529,7 @@ export default function DivisionDetailPage() {
           allProducts={products}
           onCreated={fetchData}
           editingRequest={editingOrderRequest}
+          template={cloneTemplate}
         />
       )}
 
@@ -2528,6 +2550,15 @@ export default function DivisionDetailPage() {
           division={division}
           existing={orderRequests}
           onDone={fetchData}
+        />
+      )}
+
+      {isBonded && isManagerRole && (
+        <SnapshotsDialog
+          open={showSnapshots}
+          onOpenChange={setShowSnapshots}
+          division={division}
+          current={orderRequests}
         />
       )}
 

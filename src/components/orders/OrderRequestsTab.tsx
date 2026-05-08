@@ -14,13 +14,15 @@ import { OrderRequestsDashboard } from "@/components/orders/OrderRequestsDashboa
 import { RequestDetailPanel } from "@/components/orders/RequestDetailPanel";
 import { BulkFulfillDialog } from "@/components/orders/BulkFulfillDialog";
 import { ExcelImportDialog } from "@/components/orders/ExcelImportDialog";
+import { SnapshotsDialog } from "@/components/orders/SnapshotsDialog";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   ArrowUpDown, ArrowUp, ArrowDown, ShoppingCart, Plus, ClipboardList, Inbox,
   Search, X, ExternalLink, Pencil, Trash2, RotateCcw, Ban, Eye, Layers, Rows3, Rows4,
-  AlertTriangle, Lightbulb, Download, Upload,
+  AlertTriangle, Lightbulb, Download, Upload, Copy, Camera,
 } from "lucide-react";
 import { downloadCsv } from "./orderRequestExcel";
 import type { ColDef } from "@/hooks/useColumnVisibility";
@@ -70,12 +72,16 @@ export function OrderRequestsTab() {
 
   const [requests, setRequests] = useState<OrderRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "ordered" | "rejected" | "cancelled" | "active">("active");
-  const [divisionFilter, setDivisionFilter] = useState<string>("all");
-  const [urgencyFilter, setUrgencyFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = usePersistedState<"all" | "pending" | "ordered" | "rejected" | "cancelled" | "active">(
+    "order-requests:status-filter", "active"
+  );
+  const [divisionFilter, setDivisionFilter] = usePersistedState<string>("order-requests:division-filter", "all");
+  const [urgencyFilter, setUrgencyFilter] = usePersistedState<string>("order-requests:urgency-filter", "all");
+  const [dateFrom, setDateFrom] = usePersistedState<string>("order-requests:date-from", "");
+  const [dateTo, setDateTo] = usePersistedState<string>("order-requests:date-to", "");
   const [search, setSearch] = useState("");
-  const [sortField, setSortField] = useState<string | null>("created_at");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [sortField, setSortField] = usePersistedState<string | null>("order-requests:sort-field", "created_at");
+  const [sortDir, setSortDir] = usePersistedState<"asc" | "desc">("order-requests:sort-dir", "desc");
   const [fulfillingRequest, setFulfillingRequest] = useState<OrderRequest | null>(null);
   const [editingRequest, setEditingRequest] = useState<OrderRequest | null>(null);
   const [rejectingRequest, setRejectingRequest] = useState<OrderRequest | null>(null);
@@ -85,11 +91,10 @@ export function OrderRequestsTab() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showBulkFulfill, setShowBulkFulfill] = useState(false);
   const [showExcelImport, setShowExcelImport] = useState(false);
-  const [groupBy, setGroupBy] = useState<"none" | "supplier" | "urgency">("none");
-  const [density, setDensity] = useState<"comfortable" | "compact">(() =>
-    (localStorage.getItem("order-requests:density") as "comfortable" | "compact") ?? "comfortable"
-  );
-  useEffect(() => { localStorage.setItem("order-requests:density", density); }, [density]);
+  const [showSnapshots, setShowSnapshots] = useState(false);
+  const [cloneTemplate, setCloneTemplate] = useState<OrderRequest | null>(null);
+  const [groupBy, setGroupBy] = usePersistedState<"none" | "supplier" | "urgency">("order-requests:group-by", "none");
+  const [density, setDensity] = usePersistedState<"comfortable" | "compact">("order-requests:density", "comfortable");
   const cellPadding = density === "compact" ? "p-1.5" : "p-3";
 
   // Bonded division managers can submit requests for their own division.
@@ -254,6 +259,13 @@ export function OrderRequestsTab() {
       })
       .filter(r => divisionFilter === "all" || r.division === divisionFilter)
       .filter(r => urgencyFilter === "all" || r.urgency === urgencyFilter)
+      .filter(r => {
+        if (!dateFrom && !dateTo) return true;
+        const t = new Date(r.created_at).getTime();
+        if (dateFrom && t < new Date(dateFrom).getTime()) return false;
+        if (dateTo && t > new Date(dateTo).getTime() + 86_400_000) return false;
+        return true;
+      })
       .filter(r => freeTextMatch(r, search))
       .sort((a, b) => {
         if (!sortField) return 0;
@@ -264,7 +276,7 @@ export function OrderRequestsTab() {
           ? String(av).localeCompare(String(bv))
           : String(bv).localeCompare(String(av));
       });
-  }, [requests, statusFilter, divisionFilter, urgencyFilter, search, sortField, sortDir]);
+  }, [requests, statusFilter, divisionFilter, urgencyFilter, dateFrom, dateTo, search, sortField, sortDir]);
 
   const pendingCount = requests.filter(r => r.status === "pending").length;
   const orderedCount = requests.filter(r => r.status === "ordered").length;
@@ -349,6 +361,18 @@ export function OrderRequestsTab() {
                 <Upload className="h-3.5 w-3.5" /> ייבוא
               </Button>
             )}
+            {/* Snapshots (managers only) */}
+            {isManager && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 gap-1.5 text-xs"
+                onClick={() => setShowSnapshots(true)}
+                title="צילומי מצב היסטוריים"
+              >
+                <Camera className="h-3.5 w-3.5" /> צילומים
+              </Button>
+            )}
             {canCreateRequest && (
               <Button size="sm" onClick={() => setShowNewRequest(true)} className="gap-1.5">
                 <Plus className="h-4 w-4" />בקשה חדשה
@@ -419,6 +443,37 @@ export function OrderRequestsTab() {
               </Select>
             </div>
           )}
+          {/* Date range filter on created_at */}
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">מתאריך</label>
+            <div className="relative">
+              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-9 text-sm" />
+              {dateFrom && (
+                <button
+                  onClick={() => setDateFrom("")}
+                  className="absolute left-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="נקה תאריך"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">עד תאריך</label>
+            <div className="relative">
+              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-9 text-sm" />
+              {dateTo && (
+                <button
+                  onClick={() => setDateTo("")}
+                  className="absolute left-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="נקה תאריך"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -747,6 +802,11 @@ export function OrderRequestsTab() {
                                 <Pencil className="h-3 w-3" />
                               </Button>
                             )}
+                            {canCreateRequest && req.division === userDivision && (
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setCloneTemplate(req); }} title="שכפל">
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                            )}
                             {req.status === "pending" && canFulfill && (
                               <Button size="sm" variant="outline" className="h-7 text-xs gap-1 px-2" onClick={(e) => { e.stopPropagation(); setFulfillingRequest(req); }}>
                                 <ShoppingCart className="h-3 w-3" />הזמן
@@ -798,37 +858,53 @@ export function OrderRequestsTab() {
         </>
       )}
 
-      {/* New / edit dialog */}
+      {/* New / edit / clone dialog */}
       {(canCreateRequest || editingRequest) && (
         <OrderRequestDialog
-          open={showNewRequest || !!editingRequest}
+          open={showNewRequest || !!editingRequest || !!cloneTemplate}
           onOpenChange={(o) => {
-            if (!o) { setShowNewRequest(false); setEditingRequest(null); }
+            if (!o) { setShowNewRequest(false); setEditingRequest(null); setCloneTemplate(null); }
             else setShowNewRequest(true);
           }}
-          division={editingRequest?.division ?? userDivision}
+          division={editingRequest?.division ?? cloneTemplate?.division ?? userDivision}
           divisionProducts={dialogDivisionProducts}
           allProducts={products}
           onCreated={fetchRequests}
           editingRequest={editingRequest}
+          template={cloneTemplate}
         />
       )}
 
       {/* Fulfill dialog (manager only) */}
-      {fulfillingRequest && canFulfill && (
-        <NewOrderDialog
-          open={!!fulfillingRequest}
-          onOpenChange={(open) => { if (!open) setFulfillingRequest(null); }}
-          suppliers={suppliers}
-          products={products}
-          addOrder={addOrder}
-          defaultProductId={fulfillingRequest.product_id ?? undefined}
-          defaultSupplierId={prefillSupplier?.id}
-          defaultQuantity={fulfillingRequest.required_to_order ?? fulfillingRequest.quantity ?? undefined}
-          hideTrigger
-          onOrderCreated={handleOrderCreated}
-        />
-      )}
+      {fulfillingRequest && canFulfill && (() => {
+        const r = fulfillingRequest;
+        const notesParts = [
+          r.reason && `סיבת הבקשה: ${r.reason}`,
+          r.notes && `הערות תכנון: ${r.notes}`,
+          r.current_consumption && `צריכה נוכחית: ${r.current_consumption}`,
+          r.required_to_order != null && `נדרש להזמין: ${r.required_to_order}`,
+          `נוצר על ידי: ${r.created_by_name ?? "—"} · חטיבה: ${r.division}`,
+        ].filter(Boolean).join("\n");
+        const priorityMap: Record<string, "דחוף" | "גבוה" | "בינוני" | "נמוך"> = {
+          "דחוף": "דחוף", "רגיל": "בינוני", "נמוך": "נמוך",
+        };
+        return (
+          <NewOrderDialog
+            open={!!fulfillingRequest}
+            onOpenChange={(open) => { if (!open) setFulfillingRequest(null); }}
+            suppliers={suppliers}
+            products={products}
+            addOrder={addOrder}
+            defaultProductId={r.product_id ?? undefined}
+            defaultSupplierId={prefillSupplier?.id}
+            defaultQuantity={r.required_to_order ?? r.quantity ?? undefined}
+            defaultNotes={notesParts}
+            defaultPriority={priorityMap[r.urgency] ?? "בינוני"}
+            hideTrigger
+            onOrderCreated={handleOrderCreated}
+          />
+        );
+      })()}
 
       {/* Reject dialog */}
       <RejectRequestDialog
@@ -858,6 +934,16 @@ export function OrderRequestsTab() {
           division={userDivision}
           existing={requests.filter(r => r.division === userDivision)}
           onDone={fetchRequests}
+        />
+      )}
+
+      {/* Snapshots */}
+      {isManager && (
+        <SnapshotsDialog
+          open={showSnapshots}
+          onOpenChange={setShowSnapshots}
+          division={undefined}
+          current={requests}
         />
       )}
 

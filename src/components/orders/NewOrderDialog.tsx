@@ -33,11 +33,13 @@ interface Props {
   defaultProductId?: string;
   defaultSupplierId?: string;
   defaultQuantity?: number;
+  defaultNotes?: string;
+  defaultPriority?: Priority;
   hideTrigger?: boolean;
   onOrderCreated?: (orderId: string) => void;
 }
 
-export function NewOrderDialog({ suppliers, products, addOrder, open: controlledOpen, onOpenChange, defaultProductId, defaultSupplierId, defaultQuantity, hideTrigger, onOrderCreated }: Props) {
+export function NewOrderDialog({ suppliers, products, addOrder, open: controlledOpen, onOpenChange, defaultProductId, defaultSupplierId, defaultQuantity, defaultNotes, defaultPriority, hideTrigger, onOrderCreated }: Props) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setOpen = (v: boolean) => {
@@ -79,6 +81,12 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
     if (defaultSupplierId) {
       setSupplierId(defaultSupplierId);
     }
+    if (defaultNotes) {
+      setNotes(defaultNotes);
+    }
+    if (defaultPriority) {
+      setPriority(defaultPriority);
+    }
 
     if (defaultProductId) {
       const prod = products.find(p => p.id === defaultProductId);
@@ -98,7 +106,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
         }
       }
     }
-  }, [open, defaultProductId, defaultSupplierId, products, suppliers]);
+  }, [open, defaultProductId, defaultSupplierId, defaultNotes, defaultPriority, products, suppliers]);
 
   const updateItem = (idx: number, field: keyof ItemRow, value: string) =>
     setItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));

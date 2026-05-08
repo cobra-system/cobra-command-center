@@ -22,6 +22,8 @@ interface Props {
   onCreated: () => void;
   /** When provided, dialog enters edit mode for this request. */
   editingRequest?: OrderRequest | null;
+  /** When provided, dialog opens in CREATE mode but with these fields prefilled. */
+  template?: OrderRequest | null;
 }
 
 export function OrderRequestDialog({
@@ -32,6 +34,7 @@ export function OrderRequestDialog({
   allProducts,
   onCreated,
   editingRequest,
+  template,
 }: Props) {
   const { currentUser } = useAuth();
   const [productId, setProductId] = useState("");
@@ -69,26 +72,27 @@ export function OrderRequestDialog({
 
   useEffect(() => {
     if (!open) return;
-    if (editingRequest) {
-      setProductId(editingRequest.product_id ?? "");
-      setProductName(editingRequest.product_name ?? "");
-      setProductSku(editingRequest.product_sku ?? "");
-      setSupplier(editingRequest.supplier ?? "");
-      setQuantity(editingRequest.quantity != null ? String(editingRequest.quantity) : "");
-      setCurrentConsumption(editingRequest.current_consumption ?? "");
-      setReason(editingRequest.reason ?? "");
-      setUrgency(editingRequest.urgency ?? "רגיל");
-      setOrderType(editingRequest.order_type ?? "חודשית");
-      setEstimatedUnitPrice(editingRequest.estimated_unit_price != null ? String(editingRequest.estimated_unit_price) : "");
-      setMainWarehouseStock(editingRequest.main_warehouse_stock != null ? String(editingRequest.main_warehouse_stock) : "");
-      setDivisionStock(editingRequest.division_stock != null ? String(editingRequest.division_stock) : "");
-      setQuarterlyForecast(editingRequest.quarterly_forecast != null ? String(editingRequest.quarterly_forecast) : "");
-      setRequiredToOrder(editingRequest.required_to_order != null ? String(editingRequest.required_to_order) : "");
-      setOrderExecutionDate(editingRequest.order_execution_date ?? "");
-      setEstimatedArrivalDate(editingRequest.estimated_arrival_date ?? "");
-      setShippingType(editingRequest.shipping_type ?? "");
-      setPaymentStatus(editingRequest.payment_status ?? "");
-      setNotes(editingRequest.notes ?? "");
+    const seed = editingRequest ?? template ?? null;
+    if (seed) {
+      setProductId(seed.product_id ?? "");
+      setProductName(seed.product_name ?? "");
+      setProductSku(seed.product_sku ?? "");
+      setSupplier(seed.supplier ?? "");
+      setQuantity(seed.quantity != null ? String(seed.quantity) : "");
+      setCurrentConsumption(seed.current_consumption ?? "");
+      setReason(seed.reason ?? "");
+      setUrgency(seed.urgency ?? "רגיל");
+      setOrderType(seed.order_type ?? "חודשית");
+      setEstimatedUnitPrice(seed.estimated_unit_price != null ? String(seed.estimated_unit_price) : "");
+      setMainWarehouseStock(seed.main_warehouse_stock != null ? String(seed.main_warehouse_stock) : "");
+      setDivisionStock(seed.division_stock != null ? String(seed.division_stock) : "");
+      setQuarterlyForecast(seed.quarterly_forecast != null ? String(seed.quarterly_forecast) : "");
+      setRequiredToOrder(seed.required_to_order != null ? String(seed.required_to_order) : "");
+      setOrderExecutionDate(seed.order_execution_date ?? "");
+      setEstimatedArrivalDate(seed.estimated_arrival_date ?? "");
+      setShippingType(seed.shipping_type ?? "");
+      setPaymentStatus(seed.payment_status ?? "");
+      setNotes(seed.notes ?? "");
       setShowAdvanced(true);
     } else {
       setProductId("");
@@ -112,7 +116,7 @@ export function OrderRequestDialog({
       setNotes("");
       setShowAdvanced(false);
     }
-  }, [open, editingRequest]);
+  }, [open, editingRequest, template]);
 
   const handleProductChange = (id: string) => {
     setProductId(id);

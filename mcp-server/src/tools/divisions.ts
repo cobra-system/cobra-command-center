@@ -534,6 +534,22 @@ export function registerDivisionTools(server: McpServer) {
   );
 
   server.tool(
+    "delete_order_request_snapshot",
+    "מחיקת צילום מצב — Delete a snapshot by id (managers only via RLS).",
+    {
+      snapshot_id: z.string().uuid(),
+    },
+    async ({ snapshot_id }) => {
+      const { error } = await supabase
+        .from("order_request_snapshots")
+        .delete()
+        .eq("id", snapshot_id);
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify({ success: true, deleted_id: snapshot_id }) }] };
+    }
+  );
+
+  server.tool(
     "fulfill_order_request",
     "מימוש בקשת הזמנה — Mark an order request as ordered and link it to an order.",
     {
