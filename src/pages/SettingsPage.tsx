@@ -9,18 +9,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
-  Lock, Pencil, User, Settings, Users, Shield, Bell, Check, X,
+  Lock, Pencil, User, Settings, Users, Shield, Bell, Check, X, UserPlus,
 } from "lucide-react";
 import RolePermissionsManager from "@/components/settings/RolePermissionsManager";
 import RoleDefinitionManager from "@/components/settings/RoleDefinitionManager";
 import UserManagementTable from "@/components/settings/UserManagementTable";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import AlertsContent from "@/components/settings/AlertsContent";
+import SignupRequestsPanel from "@/components/settings/SignupRequestsPanel";
 import { passwordChangeSchema } from "@/lib/schemas/passwordSchema";
 import { employeeCreateSchema, employeeUpdateSchema } from "@/lib/schemas/employeeSchema";
 
-type TabKey = "account" | "users" | "roles" | "notifications";
-const VALID_TABS: TabKey[] = ["account", "users", "roles", "notifications"];
+type TabKey = "account" | "users" | "signup-requests" | "roles" | "notifications";
+const VALID_TABS: TabKey[] = ["account", "users", "signup-requests", "roles", "notifications"];
 
 export default function SettingsPage() {
   const { currentUser } = useAuth();
@@ -260,6 +261,12 @@ export default function SettingsPage() {
             </TabsTrigger>
           )}
           {isManager && (
+            <TabsTrigger value="signup-requests" className="gap-2">
+              <UserPlus className="h-4 w-4" />
+              בקשות הרשמה
+            </TabsTrigger>
+          )}
+          {isManager && (
             <TabsTrigger value="roles" className="gap-2">
               <Shield className="h-4 w-4" />
               תפקידים והרשאות
@@ -352,6 +359,12 @@ export default function SettingsPage() {
               onEmpEdit={handleEmpEdit}
               onEmpDelete={handleEmpDelete}
             />
+          </TabsContent>
+        )}
+
+        {isManager && (
+          <TabsContent value="signup-requests" className="space-y-6">
+            <SignupRequestsPanel />
           </TabsContent>
         )}
 
