@@ -1,6 +1,7 @@
 import { useState, useMemo, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
-import { useData, categories, type Product } from "@/contexts/AppContext";
+import { useData, useAuth, categories, type Product } from "@/contexts/AppContext";
+import { canSeePrices } from "@/lib/permissions";
 import { useProductScope } from "@/hooks/useProductScope";
 import { useLiveProductMetrics, type ProductMetrics } from "@/hooks/useLiveProductMetrics";
 import { usePickupMonthlyAvg } from "@/hooks/usePickupMonthlyAvg";
@@ -76,17 +77,28 @@ export default function ProductsPage() {
     sortField: "name",
     filters: { category: "הכל", typeFilter: "all", supplierFilter: "all" },
   });
-  const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility(
+  const { currentUser } = useAuth();
+  const showPrices = canSeePrices(currentUser);
+  const colVis = useColumnVisibility(
     "products:hidden-columns",
     COLUMN_DEFS,
     ["sale_price", "monthly_sales", "category", "lead_time_days", "monthly_sales_avg", "division", "shipping"]
   );
+  const PRICE_COLS = new Set(["purchase_price", "sale_price"]);
+  const isVisible = (id: string) => !showPrices && PRICE_COLS.has(id) ? false : colVis.isVisible(id);
+  const { hide, show, hiddenCols } = colVis;
+  const visibleCount = COLUMN_DEFS.filter(c => isVisible(c.id)).length;
   const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
   const { metrics } = useLiveProductMetrics(products);
   const { avgByProduct } = usePickupMonthlyAvg();
 
   const { hasEdit } = usePermissions("products");
-  const sortKey = prefs.sortField as SortKey | null;
+  // If a stored sort preference points to a hidden price column, fall
+  // back to "name" so non-managers don't sort by an invisible field.
+  const rawSortKey = prefs.sortField as SortKey | null;
+  const sortKey: SortKey | null = !showPrices && rawSortKey && PRICE_COLS.has(rawSortKey)
+    ? "name"
+    : rawSortKey;
   const sortDir = prefs.sortDir;
   const typeFilter = (prefs.filters.typeFilter || "all") as "all" | "מוגמר" | "מורכב";
   const supplierFilter = prefs.filters.supplierFilter || "all";

@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CategorySelect } from "@/components/ui/CategorySelect";
-import { type Product, divisions } from "@/contexts/AppContext";
+import { type Product, divisions, useAuth } from "@/contexts/AppContext";
+import { canSeePrices } from "@/lib/permissions";
 import { supabase } from "@/lib/supabase";
 const productTypes = ["מוגמר", "מורכב"];
 const shippingMethods = ["אוויר", "ים", "יבשה", "שילוב", "בין ספקים"];
@@ -26,6 +27,8 @@ interface ProductEditDialogProps {
 }
 
 export default function ProductEditDialog({ open, onOpenChange, product, onSave }: ProductEditDialogProps) {
+  const { currentUser } = useAuth();
+  const showPrices = canSeePrices(currentUser);
   const [fields, setFields] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -184,14 +187,16 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
             </div>
           </div>
 
-          {/* Pricing */}
-          <div>
-            <h3 className="text-sm font-semibold text-foreground mb-2">מחירים</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {numField("purchase_price", "מחיר רכישה ($)")}
-              {numField("sale_price", "מחיר מכירה ($)")}
+          {/* Pricing — managers only */}
+          {showPrices && (
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-2">מחירים</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {numField("purchase_price", "מחיר רכישה ($)")}
+                {numField("sale_price", "מחיר מכירה ($)")}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Inventory */}
           <div>

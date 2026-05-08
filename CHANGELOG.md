@@ -29,6 +29,16 @@
 
 ## [Unreleased]
 
+### Security
+- **חסימה גורפת של כסף ומסמכים ל-non-MANAGER** — הגנה כפולה (UI + DB):
+  - `DocumentsSection` ו-`OrderPaymentsSection` ו-`OrderAuditLog` self-gate ב-`canSeeDocuments`/`canSeePrices`. סוגר דליפות ב-ProductDetail, OrderDetail, SupplierDetail.
+  - `ProductDetailPage`, `ProductsPage`, `BOMTable`, `SupplierDetailPage`, `OrderDetailPage` מסתירים שדות מחיר, סקציות תשלומים, עמודות `סה״כ`, ו-`order.notes` למשתמשי non-MANAGER.
+  - `ProductEditDialog` ו-`ProductFormDialog` מסתירים שדות `purchase_price`/`sale_price` ל-non-MANAGER.
+  - **DB**: RLS על `purchase_documents`, `supplier_payments`, `order_payments`, `order_notes_history` — כל פעולה (SELECT/INSERT/UPDATE/DELETE) דורשת `is_manager()`.
+  - **DB**: views `products_safe` ו-`product_components_safe` עם `security_invoker` שמסווים את עמודות המחיר ל-`NULL` עבור non-MANAGER. `ProductsContext` קורא דרך ה-views.
+- `OrdersPage` search לא כולל `notes` ל-non-MANAGER (מונע value-oracle).
+- `ProductsPage` מאפס `sortField` ל-`name` אם השמור הוא `purchase_price`/`sale_price` ל-non-MANAGER.
+
 ### Added
 - **תהליך אישור הרשמה** — דף הכניסה כולל אימייל/סיסמה, "שכחת סיסמה?" וקישור להרשמה. הרשמות חדשות אינן נכנסות אוטומטית למערכת — נוצרת רשומה ב-`signup_requests` ומייל אישור נשלח ל-`noamshemla@gmail.com` ול-`noam@cobra.co.il`. מנהלי המערכת מקבלים טאב "בקשות הרשמה" בהגדרות, שם ניתן לאשר (עם בחירת תפקיד, אגף וסיסמה ראשונית שתישלח למבקש) או לדחות את הבקשה.
 - **DB**: טבלת `signup_requests` חדשה עם RLS למנהלים בלבד; אינדקס ייחודי על אימייל ממתין כדי למנוע כפילויות.

@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AppContext";
+import { canSeeDocuments } from "@/lib/permissions";
 import type { PurchaseDocument, Payment } from "@/components/documents/types";
 import { docStatusFlow, docStatusColors, payStatusColors, currencySymbol, paymentTypeLabels } from "@/components/documents/constants";
 import SimpleFileUploadDialog from "@/components/documents/SimpleFileUploadDialog";
@@ -27,15 +28,18 @@ export default function DocumentsSection({ supplierId, productId, orderId }: Pro
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
 
+  const allowed = canSeeDocuments(currentUser);
+
   const fetchData = useCallback(async () => {
+    if (!allowed) { setLoading(false); return; }
     setLoading(true);
 
-    let docQuery = supabase.from("purchase_documents").select("*").order("created_at", { ascending: false }) as any;
-    if (supplierId) docQuery = docQuery.eq("supplier_id", supplierId);
-    else if (productId) docQuery = docQuery.eq("product_id", productId);
-    else if (orderId) docQuery = docQuery.eq("order_id", orderId);
-
-    const { data: docData } = await docQuery;
+    const baseQuery = supabase.from("purchase_documents").select("*");
+    const filtered = supplierId ? baseQuery.eq("supplier_id", supplierId)
+      : productId ? baseQuery.eq("product_id", productId)
+      : orderId ? baseQuery.eq("order_id", orderId)
+      : baseQuery;
+    const { data: docData } = await filtered.order("created_at", { ascending: false });
     if (docData) setDocs(docData as PurchaseDocument[]);
 
     if (supplierId) {
@@ -44,12 +48,14 @@ export default function DocumentsSection({ supplierId, productId, orderId }: Pro
     }
 
     setLoading(false);
-  }, [supplierId, productId, orderId]);
+  }, [supplierId, productId, orderId, allowed]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  if (!allowed) return null;
+
   const handleDocStatusChange = async (docId: string, newStatus: string) => {
-    const updates: Record<string, any> = { status: newStatus };
+    const updates: Record<string, string | null | undefined> = { status: newStatus };
     if (newStatus === "אושר") {
       updates.approval_date = new Date().toISOString();
       updates.approved_by = currentUser?.id;

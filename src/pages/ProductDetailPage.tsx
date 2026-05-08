@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
-import { useData, categories, divisions, type ProductComponent } from "@/contexts/AppContext";
+import { useData, useAuth, categories, divisions, type ProductComponent } from "@/contexts/AppContext";
+import { canSeePrices } from "@/lib/permissions";
 import { useLiveProductMetrics } from "@/hooks/useLiveProductMetrics";
 import { usePickupMonthlyAvg } from "@/hooks/usePickupMonthlyAvg";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,8 @@ export default function ProductDetailPage() {
   const { hasEdit: hasInventoryEdit } = usePermissions("inventory");
   const canEditStock = hasEdit || hasInventoryEdit;
   const { isScoped, scopedProductIds } = useProductScope();
+  const { currentUser } = useAuth();
+  const showPrices = canSeePrices(currentUser);
 
   const product = products.find(p => p.id === id);
   const productArr = useMemo(() => (product ? [product] : []), [product]);
@@ -83,7 +86,7 @@ export default function ProductDetailPage() {
     }
   };
 
-  const details: { label: string; field: string; value: string | number | undefined | null; isSupplierLink?: boolean; options?: { value: string; label: string }[]; multiSelect?: boolean; readOnly?: boolean; tooltip?: string; isComputed?: boolean }[] = [
+  const allDetails: { label: string; field: string; value: string | number | undefined | null; isSupplierLink?: boolean; options?: { value: string; label: string }[]; multiSelect?: boolean; readOnly?: boolean; tooltip?: string; isComputed?: boolean; priceGated?: boolean }[] = [
     { label: "קטגוריה", field: "category", value: product.category, options: categoryOptions, tooltip: "הקטגוריה שהמוצר שייך אליה" },
     { label: "חטיבות", field: "division", value: product.division, options: divisionOptions, multiSelect: true, tooltip: "החטיבות הארגוניות שמשתמשות במוצר" },
     { label: "מק״ט", field: "sku", value: product.sku, tooltip: "קוד מוצר ייחודי (SKU)" },
@@ -91,8 +94,8 @@ export default function ProductDetailPage() {
     { label: "תיאור", field: "description", value: product.description, tooltip: "תיאור חופשי של המוצר" },
     { label: "ספק", field: "supplier", value: product.supplier, isSupplierLink: true, options: supplierOptions, tooltip: "הספק הראשי שממנו מזמינים את המוצר" },
     { label: "שיטת משלוח", field: "shipping", value: product.shipping, options: shippingOptions, tooltip: "אופן המשלוח המועדף מהספק" },
-    { label: "מחיר רכישה", field: "purchase_price", value: product.purchase_price, tooltip: product.product_type === "מורכב" ? "מחושב אוטומטית — סכום מחירי הרכיבים" : "מחיר קנייה מהספק ($)" },
-    { label: "מחיר מכירה", field: "sale_price", value: product.sale_price, tooltip: "מחיר מכירה ללקוח הסופי ($)" },
+    { label: "מחיר רכישה", field: "purchase_price", value: product.purchase_price, priceGated: true, tooltip: product.product_type === "מורכב" ? "מחושב אוטומטית — סכום מחירי הרכיבים" : "מחיר קנייה מהספק ($)" },
+    { label: "מחיר מכירה", field: "sale_price", value: product.sale_price, priceGated: true, tooltip: "מחיר מכירה ללקוח הסופי ($)" },
     { label: "מכירות חודשיות (לפי הצטיידות)", field: "monthly_sales", value: avgByProduct.get(product.id) ?? undefined, readOnly: true, isComputed: true, tooltip: "מחושב אוטומטית — ממוצע כמויות שהוצאו מהמלאי בחודשים האחרונים" },
     { label: "הזמנה חודשית", field: "monthly_order", value: product.monthly_order, tooltip: "כמות ההזמנה החודשית המתוכננת — מוגדרת ידנית" },
     { label: "ממוצע צריכה שנתי (SAP)", field: "monthly_sales_avg", value: product.monthly_sales_avg, tooltip: "ממוצע צריכה שנתי ממערכת SAP — מוגדר ידנית" },
@@ -100,6 +103,7 @@ export default function ProductDetailPage() {
     { label: 'עול"ב', field: "incoming_qty", value: metrics[product.id]?.incomingQty ?? product.incoming_qty, readOnly: true, isComputed: true, tooltip: 'מחושב אוטומטית — סכום כמויות מהזמנות פעילות (נשלח / הגיע לנמל / שחרור מכס)' },
     { label: "הערות", field: "notes", value: product.notes, tooltip: "הערות חופשיות על המוצר" },
   ];
+  const details = allDetails.filter(d => showPrices || !d.priceGated);
 
   const handleSaveEdit = async (id: string, updates: Record<string, unknown>) => {
     try {
@@ -220,16 +224,18 @@ export default function ProductDetailPage() {
             { label: 'עול"ב', value: metrics[product.id]?.incomingQty ?? product.incoming_qty, tooltip: 'מחושב מהזמנות פעילות (נשלח / הגיע לנמל / שחרור מכס)' },
             { label: "מכירות חודשיות (לפי הצטיידות)", value: avgByProduct.get(product.id) ?? "—", tooltip: "ממוצע מכירות חודשי מחושב מהיסטוריית הוצאות המלאי" },
             { label: "הזמנה חודשית", value: product.monthly_order ?? "—", tooltip: "כמות הזמנה חודשית מתוכננת — מוגדרת ידנית" },
-            {
-              label: "תשלומים לספק החודש",
-              value: supplierPayments.loading ? "..." : supplierPayments.monthly > 0 ? `$${supplierPayments.monthly.toLocaleString("en", { maximumFractionDigits: 0 })}` : "—",
-              tooltip: "סה\"כ תשלומים ששולמו לספק עבור הזמנות של מוצר זה בחודש הנוכחי (יחסי לשווי המוצר בהזמנה)",
-            },
-            {
-              label: "תשלומים לספק ברבעון",
-              value: supplierPayments.loading ? "..." : supplierPayments.quarterly > 0 ? `$${supplierPayments.quarterly.toLocaleString("en", { maximumFractionDigits: 0 })}` : "—",
-              tooltip: "סה\"כ תשלומים ששולמו לספק עבור הזמנות של מוצר זה ברבעון הנוכחי (יחסי לשווי המוצר בהזמנה)",
-            },
+            ...(showPrices ? [
+              {
+                label: "תשלומים לספק החודש",
+                value: supplierPayments.loading ? "..." : supplierPayments.monthly > 0 ? `$${supplierPayments.monthly.toLocaleString("en", { maximumFractionDigits: 0 })}` : "—",
+                tooltip: "סה\"כ תשלומים ששולמו לספק עבור הזמנות של מוצר זה בחודש הנוכחי (יחסי לשווי המוצר בהזמנה)",
+              },
+              {
+                label: "תשלומים לספק ברבעון",
+                value: supplierPayments.loading ? "..." : supplierPayments.quarterly > 0 ? `$${supplierPayments.quarterly.toLocaleString("en", { maximumFractionDigits: 0 })}` : "—",
+                tooltip: "סה\"כ תשלומים ששולמו לספק עבור הזמנות של מוצר זה ברבעון הנוכחי (יחסי לשווי המוצר בהזמנה)",
+              },
+            ] : []),
           ].map((item) => (
             <div key={item.label} className="bg-card rounded-xl border p-4 text-center">
               <Tooltip>
