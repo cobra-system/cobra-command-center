@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AppContext";
 import type { OrderRequest } from "@/contexts/types";
 import { parseTsv, type ParsedExcelRow } from "./orderRequestExcel";
+import { updateDivisionStock } from "./divisionStockHelpers";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
 
 interface Props {
@@ -54,26 +55,42 @@ export function ExcelImportDialog({ open, onOpenChange, division, existing, onDo
     setSubmitting(true);
     let updated = 0, created = 0, failed = 0;
     for (const m of parsed) {
+      // division_stock lives on division_products only; pull it out of the patch
+      // and apply separately when there is a product to scope it to.
+      const { division_stock: importedStock, ...orderRequestPatch } = m.parsed.patch as { division_stock?: number | null } & Record<string, unknown>;
+
       if (m.match) {
         const { error } = await supabase
           .from("order_requests")
-          .update(m.parsed.patch)
+          .update(orderRequestPatch)
           .eq("id", m.match.id);
         if (error) failed++; else updated++;
-      } else if (createMissing && m.parsed.patch.product_name) {
-        const { error } = await supabase.from("order_requests").insert({
+        if (!error && importedStock !== undefined && m.match.product_id) {
+          await updateDivisionStock(division, m.match.product_id, importedStock ?? null);
+        }
+      } else if (createMissing && (m.parsed.patch.product_name || m.parsed.matchKey)) {
+        const productName = (m.parsed.patch.product_name as string | undefined) ?? m.parsed.matchKey ?? "—";
+        const insertPayload: Record<string, unknown> = {
           division,
-          product_name: m.parsed.patch.product_name,
-          product_sku: m.parsed.patch.product_sku ?? null,
-          supplier: m.parsed.patch.supplier ?? null,
+          product_name: productName,
+          product_sku: (m.parsed.patch.product_sku as string | null | undefined) ?? null,
+          supplier: (m.parsed.patch.supplier as string | null | undefined) ?? null,
           status: "pending",
-          urgency: m.parsed.patch.urgency ?? "רגיל",
-          order_type: m.parsed.patch.order_type ?? "חודשית",
-          ...m.parsed.patch,
+          urgency: (m.parsed.patch.urgency as string | undefined) ?? "רגיל",
+          order_type: (m.parsed.patch.order_type as string | undefined) ?? "חודשית",
+          ...orderRequestPatch,
           created_by: currentUser?.id ?? null,
           created_by_name: currentUser?.name ?? null,
-        });
+        };
+        const { data: newRow, error } = await supabase
+          .from("order_requests")
+          .insert(insertPayload)
+          .select("id, product_id")
+          .single();
         if (error) failed++; else created++;
+        if (!error && importedStock !== undefined && newRow?.product_id) {
+          await updateDivisionStock(division, newRow.product_id, importedStock ?? null);
+        }
       }
     }
     setSubmitting(false);

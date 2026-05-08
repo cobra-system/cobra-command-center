@@ -139,7 +139,8 @@ export function registerDivisionTools(server: McpServer) {
       reason: z.string().optional(),
       // Excel planning columns
       main_warehouse_stock: z.number().optional().describe("מלאי תקין מחסן 1"),
-      division_stock: z.number().optional().describe("כמות מלאי תקין בפועל בחטיבה"),
+      // division_stock is NOT a column on order_requests — it lives on division_products.
+      // Use upsert_division_product to set the live stock per (division, product_id).
       quarterly_forecast: z.number().optional().describe("צפי רבעון"),
       utilization_pct: z.number().optional().describe("% מימוש (fraction 0–1 or whole percent)"),
       incoming_orders: z.number().optional().describe('עול"ב'),
@@ -168,7 +169,7 @@ export function registerDivisionTools(server: McpServer) {
           current_consumption: args.current_consumption ?? null,
           reason: args.reason ?? null,
           main_warehouse_stock: args.main_warehouse_stock ?? null,
-          division_stock: args.division_stock ?? null,
+          // division_stock removed: lives on division_products (use upsert_division_product)
           quarterly_forecast: args.quarterly_forecast ?? null,
           utilization_pct: args.utilization_pct ?? null,
           incoming_orders: args.incoming_orders ?? null,
@@ -207,7 +208,7 @@ export function registerDivisionTools(server: McpServer) {
       reason: z.string().nullable().optional(),
       estimated_unit_price: z.number().nullable().optional(),
       main_warehouse_stock: z.number().nullable().optional(),
-      division_stock: z.number().nullable().optional(),
+      // division_stock removed: lives on division_products (use upsert_division_product)
       quarterly_forecast: z.number().nullable().optional(),
       utilization_pct: z.number().nullable().optional(),
       incoming_orders: z.number().nullable().optional(),

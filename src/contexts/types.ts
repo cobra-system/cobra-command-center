@@ -254,6 +254,9 @@ export interface OrderRequest {
 
   // Planning columns (bonded division Excel layout)
   main_warehouse_stock?: number | null;
+  // Live division stock is now sourced from division_products.division_stock and
+  // hydrated client-side at fetch time. Reads work as before; writes go through
+  // division_products to avoid the dual-source-of-truth problem.
   division_stock?: number | null;
   quarterly_forecast?: number | null;
   utilization_pct?: number | null;

@@ -35,6 +35,7 @@ import {
   fmtNum, fmtPct, fmtMoney, urgencyClass, statusClass, STATUS_LABELS,
   utilizationColor, isOverdue, ageBadge, freeTextMatch, daysSince, suggestUrgency,
 } from "./orderRequestUtils";
+import { fetchDivisionStockMap, hydrateDivisionStock } from "./divisionStockHelpers";
 
 const COLUMN_DEFS: ColDef[] = [
   { id: "division", label: "חטיבה", sortField: "division" },
@@ -125,22 +126,30 @@ export function OrderRequestsTab() {
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("order_requests")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) { toast.error("שגיאה בטעינת בקשות"); }
-    else { setRequests((data ?? []) as OrderRequest[]); }
+    // Order requests + live division stock from division_products (single source of truth)
+    const [reqRes, stockMap] = await Promise.all([
+      supabase.from("order_requests").select("*").order("created_at", { ascending: false }),
+      fetchDivisionStockMap(),
+    ]);
+    if (reqRes.error) {
+      toast.error("שגיאה בטעינת בקשות");
+    } else {
+      const hydrated = hydrateDivisionStock((reqRes.data ?? []) as OrderRequest[], stockMap);
+      setRequests(hydrated);
+    }
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
-  // Realtime: refresh when any order request changes (other users edit)
+  // Realtime: refresh when any order request OR division_products row changes
   useEffect(() => {
     const ch = supabase
       .channel("order-requests-tab")
       .on("postgres_changes", { event: "*", schema: "public", table: "order_requests" }, () => {
+        void fetchRequests();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "division_products" }, () => {
         void fetchRequests();
       })
       .subscribe();

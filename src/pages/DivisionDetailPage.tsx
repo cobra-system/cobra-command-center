@@ -66,6 +66,7 @@ import { RejectRequestDialog } from "@/components/orders/RejectRequestDialog";
 import { ExcelImportDialog } from "@/components/orders/ExcelImportDialog";
 import { SnapshotsDialog } from "@/components/orders/SnapshotsDialog";
 import { downloadCsv } from "@/components/orders/orderRequestExcel";
+import { fetchDivisionStockMap, hydrateDivisionStock, updateDivisionStock } from "@/components/orders/divisionStockHelpers";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { InlineEditCell } from "@/components/orders/InlineEditCell";
 import { InlineSelectCell } from "@/components/orders/InlineSelectCell";
@@ -449,18 +450,21 @@ export default function DivisionDetailPage() {
       .select("id, product_id, division_stock, division_stock_updated_at, quarterly_demand, quarterly_demand_updated_at, notes, products(id, name, sku, category)")
       .eq("division", division);
 
-    const orRes = await supabase
-      .from("order_requests")
-      .select("*")
-      .eq("division", division)
-      .order("created_at", { ascending: false });
+    const [orRes, stockMap] = await Promise.all([
+      supabase
+        .from("order_requests")
+        .select("*")
+        .eq("division", division)
+        .order("created_at", { ascending: false }),
+      fetchDivisionStockMap(division),
+    ]);
 
     setInstallers(divInstallers);
     setPickups(pickRes.error ? [] : (pickRes.data ?? []) as PickupRaw[]);
     setReturns(retRes.error ? [] : (retRes.data ?? []) as ReturnRaw[]);
     setContacts(contactRes.error ? [] : (contactRes.data ?? []) as DivisionContact[]);
     setDivisionProducts(dpRes.error ? [] : (dpRes.data ?? []) as unknown as DivisionProduct[]);
-    setOrderRequests(orRes.error ? [] : (orRes.data ?? []) as OrderRequest[]);
+    setOrderRequests(orRes.error ? [] : hydrateDivisionStock((orRes.data ?? []) as OrderRequest[], stockMap));
 
     if (pickRes.error) toast.error("שגיאה בטעינת הצטיידויות");
     if (retRes.error) toast.error("שגיאה בטעינת החזרות");
@@ -472,12 +476,15 @@ export default function DivisionDetailPage() {
     fetchData();
   }, [fetchData]);
 
-  // Realtime: refresh planning rows when other users edit them
+  // Realtime: refresh planning rows when other users edit them OR when stock changes
   useEffect(() => {
     if (!isBonded) return;
     const ch = supabase
       .channel(`div-${division}-or`)
       .on("postgres_changes", { event: "*", schema: "public", table: "order_requests", filter: `division=eq.${division}` }, () => {
+        void fetchData();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "division_products", filter: `division=eq.${division}` }, () => {
         void fetchData();
       })
       .subscribe();
@@ -2161,7 +2168,13 @@ export default function DivisionDetailPage() {
                                     type="number"
                                     disabled={!editable}
                                     display={v => fmtNumOR(v as number | null)}
-                                    onCommit={(v) => patchRequest(req.id, { division_stock: v })}
+                                    onCommit={async (v) => {
+                                      if (!req.product_id) { toast.error("לא ניתן לעדכן מלאי לשורת תכנון ללא מוצר משוייך"); return; }
+                                      const r = await updateDivisionStock(division, req.product_id, typeof v === "number" ? v : null);
+                                      if (!r.ok) { toast.error(r.error ?? "שגיאה בעדכון"); return; }
+                                      // Optimistic local update; realtime will reconcile
+                                      setOrderRequests(prev => prev.map(rr => rr.id === req.id ? ({ ...rr, division_stock: typeof v === "number" ? v : null } as OrderRequest) : rr));
+                                    }}
                                   />
                                 </TableCell>
                               )}

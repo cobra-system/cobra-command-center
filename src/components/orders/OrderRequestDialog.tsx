@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AppContext";
 import type { Product, OrderRequest } from "@/contexts/types";
 import type { OrderRequestUrgency, OrderRequestType } from "@/contexts/types";
 import { URGENCY_OPTIONS, ORDER_TYPE_OPTIONS } from "./orderRequestUtils";
+import { updateDivisionStock } from "./divisionStockHelpers";
 
 interface Props {
   open: boolean;
@@ -165,7 +166,7 @@ export function OrderRequestDialog({
       reason: reason.trim() || null,
       estimated_unit_price: numOrNull(estimatedUnitPrice),
       main_warehouse_stock: numOrNull(mainWarehouseStock),
-      division_stock: numOrNull(divisionStock),
+      // division_stock lives on division_products only; we write it separately below
       quarterly_forecast: numOrNull(quarterlyForecast),
       required_to_order: numOrNull(requiredToOrder),
       order_execution_date: orderExecutionDate || null,
@@ -192,6 +193,19 @@ export function OrderRequestDialog({
       toast.error(isEdit ? "שגיאה בעדכון הבקשה" : "שגיאה ביצירת הבקשה");
       return;
     }
+
+    // If a product is selected and the user touched the stock field, write the
+    // value to the canonical place (division_products). Skipping silently when
+    // no product is selected — the planning row exists but isn't tied to a product.
+    const stockNum = numOrNull(divisionStock);
+    if (productId && stockNum !== null) {
+      const stockResult = await updateDivisionStock(division, productId, stockNum);
+      if (!stockResult.ok) {
+        // Don't fail the whole save — the request was saved
+        toast.error("הבקשה נשמרה, אך עדכון המלאי נכשל: " + (stockResult.error ?? ""));
+      }
+    }
+
     toast.success(isEdit ? "הבקשה עודכנה" : "הבקשה נשלחה בהצלחה");
     onOpenChange(false);
     onCreated();
