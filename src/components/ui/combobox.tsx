@@ -8,6 +8,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 export interface ComboboxOption {
   value: string;
   label: string;
+  /** Optional extra search terms (e.g. SKU, code) so users can filter by them too */
+  keywords?: string[];
+  /** Optional secondary text shown beside the label (e.g. SKU) */
+  hint?: string;
 }
 
 interface ComboboxProps {
@@ -96,6 +100,7 @@ export function Combobox({
                 <CommandItem
                   key={option.value}
                   value={option.label}
+                  keywords={option.keywords}
                   onSelect={() => {
                     onValueChange(option.value);
                     setSearch("");
@@ -108,7 +113,10 @@ export function Combobox({
                       value === option.value ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  {option.label}
+                  <span className="flex-1 truncate">{option.label}</span>
+                  {option.hint && (
+                    <span className="ms-2 text-xs text-muted-foreground" dir="ltr">{option.hint}</span>
+                  )}
                 </CommandItem>
               ))}
             </CommandGroup>

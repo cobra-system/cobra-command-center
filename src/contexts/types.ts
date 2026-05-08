@@ -229,10 +229,11 @@ export interface OrderRequest {
   division: string;
   product_id?: string | null;
   product_name: string;
+  product_sku?: string | null;
   supplier?: string | null;
   current_consumption?: string | null;
   reason?: string | null;
-  quantity: number;
+  quantity?: number | null;
   urgency: OrderRequestUrgency;
   order_type: OrderRequestType;
   status: OrderRequestStatus;
@@ -242,6 +243,22 @@ export interface OrderRequest {
   ordered_by_name?: string | null;
   created_at: string;
   created_by?: string | null;
+
+  // Planning columns (bonded division Excel layout)
+  main_warehouse_stock?: number | null;
+  division_stock?: number | null;
+  quarterly_forecast?: number | null;
+  utilization_pct?: number | null;
+  incoming_orders?: number | null;
+  smoothed_required?: number | null;
+  required_to_order?: number | null;
+  incoming_arrival_date?: string | null;
+  order_execution_date?: string | null;
+  payment_status?: string | null;
+  actual_ordered_qty?: number | null;
+  shipping_type?: string | null;
+  estimated_arrival_date?: string | null;
+  notes?: string | null;
 }
 
 export interface AuthState {

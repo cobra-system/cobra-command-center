@@ -173,17 +173,27 @@ const DP_COLS: ColDef[] = [
   { id: "last_pickup", label: "שינוי אחרון", sortField: "last_pickup" },
 ];
 
+// Bonded division order-requests table — mirrors the planning Excel
+// (תיאור פריט · ספק · מק"ט · ... · הערות) used by פריזבי קרסו et al.
 const OR_COLS: ColDef[] = [
-  { id: "product", label: "מוצר" },
-  { id: "supplier", label: "ספק" },
-  { id: "quantity", label: "כמות", sortField: "quantity" },
-  { id: "urgency", label: "דחיפות", sortField: "urgency" },
-  { id: "order_type", label: "סוג הזמנה" },
-  { id: "consumption", label: "צריכה נוכחית" },
-  { id: "reason", label: "סיבה" },
-  { id: "created_at", label: "תאריך בקשה", sortField: "created_at" },
-  { id: "status", label: "סטטוס" },
-  { id: "ordered_at", label: "תאריך הזמנה", sortField: "ordered_at" },
+  { id: "product", label: "תיאור פריט", sortField: "product_name" },
+  { id: "supplier", label: "ספק", sortField: "supplier" },
+  { id: "sku", label: 'מק"ט', sortField: "product_sku" },
+  { id: "main_warehouse_stock", label: "מלאי תקין מחסן 1", sortField: "main_warehouse_stock" },
+  { id: "division_stock", label: "כמות מלאי תקין בפועל", sortField: "division_stock" },
+  { id: "quarterly_forecast", label: "צפי רבעון Q1 2026", sortField: "quarterly_forecast" },
+  { id: "utilization_pct", label: "% מימוש", sortField: "utilization_pct" },
+  { id: "incoming_orders", label: 'עול"ב', sortField: "incoming_orders" },
+  { id: "smoothed_required", label: "נדרש משוכלל (כולל מלאי ביטחון)", sortField: "smoothed_required" },
+  { id: "required_to_order", label: "נדרש להזמין", sortField: "required_to_order" },
+  { id: "incoming_arrival_date", label: 'תאריך הגעת עול"ב', sortField: "incoming_arrival_date" },
+  { id: "order_execution_date", label: "תאריך ביצוע הזמנה", sortField: "order_execution_date" },
+  { id: "payment_status", label: "סטאטוס תשלום" },
+  { id: "actual_ordered_qty", label: "כמות שהוזמנה בפועל", sortField: "actual_ordered_qty" },
+  { id: "shipping_type", label: "סוג משלוח" },
+  { id: "estimated_arrival_date", label: "תאריך הגעה משוער", sortField: "estimated_arrival_date" },
+  { id: "notes", label: "הערות" },
+  { id: "status", label: "סטטוס", sortField: "status" },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -192,6 +202,19 @@ function returnPctColor(pct: number) {
   if (pct <= 5) return "text-green-600";
   if (pct <= 15) return "text-yellow-600";
   return "text-red-600";
+}
+
+function fmtNum(v: number | null | undefined): string {
+  if (v === null || v === undefined || Number.isNaN(v)) return "—";
+  // round to at most 2 decimals, drop trailing zeros, group thousands
+  return Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function fmtPct(v: number | null | undefined): string {
+  if (v === null || v === undefined || Number.isNaN(v)) return "—";
+  // values come in as fractions (0.95) or whole numbers (95); treat ≤1 as fraction
+  const pct = Math.abs(v) <= 1 ? v * 100 : v;
+  return `${Math.round(pct)}%`;
 }
 
 function SortIcon({
@@ -275,7 +298,12 @@ export default function DivisionDetailPage() {
   const [showNewOrderRequest, setShowNewOrderRequest] = useState(false);
   const [orSortField, setOrSortField] = useState<string | null>("created_at");
   const [orSortDir, setOrSortDir] = useState<"asc" | "desc">("desc");
-  const orColVis = useColumnVisibility("order-requests:hidden-columns", OR_COLS, ["consumption", "reason", "ordered_at"]);
+  const orColVis = useColumnVisibility(
+    "order-requests:hidden-columns",
+    OR_COLS,
+    // Less-used planning columns hidden by default; users can show them via context menu.
+    ["payment_status", "actual_ordered_qty", "shipping_type", "estimated_arrival_date"]
+  );
   const { menu: orMenu, setMenu: setOrMenu, closeMenu: closeOrMenu } = useColMenu();
 
   // Contact form state
@@ -1774,6 +1802,10 @@ export default function DivisionDetailPage() {
                           if (!orSortField) return 0;
                           const av = (a as Record<string, unknown>)[orSortField] ?? "";
                           const bv = (b as Record<string, unknown>)[orSortField] ?? "";
+                          // numeric sort when both sides are numbers, otherwise string compare
+                          if (typeof av === "number" && typeof bv === "number") {
+                            return orSortDir === "asc" ? av - bv : bv - av;
+                          }
                           return orSortDir === "asc"
                             ? String(av).localeCompare(String(bv))
                             : String(bv).localeCompare(String(av));
@@ -1782,22 +1814,39 @@ export default function DivisionDetailPage() {
                           <TableRow key={req.id} className="text-sm">
                             {orColVis.isVisible("product") && <TableCell className="p-3 font-medium">{req.product_name}</TableCell>}
                             {orColVis.isVisible("supplier") && <TableCell className="p-3 text-muted-foreground">{req.supplier ?? "—"}</TableCell>}
-                            {orColVis.isVisible("quantity") && <TableCell className="p-3">{req.quantity}</TableCell>}
-                            {orColVis.isVisible("urgency") && (
-                              <TableCell className="p-3">
-                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
-                                  req.urgency === "דחוף" ? "bg-red-50 text-red-700 border-red-200" :
-                                  req.urgency === "רגיל" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                                  "bg-gray-50 text-gray-600 border-gray-200"
-                                }`}>{req.urgency}</span>
+                            {orColVis.isVisible("sku") && <TableCell className="p-3 text-muted-foreground" dir="ltr">{req.product_sku ?? "—"}</TableCell>}
+                            {orColVis.isVisible("main_warehouse_stock") && <TableCell className="p-3">{fmtNum(req.main_warehouse_stock)}</TableCell>}
+                            {orColVis.isVisible("division_stock") && <TableCell className="p-3">{fmtNum(req.division_stock)}</TableCell>}
+                            {orColVis.isVisible("quarterly_forecast") && <TableCell className="p-3">{fmtNum(req.quarterly_forecast)}</TableCell>}
+                            {orColVis.isVisible("utilization_pct") && <TableCell className="p-3">{fmtPct(req.utilization_pct)}</TableCell>}
+                            {orColVis.isVisible("incoming_orders") && <TableCell className="p-3">{fmtNum(req.incoming_orders)}</TableCell>}
+                            {orColVis.isVisible("smoothed_required") && <TableCell className="p-3">{fmtNum(req.smoothed_required)}</TableCell>}
+                            {orColVis.isVisible("required_to_order") && (
+                              <TableCell className="p-3 font-medium">
+                                {fmtNum(req.required_to_order ?? req.quantity ?? null)}
                               </TableCell>
                             )}
-                            {orColVis.isVisible("order_type") && <TableCell className="p-3 text-muted-foreground">{req.order_type}</TableCell>}
-                            {orColVis.isVisible("consumption") && <TableCell className="p-3 text-muted-foreground">{req.current_consumption ?? "—"}</TableCell>}
-                            {orColVis.isVisible("reason") && <TableCell className="p-3 text-muted-foreground max-w-[160px] truncate">{req.reason ?? "—"}</TableCell>}
-                            {orColVis.isVisible("created_at") && (
+                            {orColVis.isVisible("incoming_arrival_date") && (
                               <TableCell className="p-3 text-muted-foreground text-xs">
-                                {format(new Date(req.created_at), "dd/MM/yyyy")}
+                                {req.incoming_arrival_date ? format(new Date(req.incoming_arrival_date), "dd/MM/yyyy") : "—"}
+                              </TableCell>
+                            )}
+                            {orColVis.isVisible("order_execution_date") && (
+                              <TableCell className="p-3 text-muted-foreground text-xs">
+                                {req.order_execution_date ? format(new Date(req.order_execution_date), "dd/MM/yyyy") : "—"}
+                              </TableCell>
+                            )}
+                            {orColVis.isVisible("payment_status") && <TableCell className="p-3 text-muted-foreground">{req.payment_status ?? "—"}</TableCell>}
+                            {orColVis.isVisible("actual_ordered_qty") && <TableCell className="p-3">{fmtNum(req.actual_ordered_qty)}</TableCell>}
+                            {orColVis.isVisible("shipping_type") && <TableCell className="p-3 text-muted-foreground">{req.shipping_type ?? "—"}</TableCell>}
+                            {orColVis.isVisible("estimated_arrival_date") && (
+                              <TableCell className="p-3 text-muted-foreground text-xs">
+                                {req.estimated_arrival_date ? format(new Date(req.estimated_arrival_date), "dd/MM/yyyy") : "—"}
+                              </TableCell>
+                            )}
+                            {orColVis.isVisible("notes") && (
+                              <TableCell className="p-3 text-muted-foreground max-w-[200px] truncate" title={req.notes ?? req.reason ?? undefined}>
+                                {req.notes ?? req.reason ?? "—"}
                               </TableCell>
                             )}
                             {orColVis.isVisible("status") && (
@@ -1809,11 +1858,6 @@ export default function DivisionDetailPage() {
                                 }`}>
                                   {req.status === "ordered" ? "הוזמן" : "ממתינה"}
                                 </span>
-                              </TableCell>
-                            )}
-                            {orColVis.isVisible("ordered_at") && (
-                              <TableCell className="p-3 text-muted-foreground text-xs">
-                                {req.ordered_at ? format(new Date(req.ordered_at), "dd/MM/yyyy") : "—"}
                               </TableCell>
                             )}
                           </TableRow>
