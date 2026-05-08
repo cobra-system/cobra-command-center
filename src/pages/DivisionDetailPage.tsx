@@ -43,11 +43,32 @@ import {
   ArrowUp,
   ArrowDown,
   Building2,
+  Search,
+  ShoppingCart,
+  ExternalLink,
+  RotateCcw,
 } from "lucide-react";
 import { NewPickupDialog } from "@/components/equipment/NewPickupDialog";
 import { NewReturnDialog } from "@/components/equipment/NewReturnDialog";
 import { NewInstallerDialog } from "@/components/equipment/NewInstallerDialog";
 import { OrderRequestDialog } from "@/components/orders/OrderRequestDialog";
+import { OrderRequestsDashboard } from "@/components/orders/OrderRequestsDashboard";
+import { InlineEditCell } from "@/components/orders/InlineEditCell";
+import { InlineSelectCell } from "@/components/orders/InlineSelectCell";
+import {
+  fmtNum as fmtNumOR,
+  fmtPct as fmtPctOR,
+  fmtMoney as fmtMoneyOR,
+  utilizationColor,
+  urgencyClass,
+  statusClass,
+  STATUS_LABELS,
+  isOverdue,
+  ageBadge,
+  freeTextMatch,
+  URGENCY_OPTIONS,
+  ORDER_TYPE_OPTIONS,
+} from "@/components/orders/orderRequestUtils";
 import { Combobox } from "@/components/ui/combobox";
 import ProductFormDialog from "@/components/products/ProductFormDialog";
 import { DIVISION_COLORS, BONDED_DIVISIONS } from "@/components/equipment/constants";
@@ -193,6 +214,7 @@ const OR_COLS: ColDef[] = [
   { id: "shipping_type", label: "סוג משלוח" },
   { id: "estimated_arrival_date", label: "תאריך הגעה משוער", sortField: "estimated_arrival_date" },
   { id: "notes", label: "הערות" },
+  { id: "urgency", label: "דחיפות", sortField: "urgency" },
   { id: "status", label: "סטטוס", sortField: "status" },
 ];
 
@@ -296,13 +318,17 @@ export default function DivisionDetailPage() {
   // Order requests state
   const [orderRequests, setOrderRequests] = useState<OrderRequest[]>([]);
   const [showNewOrderRequest, setShowNewOrderRequest] = useState(false);
+  const [editingOrderRequest, setEditingOrderRequest] = useState<OrderRequest | null>(null);
   const [orSortField, setOrSortField] = useState<string | null>("created_at");
   const [orSortDir, setOrSortDir] = useState<"asc" | "desc">("desc");
+  const [orSearch, setOrSearch] = useState("");
+  const [orStatusFilter, setOrStatusFilter] = useState<"all" | "active" | "pending" | "ordered" | "rejected" | "cancelled">("active");
+  const [orUrgencyFilter, setOrUrgencyFilter] = useState<string>("all");
   const orColVis = useColumnVisibility(
     "order-requests:hidden-columns",
     OR_COLS,
     // Less-used planning columns hidden by default; users can show them via context menu.
-    ["payment_status", "actual_ordered_qty", "shipping_type", "estimated_arrival_date"]
+    ["payment_status", "actual_ordered_qty", "shipping_type", "estimated_arrival_date", "incoming_orders", "smoothed_required"]
   );
   const { menu: orMenu, setMenu: setOrMenu, closeMenu: closeOrMenu } = useColMenu();
 
@@ -768,6 +794,70 @@ export default function DivisionDetailPage() {
   // System-wide users (no division assignment) get column-visibility controls;
   // division managers see the default fixed view.
   const canCustomizeColumns = !currentUser?.division;
+  const isManagerRole = currentUser?.role === "MANAGER";
+  // Both system managers and the division manager for this division can edit/delete planning rows
+  const canManagePlanning = isManagerRole || currentUser?.division === division;
+
+  // Inline-edit helper: patch a single field on a request and refresh
+  async function patchRequest(id: string, patch: Record<string, unknown>) {
+    const { error } = await supabase.from("order_requests").update(patch).eq("id", id);
+    if (error) {
+      toast.error("שגיאה בעדכון");
+      return;
+    }
+    // Optimistically update local state to feel snappy
+    setOrderRequests(prev => prev.map(r => r.id === id ? ({ ...r, ...patch } as OrderRequest) : r));
+  }
+
+  async function deleteRequest(req: OrderRequest) {
+    if (!confirm(`למחוק את שורת התכנון "${req.product_name}"?`)) return;
+    const { error } = await supabase.from("order_requests").delete().eq("id", req.id);
+    if (error) { toast.error("שגיאה במחיקה"); return; }
+    toast.success("שורת התכנון נמחקה");
+    setOrderRequests(prev => prev.filter(r => r.id !== req.id));
+  }
+
+  async function sendToProcurement(req: OrderRequest) {
+    // For a planning row that the division has finished filling in:
+    // mark it as "ready for procurement" by setting urgency=דחוף if stock is critical
+    // and ensuring a non-null quantity is set from required_to_order.
+    const targetQty = req.required_to_order ?? req.quantity;
+    if (!targetQty || targetQty <= 0) {
+      toast.error("יש להזין 'נדרש להזמין' לפני שליחה לרכש");
+      return;
+    }
+    const patch: Record<string, unknown> = { quantity: targetQty };
+    if (req.urgency === "נמוך") patch.urgency = "רגיל";
+    await patchRequest(req.id, patch);
+    toast.success("הבקשה מוכנה לטיפול הרכש");
+  }
+
+  async function revertRequest(req: OrderRequest) {
+    const { error } = await supabase
+      .from("order_requests")
+      .update({
+        status: "pending",
+        order_id: null,
+        ordered_at: null,
+        ordered_by: null,
+        ordered_by_name: null,
+        reject_reason: null,
+        reviewed_at: null,
+        reviewed_by: null,
+        reviewed_by_name: null,
+      })
+      .eq("id", req.id);
+    if (error) { toast.error("שגיאה"); return; }
+    toast.success("הבקשה הוחזרה ל-ממתין");
+    setOrderRequests(prev => prev.map(r => r.id === req.id ? ({ ...r, status: "pending", order_id: null } as OrderRequest) : r));
+  }
+
+  function navigateToProductOR(productId?: string | null) {
+    if (productId) navigate(`/products/${productId}`);
+  }
+  function navigateToOrderOR(orderId?: string | null) {
+    if (orderId) navigate(`/orders?focus=${orderId}`);
+  }
 
   if (loading) {
     return (
@@ -1758,115 +1848,386 @@ export default function DivisionDetailPage() {
       {/* ── Section: Order Requests (bonded only) ── */}
       {isBonded && (
         <div className="space-y-3 mt-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">בקשות הזמנה</h2>
-            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowNewOrderRequest(true)}>
-              <Plus className="h-3 w-3 me-1" />
-              בקשה חדשה
-            </Button>
+            {canManagePlanning && (
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowNewOrderRequest(true)}>
+                <Plus className="h-3 w-3 me-1" />
+                בקשה חדשה
+              </Button>
+            )}
           </div>
+
+          {/* KPI dashboard for the division */}
+          <OrderRequestsDashboard requests={orderRequests} scope="division" divisionLabel={division} />
+
+          {/* Search + filters */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="relative">
+              <Search className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={orSearch}
+                onChange={e => setOrSearch(e.target.value)}
+                placeholder="חיפוש מוצר / מק״ט / ספק / הערות..."
+                className="h-9 text-sm pr-8"
+              />
+              {orSearch && (
+                <button
+                  onClick={() => setOrSearch("")}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="נקה חיפוש"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            <Select value={orStatusFilter} onValueChange={v => setOrStatusFilter(v as typeof orStatusFilter)}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">פעילות (ברירת מחדל)</SelectItem>
+                <SelectItem value="pending">ממתינות</SelectItem>
+                <SelectItem value="ordered">הוזמנו</SelectItem>
+                <SelectItem value="rejected">נדחו</SelectItem>
+                <SelectItem value="cancelled">בוטלו</SelectItem>
+                <SelectItem value="all">הכל</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={orUrgencyFilter} onValueChange={setOrUrgencyFilter}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="דחיפות" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">כל הדחיפויות</SelectItem>
+                <SelectItem value="דחוף">דחוף</SelectItem>
+                <SelectItem value="רגיל">רגיל</SelectItem>
+                <SelectItem value="נמוך">נמוך</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <Card>
             <CardContent className="p-0">
-              {orderRequests.length === 0 ? (
-                <div className="p-6 text-center text-sm text-muted-foreground">אין בקשות הזמנה</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow
-                        className="border-b bg-muted/50"
-                        onContextMenu={canCustomizeColumns ? trContextMenu(orColVis.hiddenCols, setOrMenu) : undefined}
-                      >
-                        {OR_COLS.map(col => orColVis.isVisible(col.id) ? (
-                          <TableHead
-                            key={col.id}
-                            className="text-right p-3 font-semibold text-foreground text-xs"
-                            onContextMenu={canCustomizeColumns ? colThContextMenu(col, setOrMenu) : undefined}
-                          >
-                            {col.sortField ? (
-                              <button
-                                onClick={() => { if (orSortField === col.sortField) setOrSortDir(d => d === "asc" ? "desc" : "asc"); else { setOrSortField(col.sortField!); setOrSortDir("desc"); } }}
-                                className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors"
-                              >
-                                {col.label}
-                                <SortIcon field={col.sortField} currentField={orSortField} currentDir={orSortDir} />
-                              </button>
-                            ) : col.label}
-                          </TableHead>
-                        ) : null)}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {[...orderRequests]
-                        .sort((a, b) => {
-                          if (!orSortField) return 0;
-                          const av = (a as Record<string, unknown>)[orSortField] ?? "";
-                          const bv = (b as Record<string, unknown>)[orSortField] ?? "";
-                          // numeric sort when both sides are numbers, otherwise string compare
-                          if (typeof av === "number" && typeof bv === "number") {
-                            return orSortDir === "asc" ? av - bv : bv - av;
-                          }
-                          return orSortDir === "asc"
-                            ? String(av).localeCompare(String(bv))
-                            : String(bv).localeCompare(String(av));
-                        })
-                        .map(req => (
-                          <TableRow key={req.id} className="text-sm">
-                            {orColVis.isVisible("product") && <TableCell className="p-3 font-medium">{req.product_name}</TableCell>}
-                            {orColVis.isVisible("supplier") && <TableCell className="p-3 text-muted-foreground">{req.supplier ?? "—"}</TableCell>}
-                            {orColVis.isVisible("sku") && <TableCell className="p-3 text-muted-foreground" dir="ltr">{req.product_sku ?? "—"}</TableCell>}
-                            {orColVis.isVisible("main_warehouse_stock") && <TableCell className="p-3">{fmtNum(req.main_warehouse_stock)}</TableCell>}
-                            {orColVis.isVisible("division_stock") && <TableCell className="p-3">{fmtNum(req.division_stock)}</TableCell>}
-                            {orColVis.isVisible("quarterly_forecast") && <TableCell className="p-3">{fmtNum(req.quarterly_forecast)}</TableCell>}
-                            {orColVis.isVisible("utilization_pct") && <TableCell className="p-3">{fmtPct(req.utilization_pct)}</TableCell>}
-                            {orColVis.isVisible("incoming_orders") && <TableCell className="p-3">{fmtNum(req.incoming_orders)}</TableCell>}
-                            {orColVis.isVisible("smoothed_required") && <TableCell className="p-3">{fmtNum(req.smoothed_required)}</TableCell>}
-                            {orColVis.isVisible("required_to_order") && (
-                              <TableCell className="p-3 font-medium">
-                                {fmtNum(req.required_to_order ?? req.quantity ?? null)}
-                              </TableCell>
-                            )}
-                            {orColVis.isVisible("incoming_arrival_date") && (
-                              <TableCell className="p-3 text-muted-foreground text-xs">
-                                {req.incoming_arrival_date ? format(new Date(req.incoming_arrival_date), "dd/MM/yyyy") : "—"}
-                              </TableCell>
-                            )}
-                            {orColVis.isVisible("order_execution_date") && (
-                              <TableCell className="p-3 text-muted-foreground text-xs">
-                                {req.order_execution_date ? format(new Date(req.order_execution_date), "dd/MM/yyyy") : "—"}
-                              </TableCell>
-                            )}
-                            {orColVis.isVisible("payment_status") && <TableCell className="p-3 text-muted-foreground">{req.payment_status ?? "—"}</TableCell>}
-                            {orColVis.isVisible("actual_ordered_qty") && <TableCell className="p-3">{fmtNum(req.actual_ordered_qty)}</TableCell>}
-                            {orColVis.isVisible("shipping_type") && <TableCell className="p-3 text-muted-foreground">{req.shipping_type ?? "—"}</TableCell>}
-                            {orColVis.isVisible("estimated_arrival_date") && (
-                              <TableCell className="p-3 text-muted-foreground text-xs">
-                                {req.estimated_arrival_date ? format(new Date(req.estimated_arrival_date), "dd/MM/yyyy") : "—"}
-                              </TableCell>
-                            )}
-                            {orColVis.isVisible("notes") && (
-                              <TableCell className="p-3 text-muted-foreground max-w-[200px] truncate" title={req.notes ?? req.reason ?? undefined}>
-                                {req.notes ?? req.reason ?? "—"}
-                              </TableCell>
-                            )}
-                            {orColVis.isVisible("status") && (
-                              <TableCell className="p-3">
-                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
-                                  req.status === "ordered"
-                                    ? "bg-green-50 text-green-700 border-green-200"
-                                    : "bg-amber-50 text-amber-700 border-amber-200"
-                                }`}>
-                                  {req.status === "ordered" ? "הוזמן" : "ממתינה"}
-                                </span>
-                              </TableCell>
-                            )}
-                          </TableRow>
-                        ))
-                      }
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
+              {(() => {
+                const filteredOR = [...orderRequests]
+                  .filter(r => {
+                    if (orStatusFilter === "all") return true;
+                    if (orStatusFilter === "active") return r.status === "pending" || r.status === "ordered";
+                    return r.status === orStatusFilter;
+                  })
+                  .filter(r => orUrgencyFilter === "all" || r.urgency === orUrgencyFilter)
+                  .filter(r => freeTextMatch(r, orSearch))
+                  .sort((a, b) => {
+                    if (!orSortField) return 0;
+                    const av = (a as Record<string, unknown>)[orSortField] ?? "";
+                    const bv = (b as Record<string, unknown>)[orSortField] ?? "";
+                    if (typeof av === "number" && typeof bv === "number") {
+                      return orSortDir === "asc" ? av - bv : bv - av;
+                    }
+                    return orSortDir === "asc"
+                      ? String(av).localeCompare(String(bv))
+                      : String(bv).localeCompare(String(av));
+                  });
+
+                if (filteredOR.length === 0) {
+                  return (
+                    <div className="p-6 text-center text-sm text-muted-foreground">
+                      {orderRequests.length === 0 ? "אין בקשות הזמנה" : "אין תוצאות תואמות לחיפוש"}
+                    </div>
+                  );
+                }
+
+                const totalRequired = filteredOR.reduce((s, r) => s + (r.required_to_order ?? r.quantity ?? 0), 0);
+                const totalEstValue = filteredOR.reduce((s, r) => s + ((r.required_to_order ?? r.quantity ?? 0) * (r.estimated_unit_price ?? 0)), 0);
+
+                return (
+                  <div className="overflow-x-auto max-h-[70vh]">
+                    <Table>
+                      <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
+                        <TableRow
+                          className="border-b"
+                          onContextMenu={canCustomizeColumns ? trContextMenu(orColVis.hiddenCols, setOrMenu) : undefined}
+                        >
+                          {OR_COLS.map(col => orColVis.isVisible(col.id) ? (
+                            <TableHead
+                              key={col.id}
+                              className={`text-right p-3 font-semibold text-foreground text-xs whitespace-nowrap ${
+                                col.id === "product" ? "sticky right-0 bg-muted/95 z-20" : ""
+                              }`}
+                              onContextMenu={canCustomizeColumns ? colThContextMenu(col, setOrMenu) : undefined}
+                            >
+                              {col.sortField ? (
+                                <button
+                                  onClick={() => { if (orSortField === col.sortField) setOrSortDir(d => d === "asc" ? "desc" : "asc"); else { setOrSortField(col.sortField!); setOrSortDir("desc"); } }}
+                                  className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors"
+                                >
+                                  {col.label}
+                                  <SortIcon field={col.sortField} currentField={orSortField} currentDir={orSortDir} />
+                                </button>
+                              ) : col.label}
+                            </TableHead>
+                          ) : null)}
+                          {canManagePlanning && <TableHead className="p-3 w-32" />}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredOR.map(req => {
+                          const overdueDate = isOverdue(req.order_execution_date) && req.status === "pending";
+                          const age = ageBadge(req);
+                          const orderQty = req.required_to_order ?? req.quantity ?? 0;
+                          const editable = canManagePlanning && (req.status === "pending" || isManagerRole);
+                          return (
+                            <TableRow key={req.id} className={`text-sm ${overdueDate ? "bg-red-50/40" : ""}`}>
+                              {orColVis.isVisible("product") && (
+                                <TableCell className="p-2 font-medium sticky right-0 bg-card z-[5]">
+                                  {req.product_id ? (
+                                    <button onClick={() => navigateToProductOR(req.product_id)} className="hover:underline text-right">
+                                      {req.product_name}
+                                    </button>
+                                  ) : req.product_name}
+                                </TableCell>
+                              )}
+                              {orColVis.isVisible("supplier") && (
+                                <TableCell className="p-2 text-muted-foreground">{req.supplier ?? "—"}</TableCell>
+                              )}
+                              {orColVis.isVisible("sku") && (
+                                <TableCell className="p-2 text-muted-foreground" dir="ltr">{req.product_sku ?? "—"}</TableCell>
+                              )}
+                              {orColVis.isVisible("main_warehouse_stock") && (
+                                <TableCell className="p-1">
+                                  <InlineEditCell
+                                    value={req.main_warehouse_stock}
+                                    type="number"
+                                    disabled={!editable}
+                                    display={v => fmtNumOR(v as number | null)}
+                                    onCommit={(v) => patchRequest(req.id, { main_warehouse_stock: v })}
+                                  />
+                                </TableCell>
+                              )}
+                              {orColVis.isVisible("division_stock") && (
+                                <TableCell className="p-1">
+                                  <InlineEditCell
+                                    value={req.division_stock}
+                                    type="number"
+                                    disabled={!editable}
+                                    display={v => fmtNumOR(v as number | null)}
+                                    onCommit={(v) => patchRequest(req.id, { division_stock: v })}
+                                  />
+                                </TableCell>
+                              )}
+                              {orColVis.isVisible("quarterly_forecast") && (
+                                <TableCell className="p-1">
+                                  <InlineEditCell
+                                    value={req.quarterly_forecast}
+                                    type="number"
+                                    disabled={!editable}
+                                    display={v => fmtNumOR(v as number | null)}
+                                    onCommit={(v) => patchRequest(req.id, { quarterly_forecast: v })}
+                                  />
+                                </TableCell>
+                              )}
+                              {orColVis.isVisible("utilization_pct") && (
+                                <TableCell className={`p-1 ${utilizationColor(req.utilization_pct)}`}>
+                                  <InlineEditCell
+                                    value={req.utilization_pct}
+                                    type="number"
+                                    disabled={!editable}
+                                    display={v => fmtPctOR(v as number | null)}
+                                    onCommit={(v) => patchRequest(req.id, { utilization_pct: v })}
+                                  />
+                                </TableCell>
+                              )}
+                              {orColVis.isVisible("incoming_orders") && (
+                                <TableCell className="p-1">
+                                  <InlineEditCell
+                                    value={req.incoming_orders}
+                                    type="number"
+                                    disabled={!editable}
+                                    display={v => fmtNumOR(v as number | null)}
+                                    onCommit={(v) => patchRequest(req.id, { incoming_orders: v })}
+                                  />
+                                </TableCell>
+                              )}
+                              {orColVis.isVisible("smoothed_required") && (
+                                <TableCell className="p-1">
+                                  <InlineEditCell
+                                    value={req.smoothed_required}
+                                    type="number"
+                                    disabled={!editable}
+                                    display={v => fmtNumOR(v as number | null)}
+                                    onCommit={(v) => patchRequest(req.id, { smoothed_required: v })}
+                                  />
+                                </TableCell>
+                              )}
+                              {orColVis.isVisible("required_to_order") && (
+                                <TableCell className="p-1 font-medium">
+                                  <InlineEditCell
+                                    value={req.required_to_order ?? req.quantity ?? null}
+                                    type="number"
+                                    disabled={!editable}
+                                    display={v => (
+                                      <span className={(v as number) > 0 ? "text-foreground font-semibold" : "text-muted-foreground"}>
+                                        {fmtNumOR(v as number | null)}
+                                      </span>
+                                    )}
+                                    onCommit={(v) => patchRequest(req.id, { required_to_order: v, quantity: v })}
+                                  />
+                                </TableCell>
+                              )}
+                              {orColVis.isVisible("incoming_arrival_date") && (
+                                <TableCell className="p-1 text-xs">
+                                  <InlineEditCell
+                                    value={req.incoming_arrival_date}
+                                    type="date"
+                                    disabled={!editable}
+                                    display={v => v ? format(new Date(String(v)), "dd/MM/yyyy") : "—"}
+                                    onCommit={(v) => patchRequest(req.id, { incoming_arrival_date: v })}
+                                  />
+                                </TableCell>
+                              )}
+                              {orColVis.isVisible("order_execution_date") && (
+                                <TableCell className={`p-1 text-xs ${overdueDate ? "text-red-600 font-semibold" : ""}`}>
+                                  <InlineEditCell
+                                    value={req.order_execution_date}
+                                    type="date"
+                                    disabled={!editable}
+                                    display={v => v ? format(new Date(String(v)), "dd/MM/yyyy") : "—"}
+                                    onCommit={(v) => patchRequest(req.id, { order_execution_date: v })}
+                                  />
+                                </TableCell>
+                              )}
+                              {orColVis.isVisible("payment_status") && (
+                                <TableCell className="p-1 text-muted-foreground">
+                                  <InlineEditCell
+                                    value={req.payment_status}
+                                    disabled={!editable}
+                                    onCommit={(v) => patchRequest(req.id, { payment_status: v })}
+                                  />
+                                </TableCell>
+                              )}
+                              {orColVis.isVisible("actual_ordered_qty") && (
+                                <TableCell className="p-1">
+                                  <InlineEditCell
+                                    value={req.actual_ordered_qty}
+                                    type="number"
+                                    disabled={!isManagerRole}
+                                    display={v => fmtNumOR(v as number | null)}
+                                    onCommit={(v) => patchRequest(req.id, { actual_ordered_qty: v })}
+                                  />
+                                </TableCell>
+                              )}
+                              {orColVis.isVisible("shipping_type") && (
+                                <TableCell className="p-1 text-muted-foreground">
+                                  <InlineEditCell
+                                    value={req.shipping_type}
+                                    disabled={!editable}
+                                    onCommit={(v) => patchRequest(req.id, { shipping_type: v })}
+                                  />
+                                </TableCell>
+                              )}
+                              {orColVis.isVisible("estimated_arrival_date") && (
+                                <TableCell className="p-1 text-xs">
+                                  <InlineEditCell
+                                    value={req.estimated_arrival_date}
+                                    type="date"
+                                    disabled={!editable}
+                                    display={v => v ? format(new Date(String(v)), "dd/MM/yyyy") : "—"}
+                                    onCommit={(v) => patchRequest(req.id, { estimated_arrival_date: v })}
+                                  />
+                                </TableCell>
+                              )}
+                              {orColVis.isVisible("notes") && (
+                                <TableCell className="p-1 text-muted-foreground max-w-[200px]">
+                                  <InlineEditCell
+                                    value={req.notes}
+                                    disabled={!editable}
+                                    display={v => (
+                                      <span className="block truncate text-right" title={String(v ?? "")}>
+                                        {v ?? "—"}
+                                      </span>
+                                    )}
+                                    onCommit={(v) => patchRequest(req.id, { notes: v })}
+                                  />
+                                </TableCell>
+                              )}
+                              {orColVis.isVisible("urgency") && (
+                                <TableCell className="p-1">
+                                  <InlineSelectCell
+                                    value={req.urgency}
+                                    disabled={!editable}
+                                    options={URGENCY_OPTIONS.map(u => ({ value: u, label: u }))}
+                                    display={(v) => (
+                                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${urgencyClass(v as typeof URGENCY_OPTIONS[number])}`}>
+                                        {v ?? "—"}
+                                      </span>
+                                    )}
+                                    onCommit={(v) => patchRequest(req.id, { urgency: v })}
+                                  />
+                                </TableCell>
+                              )}
+                              {orColVis.isVisible("status") && (
+                                <TableCell className="p-2">
+                                  <div className="flex flex-col gap-1">
+                                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full border w-fit ${statusClass(req.status)}`}>
+                                      {STATUS_LABELS[req.status]}
+                                    </span>
+                                    {age && (
+                                      <span className={`text-[10px] font-medium px-1.5 py-0 rounded border w-fit ${age.cls}`}>
+                                        {age.text}
+                                      </span>
+                                    )}
+                                    {req.reject_reason && (
+                                      <span className="text-[10px] text-red-700" title={req.reject_reason}>
+                                        {req.reject_reason.length > 20 ? req.reject_reason.slice(0, 20) + "…" : req.reject_reason}
+                                      </span>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              )}
+                              {canManagePlanning && (
+                                <TableCell className="p-2">
+                                  <div className="flex gap-0.5 justify-end">
+                                    {req.status === "pending" && orderQty > 0 && (
+                                      <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600" onClick={() => sendToProcurement(req)} title="שלח לרכש">
+                                        <ShoppingCart className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                    {req.status === "pending" && (
+                                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingOrderRequest(req)} title="פתח לעריכה מלאה">
+                                        <Pencil className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                    {req.status === "ordered" && req.order_id && (
+                                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => navigateToOrderOR(req.order_id)} title="פתח הזמנה">
+                                        <ExternalLink className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                    {(req.status === "rejected" || req.status === "cancelled") && isManagerRole && (
+                                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => revertRequest(req)} title="החזר ל-ממתין">
+                                        <RotateCcw className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                    {(req.status === "pending" || isManagerRole) && (
+                                      <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={() => deleteRequest(req)} title="מחק">
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                    {/* Aggregations footer */}
+                    <div className="px-4 py-2 border-t bg-muted/30 text-xs text-muted-foreground flex flex-wrap gap-4">
+                      <span>מציג {filteredOR.length} מתוך {orderRequests.length}</span>
+                      <span>סה״כ נדרש להזמין: <span className="text-foreground font-semibold tabular-nums">{fmtNumOR(totalRequired)}</span> יח׳</span>
+                      {totalEstValue > 0 && (
+                        <span>ערך משוער: <span className="text-foreground font-semibold tabular-nums">{fmtMoneyOR(totalEstValue)}</span></span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </div>
@@ -1998,12 +2359,16 @@ export default function DivisionDetailPage() {
       )}
       {isBonded && (
         <OrderRequestDialog
-          open={showNewOrderRequest}
-          onOpenChange={setShowNewOrderRequest}
+          open={showNewOrderRequest || !!editingOrderRequest}
+          onOpenChange={(o) => {
+            if (!o) { setShowNewOrderRequest(false); setEditingOrderRequest(null); }
+            else setShowNewOrderRequest(true);
+          }}
           division={division}
           divisionProducts={divisionProducts}
           allProducts={products}
           onCreated={fetchData}
+          editingRequest={editingOrderRequest}
         />
       )}
     </div>

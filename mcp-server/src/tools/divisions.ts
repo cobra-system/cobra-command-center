@@ -102,12 +102,16 @@ export function registerDivisionTools(server: McpServer) {
     "בקשות הזמנה — List order requests from bonded division managers. Filter by division or status.",
     {
       division: z.string().optional().describe("Filter by division name"),
-      status: z.enum(["pending", "ordered"]).optional().describe("Filter by status: 'pending' | 'ordered'"),
+      status: z.enum(["pending", "ordered", "rejected", "cancelled"]).optional().describe("Filter by status"),
+      include_history: z.boolean().optional().describe("If true, include audit history per request"),
     },
-    async ({ division, status }) => {
+    async ({ division, status, include_history }) => {
       let query = supabase
         .from("order_requests")
-        .select("*")
+        .select(include_history
+          ? "*, order_request_history(*)"
+          : "*"
+        )
         .order("created_at", { ascending: false });
 
       if (division) query = query.eq("division", division);
@@ -180,6 +184,179 @@ export function registerDivisionTools(server: McpServer) {
         })
         .select()
         .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "update_order_request",
+    "עדכון בקשת הזמנה — Update any field on an order request / planning row. Pass only the fields you want to change.",
+    {
+      request_id: z.string().uuid().describe("Order request UUID"),
+      product_name: z.string().optional(),
+      product_sku: z.string().optional(),
+      product_id: z.string().uuid().nullable().optional(),
+      supplier: z.string().nullable().optional(),
+      supplier_id: z.string().uuid().nullable().optional(),
+      quantity: z.number().nonnegative().nullable().optional(),
+      urgency: z.enum(["דחוף", "רגיל", "נמוך"]).optional(),
+      order_type: z.enum(["מיידית", "חודשית", "רבעונית", "חצי שנתית"]).optional(),
+      current_consumption: z.string().nullable().optional(),
+      reason: z.string().nullable().optional(),
+      estimated_unit_price: z.number().nullable().optional(),
+      main_warehouse_stock: z.number().nullable().optional(),
+      division_stock: z.number().nullable().optional(),
+      quarterly_forecast: z.number().nullable().optional(),
+      utilization_pct: z.number().nullable().optional(),
+      incoming_orders: z.number().nullable().optional(),
+      smoothed_required: z.number().nullable().optional(),
+      required_to_order: z.number().nullable().optional(),
+      incoming_arrival_date: z.string().nullable().optional(),
+      order_execution_date: z.string().nullable().optional(),
+      payment_status: z.string().nullable().optional(),
+      actual_ordered_qty: z.number().nullable().optional(),
+      shipping_type: z.string().nullable().optional(),
+      estimated_arrival_date: z.string().nullable().optional(),
+      notes: z.string().nullable().optional(),
+    },
+    async ({ request_id, ...rest }) => {
+      const payload: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(rest)) if (v !== undefined) payload[k] = v;
+      if (Object.keys(payload).length === 0) {
+        return { content: [{ type: "text" as const, text: "No fields to update." }] };
+      }
+      const { data, error } = await supabase
+        .from("order_requests")
+        .update(payload)
+        .eq("id", request_id)
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "delete_order_request",
+    "מחיקת בקשת הזמנה — Delete a planning row / order request by id.",
+    {
+      request_id: z.string().uuid().describe("Order request UUID"),
+    },
+    async ({ request_id }) => {
+      const { error } = await supabase
+        .from("order_requests")
+        .delete()
+        .eq("id", request_id);
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify({ success: true, deleted_id: request_id }) }] };
+    }
+  );
+
+  server.tool(
+    "reject_order_request",
+    "דחיית בקשת הזמנה — Mark an order request as rejected with a reason.",
+    {
+      request_id: z.string().uuid().describe("Order request UUID"),
+      reject_reason: z.string().describe("Why this request is being declined"),
+      reviewed_by_name: z.string().optional().describe("Name of the reviewer"),
+    },
+    async ({ request_id, reject_reason, reviewed_by_name }) => {
+      const { data, error } = await supabase
+        .from("order_requests")
+        .update({
+          status: "rejected",
+          reject_reason,
+          reviewed_at: new Date().toISOString(),
+          reviewed_by_name: reviewed_by_name ?? null,
+        })
+        .eq("id", request_id)
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "revert_order_request",
+    "החזרת בקשת הזמנה ל-pending — Revert a fulfilled / rejected / cancelled request back to pending.",
+    {
+      request_id: z.string().uuid().describe("Order request UUID"),
+    },
+    async ({ request_id }) => {
+      const { data, error } = await supabase
+        .from("order_requests")
+        .update({
+          status: "pending",
+          order_id: null,
+          ordered_at: null,
+          ordered_by: null,
+          ordered_by_name: null,
+          reject_reason: null,
+          reviewed_at: null,
+          reviewed_by: null,
+          reviewed_by_name: null,
+          actual_ordered_qty: null,
+        })
+        .eq("id", request_id)
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "bulk_update_order_requests",
+    "עדכון בקשות מרובה — Update multiple order requests at once with the same fields. Useful for bulk planning updates.",
+    {
+      request_ids: z.array(z.string().uuid()).min(1).describe("Array of order request UUIDs"),
+      patch: z.object({
+        urgency: z.enum(["דחוף", "רגיל", "נמוך"]).optional(),
+        order_type: z.enum(["מיידית", "חודשית", "רבעונית", "חצי שנתית"]).optional(),
+        status: z.enum(["pending", "ordered", "rejected", "cancelled"]).optional(),
+        payment_status: z.string().nullable().optional(),
+        shipping_type: z.string().nullable().optional(),
+        order_execution_date: z.string().nullable().optional(),
+        estimated_arrival_date: z.string().nullable().optional(),
+        notes: z.string().nullable().optional(),
+      }).describe("Common fields to apply to every request"),
+    },
+    async ({ request_ids, patch }) => {
+      const payload: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(patch)) if (v !== undefined) payload[k] = v;
+      if (Object.keys(payload).length === 0) {
+        return { content: [{ type: "text" as const, text: "No fields to update." }] };
+      }
+      const { data, error } = await supabase
+        .from("order_requests")
+        .update(payload)
+        .in("id", request_ids)
+        .select("id, status, urgency, order_type, payment_status, notes");
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify({ updated: data?.length ?? 0, rows: data }, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "list_order_request_history",
+    "היסטוריית בקשת הזמנה — Audit trail for one order request.",
+    {
+      request_id: z.string().uuid().describe("Order request UUID"),
+    },
+    async ({ request_id }) => {
+      const { data, error } = await supabase
+        .from("order_request_history")
+        .select("*")
+        .eq("request_id", request_id)
+        .order("changed_at", { ascending: false });
 
       if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
       return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };

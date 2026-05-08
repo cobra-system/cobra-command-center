@@ -222,7 +222,7 @@ export interface RolePermissionRecord {
 
 export type OrderRequestUrgency = "דחוף" | "רגיל" | "נמוך";
 export type OrderRequestType = "מיידית" | "חודשית" | "רבעונית" | "חצי שנתית";
-export type OrderRequestStatus = "pending" | "ordered";
+export type OrderRequestStatus = "pending" | "ordered" | "rejected" | "cancelled";
 
 export interface OrderRequest {
   id: string;
@@ -231,6 +231,7 @@ export interface OrderRequest {
   product_name: string;
   product_sku?: string | null;
   supplier?: string | null;
+  supplier_id?: string | null;
   current_consumption?: string | null;
   reason?: string | null;
   quantity?: number | null;
@@ -241,8 +242,15 @@ export interface OrderRequest {
   ordered_at?: string | null;
   ordered_by?: string | null;
   ordered_by_name?: string | null;
+  reject_reason?: string | null;
+  reviewed_by?: string | null;
+  reviewed_by_name?: string | null;
+  reviewed_at?: string | null;
+  estimated_unit_price?: number | null;
   created_at: string;
   created_by?: string | null;
+  created_by_name?: string | null;
+  updated_at?: string | null;
 
   // Planning columns (bonded division Excel layout)
   main_warehouse_stock?: number | null;
@@ -259,6 +267,19 @@ export interface OrderRequest {
   shipping_type?: string | null;
   estimated_arrival_date?: string | null;
   notes?: string | null;
+}
+
+export interface OrderRequestHistory {
+  id: string;
+  request_id: string;
+  changed_at: string;
+  changed_by?: string | null;
+  changed_by_name?: string | null;
+  action: "created" | "updated" | "status_changed" | "fulfilled" | "rejected" | "cancelled" | "reverted";
+  field_name?: string | null;
+  old_value?: string | null;
+  new_value?: string | null;
+  note?: string | null;
 }
 
 export interface AuthState {

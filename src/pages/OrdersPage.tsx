@@ -81,6 +81,20 @@ export default function OrdersPage() {
     fetchPaymentStatuses();
   }, [orders]);
 
+  // Honour ?focus=<orderId> by setting the search filter to the order id
+  // (table search matches order id) so the user lands on that single row.
+  useEffect(() => {
+    const focus = searchParams.get("focus");
+    if (focus) {
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.delete("focus");
+        next.set("q", focus);
+        return next;
+      }, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   // Handle create-from-URL params (one-time, not persisted as filter state)
   useEffect(() => {
     const shouldCreate = searchParams.get("create") === "true" || searchParams.get("newOrder") === "true";
@@ -333,6 +347,8 @@ export default function OrdersPage() {
       <Tabs defaultValue={isDivMgr ? "order-requests" : "dashboard"} className="space-y-4">
         <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-1">
           <TabsList className="w-max min-w-full">
+            {/* Division managers see "בקשות הזמנה" first (their primary surface). */}
+            {isDivMgr && <TabsTrigger value="order-requests">בקשות הזמנה</TabsTrigger>}
             {!isDivMgr && <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>}
             <TabsTrigger value="table">טבלת הזמנות</TabsTrigger>
             {!isDivMgr && (
@@ -348,7 +364,7 @@ export default function OrdersPage() {
             {!isDivMgr && <TabsTrigger value="agenda">סדר יום רכש</TabsTrigger>}
             {!isDivMgr && <TabsTrigger value="meeting">ישיבת רכש</TabsTrigger>}
             {!isDivMgr && <TabsTrigger value="shipment-groups">קבוצות משלוח</TabsTrigger>}
-            <TabsTrigger value="order-requests">בקשות הזמנה</TabsTrigger>
+            {!isDivMgr && <TabsTrigger value="order-requests">בקשות הזמנה</TabsTrigger>}
           </TabsList>
         </div>
 

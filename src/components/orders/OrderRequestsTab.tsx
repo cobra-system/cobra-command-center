@@ -1,32 +1,54 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useData, useAuth } from "@/contexts/AppContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NewOrderDialog } from "@/components/orders/NewOrderDialog";
 import { OrderRequestDialog } from "@/components/orders/OrderRequestDialog";
+import { RejectRequestDialog } from "@/components/orders/RejectRequestDialog";
+import { OrderRequestsDashboard } from "@/components/orders/OrderRequestsDashboard";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
-import { ArrowUpDown, ArrowUp, ArrowDown, ShoppingCart, Plus, ClipboardList, Inbox } from "lucide-react";
+import {
+  ArrowUpDown, ArrowUp, ArrowDown, ShoppingCart, Plus, ClipboardList, Inbox,
+  Search, X, ExternalLink, Pencil, Trash2, RotateCcw, Ban,
+} from "lucide-react";
 import type { ColDef } from "@/hooks/useColumnVisibility";
 import type { OrderRequest } from "@/contexts/types";
 import { DIVISIONS, BONDED_DIVISIONS } from "@/components/equipment/constants";
 import { isDivisionManager } from "@/lib/permissions";
+import {
+  fmtNum, fmtPct, fmtMoney, urgencyClass, statusClass, STATUS_LABELS,
+  utilizationColor, isOverdue, ageBadge, freeTextMatch,
+} from "./orderRequestUtils";
 
 const COLUMN_DEFS: ColDef[] = [
   { id: "division", label: "חטיבה", sortField: "division" },
   { id: "product", label: "מוצר", sortField: "product_name" },
+  { id: "sku", label: "מק״ט", sortField: "product_sku" },
   { id: "supplier", label: "ספק", sortField: "supplier" },
   { id: "quantity", label: "כמות", sortField: "quantity" },
+  { id: "required_to_order", label: "נדרש להזמין", sortField: "required_to_order" },
+  { id: "main_warehouse_stock", label: "מלאי מחסן 1", sortField: "main_warehouse_stock" },
+  { id: "division_stock", label: "מלאי חטיבה", sortField: "division_stock" },
+  { id: "quarterly_forecast", label: "צפי רבעון", sortField: "quarterly_forecast" },
+  { id: "utilization_pct", label: "% מימוש", sortField: "utilization_pct" },
+  { id: "estimated_unit_price", label: "מחיר יח׳", sortField: "estimated_unit_price" },
+  { id: "estimated_value", label: "ערך משוער" },
   { id: "urgency", label: "דחיפות", sortField: "urgency" },
   { id: "order_type", label: "סוג הזמנה" },
-  { id: "consumption", label: "צריכה נוכחית" },
+  { id: "order_execution_date", label: "תאריך ביצוע", sortField: "order_execution_date" },
+  { id: "consumption", label: "צריכה" },
   { id: "reason", label: "סיבה" },
-  { id: "created_at", label: "תאריך בקשה", sortField: "created_at" },
+  { id: "created_by", label: "נשלחה ע״י" },
+  { id: "created_at", label: "נשלחה ב", sortField: "created_at" },
+  { id: "age", label: "ימי המתנה" },
   { id: "status", label: "סטטוס", sortField: "status" },
-  { id: "ordered_by", label: "הוזמן ע\"י" },
+  { id: "ordered_by", label: "טופלה ע״י" },
   { id: "ordered_at", label: "תאריך הזמנה", sortField: "ordered_at" },
 ];
 
@@ -36,29 +58,43 @@ function SortIcon({ field, currentField, currentDir }: { field: string; currentF
 }
 
 export function OrderRequestsTab() {
+  const navigate = useNavigate();
   const { addOrder, suppliers, products } = useData();
   const { currentUser } = useAuth();
 
   const [requests, setRequests] = useState<OrderRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "ordered">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "ordered" | "rejected" | "cancelled" | "active">("active");
   const [divisionFilter, setDivisionFilter] = useState<string>("all");
+  const [urgencyFilter, setUrgencyFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<string | null>("created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [fulfillingRequest, setFulfillingRequest] = useState<OrderRequest | null>(null);
+  const [editingRequest, setEditingRequest] = useState<OrderRequest | null>(null);
+  const [rejectingRequest, setRejectingRequest] = useState<OrderRequest | null>(null);
   const [showNewRequest, setShowNewRequest] = useState(false);
   const [divisionProductIds, setDivisionProductIds] = useState<string[]>([]);
 
   // Bonded division managers can submit requests for their own division.
   // Procurement managers fulfill requests but don't create them here.
   const userDivision = currentUser?.division ?? "";
-  const canCreateRequest =
-    isDivisionManager(currentUser) && BONDED_DIVISIONS.has(userDivision);
+  const isManager = currentUser?.role === "MANAGER";
+  const isDivMgr = isDivisionManager(currentUser);
+  const canCreateRequest = isDivMgr && BONDED_DIVISIONS.has(userDivision);
+  const canFulfill = isManager;
+  const canEditRow = (req: OrderRequest) =>
+    isManager || (isDivMgr && req.division === userDivision && req.status === "pending");
+  const canDeleteRow = canEditRow;
 
-  const { isVisible, hide, show, hiddenCols } = useColumnVisibility(
+  const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility(
     "manager-order-requests:hidden-columns",
     COLUMN_DEFS,
-    ["consumption", "reason", "ordered_by", "ordered_at"]
+    isManager
+      // Manager: hide low-value text fields by default; show planning numbers
+      ? ["consumption", "reason", "ordered_by", "sku", "estimated_unit_price", "main_warehouse_stock", "quarterly_forecast"]
+      // Division manager: hide division (their own), reviewer/ordered metadata
+      : ["division", "ordered_by", "ordered_at", "consumption", "reason"]
   );
   const { menu, setMenu, closeMenu } = useColMenu();
 
@@ -75,8 +111,6 @@ export function OrderRequestsTab() {
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
-  // Load this user's division products so the new-request dialog
-  // can offer the same product list as DivisionDetailPage does.
   useEffect(() => {
     if (!canCreateRequest) return;
     let cancelled = false;
@@ -115,6 +149,9 @@ export function OrderRequestsTab() {
         ordered_at: new Date().toISOString(),
         ordered_by: currentUser?.id ?? null,
         ordered_by_name: currentUser?.name ?? null,
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: currentUser?.id ?? null,
+        reviewed_by_name: currentUser?.name ?? null,
       })
       .eq("id", fulfillingRequest.id);
     if (error) { toast.error("שגיאה בעדכון הבקשה"); }
@@ -123,32 +160,95 @@ export function OrderRequestsTab() {
     await fetchRequests();
   }, [fulfillingRequest, currentUser, fetchRequests]);
 
-  const filtered = requests
-    .filter(r => statusFilter === "all" || r.status === statusFilter)
-    .filter(r => divisionFilter === "all" || r.division === divisionFilter)
-    .sort((a, b) => {
-      if (!sortField) return 0;
-      const av = (a as Record<string, unknown>)[sortField] ?? "";
-      const bv = (b as Record<string, unknown>)[sortField] ?? "";
-      return sortDir === "asc"
-        ? String(av).localeCompare(String(bv))
-        : String(bv).localeCompare(String(av));
-    });
+  const handleDelete = useCallback(async (req: OrderRequest) => {
+    if (!confirm(`למחוק את הבקשה "${req.product_name}"?`)) return;
+    const { error } = await supabase.from("order_requests").delete().eq("id", req.id);
+    if (error) { toast.error("שגיאה במחיקה"); return; }
+    toast.success("הבקשה נמחקה");
+    await fetchRequests();
+  }, [fetchRequests]);
+
+  const handleRevert = useCallback(async (req: OrderRequest) => {
+    const { error } = await supabase
+      .from("order_requests")
+      .update({
+        status: "pending",
+        order_id: null,
+        ordered_at: null,
+        ordered_by: null,
+        ordered_by_name: null,
+        reject_reason: null,
+        reviewed_at: null,
+        reviewed_by: null,
+        reviewed_by_name: null,
+      })
+      .eq("id", req.id);
+    if (error) { toast.error("שגיאה בהחזרה"); return; }
+    toast.success("הבקשה הוחזרה לסטטוס ממתין");
+    await fetchRequests();
+  }, [fetchRequests]);
+
+  const navigateToProduct = (productId?: string | null) => {
+    if (productId) navigate(`/products/${productId}`);
+  };
+  const navigateToSupplierByName = (supplierName?: string | null) => {
+    if (!supplierName) return;
+    const s = suppliers.find(s => s.company === supplierName);
+    if (s) navigate(`/suppliers/${s.id}`);
+  };
+  const navigateToOrder = (orderId?: string | null) => {
+    if (orderId) navigate(`/orders?focus=${orderId}`);
+  };
+
+  // Build the visible/filtered list. Division managers' requests are already
+  // limited by RLS — but the division dropdown is hidden for them too, so the UI
+  // never asks about other divisions.
+  const filtered = useMemo(() => {
+    return requests
+      .filter(r => {
+        if (statusFilter === "all") return true;
+        if (statusFilter === "active") return r.status === "pending" || r.status === "ordered";
+        return r.status === statusFilter;
+      })
+      .filter(r => divisionFilter === "all" || r.division === divisionFilter)
+      .filter(r => urgencyFilter === "all" || r.urgency === urgencyFilter)
+      .filter(r => freeTextMatch(r, search))
+      .sort((a, b) => {
+        if (!sortField) return 0;
+        const av = (a as Record<string, unknown>)[sortField] ?? "";
+        const bv = (b as Record<string, unknown>)[sortField] ?? "";
+        if (typeof av === "number" && typeof bv === "number") return sortDir === "asc" ? av - bv : bv - av;
+        return sortDir === "asc"
+          ? String(av).localeCompare(String(bv))
+          : String(bv).localeCompare(String(av));
+      });
+  }, [requests, statusFilter, divisionFilter, urgencyFilter, search, sortField, sortDir]);
 
   const pendingCount = requests.filter(r => r.status === "pending").length;
+  const orderedCount = requests.filter(r => r.status === "ordered").length;
+  const rejectedCount = requests.filter(r => r.status === "rejected").length;
 
   const prefillProduct = fulfillingRequest?.product_id
     ? products.find(p => p.id === fulfillingRequest.product_id)
     : undefined;
   const prefillSupplier = prefillProduct?.supplier
     ? suppliers.find(s => s.company === prefillProduct.supplier)
-    : undefined;
+    : (fulfillingRequest?.supplier ? suppliers.find(s => s.company === fulfillingRequest.supplier) : undefined);
 
-  const orderedCount = requests.filter(r => r.status === "ordered").length;
+  const headerSubtitle = pendingCount > 0
+    ? <><span className="font-semibold text-amber-600">{pendingCount}</span> ממתינות · {orderedCount} הוזמנו{rejectedCount > 0 && <> · {rejectedCount} נדחו</>}</>
+    : <>אין בקשות ממתינות · {orderedCount} הוזמנו</>;
 
   return (
     <div className="space-y-4" dir="rtl">
-      {/* Header card */}
+      {/* KPI dashboard */}
+      <OrderRequestsDashboard
+        requests={isDivMgr ? requests.filter(r => r.division === userDivision) : requests}
+        scope={isManager ? "manager" : "division"}
+        divisionLabel={isDivMgr ? userDivision : undefined}
+      />
+
+      {/* Header card with search + filters */}
       <div className="bg-card rounded-xl border shadow-sm p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3 min-w-0">
@@ -156,12 +256,10 @@ export function OrderRequestsTab() {
               <ClipboardList className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-lg font-semibold text-foreground">בקשות הזמנה</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {pendingCount > 0
-                  ? <><span className="font-semibold text-amber-600">{pendingCount}</span> ממתינות לטיפול · {orderedCount} הוזמנו</>
-                  : <>אין בקשות ממתינות · {orderedCount} הוזמנו</>}
-              </p>
+              <h2 className="text-lg font-semibold text-foreground">
+                בקשות הזמנה{isDivMgr ? ` — ${userDivision}` : ""}
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">{headerSubtitle}</p>
             </div>
           </div>
           {canCreateRequest && (
@@ -172,28 +270,67 @@ export function OrderRequestsTab() {
         </div>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mt-4 pt-4 border-t">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-4 border-t">
+          <div className="space-y-1 md:col-span-2">
+            <label className="text-xs text-muted-foreground">חיפוש</label>
+            <div className="relative">
+              <Search className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="מוצר, מק״ט, ספק, הערות, מבקש..."
+                className="h-9 text-sm pr-8"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch("")}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="נקה חיפוש"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">סטטוס</label>
             <Select value={statusFilter} onValueChange={v => setStatusFilter(v as typeof statusFilter)}>
               <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">כל הבקשות ({requests.length})</SelectItem>
+                <SelectItem value="active">פעילות (ממתינות + הוזמנו)</SelectItem>
                 <SelectItem value="pending">ממתינות{pendingCount > 0 && ` (${pendingCount})`}</SelectItem>
                 <SelectItem value="ordered">הוזמנו{orderedCount > 0 && ` (${orderedCount})`}</SelectItem>
+                <SelectItem value="rejected">נדחו{rejectedCount > 0 && ` (${rejectedCount})`}</SelectItem>
+                <SelectItem value="cancelled">בוטלו</SelectItem>
+                <SelectItem value="all">הכל ({requests.length})</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">חטיבה</label>
-            <Select value={divisionFilter} onValueChange={setDivisionFilter}>
+            <label className="text-xs text-muted-foreground">דחיפות</label>
+            <Select value={urgencyFilter} onValueChange={setUrgencyFilter}>
               <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">כל החטיבות</SelectItem>
-                {DIVISIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                <SelectItem value="all">הכל</SelectItem>
+                <SelectItem value="דחוף">דחוף</SelectItem>
+                <SelectItem value="רגיל">רגיל</SelectItem>
+                <SelectItem value="נמוך">נמוך</SelectItem>
               </SelectContent>
             </Select>
           </div>
+          {/* Division dropdown only for procurement managers (cross-division view) */}
+          {!isDivMgr && (
+            <div className="space-y-1 md:col-span-2">
+              <label className="text-xs text-muted-foreground">חטיבה</label>
+              <Select value={divisionFilter} onValueChange={setDivisionFilter}>
+                <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">כל החטיבות</SelectItem>
+                  {DIVISIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       </div>
 
@@ -210,62 +347,93 @@ export function OrderRequestsTab() {
           </div>
           <p className="text-sm font-medium text-foreground">אין בקשות הזמנה</p>
           <p className="text-xs text-muted-foreground mt-1">
-            {statusFilter !== "all" || divisionFilter !== "all"
-              ? "נסה לשנות את הסינון או לבחור 'כל הבקשות'"
+            {search || statusFilter !== "active" || divisionFilter !== "all" || urgencyFilter !== "all"
+              ? "נסה לשנות את הסינון או החיפוש"
               : canCreateRequest
               ? "פתחו בקשה חדשה כדי להתחיל"
-              : "כשמנהלי חטיבה יפתחו בקשות, הן יופיעו כאן"}
+              : isManager
+              ? "כשמנהלי חטיבה יפתחו בקשות, הן יופיעו כאן"
+              : "טרם הוגשו בקשות עבור החטיבה שלך"}
           </p>
         </div>
       ) : (
         <>
           {/* Mobile: card list */}
           <div className="md:hidden space-y-2">
-            {filtered.map(req => (
-              <div key={req.id} className="bg-card rounded-xl border shadow-sm p-4">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-foreground text-sm">{req.product_name}</p>
-                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{req.division}</span>
-                      <span className="text-xs text-muted-foreground">·</span>
-                      <span className="text-xs text-muted-foreground">{req.quantity} יח׳</span>
-                      {req.supplier && <>
+            {filtered.map(req => {
+              const age = ageBadge(req);
+              const estValue = (req.required_to_order ?? req.quantity ?? 0) * (req.estimated_unit_price ?? 0);
+              return (
+                <div key={req.id} className="bg-card rounded-xl border shadow-sm p-4">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="min-w-0 flex-1">
+                      <button
+                        onClick={() => navigateToProduct(req.product_id)}
+                        disabled={!req.product_id}
+                        className={`font-semibold text-foreground text-sm text-right ${req.product_id ? "hover:underline" : ""}`}
+                      >
+                        {req.product_name}
+                      </button>
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        {!isDivMgr && <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{req.division}</span>}
                         <span className="text-xs text-muted-foreground">·</span>
-                        <span className="text-xs text-muted-foreground truncate">{req.supplier}</span>
-                      </>}
+                        <span className="text-xs text-muted-foreground">{fmtNum(req.required_to_order ?? req.quantity)} יח׳</span>
+                        {req.supplier && <>
+                          <span className="text-xs text-muted-foreground">·</span>
+                          <button
+                            onClick={() => navigateToSupplierByName(req.supplier)}
+                            className="text-xs text-muted-foreground truncate hover:underline"
+                          >
+                            {req.supplier}
+                          </button>
+                        </>}
+                      </div>
+                    </div>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap shrink-0 ${statusClass(req.status)}`}>
+                      {STATUS_LABELS[req.status]}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-3 flex-wrap">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${urgencyClass(req.urgency)}`}>{req.urgency}</span>
+                    {age && <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${age.cls}`}>{age.text}</span>}
+                    {estValue > 0 && <span className="text-xs text-muted-foreground tabular-nums">{fmtMoney(estValue)}</span>}
+                    <span className="text-xs text-muted-foreground">{format(new Date(req.created_at), "dd/MM/yyyy")}</span>
+                    <div className="flex gap-1 ms-auto">
+                      {canEditRow(req) && (
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditingRequest(req)} aria-label="ערוך">
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      )}
+                      {req.status === "pending" && canFulfill && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setFulfillingRequest(req)}>
+                          <ShoppingCart className="h-3 w-3" />הזמן
+                        </Button>
+                      )}
+                      {req.status === "pending" && canFulfill && (
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-600" onClick={() => setRejectingRequest(req)} aria-label="דחה">
+                          <Ban className="h-3 w-3" />
+                        </Button>
+                      )}
+                      {req.status === "ordered" && req.order_id && (
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => navigateToOrder(req.order_id)} aria-label="פתח הזמנה">
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                   </div>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap shrink-0 ${
-                    req.status === "ordered"
-                      ? "bg-green-50 text-green-700 border-green-200"
-                      : "bg-amber-50 text-amber-700 border-amber-200"
-                  }`}>
-                    {req.status === "ordered" ? "הוזמן" : "ממתינה"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-2 mt-3">
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
-                    req.urgency === "דחוף" ? "bg-red-50 text-red-700 border-red-200" :
-                    req.urgency === "רגיל" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                    "bg-gray-50 text-gray-600 border-gray-200"
-                  }`}>{req.urgency}</span>
-                  <span className="text-xs text-muted-foreground">{format(new Date(req.created_at), "dd/MM/yyyy")}</span>
-                  {req.status === "pending" && (
-                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1 ms-auto" onClick={() => setFulfillingRequest(req)}>
-                      <ShoppingCart className="h-3 w-3" />הזמן
-                    </Button>
+                  {req.reject_reason && (
+                    <div className="text-xs text-red-700 mt-2 border-t pt-2">סיבת דחייה: {req.reject_reason}</div>
                   )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Desktop: table */}
           <div className="hidden md:block bg-card rounded-xl border shadow-sm overflow-x-auto" dir="rtl">
             <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setMenu)}>
+              <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
+                <tr className="border-b" onContextMenu={trContextMenu(hiddenCols, setMenu)}>
                   {COLUMN_DEFS.map(col => isVisible(col.id) ? (
                     <th
                       key={col.id}
@@ -283,83 +451,179 @@ export function OrderRequestsTab() {
                       ) : col.label}
                     </th>
                   ) : null)}
-                  <th className="p-3 w-20" />
+                  <th className="p-3 w-32" />
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filtered.map(req => (
-                  <tr key={req.id} className="hover:bg-muted/30 transition-colors">
-                    {isVisible("division") && (
-                      <td className="p-3">
-                        <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">{req.division}</span>
-                      </td>
-                    )}
-                    {isVisible("product") && <td className="p-3 font-medium text-foreground">{req.product_name}</td>}
-                    {isVisible("supplier") && <td className="p-3 text-muted-foreground">{req.supplier ?? "—"}</td>}
-                    {isVisible("quantity") && <td className="p-3 tabular-nums">{req.quantity}</td>}
-                    {isVisible("urgency") && (
-                      <td className="p-3">
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
-                          req.urgency === "דחוף" ? "bg-red-50 text-red-700 border-red-200" :
-                          req.urgency === "רגיל" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                          "bg-gray-50 text-gray-600 border-gray-200"
-                        }`}>{req.urgency}</span>
-                      </td>
-                    )}
-                    {isVisible("order_type") && <td className="p-3 text-muted-foreground text-xs">{req.order_type}</td>}
-                    {isVisible("consumption") && <td className="p-3 text-muted-foreground tabular-nums">{req.current_consumption ?? "—"}</td>}
-                    {isVisible("reason") && <td className="p-3 text-muted-foreground max-w-[180px] truncate" title={req.reason ?? ""}>{req.reason ?? "—"}</td>}
-                    {isVisible("created_at") && (
-                      <td className="p-3 text-muted-foreground text-xs whitespace-nowrap">
-                        {format(new Date(req.created_at), "dd/MM/yyyy")}
-                      </td>
-                    )}
-                    {isVisible("status") && (
-                      <td className="p-3">
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
-                          req.status === "ordered"
-                            ? "bg-green-50 text-green-700 border-green-200"
-                            : "bg-amber-50 text-amber-700 border-amber-200"
-                        }`}>
-                          {req.status === "ordered" ? "הוזמן" : "ממתינה"}
-                        </span>
-                      </td>
-                    )}
-                    {isVisible("ordered_by") && <td className="p-3 text-muted-foreground text-xs">{req.ordered_by_name ?? "—"}</td>}
-                    {isVisible("ordered_at") && (
-                      <td className="p-3 text-muted-foreground text-xs whitespace-nowrap">
-                        {req.ordered_at ? format(new Date(req.ordered_at), "dd/MM/yyyy") : "—"}
-                      </td>
-                    )}
-                    <td className="p-3">
-                      {req.status === "pending" && (
-                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setFulfillingRequest(req)}>
-                          <ShoppingCart className="h-3 w-3" />הזמן
-                        </Button>
+                {filtered.map(req => {
+                  const age = ageBadge(req);
+                  const orderQty = req.required_to_order ?? req.quantity ?? 0;
+                  const estValue = orderQty * (req.estimated_unit_price ?? 0);
+                  const overdueDate = isOverdue(req.order_execution_date) && req.status === "pending";
+                  return (
+                    <tr key={req.id} className={`hover:bg-muted/30 transition-colors ${overdueDate ? "bg-red-50/40" : ""}`}>
+                      {isVisible("division") && (
+                        <td className="p-3">
+                          <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">{req.division}</span>
+                        </td>
                       )}
-                    </td>
-                  </tr>
-                ))}
+                      {isVisible("product") && (
+                        <td className="p-3 font-medium text-foreground">
+                          {req.product_id ? (
+                            <button onClick={() => navigateToProduct(req.product_id)} className="hover:underline text-right">
+                              {req.product_name}
+                            </button>
+                          ) : req.product_name}
+                        </td>
+                      )}
+                      {isVisible("sku") && <td className="p-3 text-muted-foreground text-xs" dir="ltr">{req.product_sku ?? "—"}</td>}
+                      {isVisible("supplier") && (
+                        <td className="p-3 text-muted-foreground">
+                          {req.supplier ? (
+                            <button onClick={() => navigateToSupplierByName(req.supplier)} className="hover:underline text-right">
+                              {req.supplier}
+                            </button>
+                          ) : "—"}
+                        </td>
+                      )}
+                      {isVisible("quantity") && <td className="p-3 tabular-nums">{fmtNum(req.quantity)}</td>}
+                      {isVisible("required_to_order") && (
+                        <td className="p-3 tabular-nums font-semibold">
+                          <span className={orderQty > 0 ? "text-foreground" : "text-muted-foreground"}>
+                            {fmtNum(req.required_to_order)}
+                          </span>
+                        </td>
+                      )}
+                      {isVisible("main_warehouse_stock") && <td className="p-3 tabular-nums">{fmtNum(req.main_warehouse_stock)}</td>}
+                      {isVisible("division_stock") && <td className="p-3 tabular-nums">{fmtNum(req.division_stock)}</td>}
+                      {isVisible("quarterly_forecast") && <td className="p-3 tabular-nums">{fmtNum(req.quarterly_forecast)}</td>}
+                      {isVisible("utilization_pct") && (
+                        <td className={`p-3 tabular-nums ${utilizationColor(req.utilization_pct)}`}>{fmtPct(req.utilization_pct)}</td>
+                      )}
+                      {isVisible("estimated_unit_price") && <td className="p-3 tabular-nums">{fmtMoney(req.estimated_unit_price)}</td>}
+                      {isVisible("estimated_value") && <td className="p-3 tabular-nums">{estValue > 0 ? fmtMoney(estValue) : "—"}</td>}
+                      {isVisible("urgency") && (
+                        <td className="p-3">
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${urgencyClass(req.urgency)}`}>{req.urgency}</span>
+                        </td>
+                      )}
+                      {isVisible("order_type") && <td className="p-3 text-muted-foreground text-xs">{req.order_type}</td>}
+                      {isVisible("order_execution_date") && (
+                        <td className={`p-3 text-xs whitespace-nowrap ${overdueDate ? "text-red-600 font-semibold" : "text-muted-foreground"}`}>
+                          {req.order_execution_date ? format(new Date(req.order_execution_date), "dd/MM/yyyy") : "—"}
+                        </td>
+                      )}
+                      {isVisible("consumption") && <td className="p-3 text-muted-foreground tabular-nums">{req.current_consumption ?? "—"}</td>}
+                      {isVisible("reason") && <td className="p-3 text-muted-foreground max-w-[180px] truncate" title={req.reason ?? ""}>{req.reason ?? "—"}</td>}
+                      {isVisible("created_by") && <td className="p-3 text-muted-foreground text-xs">{req.created_by_name ?? "—"}</td>}
+                      {isVisible("created_at") && (
+                        <td className="p-3 text-muted-foreground text-xs whitespace-nowrap">
+                          {format(new Date(req.created_at), "dd/MM/yyyy")}
+                        </td>
+                      )}
+                      {isVisible("age") && (
+                        <td className="p-3">
+                          {age ? (
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${age.cls}`}>
+                              {age.text}
+                            </span>
+                          ) : "—"}
+                        </td>
+                      )}
+                      {isVisible("status") && (
+                        <td className="p-3">
+                          <div className="flex flex-col gap-1">
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full border w-fit ${statusClass(req.status)}`}>
+                              {STATUS_LABELS[req.status]}
+                            </span>
+                            {req.reject_reason && (
+                              <span className="text-[11px] text-red-700" title={req.reject_reason}>
+                                {req.reject_reason.length > 24 ? req.reject_reason.slice(0, 24) + "…" : req.reject_reason}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                      {isVisible("ordered_by") && <td className="p-3 text-muted-foreground text-xs">{req.ordered_by_name ?? req.reviewed_by_name ?? "—"}</td>}
+                      {isVisible("ordered_at") && (
+                        <td className="p-3 text-muted-foreground text-xs whitespace-nowrap">
+                          {req.ordered_at ? format(new Date(req.ordered_at), "dd/MM/yyyy") : "—"}
+                        </td>
+                      )}
+                      <td className="p-3">
+                        <div className="flex gap-0.5 justify-end">
+                          {canEditRow(req) && (
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingRequest(req)} title="ערוך">
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {req.status === "pending" && canFulfill && (
+                            <Button size="sm" variant="outline" className="h-7 text-xs gap-1 px-2" onClick={() => setFulfillingRequest(req)}>
+                              <ShoppingCart className="h-3 w-3" />הזמן
+                            </Button>
+                          )}
+                          {req.status === "pending" && canFulfill && (
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={() => setRejectingRequest(req)} title="דחה">
+                              <Ban className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {req.status === "ordered" && req.order_id && (
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => navigateToOrder(req.order_id)} title="פתח הזמנה">
+                              <ExternalLink className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {(req.status === "rejected" || req.status === "cancelled") && canFulfill && (
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleRevert(req)} title="החזר ל-ממתין">
+                              <RotateCcw className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {canDeleteRow(req) && (
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={() => handleDelete(req)} title="מחק">
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
+              {/* Aggregations row */}
+              <tfoot className="bg-muted/40">
+                <tr className="border-t font-semibold text-xs">
+                  <td colSpan={visibleCount + 1} className="p-3 text-muted-foreground">
+                    מציג {filtered.length} מתוך {requests.length} בקשות ·
+                    סה״כ נדרש להזמין: <span className="text-foreground tabular-nums">{fmtNum(filtered.reduce((s, r) => s + (r.required_to_order ?? r.quantity ?? 0), 0))}</span> יח׳
+                    {(() => {
+                      const v = filtered.reduce((s, r) => s + ((r.required_to_order ?? r.quantity ?? 0) * (r.estimated_unit_price ?? 0)), 0);
+                      return v > 0 ? <> · ערך משוער: <span className="text-foreground tabular-nums">{fmtMoney(v)}</span></> : null;
+                    })()}
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </>
       )}
 
-      {/* New-request dialog (bonded division managers) */}
-      {canCreateRequest && (
+      {/* New / edit dialog */}
+      {(canCreateRequest || editingRequest) && (
         <OrderRequestDialog
-          open={showNewRequest}
-          onOpenChange={setShowNewRequest}
-          division={userDivision}
+          open={showNewRequest || !!editingRequest}
+          onOpenChange={(o) => {
+            if (!o) { setShowNewRequest(false); setEditingRequest(null); }
+            else setShowNewRequest(true);
+          }}
+          division={editingRequest?.division ?? userDivision}
           divisionProducts={dialogDivisionProducts}
           allProducts={products}
           onCreated={fetchRequests}
+          editingRequest={editingRequest}
         />
       )}
 
-      {/* Fulfill dialog */}
-      {fulfillingRequest && (
+      {/* Fulfill dialog (manager only) */}
+      {fulfillingRequest && canFulfill && (
         <NewOrderDialog
           open={!!fulfillingRequest}
           onOpenChange={(open) => { if (!open) setFulfillingRequest(null); }}
@@ -368,11 +632,20 @@ export function OrderRequestsTab() {
           addOrder={addOrder}
           defaultProductId={fulfillingRequest.product_id ?? undefined}
           defaultSupplierId={prefillSupplier?.id}
-          defaultQuantity={fulfillingRequest.quantity ?? undefined}
+          defaultQuantity={fulfillingRequest.required_to_order ?? fulfillingRequest.quantity ?? undefined}
           hideTrigger
           onOrderCreated={handleOrderCreated}
         />
       )}
+
+      {/* Reject dialog */}
+      <RejectRequestDialog
+        open={!!rejectingRequest}
+        onOpenChange={(o) => { if (!o) setRejectingRequest(null); }}
+        requestId={rejectingRequest?.id ?? null}
+        productName={rejectingRequest?.product_name}
+        onRejected={fetchRequests}
+      />
 
       {menu && (
         <ColContextMenu

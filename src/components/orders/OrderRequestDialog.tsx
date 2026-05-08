@@ -9,8 +9,9 @@ import { Combobox } from "@/components/ui/combobox";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AppContext";
-import type { Product } from "@/contexts/types";
+import type { Product, OrderRequest } from "@/contexts/types";
 import type { OrderRequestUrgency, OrderRequestType } from "@/contexts/types";
+import { URGENCY_OPTIONS, ORDER_TYPE_OPTIONS } from "./orderRequestUtils";
 
 interface Props {
   open: boolean;
@@ -19,32 +20,43 @@ interface Props {
   divisionProducts: { product_id: string; products: { id: string; name: string; sku: string } }[];
   allProducts: Product[];
   onCreated: () => void;
+  /** When provided, dialog enters edit mode for this request. */
+  editingRequest?: OrderRequest | null;
 }
 
-const URGENCY_OPTIONS: { value: OrderRequestUrgency; label: string }[] = [
-  { value: "דחוף", label: "דחוף" },
-  { value: "רגיל", label: "רגיל" },
-  { value: "נמוך", label: "נמוך" },
-];
-
-const ORDER_TYPE_OPTIONS: { value: OrderRequestType; label: string }[] = [
-  { value: "מיידית", label: "מיידית" },
-  { value: "חודשית", label: "חודשית" },
-  { value: "רבעונית", label: "רבעונית" },
-  { value: "חצי שנתית", label: "חצי שנתית" },
-];
-
-export function OrderRequestDialog({ open, onOpenChange, division, divisionProducts, allProducts, onCreated }: Props) {
+export function OrderRequestDialog({
+  open,
+  onOpenChange,
+  division,
+  divisionProducts,
+  allProducts,
+  onCreated,
+  editingRequest,
+}: Props) {
   const { currentUser } = useAuth();
   const [productId, setProductId] = useState("");
+  const [productName, setProductName] = useState("");
+  const [productSku, setProductSku] = useState("");
   const [supplier, setSupplier] = useState("");
   const [quantity, setQuantity] = useState("");
   const [currentConsumption, setCurrentConsumption] = useState("");
   const [reason, setReason] = useState("");
   const [urgency, setUrgency] = useState<OrderRequestUrgency>("רגיל");
   const [orderType, setOrderType] = useState<OrderRequestType>("חודשית");
+  const [estimatedUnitPrice, setEstimatedUnitPrice] = useState("");
+  const [mainWarehouseStock, setMainWarehouseStock] = useState("");
+  const [divisionStock, setDivisionStock] = useState("");
+  const [quarterlyForecast, setQuarterlyForecast] = useState("");
+  const [requiredToOrder, setRequiredToOrder] = useState("");
+  const [orderExecutionDate, setOrderExecutionDate] = useState("");
+  const [estimatedArrivalDate, setEstimatedArrivalDate] = useState("");
+  const [shippingType, setShippingType] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("");
+  const [notes, setNotes] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const isEdit = !!editingRequest;
   const divisionProductIds = new Set(divisionProducts.map(dp => dp.product_id));
   const productOptions = allProducts
     .filter(p => divisionProductIds.has(p.id))
@@ -56,84 +68,185 @@ export function OrderRequestDialog({ open, onOpenChange, division, divisionProdu
     }));
 
   useEffect(() => {
-    if (!open) {
+    if (!open) return;
+    if (editingRequest) {
+      setProductId(editingRequest.product_id ?? "");
+      setProductName(editingRequest.product_name ?? "");
+      setProductSku(editingRequest.product_sku ?? "");
+      setSupplier(editingRequest.supplier ?? "");
+      setQuantity(editingRequest.quantity != null ? String(editingRequest.quantity) : "");
+      setCurrentConsumption(editingRequest.current_consumption ?? "");
+      setReason(editingRequest.reason ?? "");
+      setUrgency(editingRequest.urgency ?? "רגיל");
+      setOrderType(editingRequest.order_type ?? "חודשית");
+      setEstimatedUnitPrice(editingRequest.estimated_unit_price != null ? String(editingRequest.estimated_unit_price) : "");
+      setMainWarehouseStock(editingRequest.main_warehouse_stock != null ? String(editingRequest.main_warehouse_stock) : "");
+      setDivisionStock(editingRequest.division_stock != null ? String(editingRequest.division_stock) : "");
+      setQuarterlyForecast(editingRequest.quarterly_forecast != null ? String(editingRequest.quarterly_forecast) : "");
+      setRequiredToOrder(editingRequest.required_to_order != null ? String(editingRequest.required_to_order) : "");
+      setOrderExecutionDate(editingRequest.order_execution_date ?? "");
+      setEstimatedArrivalDate(editingRequest.estimated_arrival_date ?? "");
+      setShippingType(editingRequest.shipping_type ?? "");
+      setPaymentStatus(editingRequest.payment_status ?? "");
+      setNotes(editingRequest.notes ?? "");
+      setShowAdvanced(true);
+    } else {
       setProductId("");
+      setProductName("");
+      setProductSku("");
       setSupplier("");
       setQuantity("");
       setCurrentConsumption("");
       setReason("");
       setUrgency("רגיל");
       setOrderType("חודשית");
+      setEstimatedUnitPrice("");
+      setMainWarehouseStock("");
+      setDivisionStock("");
+      setQuarterlyForecast("");
+      setRequiredToOrder("");
+      setOrderExecutionDate("");
+      setEstimatedArrivalDate("");
+      setShippingType("");
+      setPaymentStatus("");
+      setNotes("");
+      setShowAdvanced(false);
     }
-  }, [open]);
+  }, [open, editingRequest]);
 
   const handleProductChange = (id: string) => {
     setProductId(id);
     const prod = allProducts.find(p => p.id === id);
-    setSupplier(prod?.supplier ?? "");
+    if (prod) {
+      setSupplier(prod.supplier ?? "");
+      setProductName(prod.name);
+      setProductSku(prod.sku ?? "");
+    }
+  };
+
+  const numOrNull = (s: string): number | null => {
+    if (!s.trim()) return null;
+    const n = Number(s);
+    return Number.isNaN(n) ? null : n;
   };
 
   const handleSubmit = async () => {
-    if (!productId) { toast.error("יש לבחור מוצר"); return; }
-    const qty = Number(quantity);
-    if (!qty || qty <= 0) { toast.error("יש להזין כמות תקינה"); return; }
+    const qty = quantity.trim() ? Number(quantity) : null;
+    if (qty !== null && (Number.isNaN(qty) || qty < 0)) {
+      toast.error("כמות לא תקינה");
+      return;
+    }
+    if (!productName.trim()) {
+      toast.error("יש להזין שם מוצר");
+      return;
+    }
 
-    const prod = allProducts.find(p => p.id === productId);
-    if (!prod) return;
+    const supplierIdMatch = await supabase
+      .from("suppliers")
+      .select("id")
+      .eq("company", supplier)
+      .maybeSingle();
 
-    setSaving(true);
-    const { error } = await supabase.from("order_requests").insert({
+    const payload = {
       division,
-      product_id: productId,
-      product_name: prod.name,
-      supplier: supplier || null,
-      current_consumption: currentConsumption.trim() || null,
-      reason: reason.trim() || null,
+      product_id: productId || null,
+      product_name: productName.trim(),
+      product_sku: productSku.trim() || null,
+      supplier: supplier.trim() || null,
+      supplier_id: supplierIdMatch.data?.id ?? null,
       quantity: qty,
       urgency,
       order_type: orderType,
-      created_by: currentUser?.id ?? null,
-    });
+      current_consumption: currentConsumption.trim() || null,
+      reason: reason.trim() || null,
+      estimated_unit_price: numOrNull(estimatedUnitPrice),
+      main_warehouse_stock: numOrNull(mainWarehouseStock),
+      division_stock: numOrNull(divisionStock),
+      quarterly_forecast: numOrNull(quarterlyForecast),
+      required_to_order: numOrNull(requiredToOrder),
+      order_execution_date: orderExecutionDate || null,
+      estimated_arrival_date: estimatedArrivalDate || null,
+      shipping_type: shippingType.trim() || null,
+      payment_status: paymentStatus.trim() || null,
+      notes: notes.trim() || null,
+    };
+
+    setSaving(true);
+    let error;
+    if (isEdit && editingRequest) {
+      ({ error } = await supabase.from("order_requests").update(payload).eq("id", editingRequest.id));
+    } else {
+      ({ error } = await supabase.from("order_requests").insert({
+        ...payload,
+        created_by: currentUser?.id ?? null,
+        created_by_name: currentUser?.name ?? null,
+      }));
+    }
     setSaving(false);
 
-    if (error) { toast.error("שגיאה ביצירת הבקשה"); return; }
-    toast.success("הבקשה נשלחה בהצלחה");
+    if (error) {
+      toast.error(isEdit ? "שגיאה בעדכון הבקשה" : "שגיאה ביצירת הבקשה");
+      return;
+    }
+    toast.success(isEdit ? "הבקשה עודכנה" : "הבקשה נשלחה בהצלחה");
     onOpenChange(false);
     onCreated();
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
         <DialogHeader>
-          <DialogTitle>בקשת הזמנה חדשה</DialogTitle>
+          <DialogTitle>{isEdit ? "עריכת בקשת הזמנה" : "בקשת הזמנה חדשה"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
+          {/* Product picker (free text fallback for planning rows without a product) */}
           <div className="space-y-1.5">
-            <Label>מוצר</Label>
-            <Combobox
-              value={productId}
-              onValueChange={handleProductChange}
-              options={productOptions}
-              placeholder="בחר מוצר..."
-              searchPlaceholder='חיפוש לפי שם או מק"ט...'
-              emptyText="לא נמצאו מוצרים"
-            />
+            <Label>מוצר {productOptions.length === 0 && <span className="text-xs text-muted-foreground">(הזן ידנית)</span>}</Label>
+            {productOptions.length > 0 ? (
+              <Combobox
+                value={productId}
+                onValueChange={handleProductChange}
+                options={productOptions}
+                placeholder="בחר מוצר..."
+                searchPlaceholder='חיפוש לפי שם או מק"ט...'
+                emptyText="לא נמצאו מוצרים"
+              />
+            ) : (
+              <Input value={productName} onChange={e => setProductName(e.target.value)} placeholder="שם מוצר" />
+            )}
           </div>
 
-          {supplier && (
+          {/* When a product is picked, show its SKU + name as readouts; else allow editing */}
+          {productId ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>שם תצוגה</Label>
+                <Input value={productName} onChange={e => setProductName(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>מק״ט</Label>
+                <Input value={productSku} onChange={e => setProductSku(e.target.value)} dir="ltr" />
+              </div>
+            </div>
+          ) : (
             <div className="space-y-1.5">
-              <Label>ספק</Label>
-              <Input value={supplier} readOnly className="bg-muted/50 text-muted-foreground" />
+              <Label>מק״ט</Label>
+              <Input value={productSku} onChange={e => setProductSku(e.target.value)} dir="ltr" />
             </div>
           )}
+
+          <div className="space-y-1.5">
+            <Label>ספק</Label>
+            <Input value={supplier} onChange={e => setSupplier(e.target.value)} placeholder="שם ספק" />
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>כמות</Label>
               <Input
                 type="number"
-                min="1"
+                min="0"
                 value={quantity}
                 onChange={e => setQuantity(e.target.value)}
                 placeholder="0"
@@ -144,20 +257,33 @@ export function OrderRequestDialog({ open, onOpenChange, division, divisionProdu
               <Select value={urgency} onValueChange={v => setUrgency(v as OrderRequestUrgency)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {URGENCY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  {URGENCY_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>סוג הזמנה</Label>
-            <Select value={orderType} onValueChange={v => setOrderType(v as OrderRequestType)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {ORDER_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>סוג הזמנה</Label>
+              <Select value={orderType} onValueChange={v => setOrderType(v as OrderRequestType)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ORDER_TYPE_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>מחיר יח׳ משוער (₪)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={estimatedUnitPrice}
+                onChange={e => setEstimatedUnitPrice(e.target.value)}
+                placeholder="0"
+              />
+            </div>
           </div>
 
           <div className="space-y-1.5">
@@ -175,14 +301,73 @@ export function OrderRequestDialog({ open, onOpenChange, division, divisionProdu
               value={reason}
               onChange={e => setReason(e.target.value)}
               placeholder="תיאור הצורך בהזמנה..."
-              rows={3}
+              rows={2}
             />
           </div>
 
-          <div className="flex gap-2 justify-end pt-1">
+          {/* Advanced planning fields toggle */}
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(s => !s)}
+            className="text-xs text-muted-foreground hover:text-foreground underline"
+          >
+            {showAdvanced ? "הסתר שדות תכנון מתקדמים" : "הצג שדות תכנון מתקדמים"}
+          </button>
+
+          {showAdvanced && (
+            <div className="space-y-4 border-t pt-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">מלאי מחסן 1</Label>
+                  <Input type="number" value={mainWarehouseStock} onChange={e => setMainWarehouseStock(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">מלאי חטיבה</Label>
+                  <Input type="number" value={divisionStock} onChange={e => setDivisionStock(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">צפי רבעון</Label>
+                  <Input type="number" value={quarterlyForecast} onChange={e => setQuarterlyForecast(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">נדרש להזמין</Label>
+                  <Input type="number" value={requiredToOrder} onChange={e => setRequiredToOrder(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">תאריך ביצוע הזמנה</Label>
+                  <Input type="date" value={orderExecutionDate} onChange={e => setOrderExecutionDate(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">תאריך הגעה משוער</Label>
+                  <Input type="date" value={estimatedArrivalDate} onChange={e => setEstimatedArrivalDate(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">סוג משלוח</Label>
+                  <Input value={shippingType} onChange={e => setShippingType(e.target.value)} placeholder="ים / אוויר / יבשה" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">סטטוס תשלום</Label>
+                  <Input value={paymentStatus} onChange={e => setPaymentStatus(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">הערות</Label>
+                <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-2 justify-end pt-2 border-t">
             <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>ביטול</Button>
             <Button onClick={handleSubmit} disabled={saving}>
-              {saving ? "שולח..." : "שלח בקשה"}
+              {saving ? (isEdit ? "שומר..." : "שולח...") : (isEdit ? "שמור שינויים" : "שלח בקשה")}
             </Button>
           </div>
         </div>
