@@ -97,7 +97,7 @@ export function OrderTable({
   const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
   const { scopeOrderItems } = useProductScope();
 
-  const totalColSpan = visibleCount + 1 + (hasEdit ? 1 : 0) + (selection ? 1 : 0);
+  const totalColSpan = visibleCount + 2 + (hasEdit ? 1 : 0) + (selection ? 1 : 0);
   const allFilteredIds = filtered.map(o => o.id);
 
   return (
@@ -237,8 +237,9 @@ export function OrderTable({
                   </th>
                 );
               })}
-              <th className="text-right p-3 font-semibold text-foreground w-10" />
-              {hasEdit && <th className="text-right p-3 font-semibold text-foreground w-10" />}
+              <th className="w-10" />
+              <th className="w-10" />
+              {hasEdit && <th className="w-10" />}
             </tr>
           </thead>
           <tbody className="divide-y">
