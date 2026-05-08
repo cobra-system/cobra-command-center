@@ -1,9 +1,10 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useData } from "@/contexts/AppContext";
+import { useData, useAuth } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
 import { Search, Package, Truck, ShoppingCart, ListTodo, FileText, CreditCard, X, Boxes } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { canSeePrices, canSeeDocuments } from "@/lib/permissions";
 
 interface SearchResult {
   id: string;
@@ -34,6 +35,9 @@ interface GlobalSearchProps {
 export default function GlobalSearch({ autoFocus, onNavigate }: GlobalSearchProps = {}) {
   const navigate = useNavigate();
   const { products, suppliers, orders, tasks } = useData();
+  const { currentUser } = useAuth();
+  const showPrices = canSeePrices(currentUser);
+  const showDocuments = canSeeDocuments(currentUser);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [documents, setDocuments] = useState<SearchDoc[]>([]);
@@ -54,16 +58,23 @@ export default function GlobalSearch({ autoFocus, onNavigate }: GlobalSearchProp
   }, [autoFocus]);
 
   useEffect(() => {
+    // Documents and supplier_payments are MANAGER-only (RLS would
+    // return [] anyway, but skip the request for non-managers).
+    if (!showDocuments && !showPrices) return;
     const fetchData = async () => {
       const [docsRes, paymentsRes] = await Promise.all([
-        supabase.from("purchase_documents").select("id, document_name, document_number, supplier_id"),
-        supabase.from("supplier_payments").select("id, supplier_id, notes, amount"),
+        showDocuments
+          ? supabase.from("purchase_documents").select("id, document_name, document_number, supplier_id")
+          : Promise.resolve({ data: [] as SearchDoc[] }),
+        showPrices
+          ? supabase.from("supplier_payments").select("id, supplier_id, notes, amount")
+          : Promise.resolve({ data: [] as SearchPayment[] }),
       ]);
       if (docsRes.data) setDocuments(docsRes.data);
       if (paymentsRes.data) setPayments(paymentsRes.data);
     };
     fetchData();
-  }, []);
+  }, [showDocuments, showPrices]);
 
   const results = useMemo<SearchResult[]>(() => {
     const q = query.trim().toLowerCase();
@@ -94,7 +105,9 @@ export default function GlobalSearch({ autoFocus, onNavigate }: GlobalSearchProp
 
     for (const o of orders) {
       if (res.length >= limit) break;
-      if ((o.supplier_name || "").toLowerCase().includes(q) || o.items.some(i => i.name.toLowerCase().includes(q)) || (o.pi_number || "").toLowerCase().includes(q) || (o.tracking_number || "").toLowerCase().includes(q)) {
+      // pi_number is MANAGER-only — exclude from search to avoid value oracle.
+      const piMatch = showPrices && (o.pi_number || "").toLowerCase().includes(q);
+      if ((o.supplier_name || "").toLowerCase().includes(q) || o.items.some(i => i.name.toLowerCase().includes(q)) || piMatch || (o.tracking_number || "").toLowerCase().includes(q)) {
         res.push({ id: o.id, label: `הזמנה — ${o.supplier_name || "ללא ספק"}`, subtitle: o.status, type: "order", path: `/orders/${o.id}` });
       }
     }

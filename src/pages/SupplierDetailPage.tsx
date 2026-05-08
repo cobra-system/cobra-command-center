@@ -219,7 +219,7 @@ export default function SupplierDetailPage() {
         <div className="mt-4 pt-4 border-t grid grid-cols-1 sm:grid-cols-2 gap-4">
           <InlineEditField label="מספר ספק" value={supplier.supplier_number} onSave={(v) => handleInlineSave("supplier_number", v)} disabled={!hasEdit} />
           <InlineEditField label="מדינה" value={supplier.country} onSave={(v) => handleInlineSave("country", v)} disabled={!hasEdit} />
-          <InlineEditField label="תנאי תשלום" value={supplier.payment_terms} onSave={(v) => handleInlineSave("payment_terms", v)} disabled={!hasEdit} />
+          {showPrices && <InlineEditField label="תנאי תשלום" value={supplier.payment_terms} onSave={(v) => handleInlineSave("payment_terms", v)} disabled={!hasEdit} />}
           <InlineEditField label="מוצרים" value={supplier.products} onSave={(v) => handleInlineSave("products", v)} disabled={!hasEdit} />
           <InlineEditField label="הערות" value={supplier.notes} onSave={(v) => handleInlineSave("notes", v)} disabled={!hasEdit} />
         </div>
@@ -626,6 +626,8 @@ function SupplierEditDialog({ open, onOpenChange, supplier, onSave }: {
   supplier: Supplier;
   onSave: (id: string, updates: Partial<Supplier>) => Promise<void>;
 }) {
+  const { currentUser } = useAuth();
+  const showPrices = canSeePrices(currentUser);
   const [fields, setFields] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
@@ -701,10 +703,12 @@ function SupplierEditDialog({ open, onOpenChange, supplier, onSave }: {
               <Input value={fields.supplier_number ?? ""} onChange={e => set("supplier_number", e.target.value)} dir="ltr" placeholder="לדוג' 042" />
             </div>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">תנאי תשלום</Label>
-            <Input value={fields.payment_terms ?? ""} onChange={e => set("payment_terms", e.target.value)} />
-          </div>
+          {showPrices && (
+            <div className="space-y-1">
+              <Label className="text-xs">תנאי תשלום</Label>
+              <Input value={fields.payment_terms ?? ""} onChange={e => set("payment_terms", e.target.value)} />
+            </div>
+          )}
           <div className="space-y-1">
             <Label className="text-xs">מוצרים</Label>
             <Input value={fields.products ?? ""} onChange={e => set("products", e.target.value)} />

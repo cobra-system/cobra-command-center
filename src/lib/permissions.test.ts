@@ -4,6 +4,10 @@ import {
   canEdit,
   getModuleKeyFromRoute,
   getFullPermissionsForManager,
+  isDivisionManager,
+  isDivisionManagerAllowedPath,
+  canSeePrices,
+  canSeeDocuments,
   MODULES,
   type RolePermissions,
 } from "./permissions";
@@ -94,6 +98,105 @@ describe("MODULES", () => {
       expect(mod.key).toBeTruthy();
       expect(mod.label).toBeTruthy();
       expect(mod.route).toMatch(/^\//);
+    }
+  });
+});
+
+// ─── Money / documents access checks ────────────────────────────────────────
+// These guard the entire "hide money/documents from non-MANAGER" effort.
+// Any change to these helpers must be a deliberate security decision.
+
+describe("canSeePrices", () => {
+  it("returns true ONLY for MANAGER", () => {
+    expect(canSeePrices({ role: "MANAGER" })).toBe(true);
+  });
+
+  it("returns false for every other role", () => {
+    expect(canSeePrices({ role: "WAREHOUSE_MANAGER" })).toBe(false);
+    expect(canSeePrices({ role: "LOGISTICS" })).toBe(false);
+    expect(canSeePrices({ role: "DRIVER" })).toBe(false);
+    expect(canSeePrices({ role: "DIVISION" })).toBe(false);
+    expect(canSeePrices({ role: "" })).toBe(false);
+    expect(canSeePrices({ role: "manager" })).toBe(false); // case-sensitive
+  });
+
+  it("returns false for null/undefined user", () => {
+    expect(canSeePrices(null)).toBe(false);
+    expect(canSeePrices(undefined)).toBe(false);
+  });
+});
+
+describe("canSeeDocuments", () => {
+  it("returns true ONLY for MANAGER", () => {
+    expect(canSeeDocuments({ role: "MANAGER" })).toBe(true);
+  });
+
+  it("returns false for every other role", () => {
+    expect(canSeeDocuments({ role: "WAREHOUSE_MANAGER" })).toBe(false);
+    expect(canSeeDocuments({ role: "LOGISTICS" })).toBe(false);
+    expect(canSeeDocuments({ role: "DRIVER" })).toBe(false);
+    expect(canSeeDocuments({ role: "DIVISION" })).toBe(false);
+  });
+
+  it("returns false for null/undefined user", () => {
+    expect(canSeeDocuments(null)).toBe(false);
+    expect(canSeeDocuments(undefined)).toBe(false);
+  });
+});
+
+describe("isDivisionManager", () => {
+  it("requires non-MANAGER role and a division", () => {
+    expect(isDivisionManager({ role: "DIVISION", division: "פריזבי קרסו" })).toBe(true);
+    expect(isDivisionManager({ role: "MANAGER", division: "פריזבי קרסו" })).toBe(false);
+    expect(isDivisionManager({ role: "DIVISION", division: null })).toBe(false);
+    expect(isDivisionManager({ role: "DIVISION" })).toBe(false);
+    expect(isDivisionManager({ role: "DIVISION", division: "" })).toBe(false);
+  });
+
+  it("returns false for null/undefined user", () => {
+    expect(isDivisionManager(null)).toBe(false);
+    expect(isDivisionManager(undefined)).toBe(false);
+  });
+});
+
+describe("isDivisionManagerAllowedPath", () => {
+  it("allows products, orders, suppliers, waste, equipment routes", () => {
+    expect(isDivisionManagerAllowedPath("/products")).toBe(true);
+    expect(isDivisionManagerAllowedPath("/products/abc-123")).toBe(true);
+    expect(isDivisionManagerAllowedPath("/orders")).toBe(true);
+    expect(isDivisionManagerAllowedPath("/suppliers/x")).toBe(true);
+    expect(isDivisionManagerAllowedPath("/waste-management")).toBe(true);
+    expect(isDivisionManagerAllowedPath("/equipment/division/X")).toBe(true);
+    expect(isDivisionManagerAllowedPath("/equipment/installer/x")).toBe(true);
+  });
+
+  it("blocks money/document/admin routes", () => {
+    expect(isDivisionManagerAllowedPath("/dashboard")).toBe(false);
+    expect(isDivisionManagerAllowedPath("/documents")).toBe(false);
+    expect(isDivisionManagerAllowedPath("/documents/x")).toBe(false);
+    expect(isDivisionManagerAllowedPath("/reports")).toBe(false);
+    expect(isDivisionManagerAllowedPath("/settings")).toBe(false);
+    expect(isDivisionManagerAllowedPath("/issues")).toBe(false);
+    expect(isDivisionManagerAllowedPath("/tasks")).toBe(false);
+    expect(isDivisionManagerAllowedPath("/reorder")).toBe(false);
+    expect(isDivisionManagerAllowedPath("/logistics-map")).toBe(false);
+    expect(isDivisionManagerAllowedPath("/lock-control")).toBe(false);
+    expect(isDivisionManagerAllowedPath("/equipment")).toBe(false); // bare /equipment is blocked
+  });
+});
+
+describe("canSeePrices vs canSeeDocuments contract", () => {
+  it("returns identical results for the same user (kept symmetric on purpose)", () => {
+    const samples = [
+      { role: "MANAGER" },
+      { role: "WAREHOUSE_MANAGER" },
+      { role: "DIVISION" },
+      { role: "" },
+      null,
+      undefined,
+    ] as const;
+    for (const u of samples) {
+      expect(canSeePrices(u)).toBe(canSeeDocuments(u));
     }
   });
 });
