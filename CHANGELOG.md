@@ -7,10 +7,14 @@
 
 ## [2026-05-08]
 
+- feat(order-requests): SKU search + bonded division Excel-style table (c3811f1)
+
+<!-- last-commit: eda6abc825bbbaa788bd993d9a7dccf48852a0ad -->
+## [2026-05-08]
+
 - fix(rls): products SELECT policy referenced products.division in subquery (7f5735f)
 - fix(orders): close Phase 2 division-manager gaps (3a7c7a6)
 
-<!-- last-commit: ada50068f18cfe952af392c09a2267b1b7de1ebf -->
 ## [2026-05-07]
 
 - fix(orders): division managers now see all orders containing their products (3749f35)
