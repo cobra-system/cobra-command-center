@@ -4,16 +4,12 @@ import { useData, useAuth } from "@/contexts/AppContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
 import { NewOrderDialog } from "@/components/orders/NewOrderDialog";
 import { OrderRequestDialog } from "@/components/orders/OrderRequestDialog";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
-import { ArrowUpDown, ArrowUp, ArrowDown, ShoppingCart, Plus } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, ShoppingCart, Plus, ClipboardList, Inbox } from "lucide-react";
 import type { ColDef } from "@/hooks/useColumnVisibility";
 import type { OrderRequest } from "@/contexts/types";
 import { DIVISIONS, BONDED_DIVISIONS } from "@/components/equipment/constants";
@@ -148,139 +144,206 @@ export function OrderRequestsTab() {
     ? suppliers.find(s => s.company === prefillProduct.supplier)
     : undefined;
 
+  const orderedCount = requests.filter(r => r.status === "ordered").length;
+
   return (
-    <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <Select value={statusFilter} onValueChange={v => setStatusFilter(v as typeof statusFilter)}>
-          <SelectTrigger className="w-36 h-8 text-sm">
-            <SelectValue placeholder="סטטוס" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">כל הבקשות</SelectItem>
-            <SelectItem value="pending">ממתינות {pendingCount > 0 && `(${pendingCount})`}</SelectItem>
-            <SelectItem value="ordered">הוזמנו</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={divisionFilter} onValueChange={setDivisionFilter}>
-          <SelectTrigger className="w-40 h-8 text-sm">
-            <SelectValue placeholder="חטיבה" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">כל החטיבות</SelectItem>
-            {DIVISIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        {canCreateRequest && (
-          <Button
-            size="sm"
-            className="h-8 text-sm gap-1 ms-auto"
-            onClick={() => setShowNewRequest(true)}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            בקשה חדשה
-          </Button>
-        )}
+    <div className="space-y-4" dir="rtl">
+      {/* Header card */}
+      <div className="bg-card rounded-xl border shadow-sm p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <ClipboardList className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold text-foreground">בקשות הזמנה</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {pendingCount > 0
+                  ? <><span className="font-semibold text-amber-600">{pendingCount}</span> ממתינות לטיפול · {orderedCount} הוזמנו</>
+                  : <>אין בקשות ממתינות · {orderedCount} הוזמנו</>}
+              </p>
+            </div>
+          </div>
+          {canCreateRequest && (
+            <Button size="sm" onClick={() => setShowNewRequest(true)} className="gap-1.5">
+              <Plus className="h-4 w-4" />בקשה חדשה
+            </Button>
+          )}
+        </div>
+
+        {/* Filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mt-4 pt-4 border-t">
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">סטטוס</label>
+            <Select value={statusFilter} onValueChange={v => setStatusFilter(v as typeof statusFilter)}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">כל הבקשות ({requests.length})</SelectItem>
+                <SelectItem value="pending">ממתינות{pendingCount > 0 && ` (${pendingCount})`}</SelectItem>
+                <SelectItem value="ordered">הוזמנו{orderedCount > 0 && ` (${orderedCount})`}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">חטיבה</label>
+            <Select value={divisionFilter} onValueChange={setDivisionFilter}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">כל החטיבות</SelectItem>
+                {DIVISIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
 
-      {/* Table */}
+      {/* Body: loading / empty / table */}
       {loading ? (
-        <div className="p-8 text-center text-muted-foreground text-sm">טוען...</div>
-      ) : filtered.length === 0 ? (
-        <div className="p-8 text-center text-muted-foreground text-sm">אין בקשות הזמנה</div>
-      ) : (
-        <div className="border rounded-md overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow
-                className="border-b bg-muted/50"
-                onContextMenu={trContextMenu(hiddenCols, setMenu)}
-              >
-                {COLUMN_DEFS.map(col => isVisible(col.id) ? (
-                  <TableHead
-                    key={col.id}
-                    className="text-right p-3 font-semibold text-foreground text-xs"
-                    onContextMenu={colThContextMenu(col, setMenu)}
-                  >
-                    {col.sortField ? (
-                      <button
-                        onClick={() => toggleSort(col.sortField!)}
-                        className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors"
-                      >
-                        {col.label}
-                        <SortIcon field={col.sortField} currentField={sortField} currentDir={sortDir} />
-                      </button>
-                    ) : col.label}
-                  </TableHead>
-                ) : null)}
-                {/* Fixed: actions column */}
-                <TableHead className="p-3 w-20" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map(req => (
-                <TableRow key={req.id} className="text-sm">
-                  {isVisible("division") && (
-                    <TableCell className="p-3">
-                      <Badge variant="outline" className="text-xs">{req.division}</Badge>
-                    </TableCell>
-                  )}
-                  {isVisible("product") && <TableCell className="p-3 font-medium">{req.product_name}</TableCell>}
-                  {isVisible("supplier") && <TableCell className="p-3 text-muted-foreground">{req.supplier ?? "—"}</TableCell>}
-                  {isVisible("quantity") && <TableCell className="p-3">{req.quantity ?? "—"}</TableCell>}
-                  {isVisible("urgency") && (
-                    <TableCell className="p-3">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
-                        req.urgency === "דחוף" ? "bg-red-50 text-red-700 border-red-200" :
-                        req.urgency === "רגיל" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                        "bg-gray-50 text-gray-600 border-gray-200"
-                      }`}>{req.urgency}</span>
-                    </TableCell>
-                  )}
-                  {isVisible("order_type") && <TableCell className="p-3 text-muted-foreground">{req.order_type}</TableCell>}
-                  {isVisible("consumption") && <TableCell className="p-3 text-muted-foreground">{req.current_consumption ?? "—"}</TableCell>}
-                  {isVisible("reason") && <TableCell className="p-3 text-muted-foreground max-w-[160px] truncate">{req.reason ?? "—"}</TableCell>}
-                  {isVisible("created_at") && (
-                    <TableCell className="p-3 text-muted-foreground text-xs">
-                      {format(new Date(req.created_at), "dd/MM/yyyy")}
-                    </TableCell>
-                  )}
-                  {isVisible("status") && (
-                    <TableCell className="p-3">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
-                        req.status === "ordered"
-                          ? "bg-green-50 text-green-700 border-green-200"
-                          : "bg-amber-50 text-amber-700 border-amber-200"
-                      }`}>
-                        {req.status === "ordered" ? "הוזמן" : "ממתינה"}
-                      </span>
-                    </TableCell>
-                  )}
-                  {isVisible("ordered_by") && <TableCell className="p-3 text-muted-foreground text-xs">{req.ordered_by_name ?? "—"}</TableCell>}
-                  {isVisible("ordered_at") && (
-                    <TableCell className="p-3 text-muted-foreground text-xs">
-                      {req.ordered_at ? format(new Date(req.ordered_at), "dd/MM/yyyy") : "—"}
-                    </TableCell>
-                  )}
-                  {/* Fixed: action button */}
-                  <TableCell className="p-3">
-                    {req.status === "pending" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs gap-1"
-                        onClick={() => setFulfillingRequest(req)}
-                      >
-                        <ShoppingCart className="h-3 w-3" />
-                        הזמן
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <div className="bg-card rounded-xl border shadow-sm p-12 text-center">
+          <div className="inline-block h-6 w-6 rounded-full border-2 border-muted border-t-primary animate-spin" />
+          <p className="text-sm text-muted-foreground mt-3">טוען בקשות…</p>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-card rounded-xl border shadow-sm p-12 text-center">
+          <div className="inline-flex h-12 w-12 rounded-full bg-muted items-center justify-center mb-3">
+            <Inbox className="h-6 w-6 text-muted-foreground/60" />
+          </div>
+          <p className="text-sm font-medium text-foreground">אין בקשות הזמנה</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {statusFilter !== "all" || divisionFilter !== "all"
+              ? "נסה לשנות את הסינון או לבחור 'כל הבקשות'"
+              : canCreateRequest
+              ? "פתחו בקשה חדשה כדי להתחיל"
+              : "כשמנהלי חטיבה יפתחו בקשות, הן יופיעו כאן"}
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Mobile: card list */}
+          <div className="md:hidden space-y-2">
+            {filtered.map(req => (
+              <div key={req.id} className="bg-card rounded-xl border shadow-sm p-4">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-foreground text-sm">{req.product_name}</p>
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{req.division}</span>
+                      <span className="text-xs text-muted-foreground">·</span>
+                      <span className="text-xs text-muted-foreground">{req.quantity} יח׳</span>
+                      {req.supplier && <>
+                        <span className="text-xs text-muted-foreground">·</span>
+                        <span className="text-xs text-muted-foreground truncate">{req.supplier}</span>
+                      </>}
+                    </div>
+                  </div>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap shrink-0 ${
+                    req.status === "ordered"
+                      ? "bg-green-50 text-green-700 border-green-200"
+                      : "bg-amber-50 text-amber-700 border-amber-200"
+                  }`}>
+                    {req.status === "ordered" ? "הוזמן" : "ממתינה"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2 mt-3">
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
+                    req.urgency === "דחוף" ? "bg-red-50 text-red-700 border-red-200" :
+                    req.urgency === "רגיל" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                    "bg-gray-50 text-gray-600 border-gray-200"
+                  }`}>{req.urgency}</span>
+                  <span className="text-xs text-muted-foreground">{format(new Date(req.created_at), "dd/MM/yyyy")}</span>
+                  {req.status === "pending" && (
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1 ms-auto" onClick={() => setFulfillingRequest(req)}>
+                      <ShoppingCart className="h-3 w-3" />הזמן
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop: table */}
+          <div className="hidden md:block bg-card rounded-xl border shadow-sm overflow-x-auto" dir="rtl">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setMenu)}>
+                  {COLUMN_DEFS.map(col => isVisible(col.id) ? (
+                    <th
+                      key={col.id}
+                      className="text-right p-3 font-semibold text-foreground text-xs whitespace-nowrap"
+                      onContextMenu={colThContextMenu(col, setMenu)}
+                    >
+                      {col.sortField ? (
+                        <button
+                          onClick={() => toggleSort(col.sortField!)}
+                          className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors"
+                        >
+                          {col.label}
+                          <SortIcon field={col.sortField} currentField={sortField} currentDir={sortDir} />
+                        </button>
+                      ) : col.label}
+                    </th>
+                  ) : null)}
+                  <th className="p-3 w-20" />
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {filtered.map(req => (
+                  <tr key={req.id} className="hover:bg-muted/30 transition-colors">
+                    {isVisible("division") && (
+                      <td className="p-3">
+                        <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">{req.division}</span>
+                      </td>
+                    )}
+                    {isVisible("product") && <td className="p-3 font-medium text-foreground">{req.product_name}</td>}
+                    {isVisible("supplier") && <td className="p-3 text-muted-foreground">{req.supplier ?? "—"}</td>}
+                    {isVisible("quantity") && <td className="p-3 tabular-nums">{req.quantity}</td>}
+                    {isVisible("urgency") && (
+                      <td className="p-3">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
+                          req.urgency === "דחוף" ? "bg-red-50 text-red-700 border-red-200" :
+                          req.urgency === "רגיל" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                          "bg-gray-50 text-gray-600 border-gray-200"
+                        }`}>{req.urgency}</span>
+                      </td>
+                    )}
+                    {isVisible("order_type") && <td className="p-3 text-muted-foreground text-xs">{req.order_type}</td>}
+                    {isVisible("consumption") && <td className="p-3 text-muted-foreground tabular-nums">{req.current_consumption ?? "—"}</td>}
+                    {isVisible("reason") && <td className="p-3 text-muted-foreground max-w-[180px] truncate" title={req.reason ?? ""}>{req.reason ?? "—"}</td>}
+                    {isVisible("created_at") && (
+                      <td className="p-3 text-muted-foreground text-xs whitespace-nowrap">
+                        {format(new Date(req.created_at), "dd/MM/yyyy")}
+                      </td>
+                    )}
+                    {isVisible("status") && (
+                      <td className="p-3">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
+                          req.status === "ordered"
+                            ? "bg-green-50 text-green-700 border-green-200"
+                            : "bg-amber-50 text-amber-700 border-amber-200"
+                        }`}>
+                          {req.status === "ordered" ? "הוזמן" : "ממתינה"}
+                        </span>
+                      </td>
+                    )}
+                    {isVisible("ordered_by") && <td className="p-3 text-muted-foreground text-xs">{req.ordered_by_name ?? "—"}</td>}
+                    {isVisible("ordered_at") && (
+                      <td className="p-3 text-muted-foreground text-xs whitespace-nowrap">
+                        {req.ordered_at ? format(new Date(req.ordered_at), "dd/MM/yyyy") : "—"}
+                      </td>
+                    )}
+                    <td className="p-3">
+                      {req.status === "pending" && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setFulfillingRequest(req)}>
+                          <ShoppingCart className="h-3 w-3" />הזמן
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* New-request dialog (bonded division managers) */}
