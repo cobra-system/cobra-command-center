@@ -247,7 +247,7 @@ export default function OrderDetailPage() {
     }
   };
 
-  const allDetails: { label: string; field: string; value: string | number | null | undefined; options?: { value: string; label: string }[]; isDate?: boolean; isSupplierLink?: boolean; icon?: any; isReadOnly?: boolean; priceGated?: boolean }[] = [
+  const allDetails: { label: string; field: string; value: string | number | null | undefined; options?: { value: string; label: string }[]; isDate?: boolean; isSupplierLink?: boolean; icon?: any; isReadOnly?: boolean; priceGated?: boolean; managerOnly?: boolean }[] = [
     { label: "סטטוס", field: "status", value: order.status, options: statusOptions, icon: Check },
     { label: "עדיפות", field: "priority", value: order.priority, options: priorityOptions, icon: Hash },
     { label: "ספק", field: "supplier_id", value: order.supplier_id, options: supplierOptions, isSupplierLink: true, icon: Truck },
@@ -263,9 +263,9 @@ export default function OrderDetailPage() {
     { label: "שם אונייה", field: "vessel_name", value: order.vessel_name, icon: Ship },
     { label: "מספר הזמנת מקום", field: "booking_number", value: order.booking_number, icon: Hash },
     { label: "אסמכתא TCLOG", field: "tclog_reference", value: order.tclog_reference, icon: FileText },
-    { label: "הערות", field: "notes", value: order.notes, icon: FileText },
+    { label: "הערות", field: "notes", value: order.notes, icon: FileText, managerOnly: true },
   ];
-  const details = allDetails.filter(d => showPrices || !d.priceGated);
+  const details = allDetails.filter(d => (showPrices || !d.priceGated) && (showPrices || !d.managerOnly));
 
   const dateFields = [
     { label: "תאריך הזמנה", field: "order_date", value: order.order_date, icon: Calendar },

@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { History, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AppContext";
+import { canSeePrices } from "@/lib/permissions";
 
 interface AuditRow {
   id: string;
@@ -76,6 +78,7 @@ function renderDiff(details: Record<string, unknown>): React.ReactNode {
 }
 
 export function OrderAuditLog({ orderId }: { orderId: string }) {
+  const { currentUser } = useAuth();
   const [expanded, setExpanded] = useState(false);
   const [entries, setEntries] = useState<TimelineEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -129,6 +132,8 @@ export function OrderAuditLog({ orderId }: { orderId: string }) {
     setExpanded(next);
     if (next && !loaded) fetchHistory();
   };
+
+  if (!canSeePrices(currentUser)) return null;
 
   return (
     <div className="bg-card rounded-xl border shadow-sm">
