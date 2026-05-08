@@ -332,16 +332,14 @@ export default function OrdersPage() {
           <TabsList className="w-max min-w-full">
             {!isDivMgr && <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>}
             <TabsTrigger value="table">הזמנות פעילות</TabsTrigger>
-            {!isDivMgr && (
-              <TabsTrigger value="archive" className="gap-1.5">
-                ארכיון הזמנות
-                {archivedOrders.length > 0 && (
-                  <span className="bg-muted text-muted-foreground text-xs font-medium px-1.5 py-0.5 rounded-full">
-                    {archivedOrders.length}
-                  </span>
-                )}
-              </TabsTrigger>
-            )}
+            <TabsTrigger value="archive" className="gap-1.5">
+              ארכיון הזמנות
+              {archivedOrders.length > 0 && (
+                <span className="bg-muted text-muted-foreground text-xs font-medium px-1.5 py-0.5 rounded-full">
+                  {archivedOrders.length}
+                </span>
+              )}
+            </TabsTrigger>
             {!isDivMgr && <TabsTrigger value="meeting">ישיבת רכש</TabsTrigger>}
             <TabsTrigger value="order-requests">בקשת רכש</TabsTrigger>
           </TabsList>
