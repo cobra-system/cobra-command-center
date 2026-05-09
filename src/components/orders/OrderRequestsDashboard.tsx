@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { OrderRequest } from "@/contexts/types";
-import { ClipboardList, AlertTriangle, CheckCircle2, Clock, PackageSearch, TrendingUp } from "lucide-react";
-import { fmtNum, daysSince } from "./orderRequestUtils";
+import { ClipboardList, AlertTriangle, CheckCircle2, Clock, TrendingUp } from "lucide-react";
+import { daysSince } from "./orderRequestUtils";
 
 interface Props {
   requests: OrderRequest[];
@@ -15,7 +15,6 @@ export function OrderRequestsDashboard({ requests, scope, divisionLabel }: Props
     const ordered = requests.filter(r => r.status === "ordered");
     const rejected = requests.filter(r => r.status === "rejected");
     const urgent = pending.filter(r => r.urgency === "דחוף").length;
-    const totalRequiredQty = requests.reduce((s, r) => s + (r.required_to_order ?? r.quantity ?? 0), 0);
     const overdue = pending.filter(r => {
       const d = daysSince(r.created_at);
       return d !== null && d >= 7;
@@ -38,7 +37,6 @@ export function OrderRequestsDashboard({ requests, scope, divisionLabel }: Props
       rejected: rejected.length,
       urgent,
       overdue,
-      totalRequiredQty,
       avgFulfillDays,
     };
   }, [requests]);
@@ -66,13 +64,6 @@ export function OrderRequestsDashboard({ requests, scope, divisionLabel }: Props
       tone: stats.overdue > 0 ? "text-red-600" : "text-muted-foreground",
     },
     {
-      label: "סה״כ כמות",
-      value: fmtNum(stats.totalRequiredQty),
-      sub: "כל השורות",
-      icon: PackageSearch,
-      tone: "text-foreground",
-    },
-    {
       label: scope === "manager" ? "זמן מימוש ממוצע" : "הוזמנו עבור החטיבה",
       value:
         scope === "manager"
@@ -92,7 +83,7 @@ export function OrderRequestsDashboard({ requests, scope, divisionLabel }: Props
           {scope === "division" && divisionLabel ? `סקירת בקשות — ${divisionLabel}` : "סקירת בקשות הזמנה"}
         </h3>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {cards.map(c => (
           <div key={c.label} className="rounded-lg border bg-muted/20 p-3">
             <div className="flex items-center justify-between gap-1">

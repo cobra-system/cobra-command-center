@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +17,7 @@ import type { Product, OrderRequest } from "@/contexts/types";
 import type { OrderRequestUrgency, OrderRequestType } from "@/contexts/types";
 import { URGENCY_OPTIONS, ORDER_TYPE_OPTIONS } from "./orderRequestUtils";
 import { updateDivisionStock } from "./divisionStockHelpers";
+import ProductFormDialog from "@/components/products/ProductFormDialog";
 
 interface Props {
   open: boolean;
@@ -50,22 +55,27 @@ export function OrderRequestDialog({
   const [divisionStock, setDivisionStock] = useState("");
   const [quarterlyForecast, setQuarterlyForecast] = useState("");
   const [orderExecutionDate, setOrderExecutionDate] = useState("");
-  const [shippingType, setShippingType] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState("");
   const [notes, setNotes] = useState("");
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Create-product flow
+  const [productCreateOpen, setProductCreateOpen] = useState(false);
+  const [productCreateName, setProductCreateName] = useState("");
+  const [pendingProductMatchName, setPendingProductMatchName] = useState<string | null>(null);
+
+  // Post-submit "attach to division" prompt
+  const [attachPrompt, setAttachPrompt] = useState<{ productId: string; productName: string } | null>(null);
 
   const isEdit = !!editingRequest;
   const divisionProductIds = new Set(divisionProducts.map(dp => dp.product_id));
-  const productOptions = allProducts
-    .filter(p => divisionProductIds.has(p.id))
-    .map(p => ({
-      value: p.id,
-      label: p.name,
-      hint: p.sku || undefined,
-      keywords: p.sku ? [p.sku] : undefined,
-    }));
+  // Show ALL products (not only the ones already linked to this division). If the
+  // user picks one outside their set, we ask after submission whether to attach it.
+  const productOptions = allProducts.map(p => ({
+    value: p.id,
+    label: p.name,
+    hint: p.sku || undefined,
+    keywords: p.sku ? [p.sku] : undefined,
+  }));
 
   useEffect(() => {
     if (!open) return;
@@ -84,10 +94,7 @@ export function OrderRequestDialog({
       setDivisionStock(seed.division_stock != null ? String(seed.division_stock) : "");
       setQuarterlyForecast(seed.quarterly_forecast != null ? String(seed.quarterly_forecast) : "");
       setOrderExecutionDate(seed.order_execution_date ?? today);
-      setShippingType(seed.shipping_type ?? "");
-      setPaymentStatus(seed.payment_status ?? "");
       setNotes(seed.notes ?? "");
-      setShowAdvanced(true);
     } else {
       setProductId("");
       setProductName("");
@@ -101,10 +108,7 @@ export function OrderRequestDialog({
       setDivisionStock("");
       setQuarterlyForecast("");
       setOrderExecutionDate(today);
-      setShippingType("");
-      setPaymentStatus("");
       setNotes("");
-      setShowAdvanced(false);
     }
   }, [open, editingRequest, template]);
 
@@ -117,6 +121,20 @@ export function OrderRequestDialog({
       setProductSku(prod.sku ?? "");
     }
   };
+
+  // When a new product is created via the inline ProductFormDialog, the products
+  // list refetches; this effect picks up the freshly created entry by name and
+  // selects it automatically.
+  useEffect(() => {
+    if (!pendingProductMatchName) return;
+    const match = allProducts.find(p => p.name.trim() === pendingProductMatchName.trim());
+    if (match) {
+      handleProductChange(match.id);
+      setPendingProductMatchName(null);
+    }
+    // intentionally leaving handleProductChange out of deps: it's defined inline above
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allProducts, pendingProductMatchName]);
 
   const numOrNull = (s: string): number | null => {
     if (!s.trim()) return null;
@@ -157,8 +175,6 @@ export function OrderRequestDialog({
       // division_stock lives on division_products only; we write it separately below
       quarterly_forecast: numOrNull(quarterlyForecast),
       order_execution_date: orderExecutionDate || null,
-      shipping_type: shippingType.trim() || null,
-      payment_status: paymentStatus.trim() || null,
       notes: notes.trim() || null,
     };
 
@@ -193,32 +209,61 @@ export function OrderRequestDialog({
     }
 
     toast.success(isEdit ? "הבקשה עודכנה" : "הבקשה נשלחה בהצלחה");
+
+    // If the chosen product isn't linked to this division yet, offer to attach.
+    if (!isEdit && productId && !divisionProductIds.has(productId)) {
+      setAttachPrompt({ productId, productName: productName.trim() });
+    } else {
+      onOpenChange(false);
+    }
+    onCreated();
+  };
+
+  const handleAttachConfirm = async () => {
+    if (!attachPrompt) return;
+    const { error } = await supabase
+      .from("division_products")
+      .insert({ division, product_id: attachPrompt.productId });
+    if (error) {
+      toast.error("שגיאה בצירוף המוצר לחטיבה");
+    } else {
+      toast.success("המוצר צורף לחטיבה");
+    }
+    setAttachPrompt(null);
     onOpenChange(false);
     onCreated();
   };
 
+  const handleAttachDismiss = () => {
+    setAttachPrompt(null);
+    onOpenChange(false);
+  };
+
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
         <DialogHeader>
           <DialogTitle>{isEdit ? "עריכת בקשת הזמנה" : "בקשת הזמנה חדשה"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
-          {/* Product picker (free text fallback for planning rows without a product) */}
+          {/* Product picker — searches across ALL products. If the search yields
+              nothing the user can create a brand-new product inline. */}
           <div className="space-y-1.5">
-            <Label>מוצר {productOptions.length === 0 && <span className="text-xs text-muted-foreground">(הזן ידנית)</span>}</Label>
-            {productOptions.length > 0 ? (
-              <Combobox
-                value={productId}
-                onValueChange={handleProductChange}
-                options={productOptions}
-                placeholder="בחר מוצר..."
-                searchPlaceholder='חיפוש לפי שם או מק"ט...'
-                emptyText="לא נמצאו מוצרים"
-              />
-            ) : (
-              <Input value={productName} onChange={e => setProductName(e.target.value)} placeholder="שם מוצר" />
-            )}
+            <Label>מוצר</Label>
+            <Combobox
+              value={productId}
+              onValueChange={handleProductChange}
+              options={productOptions}
+              placeholder="בחר מוצר..."
+              searchPlaceholder='חיפוש לפי שם או מק"ט...'
+              emptyText="לא נמצאו מוצרים"
+              createNewLabel="צור מוצר חדש"
+              onCreateNew={(name) => {
+                setProductCreateName(name);
+                setProductCreateOpen(true);
+              }}
+            />
           </div>
 
           {/* When a product is picked, show its SKU + name as readouts; else allow editing */}
@@ -296,49 +341,25 @@ export function OrderRequestDialog({
             />
           </div>
 
-          {/* Advanced planning fields toggle */}
-          <button
-            type="button"
-            onClick={() => setShowAdvanced(s => !s)}
-            className="text-xs text-muted-foreground hover:text-foreground underline"
-          >
-            {showAdvanced ? "הסתר שדות תכנון מתקדמים" : "הצג שדות תכנון מתקדמים"}
-          </button>
-
-          {showAdvanced && (
-            <div className="space-y-4 border-t pt-4">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">מלאי חטיבה</Label>
-                  <Input type="number" value={divisionStock} onChange={e => setDivisionStock(e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">צפי רבעון</Label>
-                  <Input type="number" value={quarterlyForecast} onChange={e => setQuarterlyForecast(e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">תאריך ביצוע הזמנה</Label>
-                  <Input type="date" value={orderExecutionDate} onChange={e => setOrderExecutionDate(e.target.value)} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">סוג משלוח</Label>
-                  <Input value={shippingType} onChange={e => setShippingType(e.target.value)} placeholder="ים / אוויר / יבשה" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">סטטוס תשלום</Label>
-                  <Input value={paymentStatus} onChange={e => setPaymentStatus(e.target.value)} />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs">הערות</Label>
-                <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label>מלאי חטיבה</Label>
+              <Input type="number" value={divisionStock} onChange={e => setDivisionStock(e.target.value)} />
             </div>
-          )}
+            <div className="space-y-1.5">
+              <Label>צפי רבעון</Label>
+              <Input type="number" value={quarterlyForecast} onChange={e => setQuarterlyForecast(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>תאריך ביצוע הזמנה</Label>
+              <Input type="date" value={orderExecutionDate} onChange={e => setOrderExecutionDate(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>הערות</Label>
+            <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
+          </div>
 
           <div className="flex gap-2 justify-end pt-2 border-t">
             <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>ביטול</Button>
@@ -349,5 +370,32 @@ export function OrderRequestDialog({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Inline product creation triggered from the combobox empty state */}
+    <ProductFormDialog
+      open={productCreateOpen}
+      onOpenChange={setProductCreateOpen}
+      presetProductName={productCreateName}
+      presetDivision={division}
+      onCreated={() => setPendingProductMatchName(productCreateName)}
+    />
+
+    {/* Post-submit prompt to add the chosen product to this division's product set */}
+    <AlertDialog open={!!attachPrompt} onOpenChange={(o) => { if (!o) handleAttachDismiss(); }}>
+      <AlertDialogContent dir="rtl">
+        <AlertDialogHeader>
+          <AlertDialogTitle>צירוף מוצר לחטיבה</AlertDialogTitle>
+          <AlertDialogDescription>
+            המוצר &quot;{attachPrompt?.productName}&quot; אינו משויך לחטיבת {division}.
+            לצרף אותו לרשימת המוצרים הקבועה של החטיבה?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={handleAttachDismiss}>לא, רק הפעם</AlertDialogCancel>
+          <AlertDialogAction onClick={handleAttachConfirm}>כן, צרף לחטיבה</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

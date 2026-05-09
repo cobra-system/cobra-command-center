@@ -26,6 +26,10 @@ interface ComboboxProps {
   disabled?: boolean;
   /** When true, the user can type a custom value that isn't in the options list */
   allowCustomValue?: boolean;
+  /** When provided, shows a "create new" button in the empty state with the typed search term */
+  onCreateNew?: (search: string) => void;
+  /** Label for the "create new" button (defaults to "צור חדש"). The typed search is appended. */
+  createNewLabel?: string;
 }
 
 export function Combobox({
@@ -39,6 +43,8 @@ export function Combobox({
   triggerClassName,
   disabled,
   allowCustomValue,
+  onCreateNew,
+  createNewLabel = "צור חדש",
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
@@ -79,7 +85,20 @@ export function Combobox({
           />
           <CommandList>
             <CommandEmpty>
-              {allowCustomValue && search.trim() ? (
+              {onCreateNew && search.trim() ? (
+                <button
+                  className="w-full text-start px-2 py-1.5 text-sm cursor-pointer hover:bg-accent rounded"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    const term = search.trim();
+                    setSearch("");
+                    setOpen(false);
+                    onCreateNew(term);
+                  }}
+                >
+                  {createNewLabel}: &quot;{search.trim()}&quot;
+                </button>
+              ) : allowCustomValue && search.trim() ? (
                 <button
                   className="w-full text-start px-2 py-1.5 text-sm cursor-pointer hover:bg-accent rounded"
                   onMouseDown={(e) => {
