@@ -8,7 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3, Download, Package, Truck, ClipboardList, Wrench, Users, DollarSign } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
-import { he } from "date-fns/locale";
 
 const COLORS = [
   "hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--warning))",
@@ -27,7 +26,7 @@ export default function ReportsPage() {
   const targetMonth = subMonths(new Date(), monthOffset);
   const monthStart = startOfMonth(targetMonth);
   const monthEnd = endOfMonth(targetMonth);
-  const monthLabel = format(targetMonth, "MMMM yyyy", { locale: he });
+  const monthLabel = format(targetMonth, "MM/yyyy");
 
   const fetchExtra = useCallback(async () => {
     setLoading(true);
@@ -92,7 +91,7 @@ export default function ReportsPage() {
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const label = format(d, "MM");
+      const label = format(d, "MM/yyyy");
       const count = allIssues.filter(issue => issue.reported_date?.startsWith(key)).length;
       monthly.push({ month: label, count });
     }
@@ -177,7 +176,7 @@ export default function ReportsPage() {
             <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(i => (
-                <SelectItem key={i} value={String(i)}>{format(subMonths(new Date(), i), "MMMM yyyy", { locale: he })}</SelectItem>
+                <SelectItem key={i} value={String(i)}>{format(subMonths(new Date(), i), "MM/yyyy")}</SelectItem>
               ))}
             </SelectContent>
           </Select>

@@ -158,20 +158,30 @@ export function OrderRequestsTab() {
     return () => { void supabase.removeChannel(ch); };
   }, [fetchRequests]);
 
+  const fetchDivisionProductIds = useCallback(async () => {
+    if (!canCreateRequest) return;
+    const { data, error } = await supabase
+      .from("division_products")
+      .select("product_id")
+      .eq("division", userDivision);
+    if (error) { setDivisionProductIds([]); return; }
+    setDivisionProductIds((data ?? []).map(d => d.product_id as string));
+  }, [canCreateRequest, userDivision]);
+
+  useEffect(() => { void fetchDivisionProductIds(); }, [fetchDivisionProductIds]);
+
+  // Realtime: react to division_products changes (covers inline product creation +
+  // attach-to-division popup) so the dialog's set is always fresh.
   useEffect(() => {
     if (!canCreateRequest) return;
-    let cancelled = false;
-    (async () => {
-      const { data, error } = await supabase
-        .from("division_products")
-        .select("product_id")
-        .eq("division", userDivision);
-      if (cancelled) return;
-      if (error) { setDivisionProductIds([]); return; }
-      setDivisionProductIds((data ?? []).map(d => d.product_id as string));
-    })();
-    return () => { cancelled = true; };
-  }, [canCreateRequest, userDivision]);
+    const ch = supabase
+      .channel(`division-products-${userDivision}`)
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "division_products", filter: `division=eq.${userDivision}` },
+        () => { void fetchDivisionProductIds(); })
+      .subscribe();
+    return () => { void supabase.removeChannel(ch); };
+  }, [canCreateRequest, userDivision, fetchDivisionProductIds]);
 
   const dialogDivisionProducts = useMemo(
     () => divisionProductIds.map(product_id => ({

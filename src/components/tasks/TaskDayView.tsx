@@ -4,7 +4,6 @@ import { PriorityBadge } from "@/components/PriorityBadge";
 import { type RecurringTask, recurringMatchesDay, findOrCreateRecurringInstance } from "@/lib/recurringUtils";
 import { supabase } from "@/lib/supabase";
 import { format, addDays, subDays, isToday, isSameDay, startOfDay, isWithinInterval } from "date-fns";
-import { he } from "date-fns/locale";
 import { ChevronRight, ChevronLeft, Calendar, Users, CheckCircle2, Circle, Flame, Settings, Plus, Repeat, Pencil, Trash2, Zap } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Button } from "@/components/ui/button";
@@ -187,7 +186,7 @@ export default function TaskDayView() {
             <div className="text-center mb-4">
               <p className="text-lg font-bold text-foreground">{dayNames[selectedDay.getDay()]}</p>
               <p className="text-3xl font-black text-primary mt-1">{format(selectedDay, "d")}</p>
-              <p className="text-sm text-muted-foreground mt-1">{format(selectedDay, "MMMM yyyy", { locale: he })}</p>
+              <p className="text-sm text-muted-foreground mt-1">{format(selectedDay, "MM/yyyy")}</p>
             </div>
 
             {total > 0 && (
