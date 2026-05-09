@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NewOrderDialog } from "@/components/orders/NewOrderDialog";
 import { OrderRequestDialog } from "@/components/orders/OrderRequestDialog";
+import { AttachToOrderDialog } from "@/components/orders/AttachToOrderDialog";
 import { RejectRequestDialog } from "@/components/orders/RejectRequestDialog";
 import { OrderRequestsDashboard } from "@/components/orders/OrderRequestsDashboard";
 import { RequestDetailPanel } from "@/components/orders/RequestDetailPanel";
@@ -85,6 +86,8 @@ export function OrderRequestsTab() {
   const [sortField, setSortField] = usePersistedState<string | null>("order-requests:sort-field", "created_at");
   const [sortDir, setSortDir] = usePersistedState<"asc" | "desc">("order-requests:sort-dir", "desc");
   const [fulfillingRequest, setFulfillingRequest] = useState<OrderRequest | null>(null);
+  const [fulfillChooserRequest, setFulfillChooserRequest] = useState<OrderRequest | null>(null);
+  const [attachingRequest, setAttachingRequest] = useState<OrderRequest | null>(null);
   const [editingRequest, setEditingRequest] = useState<OrderRequest | null>(null);
   const [rejectingRequest, setRejectingRequest] = useState<OrderRequest | null>(null);
   const [detailRequest, setDetailRequest] = useState<OrderRequest | null>(null);
@@ -593,7 +596,7 @@ export function OrderRequestsTab() {
                         </Button>
                       )}
                       {req.status === "pending" && canFulfill && (
-                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setFulfillingRequest(req)}>
+                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setFulfillChooserRequest(req)}>
                           <ShoppingCart className="h-3 w-3" />הזמן
                         </Button>
                       )}
@@ -919,7 +922,7 @@ export function OrderRequestsTab() {
                             {req.status === "pending" && canFulfill && (
                               <>
                                 <span className="h-4 w-px bg-border mx-0.5" aria-hidden />
-                                <Button size="sm" className="h-7 text-xs gap-1 px-2.5" onClick={(e) => { e.stopPropagation(); setFulfillingRequest(req); }}>
+                                <Button size="sm" className="h-7 text-xs gap-1 px-2.5" onClick={(e) => { e.stopPropagation(); setFulfillChooserRequest(req); }}>
                                   <ShoppingCart className="h-3.5 w-3.5" />הזמן
                                 </Button>
                               </>
@@ -967,15 +970,6 @@ export function OrderRequestsTab() {
                   return rendered;
                 })()}
               </tbody>
-              {/* Aggregations row */}
-              <tfoot className="bg-muted/40">
-                <tr className="border-t font-semibold text-xs">
-                  <td colSpan={(canFulfill ? 1 : 0) + visibleCount + 1} className={`${cellPadding} text-muted-foreground`}>
-                    מציג {filtered.length} מתוך {requests.length} בקשות ·
-                    סה״כ כמות: <span className="text-foreground tabular-nums">{fmtNum(filtered.reduce((s, r) => s + (r.required_to_order ?? r.quantity ?? 0), 0))}</span> יח׳
-                  </td>
-                </tr>
-              </tfoot>
             </table>
           </div>
         </>
@@ -1085,7 +1079,7 @@ export function OrderRequestsTab() {
         request={detailRequest}
         onOpenChange={(o) => { if (!o) setDetailRequest(null); }}
         onEdit={(r) => { setDetailRequest(null); setEditingRequest(r); }}
-        onFulfill={(r) => { setDetailRequest(null); setFulfillingRequest(r); }}
+        onFulfill={(r) => { setDetailRequest(null); setFulfillChooserRequest(r); }}
         onReject={(r) => { setDetailRequest(null); setRejectingRequest(r); }}
         onDelete={(r) => { setDetailRequest(null); void handleDelete(r); }}
         onRevert={(r) => { setDetailRequest(null); void handleRevert(r); }}
@@ -1096,6 +1090,61 @@ export function OrderRequestsTab() {
           const s = suppliers.find(s => s.company === name);
           if (s) { setDetailRequest(null); navigate(`/suppliers/${s.id}`); }
         }}
+      />
+
+      {/* Fulfillment action chooser (manager only) */}
+      <Dialog open={!!fulfillChooserRequest} onOpenChange={(o) => { if (!o) setFulfillChooserRequest(null); }}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>איך לטפל בבקשה?</DialogTitle>
+          </DialogHeader>
+          {fulfillChooserRequest && (
+            <div className="space-y-3 pt-2">
+              <div className="rounded-lg border bg-muted/20 p-3 text-sm">
+                <div className="font-semibold">{fulfillChooserRequest.product_name}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {fulfillChooserRequest.supplier ?? "ללא ספק"} · כמות {fmtNum(fulfillChooserRequest.required_to_order ?? fulfillChooserRequest.quantity)}
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  const r = fulfillChooserRequest;
+                  setFulfillChooserRequest(null);
+                  setFulfillingRequest(r);
+                }}
+                className="w-full text-right rounded-lg border p-3 hover:bg-accent/40 transition-colors flex items-center gap-3"
+              >
+                <Plus className="h-5 w-5 text-primary shrink-0" />
+                <div>
+                  <div className="font-semibold text-sm">צור הזמנה חדשה</div>
+                  <div className="text-xs text-muted-foreground">פתיחת הזמנה חדשה לספק עם הפריט הזה</div>
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  const r = fulfillChooserRequest;
+                  setFulfillChooserRequest(null);
+                  setAttachingRequest(r);
+                }}
+                className="w-full text-right rounded-lg border p-3 hover:bg-accent/40 transition-colors flex items-center gap-3"
+              >
+                <ClipboardList className="h-5 w-5 text-primary shrink-0" />
+                <div>
+                  <div className="font-semibold text-sm">שייך להזמנה קיימת</div>
+                  <div className="text-xs text-muted-foreground">הוספת הפריט להזמנה אחת או יותר שכבר פתוחות</div>
+                </div>
+              </button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Attach to existing order dialog */}
+      <AttachToOrderDialog
+        open={!!attachingRequest}
+        onOpenChange={(o) => { if (!o) setAttachingRequest(null); }}
+        request={attachingRequest}
+        onAttached={fetchRequests}
       />
 
       {menu && (
