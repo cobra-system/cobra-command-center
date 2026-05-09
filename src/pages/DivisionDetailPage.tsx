@@ -279,6 +279,7 @@ export default function DivisionDetailPage() {
   const { currentUser } = useAuth();
 
   const division = divisionName ? decodeURIComponent(divisionName) : "";
+  const isBonded = BONDED_DIVISIONS.has(division);
 
   // Division managers can only access their own division
   useEffect(() => {
@@ -827,7 +828,6 @@ export default function DivisionDetailPage() {
   }
 
   const colorClass = DIVISION_COLORS[division] ?? "bg-gray-100 text-gray-700 border-gray-200";
-  const isBonded = BONDED_DIVISIONS.has(division);
   const bondedInstaller = isBonded ? installers[0] ?? null : null;
   // System-wide users (no division assignment) get column-visibility controls;
   // division managers see the default fixed view.
