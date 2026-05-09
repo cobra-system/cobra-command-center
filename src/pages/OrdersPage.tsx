@@ -2,9 +2,6 @@ import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from "react
 const ProcurementMeetingTab = lazy(() =>
   import("@/components/meetings/ProcurementMeetingTab")
 );
-const ShipmentGroupsTab = lazy(() =>
-  import("@/components/orders/ShipmentGroupsTab").then(m => ({ default: m.ShipmentGroupsTab }))
-);
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { Plus, Search, RefreshCw } from "lucide-react";
@@ -319,7 +316,7 @@ export default function OrdersPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3 flex-wrap">
-        <h1 className="text-2xl font-bold text-foreground">הזמנות</h1>
+        <h1 className="text-2xl font-bold text-foreground">רכש</h1>
         {trackingSync.syncing && (
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 rounded-full px-2.5 py-1">
             <RefreshCw className="h-3 w-3 animate-spin" />
@@ -345,26 +342,21 @@ export default function OrdersPage() {
       />
 
       <Tabs defaultValue={isDivMgr ? "order-requests" : "dashboard"} className="space-y-4">
-        <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-1">
+        <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-1" dir="rtl">
           <TabsList className="w-max min-w-full">
-            {/* Division managers see "בקשות הזמנה" first (their primary surface). */}
-            {isDivMgr && <TabsTrigger value="order-requests">בקשות הזמנה</TabsTrigger>}
             {!isDivMgr && <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>}
-            <TabsTrigger value="table">{isDivMgr ? "רכש מוצרי חטיבה" : "טבלת הזמנות"}</TabsTrigger>
-            {!isDivMgr && (
-              <TabsTrigger value="archive" className="gap-1.5" dir="ltr">
-                ארכיון הזמנות
-                {archivedOrders.length > 0 && (
-                  <span className="bg-muted text-muted-foreground text-xs font-medium px-1.5 py-0.5 rounded-full">
-                    {archivedOrders.length}
-                  </span>
-                )}
-              </TabsTrigger>
-            )}
-            {!isDivMgr && <TabsTrigger value="agenda">סדר יום רכש</TabsTrigger>}
+            {/* Table tab carries the division-manager-specific label for the bonded planning surface. */}
+            <TabsTrigger value="table">{isDivMgr ? "רכש מוצרי חטיבה" : "הזמנות פעילות"}</TabsTrigger>
+            <TabsTrigger value="archive" className="gap-1.5">
+              ארכיון הזמנות
+              {archivedOrders.length > 0 && (
+                <span className="bg-muted text-muted-foreground text-xs font-medium px-1.5 py-0.5 rounded-full">
+                  {archivedOrders.length}
+                </span>
+              )}
+            </TabsTrigger>
             {!isDivMgr && <TabsTrigger value="meeting">ישיבת רכש</TabsTrigger>}
-            {!isDivMgr && <TabsTrigger value="shipment-groups">קבוצות משלוח</TabsTrigger>}
-            {!isDivMgr && <TabsTrigger value="order-requests">בקשות הזמנה</TabsTrigger>}
+            <TabsTrigger value="order-requests">בקשת רכש</TabsTrigger>
           </TabsList>
         </div>
 
@@ -444,21 +436,9 @@ export default function OrdersPage() {
           />
         </TabsContent>
 
-        <TabsContent value="agenda" className="mt-0">
-          <Suspense fallback={<div className="p-8 text-center text-muted-foreground">טוען...</div>}>
-            <ProcurementMeetingTab />
-          </Suspense>
-        </TabsContent>
-
         <TabsContent value="meeting" className="mt-0">
           <Suspense fallback={<div className="p-8 text-center text-muted-foreground">טוען...</div>}>
             <ProcurementMeetingTab />
-          </Suspense>
-        </TabsContent>
-
-        <TabsContent value="shipment-groups" className="mt-0">
-          <Suspense fallback={<div className="p-8 text-center text-muted-foreground">טוען...</div>}>
-            <ShipmentGroupsTab />
           </Suspense>
         </TabsContent>
 

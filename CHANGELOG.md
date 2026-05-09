@@ -33,13 +33,21 @@ A complete planning + fulfillment loop with collaboration, snapshots, notificati
 
 ## [2026-05-08]
 
+- fix(orders): align header fixed columns with data rows (photo + copy + delete) (d30d71e)
+- feat(orders): show archive tab for division managers (already scoped by division) (7727af9)
+- rename: orders page to רכש, active orders tab, order requests tab (f3f4b05)
+- fix(orders): remove shipment-groups tab, deduplicate procurement tabs, fix RTL order (574ab64)
+- fix: make sidebar sticky so user profile stays at bottom of viewport (98df496)
+
+<!-- last-commit: 83b54c9b4d4e1c804ebf26817a8256c8b993932d -->
+## [2026-05-08]
+
 - fix(security): close payment-terms / global-search leaks; add regression tests (9eeed7c)
 - fix(order-requests): redesign tab with proper RTL, header card, and mobile cards (aa4701e)
 - fix(security): column-mask product prices via _safe views; tighten edge cases (08bc1fc)
 - fix(security): hide order notes + audit log from division managers; add RLS migration (71c9e34)
 - fix(security): hide all money and documents from division managers (ada1144)
 
-<!-- last-commit: 8dd2d8f13e3ea5312947a18404456e5a9cd2a3ca -->
 ## [2026-05-08]
 
 - revert(auth): drop Google OAuth from login (633092c)
