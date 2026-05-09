@@ -5,6 +5,20 @@
 
 ---
 
+## [2026-05-09]
+
+- merge: resolve OrdersPage tabs conflict with main (8557218)
+- feat(edge): load notification config from app_config table (Resend + VAPID inline) (1c6f649)
+- feat(order-requests): wave 7 — utilization normalize, stock snapshot, push dispatch (813f40f)
+- refactor(order-requests): single source of truth for division_stock (61b9d3a)
+- docs: register dispatch-order-request-notifications Edge Function (7184f5a)
+- feat(order-requests): wave 5 — stock unification, reverse flow, notifications (afa1bf7)
+- feat(order-requests): wave 4 — persistence, clone, snapshots UI, dedupe (52f229f)
+- feat(order-requests): wave 3 — Excel I/O, attachments, snapshots, lead-time (15e6816)
+- feat(order-requests): wave 2 — detail panel, comments, bulk fulfill, realtime (eb3dd75)
+- feat(order-requests): complete the bonded-division procurement workflow (c7d85b3)
+
+<!-- last-commit: 2ff1d2f6d4bb6d41d098219e9f041c027477f8d6 -->
 ## [Unreleased]
 
 ### Added — בקשות הזמנה (order requests) for bonded divisions
@@ -39,7 +53,6 @@ A complete planning + fulfillment loop with collaboration, snapshots, notificati
 - fix(orders): remove shipment-groups tab, deduplicate procurement tabs, fix RTL order (574ab64)
 - fix: make sidebar sticky so user profile stays at bottom of viewport (98df496)
 
-<!-- last-commit: 83b54c9b4d4e1c804ebf26817a8256c8b993932d -->
 ## [2026-05-08]
 
 - fix(security): close payment-terms / global-search leaks; add regression tests (9eeed7c)
