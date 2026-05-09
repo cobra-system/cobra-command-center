@@ -1,7 +1,7 @@
 import type { OrderRequest, OrderRequestStatus, OrderRequestUrgency } from "@/contexts/types";
 
-// utilization_pct comes in mixed forms across rows: 0.7 (fraction) and 70 (percent).
-// Treat values ≤ 1 as fractions; the rest as whole-number percentages.
+// utilization_pct is a whole-number percentage (0–100, may exceed 100 when over-committed).
+// The 20260509100000 migration normalized any legacy fraction-form values.
 export function fmtNum(v: number | null | undefined): string {
   if (v === null || v === undefined || Number.isNaN(v)) return "—";
   return Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -9,8 +9,7 @@ export function fmtNum(v: number | null | undefined): string {
 
 export function fmtPct(v: number | null | undefined): string {
   if (v === null || v === undefined || Number.isNaN(v)) return "—";
-  const pct = Math.abs(v) <= 1 ? v * 100 : v;
-  return `${Math.round(pct)}%`;
+  return `${Math.round(v)}%`;
 }
 
 export function fmtMoney(v: number | null | undefined): string {
@@ -20,9 +19,8 @@ export function fmtMoney(v: number | null | undefined): string {
 
 export function utilizationColor(v: number | null | undefined): string {
   if (v === null || v === undefined || Number.isNaN(v)) return "text-muted-foreground";
-  const pct = Math.abs(v) <= 1 ? v * 100 : v;
-  if (pct < 30) return "text-red-600 font-semibold";
-  if (pct < 70) return "text-yellow-600";
+  if (v < 30) return "text-red-600 font-semibold";
+  if (v < 70) return "text-yellow-600";
   return "text-green-600";
 }
 

@@ -336,7 +336,20 @@ export function RequestDetailPanel({
               <Section title="מלאי וצפי">
                 <DetailGrid>
                   <Detail label="מלאי מחסן 1" value={fmtNum(request.main_warehouse_stock)} />
-                  <Detail label="מלאי חטיבה" value={fmtNum(request.division_stock)} />
+                  <Detail
+                    label={<LabelWithHelp text="מלאי חטיבה" help="הערך הנוכחי החי. מתעדכן בכל שינוי." />}
+                    value={
+                      <div className="flex items-baseline gap-2">
+                        <span>{fmtNum(request.division_stock)}</span>
+                        {request.division_stock_at_request != null
+                         && request.division_stock_at_request !== request.division_stock && (
+                          <span className="text-[10px] text-muted-foreground" title="מלאי שהיה בעת יצירת הבקשה">
+                            (היה {fmtNum(request.division_stock_at_request)})
+                          </span>
+                        )}
+                      </div>
+                    }
+                  />
                   <Detail
                     label={<LabelWithHelp text="צפי רבעון" help="הצריכה הצפויה ברבעון הנוכחי על בסיס היסטוריה." />}
                     value={fmtNum(request.quarterly_forecast)}

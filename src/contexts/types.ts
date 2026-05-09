@@ -258,6 +258,9 @@ export interface OrderRequest {
   // hydrated client-side at fetch time. Reads work as before; writes go through
   // division_products to avoid the dual-source-of-truth problem.
   division_stock?: number | null;
+  // Immutable snapshot of division_stock at INSERT time (set by trigger). Useful
+  // for audit. Stays NULL for older rows and rows without a product_id.
+  division_stock_at_request?: number | null;
   quarterly_forecast?: number | null;
   utilization_pct?: number | null;
   incoming_orders?: number | null;

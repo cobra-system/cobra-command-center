@@ -142,7 +142,7 @@ export function registerDivisionTools(server: McpServer) {
       // division_stock is NOT a column on order_requests — it lives on division_products.
       // Use upsert_division_product to set the live stock per (division, product_id).
       quarterly_forecast: z.number().optional().describe("צפי רבעון"),
-      utilization_pct: z.number().optional().describe("% מימוש (fraction 0–1 or whole percent)"),
+      utilization_pct: z.number().min(0).optional().describe("% מימוש as whole number (0–100, may exceed 100 when over-committed)"),
       incoming_orders: z.number().optional().describe('עול"ב'),
       smoothed_required: z.number().optional().describe("נדרש משוכלל (כולל מלאי ביטחון)"),
       required_to_order: z.number().optional().describe("נדרש להזמין"),
