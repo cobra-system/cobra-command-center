@@ -7,6 +7,11 @@
 
 ## [2026-05-09]
 
+- fix(division-detail): hoist isBonded above useEffect that depends on it (9c2b198)
+
+<!-- last-commit: def5cc369b0df685916c3eb1298123700127e7d9 -->
+## [2026-05-09]
+
 - merge: resolve OrdersPage tabs conflict with main (8557218)
 - feat(edge): load notification config from app_config table (Resend + VAPID inline) (1c6f649)
 - feat(order-requests): wave 7 — utilization normalize, stock snapshot, push dispatch (813f40f)
@@ -18,7 +23,6 @@
 - feat(order-requests): wave 2 — detail panel, comments, bulk fulfill, realtime (eb3dd75)
 - feat(order-requests): complete the bonded-division procurement workflow (c7d85b3)
 
-<!-- last-commit: 2ff1d2f6d4bb6d41d098219e9f041c027477f8d6 -->
 ## [Unreleased]
 
 ### Added — בקשות הזמנה (order requests) for bonded divisions
