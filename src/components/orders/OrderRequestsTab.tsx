@@ -32,7 +32,7 @@ import type { OrderRequest } from "@/contexts/types";
 import { DIVISIONS, BONDED_DIVISIONS } from "@/components/equipment/constants";
 import { isDivisionManager } from "@/lib/permissions";
 import {
-  fmtNum, fmtPct, fmtMoney, urgencyClass, statusClass, STATUS_LABELS,
+  fmtNum, fmtPct, urgencyClass, statusClass, STATUS_LABELS,
   utilizationColor, isOverdue, ageBadge, freeTextMatch, daysSince, suggestUrgency,
   URGENCY_OPTIONS, ORDER_TYPE_OPTIONS,
 } from "./orderRequestUtils";
@@ -45,18 +45,14 @@ const COLUMN_DEFS: ColDef[] = [
   { id: "product", label: "מוצר", sortField: "product_name" },
   { id: "sku", label: "מק״ט", sortField: "product_sku" },
   { id: "supplier", label: "ספק", sortField: "supplier" },
-  { id: "quantity", label: "כמות", sortField: "quantity" },
-  { id: "required_to_order", label: "נדרש להזמין", sortField: "required_to_order" },
-  { id: "main_warehouse_stock", label: "מלאי מחסן 1", sortField: "main_warehouse_stock" },
+  { id: "required_to_order", label: "כמות", sortField: "required_to_order" },
   { id: "division_stock", label: "מלאי חטיבה", sortField: "division_stock" },
   { id: "quarterly_forecast", label: "צפי רבעון", sortField: "quarterly_forecast" },
   { id: "utilization_pct", label: "% מימוש", sortField: "utilization_pct" },
-  { id: "estimated_unit_price", label: "מחיר יח׳", sortField: "estimated_unit_price" },
-  { id: "estimated_value", label: "ערך משוער" },
   { id: "urgency", label: "דחיפות", sortField: "urgency" },
   { id: "order_type", label: "סוג הזמנה" },
   { id: "order_execution_date", label: "תאריך ביצוע", sortField: "order_execution_date" },
-  { id: "consumption", label: "צריכה" },
+  { id: "consumption", label: "צריכה חודשית ממוצעת" },
   { id: "reason", label: "סיבה" },
   { id: "created_by", label: "נשלחה ע״י" },
   { id: "created_at", label: "נשלחה ב", sortField: "created_at" },
@@ -121,7 +117,7 @@ export function OrderRequestsTab() {
     COLUMN_DEFS,
     isManager
       // Manager: hide low-value text fields by default; show planning numbers
-      ? ["consumption", "reason", "ordered_by", "sku", "estimated_unit_price", "main_warehouse_stock", "quarterly_forecast"]
+      ? ["consumption", "reason", "ordered_by", "sku", "quarterly_forecast"]
       // Division manager: hide division (their own), reviewer/ordered metadata
       : ["division", "ordered_by", "ordered_at", "consumption", "reason"]
   );
@@ -556,7 +552,6 @@ export function OrderRequestsTab() {
           <div className="md:hidden space-y-2">
             {filtered.map(req => {
               const age = ageBadge(req);
-              const estValue = (req.required_to_order ?? req.quantity ?? 0) * (req.estimated_unit_price ?? 0);
               return (
                 <div key={req.id} className="bg-card rounded-xl border shadow-sm p-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
@@ -590,7 +585,6 @@ export function OrderRequestsTab() {
                   <div className="flex items-center justify-between gap-2 mt-3 flex-wrap">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${urgencyClass(req.urgency)}`}>{req.urgency}</span>
                     {age && <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${age.cls}`}>{age.text}</span>}
-                    {estValue > 0 && <span className="text-xs text-muted-foreground tabular-nums">{fmtMoney(estValue)}</span>}
                     <span className="text-xs text-muted-foreground">{format(new Date(req.created_at), "dd/MM/yyyy")}</span>
                     <div className="flex gap-1 ms-auto">
                       {canEditRow(req) && (
@@ -704,8 +698,6 @@ export function OrderRequestsTab() {
                     }
                     const req = item.req;
                     const age = ageBadge(req);
-                    const orderQty = req.required_to_order ?? req.quantity ?? 0;
-                    const estValue = orderQty * (req.estimated_unit_price ?? 0);
                     const overdueDate = isOverdue(req.order_execution_date) && req.status === "pending";
                     const stale = (() => {
                       const d = daysSince(req.updated_at ?? req.created_at);
@@ -764,21 +756,10 @@ export function OrderRequestsTab() {
                             ) : "—"}
                           </td>
                         )}
-                        {isVisible("quantity") && (
-                          <td className={`${cellPadding} tabular-nums`}>
-                            <InlineEditCell
-                              value={req.quantity}
-                              type="number"
-                              disabled={!editable}
-                              display={v => fmtNum(v as number | null)}
-                              onCommit={(v) => patchRequest(req.id, { quantity: v })}
-                            />
-                          </td>
-                        )}
                         {isVisible("required_to_order") && (
                           <td className={`${cellPadding} tabular-nums font-semibold`}>
                             <InlineEditCell
-                              value={req.required_to_order}
+                              value={req.required_to_order ?? req.quantity ?? null}
                               type="number"
                               disabled={!editable}
                               display={v => (
@@ -787,17 +768,6 @@ export function OrderRequestsTab() {
                                 </span>
                               )}
                               onCommit={(v) => patchRequest(req.id, { required_to_order: v, quantity: v })}
-                            />
-                          </td>
-                        )}
-                        {isVisible("main_warehouse_stock") && (
-                          <td className={`${cellPadding} tabular-nums`}>
-                            <InlineEditCell
-                              value={req.main_warehouse_stock}
-                              type="number"
-                              disabled={!editable}
-                              display={v => fmtNum(v as number | null)}
-                              onCommit={(v) => patchRequest(req.id, { main_warehouse_stock: v })}
                             />
                           </td>
                         )}
@@ -839,18 +809,6 @@ export function OrderRequestsTab() {
                             />
                           </td>
                         )}
-                        {isVisible("estimated_unit_price") && (
-                          <td className={`${cellPadding} tabular-nums`}>
-                            <InlineEditCell
-                              value={req.estimated_unit_price}
-                              type="number"
-                              disabled={!editable}
-                              display={v => fmtMoney(v as number | null)}
-                              onCommit={(v) => patchRequest(req.id, { estimated_unit_price: v })}
-                            />
-                          </td>
-                        )}
-                        {isVisible("estimated_value") && <td className={`${cellPadding} tabular-nums`}>{estValue > 0 ? fmtMoney(estValue) : "—"}</td>}
                         {isVisible("urgency") && (
                           <td className={cellPadding}>
                             <InlineSelectCell
@@ -883,7 +841,7 @@ export function OrderRequestsTab() {
                               value={req.order_execution_date}
                               type="date"
                               disabled={!editable}
-                              display={v => v ? format(new Date(String(v)), "dd/MM/yyyy") : "—"}
+                              display={v => v ? format(new Date(String(v)), "dd/MM/yy") : "—"}
                               onCommit={(v) => patchRequest(req.id, { order_execution_date: v })}
                             />
                           </td>
@@ -1014,11 +972,7 @@ export function OrderRequestsTab() {
                 <tr className="border-t font-semibold text-xs">
                   <td colSpan={(canFulfill ? 1 : 0) + visibleCount + 1} className={`${cellPadding} text-muted-foreground`}>
                     מציג {filtered.length} מתוך {requests.length} בקשות ·
-                    סה״כ נדרש להזמין: <span className="text-foreground tabular-nums">{fmtNum(filtered.reduce((s, r) => s + (r.required_to_order ?? r.quantity ?? 0), 0))}</span> יח׳
-                    {(() => {
-                      const v = filtered.reduce((s, r) => s + ((r.required_to_order ?? r.quantity ?? 0) * (r.estimated_unit_price ?? 0)), 0);
-                      return v > 0 ? <> · ערך משוער: <span className="text-foreground tabular-nums">{fmtMoney(v)}</span></> : null;
-                    })()}
+                    סה״כ כמות: <span className="text-foreground tabular-nums">{fmtNum(filtered.reduce((s, r) => s + (r.required_to_order ?? r.quantity ?? 0), 0))}</span> יח׳
                   </td>
                 </tr>
               </tfoot>
@@ -1050,8 +1004,8 @@ export function OrderRequestsTab() {
         const notesParts = [
           r.reason && `סיבת הבקשה: ${r.reason}`,
           r.notes && `הערות תכנון: ${r.notes}`,
-          r.current_consumption && `צריכה נוכחית: ${r.current_consumption}`,
-          r.required_to_order != null && `נדרש להזמין: ${r.required_to_order}`,
+          r.current_consumption && `צריכה חודשית ממוצעת: ${r.current_consumption}`,
+          r.required_to_order != null && `כמות: ${r.required_to_order}`,
           `נוצר על ידי: ${r.created_by_name ?? "—"} · חטיבה: ${r.division}`,
         ].filter(Boolean).join("\n");
         const priorityMap: Record<string, "דחוף" | "גבוה" | "בינוני" | "נמוך"> = {

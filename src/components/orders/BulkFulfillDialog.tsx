@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { useAuth, useData } from "@/contexts/AppContext";
 import type { OrderRequest, Order, OrderItem } from "@/contexts/types";
-import { fmtNum, fmtMoney } from "./orderRequestUtils";
+import { fmtNum } from "./orderRequestUtils";
 
 interface Props {
   open: boolean;
@@ -38,13 +38,11 @@ export function BulkFulfillDialog({ open, onOpenChange, requests, addOrder, onDo
   }, [requests]);
 
   const totals = useMemo(() => {
-    let qty = 0, value = 0;
+    let qty = 0;
     for (const r of requests) {
-      const q = r.required_to_order ?? r.quantity ?? 0;
-      qty += q;
-      value += q * (r.estimated_unit_price ?? 0);
+      qty += r.required_to_order ?? r.quantity ?? 0;
     }
-    return { qty, value };
+    return { qty };
   }, [requests]);
 
   const submit = async () => {
@@ -56,7 +54,7 @@ export function BulkFulfillDialog({ open, onOpenChange, requests, addOrder, onDo
         product_id: r.product_id ?? null,
         name: r.product_name,
         qty: r.required_to_order ?? r.quantity ?? 0,
-        price: r.estimated_unit_price ?? null,
+        price: null,
       }));
       const orderId = await addOrder({
         priority,
@@ -104,8 +102,7 @@ export function BulkFulfillDialog({ open, onOpenChange, requests, addOrder, onDo
         <div className="space-y-4 pt-2">
           <div className="rounded-lg border bg-muted/20 p-3 text-sm">
             תיווצרנה <span className="font-semibold">{groups.length}</span> הזמנות (אחת לכל ספק).
-            סה״כ <span className="font-semibold">{fmtNum(totals.qty)}</span> יחידות
-            {totals.value > 0 && <> · ערך משוער <span className="font-semibold">{fmtMoney(totals.value)}</span></>}.
+            סה״כ <span className="font-semibold">{fmtNum(totals.qty)}</span> יחידות.
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -135,14 +132,12 @@ export function BulkFulfillDialog({ open, onOpenChange, requests, addOrder, onDo
           <div className="space-y-2">
             {groups.map(([supplier, reqs]) => {
               const groupQty = reqs.reduce((s, r) => s + (r.required_to_order ?? r.quantity ?? 0), 0);
-              const groupValue = reqs.reduce((s, r) => s + ((r.required_to_order ?? r.quantity ?? 0) * (r.estimated_unit_price ?? 0)), 0);
               return (
                 <div key={supplier} className="rounded-lg border bg-card">
                   <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between">
                     <div className="font-semibold text-sm">{supplier}</div>
                     <div className="text-xs text-muted-foreground tabular-nums">
                       {reqs.length} פריטים · {fmtNum(groupQty)} יח׳
-                      {groupValue > 0 && <> · {fmtMoney(groupValue)}</>}
                     </div>
                   </div>
                   <ul className="divide-y">
@@ -151,7 +146,6 @@ export function BulkFulfillDialog({ open, onOpenChange, requests, addOrder, onDo
                         <span className="truncate">{r.product_name}</span>
                         <span className="text-muted-foreground tabular-nums shrink-0">
                           {fmtNum(r.required_to_order ?? r.quantity)} יח׳
-                          {r.estimated_unit_price && <> @ {fmtMoney(r.estimated_unit_price)}</>}
                         </span>
                       </li>
                     ))}

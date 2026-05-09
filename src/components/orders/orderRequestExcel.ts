@@ -10,19 +10,17 @@ const COLUMNS: { key: keyof OrderRequest; label: string; format?: (v: unknown) =
   { key: "product_name", label: "תיאור פריט" },
   { key: "supplier", label: "ספק" },
   { key: "product_sku", label: "מק״ט" },
-  { key: "main_warehouse_stock", label: "מלאי תקין מחסן 1" },
   { key: "division_stock", label: "כמות מלאי תקין בפועל" },
   { key: "quarterly_forecast", label: "צפי רבעון" },
   { key: "utilization_pct", label: "% מימוש" },
   { key: "incoming_orders", label: 'עול"ב' },
   { key: "smoothed_required", label: "נדרש משוכלל" },
-  { key: "required_to_order", label: "נדרש להזמין" },
+  { key: "required_to_order", label: "כמות" },
   { key: "incoming_arrival_date", label: 'תאריך הגעת עול"ב', format: fmtDate },
   { key: "order_execution_date", label: "תאריך ביצוע הזמנה", format: fmtDate },
   { key: "payment_status", label: "סטאטוס תשלום" },
   { key: "actual_ordered_qty", label: "כמות שהוזמנה בפועל" },
   { key: "shipping_type", label: "סוג משלוח" },
-  { key: "estimated_arrival_date", label: "תאריך הגעה משוער", format: fmtDate },
   { key: "notes", label: "הערות" },
   { key: "urgency", label: "דחיפות" },
   { key: "status", label: "סטטוס" },
@@ -92,13 +90,13 @@ function parseDate(v: string): string | null {
 }
 
 const NUMERIC_FIELDS = new Set<keyof OrderRequest>([
-  "main_warehouse_stock", "division_stock", "quarterly_forecast",
+  "division_stock", "quarterly_forecast",
   "utilization_pct", "incoming_orders", "smoothed_required",
-  "required_to_order", "actual_ordered_qty", "estimated_unit_price",
+  "required_to_order", "actual_ordered_qty",
   "quantity",
 ]);
 const DATE_FIELDS = new Set<keyof OrderRequest>([
-  "incoming_arrival_date", "order_execution_date", "estimated_arrival_date",
+  "incoming_arrival_date", "order_execution_date",
 ]);
 
 export function parseTsv(input: string): ParsedExcelRow[] {

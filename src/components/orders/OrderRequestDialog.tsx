@@ -47,13 +47,9 @@ export function OrderRequestDialog({
   const [reason, setReason] = useState("");
   const [urgency, setUrgency] = useState<OrderRequestUrgency>("רגיל");
   const [orderType, setOrderType] = useState<OrderRequestType>("חודשית");
-  const [estimatedUnitPrice, setEstimatedUnitPrice] = useState("");
-  const [mainWarehouseStock, setMainWarehouseStock] = useState("");
   const [divisionStock, setDivisionStock] = useState("");
   const [quarterlyForecast, setQuarterlyForecast] = useState("");
-  const [requiredToOrder, setRequiredToOrder] = useState("");
   const [orderExecutionDate, setOrderExecutionDate] = useState("");
-  const [estimatedArrivalDate, setEstimatedArrivalDate] = useState("");
   const [shippingType, setShippingType] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
   const [notes, setNotes] = useState("");
@@ -73,24 +69,21 @@ export function OrderRequestDialog({
 
   useEffect(() => {
     if (!open) return;
+    const today = new Date().toISOString().slice(0, 10);
     const seed = editingRequest ?? template ?? null;
     if (seed) {
       setProductId(seed.product_id ?? "");
       setProductName(seed.product_name ?? "");
       setProductSku(seed.product_sku ?? "");
       setSupplier(seed.supplier ?? "");
-      setQuantity(seed.quantity != null ? String(seed.quantity) : "");
+      setQuantity(seed.required_to_order != null ? String(seed.required_to_order) : (seed.quantity != null ? String(seed.quantity) : ""));
       setCurrentConsumption(seed.current_consumption ?? "");
       setReason(seed.reason ?? "");
       setUrgency(seed.urgency ?? "רגיל");
       setOrderType(seed.order_type ?? "חודשית");
-      setEstimatedUnitPrice(seed.estimated_unit_price != null ? String(seed.estimated_unit_price) : "");
-      setMainWarehouseStock(seed.main_warehouse_stock != null ? String(seed.main_warehouse_stock) : "");
       setDivisionStock(seed.division_stock != null ? String(seed.division_stock) : "");
       setQuarterlyForecast(seed.quarterly_forecast != null ? String(seed.quarterly_forecast) : "");
-      setRequiredToOrder(seed.required_to_order != null ? String(seed.required_to_order) : "");
-      setOrderExecutionDate(seed.order_execution_date ?? "");
-      setEstimatedArrivalDate(seed.estimated_arrival_date ?? "");
+      setOrderExecutionDate(seed.order_execution_date ?? today);
       setShippingType(seed.shipping_type ?? "");
       setPaymentStatus(seed.payment_status ?? "");
       setNotes(seed.notes ?? "");
@@ -105,13 +98,9 @@ export function OrderRequestDialog({
       setReason("");
       setUrgency("רגיל");
       setOrderType("חודשית");
-      setEstimatedUnitPrice("");
-      setMainWarehouseStock("");
       setDivisionStock("");
       setQuarterlyForecast("");
-      setRequiredToOrder("");
-      setOrderExecutionDate("");
-      setEstimatedArrivalDate("");
+      setOrderExecutionDate(today);
       setShippingType("");
       setPaymentStatus("");
       setNotes("");
@@ -160,17 +149,14 @@ export function OrderRequestDialog({
       supplier: supplier.trim() || null,
       supplier_id: supplierIdMatch.data?.id ?? null,
       quantity: qty,
+      required_to_order: qty,
       urgency,
       order_type: orderType,
       current_consumption: currentConsumption.trim() || null,
       reason: reason.trim() || null,
-      estimated_unit_price: numOrNull(estimatedUnitPrice),
-      main_warehouse_stock: numOrNull(mainWarehouseStock),
       // division_stock lives on division_products only; we write it separately below
       quarterly_forecast: numOrNull(quarterlyForecast),
-      required_to_order: numOrNull(requiredToOrder),
       order_execution_date: orderExecutionDate || null,
-      estimated_arrival_date: estimatedArrivalDate || null,
       shipping_type: shippingType.trim() || null,
       payment_status: paymentStatus.trim() || null,
       notes: notes.trim() || null,
@@ -281,31 +267,18 @@ export function OrderRequestDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>סוג הזמנה</Label>
-              <Select value={orderType} onValueChange={v => setOrderType(v as OrderRequestType)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {ORDER_TYPE_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>מחיר יח׳ משוער (₪)</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={estimatedUnitPrice}
-                onChange={e => setEstimatedUnitPrice(e.target.value)}
-                placeholder="0"
-              />
-            </div>
+          <div className="space-y-1.5">
+            <Label>סוג הזמנה</Label>
+            <Select value={orderType} onValueChange={v => setOrderType(v as OrderRequestType)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {ORDER_TYPE_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1.5">
-            <Label>צריכה נוכחית</Label>
+            <Label>צריכה חודשית ממוצעת</Label>
             <Input
               value={currentConsumption}
               onChange={e => setCurrentConsumption(e.target.value)}
@@ -334,11 +307,7 @@ export function OrderRequestDialog({
 
           {showAdvanced && (
             <div className="space-y-4 border-t pt-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">מלאי מחסן 1</Label>
-                  <Input type="number" value={mainWarehouseStock} onChange={e => setMainWarehouseStock(e.target.value)} />
-                </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">מלאי חטיבה</Label>
                   <Input type="number" value={divisionStock} onChange={e => setDivisionStock(e.target.value)} />
@@ -348,19 +317,8 @@ export function OrderRequestDialog({
                   <Input type="number" value={quarterlyForecast} onChange={e => setQuarterlyForecast(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">נדרש להזמין</Label>
-                  <Input type="number" value={requiredToOrder} onChange={e => setRequiredToOrder(e.target.value)} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
                   <Label className="text-xs">תאריך ביצוע הזמנה</Label>
                   <Input type="date" value={orderExecutionDate} onChange={e => setOrderExecutionDate(e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">תאריך הגעה משוער</Label>
-                  <Input type="date" value={estimatedArrivalDate} onChange={e => setEstimatedArrivalDate(e.target.value)} />
                 </div>
               </div>
 

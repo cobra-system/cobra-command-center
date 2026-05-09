@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { OrderRequest } from "@/contexts/types";
 import { ClipboardList, AlertTriangle, CheckCircle2, Clock, PackageSearch, TrendingUp } from "lucide-react";
-import { fmtMoney, fmtNum, daysSince } from "./orderRequestUtils";
+import { fmtNum, daysSince } from "./orderRequestUtils";
 
 interface Props {
   requests: OrderRequest[];
@@ -16,10 +16,6 @@ export function OrderRequestsDashboard({ requests, scope, divisionLabel }: Props
     const rejected = requests.filter(r => r.status === "rejected");
     const urgent = pending.filter(r => r.urgency === "דחוף").length;
     const totalRequiredQty = requests.reduce((s, r) => s + (r.required_to_order ?? r.quantity ?? 0), 0);
-    const estimatedValue = requests.reduce(
-      (s, r) => s + ((r.required_to_order ?? r.quantity ?? 0) * (r.estimated_unit_price ?? 0)),
-      0,
-    );
     const overdue = pending.filter(r => {
       const d = daysSince(r.created_at);
       return d !== null && d >= 7;
@@ -43,7 +39,6 @@ export function OrderRequestsDashboard({ requests, scope, divisionLabel }: Props
       urgent,
       overdue,
       totalRequiredQty,
-      estimatedValue,
       avgFulfillDays,
     };
   }, [requests]);
@@ -71,17 +66,10 @@ export function OrderRequestsDashboard({ requests, scope, divisionLabel }: Props
       tone: stats.overdue > 0 ? "text-red-600" : "text-muted-foreground",
     },
     {
-      label: "סה״כ נדרש להזמין",
+      label: "סה״כ כמות",
       value: fmtNum(stats.totalRequiredQty),
       sub: "כל השורות",
       icon: PackageSearch,
-      tone: "text-foreground",
-    },
-    {
-      label: "ערך משוער",
-      value: stats.estimatedValue > 0 ? fmtMoney(stats.estimatedValue) : "—",
-      sub: "לפי מחיר יח׳ משוער",
-      icon: ClipboardList,
       tone: "text-foreground",
     },
     {
@@ -104,7 +92,7 @@ export function OrderRequestsDashboard({ requests, scope, divisionLabel }: Props
           {scope === "division" && divisionLabel ? `סקירת בקשות — ${divisionLabel}` : "סקירת בקשות הזמנה"}
         </h3>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {cards.map(c => (
           <div key={c.label} className="rounded-lg border bg-muted/20 p-3">
             <div className="flex items-center justify-between gap-1">
