@@ -278,6 +278,7 @@ mcp-server/              # MCP Server לאינטגרציה עם Claude Code (30+
 | `health` | בדיקת בריאות שרת + זמן תגובה DB (ללא אימות) |
 | `request-signup` | קליטת בקשת הרשמה ציבורית ושליחת מייל למנהלים לאישור |
 | `review-signup-request` | אישור/דחיית בקשת הרשמה ע"י מנהל — יוצר משתמש ושולח מייל למבקש |
+| `dispatch-order-request-notifications` | שליחת התראות לבקשות הזמנה (אימייל ב-Resend + Web Push דרך VAPID) |
 
 ---
 

@@ -38,6 +38,7 @@ import { useState } from "react";
 import { useTheme } from "next-themes";
 import cobraLogo from "@/assets/cobra-logo.png";
 import GlobalSearch from "@/components/GlobalSearch";
+import { useOrderRequestToasts } from "@/hooks/useOrderRequestToasts";
 
 const defaultNavItems = [
   { to: "/dashboard", icon: "LayoutDashboard", label: "דשבורד" },
@@ -87,6 +88,9 @@ export default function ManagerLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+
+  // Surface order-request lifecycle events as in-app toasts (RLS already filters)
+  useOrderRequestToasts();
   const [navItems, setNavItems] = useState(getStoredOrder);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);

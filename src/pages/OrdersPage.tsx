@@ -78,6 +78,20 @@ export default function OrdersPage() {
     fetchPaymentStatuses();
   }, [orders]);
 
+  // Honour ?focus=<orderId> by setting the search filter to the order id
+  // (table search matches order id) so the user lands on that single row.
+  useEffect(() => {
+    const focus = searchParams.get("focus");
+    if (focus) {
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.delete("focus");
+        next.set("q", focus);
+        return next;
+      }, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   // Handle create-from-URL params (one-time, not persisted as filter state)
   useEffect(() => {
     const shouldCreate = searchParams.get("create") === "true" || searchParams.get("newOrder") === "true";
@@ -331,7 +345,8 @@ export default function OrdersPage() {
         <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-1" dir="rtl">
           <TabsList className="w-max min-w-full">
             {!isDivMgr && <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>}
-            <TabsTrigger value="table">הזמנות פעילות</TabsTrigger>
+            {/* Table tab carries the division-manager-specific label for the bonded planning surface. */}
+            <TabsTrigger value="table">{isDivMgr ? "רכש מוצרי חטיבה" : "הזמנות פעילות"}</TabsTrigger>
             <TabsTrigger value="archive" className="gap-1.5">
               ארכיון הזמנות
               {archivedOrders.length > 0 && (

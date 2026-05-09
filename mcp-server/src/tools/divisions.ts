@@ -18,7 +18,7 @@ export function registerDivisionTools(server: McpServer) {
       let query = supabase
         .from("division_products")
         .select(`
-          id, division, product_id, field_stock, field_stock_updated_at,
+          id, division, product_id, division_stock, division_stock_updated_at,
           quarterly_demand, quarterly_demand_updated_at, notes, created_at, updated_at,
           products(id, name, sku)
         `)
@@ -36,24 +36,24 @@ export function registerDivisionTools(server: McpServer) {
 
   server.tool(
     "upsert_division_product",
-    "עדכון מוצר חטיבה — Create or update a product entry for a division. Updates field_stock, quarterly_demand, and/or notes.",
+    "עדכון מוצר חטיבה — Create or update a product entry for a division. Updates division_stock, quarterly_demand, and/or notes.",
     {
       division: z.string().describe("Division name: 'AWACS' | 'כפתור' | 'DOORE' | 'דלק מוטורס' | 'פריזבי קרסו' | 'לובינסקי'"),
       product_id: z.string().uuid().describe("Product UUID"),
-      field_stock: z.number().int().min(0).optional().describe("Current field stock quantity"),
+      division_stock: z.number().int().min(0).optional().describe("Current field stock quantity"),
       quarterly_demand: z.number().int().min(0).optional().describe("Quarterly demand forecast"),
       notes: z.string().optional().describe("Free-text notes"),
     },
-    async ({ division, product_id, field_stock, quarterly_demand, notes }) => {
+    async ({ division, product_id, division_stock, quarterly_demand, notes }) => {
       const now = new Date().toISOString();
       const payload: Record<string, unknown> = {
         division,
         product_id,
         updated_at: now,
       };
-      if (field_stock !== undefined) {
-        payload.field_stock = field_stock;
-        payload.field_stock_updated_at = now;
+      if (division_stock !== undefined) {
+        payload.division_stock = division_stock;
+        payload.division_stock_updated_at = now;
       }
       if (quarterly_demand !== undefined) {
         payload.quarterly_demand = quarterly_demand;
@@ -102,12 +102,16 @@ export function registerDivisionTools(server: McpServer) {
     "בקשות הזמנה — List order requests from bonded division managers. Filter by division or status.",
     {
       division: z.string().optional().describe("Filter by division name"),
-      status: z.enum(["pending", "ordered"]).optional().describe("Filter by status: 'pending' | 'ordered'"),
+      status: z.enum(["pending", "ordered", "rejected", "cancelled"]).optional().describe("Filter by status"),
+      include_history: z.boolean().optional().describe("If true, include audit history per request"),
     },
-    async ({ division, status }) => {
+    async ({ division, status, include_history }) => {
       let query = supabase
         .from("order_requests")
-        .select("*")
+        .select(include_history
+          ? "*, order_request_history(*)"
+          : "*"
+        )
         .order("created_at", { ascending: false });
 
       if (division) query = query.eq("division", division);
@@ -135,9 +139,10 @@ export function registerDivisionTools(server: McpServer) {
       reason: z.string().optional(),
       // Excel planning columns
       main_warehouse_stock: z.number().optional().describe("מלאי תקין מחסן 1"),
-      division_stock: z.number().optional().describe("כמות מלאי תקין בפועל בחטיבה"),
+      // division_stock is NOT a column on order_requests — it lives on division_products.
+      // Use upsert_division_product to set the live stock per (division, product_id).
       quarterly_forecast: z.number().optional().describe("צפי רבעון"),
-      utilization_pct: z.number().optional().describe("% מימוש (fraction 0–1 or whole percent)"),
+      utilization_pct: z.number().min(0).optional().describe("% מימוש as whole number (0–100, may exceed 100 when over-committed)"),
       incoming_orders: z.number().optional().describe('עול"ב'),
       smoothed_required: z.number().optional().describe("נדרש משוכלל (כולל מלאי ביטחון)"),
       required_to_order: z.number().optional().describe("נדרש להזמין"),
@@ -164,7 +169,7 @@ export function registerDivisionTools(server: McpServer) {
           current_consumption: args.current_consumption ?? null,
           reason: args.reason ?? null,
           main_warehouse_stock: args.main_warehouse_stock ?? null,
-          division_stock: args.division_stock ?? null,
+          // division_stock removed: lives on division_products (use upsert_division_product)
           quarterly_forecast: args.quarterly_forecast ?? null,
           utilization_pct: args.utilization_pct ?? null,
           incoming_orders: args.incoming_orders ?? null,
@@ -183,6 +188,365 @@ export function registerDivisionTools(server: McpServer) {
 
       if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
       return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "update_order_request",
+    "עדכון בקשת הזמנה — Update any field on an order request / planning row. Pass only the fields you want to change.",
+    {
+      request_id: z.string().uuid().describe("Order request UUID"),
+      product_name: z.string().optional(),
+      product_sku: z.string().optional(),
+      product_id: z.string().uuid().nullable().optional(),
+      supplier: z.string().nullable().optional(),
+      supplier_id: z.string().uuid().nullable().optional(),
+      quantity: z.number().nonnegative().nullable().optional(),
+      urgency: z.enum(["דחוף", "רגיל", "נמוך"]).optional(),
+      order_type: z.enum(["מיידית", "חודשית", "רבעונית", "חצי שנתית"]).optional(),
+      current_consumption: z.string().nullable().optional(),
+      reason: z.string().nullable().optional(),
+      estimated_unit_price: z.number().nullable().optional(),
+      main_warehouse_stock: z.number().nullable().optional(),
+      // division_stock removed: lives on division_products (use upsert_division_product)
+      quarterly_forecast: z.number().nullable().optional(),
+      utilization_pct: z.number().nullable().optional(),
+      incoming_orders: z.number().nullable().optional(),
+      smoothed_required: z.number().nullable().optional(),
+      required_to_order: z.number().nullable().optional(),
+      incoming_arrival_date: z.string().nullable().optional(),
+      order_execution_date: z.string().nullable().optional(),
+      payment_status: z.string().nullable().optional(),
+      actual_ordered_qty: z.number().nullable().optional(),
+      shipping_type: z.string().nullable().optional(),
+      estimated_arrival_date: z.string().nullable().optional(),
+      notes: z.string().nullable().optional(),
+    },
+    async ({ request_id, ...rest }) => {
+      const payload: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(rest)) if (v !== undefined) payload[k] = v;
+      if (Object.keys(payload).length === 0) {
+        return { content: [{ type: "text" as const, text: "No fields to update." }] };
+      }
+      const { data, error } = await supabase
+        .from("order_requests")
+        .update(payload)
+        .eq("id", request_id)
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "delete_order_request",
+    "מחיקת בקשת הזמנה — Delete a planning row / order request by id.",
+    {
+      request_id: z.string().uuid().describe("Order request UUID"),
+    },
+    async ({ request_id }) => {
+      const { error } = await supabase
+        .from("order_requests")
+        .delete()
+        .eq("id", request_id);
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify({ success: true, deleted_id: request_id }) }] };
+    }
+  );
+
+  server.tool(
+    "reject_order_request",
+    "דחיית בקשת הזמנה — Mark an order request as rejected with a reason.",
+    {
+      request_id: z.string().uuid().describe("Order request UUID"),
+      reject_reason: z.string().describe("Why this request is being declined"),
+      reviewed_by_name: z.string().optional().describe("Name of the reviewer"),
+    },
+    async ({ request_id, reject_reason, reviewed_by_name }) => {
+      const { data, error } = await supabase
+        .from("order_requests")
+        .update({
+          status: "rejected",
+          reject_reason,
+          reviewed_at: new Date().toISOString(),
+          reviewed_by_name: reviewed_by_name ?? null,
+        })
+        .eq("id", request_id)
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "revert_order_request",
+    "החזרת בקשת הזמנה ל-pending — Revert a fulfilled / rejected / cancelled request back to pending.",
+    {
+      request_id: z.string().uuid().describe("Order request UUID"),
+    },
+    async ({ request_id }) => {
+      const { data, error } = await supabase
+        .from("order_requests")
+        .update({
+          status: "pending",
+          order_id: null,
+          ordered_at: null,
+          ordered_by: null,
+          ordered_by_name: null,
+          reject_reason: null,
+          reviewed_at: null,
+          reviewed_by: null,
+          reviewed_by_name: null,
+          actual_ordered_qty: null,
+        })
+        .eq("id", request_id)
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "bulk_update_order_requests",
+    "עדכון בקשות מרובה — Update multiple order requests at once with the same fields. Useful for bulk planning updates.",
+    {
+      request_ids: z.array(z.string().uuid()).min(1).describe("Array of order request UUIDs"),
+      patch: z.object({
+        urgency: z.enum(["דחוף", "רגיל", "נמוך"]).optional(),
+        order_type: z.enum(["מיידית", "חודשית", "רבעונית", "חצי שנתית"]).optional(),
+        status: z.enum(["pending", "ordered", "rejected", "cancelled"]).optional(),
+        payment_status: z.string().nullable().optional(),
+        shipping_type: z.string().nullable().optional(),
+        order_execution_date: z.string().nullable().optional(),
+        estimated_arrival_date: z.string().nullable().optional(),
+        notes: z.string().nullable().optional(),
+      }).describe("Common fields to apply to every request"),
+    },
+    async ({ request_ids, patch }) => {
+      const payload: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(patch)) if (v !== undefined) payload[k] = v;
+      if (Object.keys(payload).length === 0) {
+        return { content: [{ type: "text" as const, text: "No fields to update." }] };
+      }
+      const { data, error } = await supabase
+        .from("order_requests")
+        .update(payload)
+        .in("id", request_ids)
+        .select("id, status, urgency, order_type, payment_status, notes");
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify({ updated: data?.length ?? 0, rows: data }, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "list_order_request_history",
+    "היסטוריית בקשת הזמנה — Audit trail for one order request.",
+    {
+      request_id: z.string().uuid().describe("Order request UUID"),
+    },
+    async ({ request_id }) => {
+      const { data, error } = await supabase
+        .from("order_request_history")
+        .select("*")
+        .eq("request_id", request_id)
+        .order("changed_at", { ascending: false });
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "list_order_request_comments",
+    "תגובות בבקשת הזמנה — Discussion thread for one request.",
+    {
+      request_id: z.string().uuid().describe("Order request UUID"),
+    },
+    async ({ request_id }) => {
+      const { data, error } = await supabase
+        .from("order_request_comments")
+        .select("*")
+        .eq("request_id", request_id)
+        .order("created_at", { ascending: false });
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "add_order_request_comment",
+    "הוספת תגובה לבקשת הזמנה — Post a comment on a request thread.",
+    {
+      request_id: z.string().uuid().describe("Order request UUID"),
+      body: z.string().min(1).describe("Comment text"),
+      created_by_name: z.string().optional(),
+      created_by_role: z.string().optional(),
+    },
+    async ({ request_id, body, created_by_name, created_by_role }) => {
+      const { data, error } = await supabase
+        .from("order_request_comments")
+        .insert({
+          request_id,
+          body,
+          created_by_name: created_by_name ?? null,
+          created_by_role: created_by_role ?? null,
+        })
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "delete_order_request_comment",
+    "מחיקת תגובה — Delete a comment by id.",
+    {
+      comment_id: z.string().uuid().describe("Comment UUID"),
+    },
+    async ({ comment_id }) => {
+      const { error } = await supabase
+        .from("order_request_comments")
+        .delete()
+        .eq("id", comment_id);
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify({ success: true, deleted_id: comment_id }) }] };
+    }
+  );
+
+  server.tool(
+    "list_order_request_attachments",
+    "קבצים מצורפים — List attachments for one request.",
+    {
+      request_id: z.string().uuid().describe("Order request UUID"),
+    },
+    async ({ request_id }) => {
+      const { data, error } = await supabase
+        .from("order_request_attachments")
+        .select("*")
+        .eq("request_id", request_id)
+        .order("created_at", { ascending: false });
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "add_order_request_attachment",
+    "הוספת קובץ מצורף — Attach a file (URL) to a request.",
+    {
+      request_id: z.string().uuid(),
+      file_name: z.string().min(1),
+      file_url: z.string().url(),
+      file_type: z.string().optional(),
+      file_size: z.number().optional(),
+      description: z.string().optional(),
+      created_by_name: z.string().optional(),
+    },
+    async ({ request_id, file_name, file_url, file_type, file_size, description, created_by_name }) => {
+      const { data, error } = await supabase
+        .from("order_request_attachments")
+        .insert({ request_id, file_name, file_url, file_type, file_size, description, created_by_name: created_by_name ?? null })
+        .select()
+        .single();
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "delete_order_request_attachment",
+    "מחיקת קובץ — Delete an attachment by id.",
+    {
+      attachment_id: z.string().uuid(),
+    },
+    async ({ attachment_id }) => {
+      const { error } = await supabase
+        .from("order_request_attachments")
+        .delete()
+        .eq("id", attachment_id);
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify({ success: true, deleted_id: attachment_id }) }] };
+    }
+  );
+
+  server.tool(
+    "capture_order_request_snapshot",
+    "צילום מצב בקשות — Capture the current planning state into a snapshot (e.g. quarterly closing).",
+    {
+      label: z.string().min(1).describe('Snapshot label, e.g. "סגירת Q1 2026"'),
+      division: z.string().optional().describe("Optional: limit snapshot to a single division"),
+      notes: z.string().optional(),
+    },
+    async ({ label, division, notes }) => {
+      const { data, error } = await supabase.rpc("capture_order_request_snapshot", {
+        p_label: label,
+        p_division: division ?? null,
+        p_notes: notes ?? null,
+      });
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify({ snapshot_id: data }, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "list_order_request_snapshots",
+    "רשימת צילומי מצב — List snapshots, optionally filtered by division.",
+    {
+      division: z.string().optional(),
+    },
+    async ({ division }) => {
+      let query = supabase
+        .from("order_request_snapshots")
+        .select("id, label, division, captured_at, captured_by_name, notes, total_requests, total_required_qty, total_estimated_value")
+        .order("captured_at", { ascending: false });
+      if (division) query = query.eq("division", division);
+      const { data, error } = await query;
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "get_order_request_snapshot",
+    "צילום מצב — Read a single snapshot with full payload.",
+    {
+      snapshot_id: z.string().uuid(),
+    },
+    async ({ snapshot_id }) => {
+      const { data, error } = await supabase
+        .from("order_request_snapshots")
+        .select("*")
+        .eq("id", snapshot_id)
+        .single();
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "delete_order_request_snapshot",
+    "מחיקת צילום מצב — Delete a snapshot by id (managers only via RLS).",
+    {
+      snapshot_id: z.string().uuid(),
+    },
+    async ({ snapshot_id }) => {
+      const { error } = await supabase
+        .from("order_request_snapshots")
+        .delete()
+        .eq("id", snapshot_id);
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify({ success: true, deleted_id: snapshot_id }) }] };
     }
   );
 

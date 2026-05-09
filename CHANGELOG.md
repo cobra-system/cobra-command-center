@@ -5,6 +5,32 @@
 
 ---
 
+## [Unreleased]
+
+### Added — בקשות הזמנה (order requests) for bonded divisions
+
+A complete planning + fulfillment loop with collaboration, snapshots, notifications, and the Excel-equivalent column layout used by procurement.
+
+- **Inline editing** of urgency / order type / quantity / required_to_order from the table; dialog covers full creation flow with product autocomplete and price/lead-time prefill.
+- **Detail panel** with comments thread, audit history, attachments, related order link, lead-time + value summary; compact / spacious / mobile-card layouts.
+- **Status lifecycle** (`pending → ordered / rejected / cancelled` with `revert`) gated by role; division managers see only their own division.
+- **Bulk fulfill** groups selected pending requests by supplier and creates one purchase order per supplier in one click.
+- **Excel I/O** — paste-from-Excel TSV importer (matches by SKU, then by name; can create missing rows) and CSV export covering all 22 planning columns.
+- **Snapshots** — save/restore named planning-table snapshots stored in DB; restore mode shows a clear banner with side-by-side compare.
+- **Reverse flow** — when a manager creates a manual order, the matching pending request (in any bonded division) is auto-linked, marked ordered, and a comment is posted if the actual qty differs from what was requested.
+- **Notifications** infrastructure — `notification_subscriptions` + `notification_queue` tables, triggers on lifecycle / urgency / comments, an Edge Function `dispatch-order-request-notifications` that sends email via Resend and Web Push via VAPID, plus a service worker, opt-in dialog, and realtime in-app toasts (RLS-filtered).
+- **Tab rename** — division managers see "רכש מוצרי חטיבה" instead of "טבלת הזמנות".
+
+### Changed — single source of truth for division stock
+
+- `division_products.field_stock` renamed to `division_stock`.
+- `order_requests.division_stock` column **removed**; the canonical "current stock per (division, product)" lives only in `division_products`. The frontend hydrates the field client-side via a single fetch + lookup. Inline edits write to `division_products` only. Eliminates the dual-write race condition that the wave-5 bidirectional sync triggers had.
+
+### Removed
+- Wave-5 bidirectional sync triggers between `division_products.division_stock` and `order_requests.division_stock` (replaced by the single-source-of-truth model above).
+
+---
+
 ## [2026-05-08]
 
 - fix(orders): align header fixed columns with data rows (photo + copy + delete) (d30d71e)

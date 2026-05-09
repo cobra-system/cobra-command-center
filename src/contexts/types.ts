@@ -222,7 +222,7 @@ export interface RolePermissionRecord {
 
 export type OrderRequestUrgency = "דחוף" | "רגיל" | "נמוך";
 export type OrderRequestType = "מיידית" | "חודשית" | "רבעונית" | "חצי שנתית";
-export type OrderRequestStatus = "pending" | "ordered";
+export type OrderRequestStatus = "pending" | "ordered" | "rejected" | "cancelled";
 
 export interface OrderRequest {
   id: string;
@@ -231,6 +231,7 @@ export interface OrderRequest {
   product_name: string;
   product_sku?: string | null;
   supplier?: string | null;
+  supplier_id?: string | null;
   current_consumption?: string | null;
   reason?: string | null;
   quantity?: number | null;
@@ -241,12 +242,25 @@ export interface OrderRequest {
   ordered_at?: string | null;
   ordered_by?: string | null;
   ordered_by_name?: string | null;
+  reject_reason?: string | null;
+  reviewed_by?: string | null;
+  reviewed_by_name?: string | null;
+  reviewed_at?: string | null;
+  estimated_unit_price?: number | null;
   created_at: string;
   created_by?: string | null;
+  created_by_name?: string | null;
+  updated_at?: string | null;
 
   // Planning columns (bonded division Excel layout)
   main_warehouse_stock?: number | null;
+  // Live division stock is now sourced from division_products.division_stock and
+  // hydrated client-side at fetch time. Reads work as before; writes go through
+  // division_products to avoid the dual-source-of-truth problem.
   division_stock?: number | null;
+  // Immutable snapshot of division_stock at INSERT time (set by trigger). Useful
+  // for audit. Stays NULL for older rows and rows without a product_id.
+  division_stock_at_request?: number | null;
   quarterly_forecast?: number | null;
   utilization_pct?: number | null;
   incoming_orders?: number | null;
@@ -259,6 +273,56 @@ export interface OrderRequest {
   shipping_type?: string | null;
   estimated_arrival_date?: string | null;
   notes?: string | null;
+}
+
+export interface OrderRequestHistory {
+  id: string;
+  request_id: string;
+  changed_at: string;
+  changed_by?: string | null;
+  changed_by_name?: string | null;
+  action: "created" | "updated" | "status_changed" | "fulfilled" | "rejected" | "cancelled" | "reverted";
+  field_name?: string | null;
+  old_value?: string | null;
+  new_value?: string | null;
+  note?: string | null;
+}
+
+export interface OrderRequestComment {
+  id: string;
+  request_id: string;
+  body: string;
+  created_at: string;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  created_by_role?: string | null;
+}
+
+export interface OrderRequestAttachment {
+  id: string;
+  request_id: string;
+  file_name: string;
+  file_url: string;
+  file_type?: string | null;
+  file_size?: number | null;
+  description?: string | null;
+  created_at: string;
+  created_by?: string | null;
+  created_by_name?: string | null;
+}
+
+export interface OrderRequestSnapshot {
+  id: string;
+  label: string;
+  division?: string | null;
+  captured_at: string;
+  captured_by?: string | null;
+  captured_by_name?: string | null;
+  notes?: string | null;
+  total_requests: number;
+  total_required_qty?: number | null;
+  total_estimated_value?: number | null;
+  payload: OrderRequest[];
 }
 
 export interface AuthState {
