@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { ShipmentGroup } from "@/contexts/types";
 
+import { format } from "date-fns";
 const COLUMN_DEFS: ColDef[] = [
   { id: "name",           label: "שם קבוצה",       sortField: "name" },
   { id: "vessel_name",    label: "שם אונייה",       sortField: "vessel_name" },
@@ -203,12 +204,12 @@ export function ShipmentGroupsTab() {
                 )}
                 {isVisible("departure_date") && (
                   <td className="p-3 text-muted-foreground text-xs">
-                    {g.departure_date ? new Date(g.departure_date).toLocaleDateString("he-IL") : "—"}
+                    {g.departure_date ? new format(Date(g.departure_date), "dd/MM/yyyy") : "—"}
                   </td>
                 )}
                 {isVisible("arrival_date") && (
                   <td className="p-3 text-muted-foreground text-xs">
-                    {g.arrival_date ? new Date(g.arrival_date).toLocaleDateString("he-IL") : "—"}
+                    {g.arrival_date ? new format(Date(g.arrival_date), "dd/MM/yyyy") : "—"}
                   </td>
                 )}
                 {isVisible("booking_number") && (

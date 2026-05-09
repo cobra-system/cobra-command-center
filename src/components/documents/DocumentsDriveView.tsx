@@ -493,7 +493,7 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
                   <p className="text-xs font-medium text-foreground truncate w-full">
                     {doc.document_name || doc.notes || "ללא שם"}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">{format(new Date(doc.created_at), "dd/MM/yy")}</p>
+                  <p className="text-[10px] text-muted-foreground">{format(new Date(doc.created_at), "dd/MM/yyyy")}</p>
                 </button>
               ))}
             </div>
@@ -685,7 +685,7 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
                         {STATUS_ICONS[doc.status]}{doc.status}
                       </span>
                       <ExpiryBadge expiryDate={doc.expiry_date} />
-                      <span className="text-[10px] text-muted-foreground">{format(new Date(doc.created_at), "dd/MM/yy")}</span>
+                      <span className="text-[10px] text-muted-foreground">{format(new Date(doc.created_at), "dd/MM/yyyy")}</span>
                     </div>
                   </div>
                 </div>
@@ -779,7 +779,7 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
                       </td>
                       <td className="p-3 text-muted-foreground text-xs">
                         <div className="flex flex-col gap-1">
-                          <span>{format(new Date(doc.created_at), "dd/MM/yy")}</span>
+                          <span>{format(new Date(doc.created_at), "dd/MM/yyyy")}</span>
                           <ExpiryBadge expiryDate={doc.expiry_date} />
                         </div>
                       </td>

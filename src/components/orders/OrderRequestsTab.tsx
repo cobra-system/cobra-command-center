@@ -844,7 +844,7 @@ export function OrderRequestsTab() {
                               value={req.order_execution_date}
                               type="date"
                               disabled={!editable}
-                              display={v => v ? format(new Date(String(v)), "dd/MM/yy") : "—"}
+                              display={v => v ? format(new Date(String(v)), "dd/MM/yyyy") : "—"}
                               onCommit={(v) => patchRequest(req.id, { order_execution_date: v })}
                             />
                           </td>

@@ -4,6 +4,7 @@ import { type Priority, type Order, type Supplier } from "@/contexts/AppContext"
 import { cn } from "@/lib/utils";
 import { Package, Calendar, DollarSign, Truck } from "lucide-react";
 
+import { format } from "date-fns";
 interface OrdersMapViewProps {
   orders: Order[];
   orderPaymentStatuses: Record<string, string>;
@@ -116,7 +117,7 @@ export function OrdersMapView({ orders, orderPaymentStatuses, suppliers }: Order
                     {order.eta && (
                       <span className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        {new Date(order.eta).toLocaleDateString("he-IL")}
+                        {new format(Date(order.eta), "dd/MM/yyyy")}
                       </span>
                     )}
                     {order.total_price ? (

@@ -776,7 +776,7 @@ export default function EquipmentPage() {
                     >
                       <div className="flex items-center gap-3">
                         <span className="font-semibold text-sm">
-                          {format(new Date(date), "dd/MM/yy")}
+                          {format(new Date(date), "dd/MM/yyyy")}
                         </span>
                         <span className="text-xs text-muted-foreground">
                           {divCount} חטיבות · {dayPickups.length} אירועים · {totalDayItems} פריטים

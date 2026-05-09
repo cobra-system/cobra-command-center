@@ -11,6 +11,7 @@ import { OrderStatusBadge } from "@/components/StatusBadge";
 import { cn } from "@/lib/utils";
 import type { Priority, OrderStatus } from "@/contexts/AppContext";
 
+import { format } from "date-fns";
 const COLUMN_DEFS: ColDef[] = [
   { id: "priority",      label: "עדיפות",  sortField: "priority" },
   { id: "supplier_name", label: "ספק",     sortField: "supplier_name" },
@@ -146,7 +147,7 @@ export function ProcurementAgendaTab() {
 
   const currencySymbol = (c: string) => c === "USD" ? "$" : c === "EUR" ? "€" : "₪";
 
-  const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString("he-IL") : "—";
+  const formatDate = (d: string | null) => d ? new format(Date(d), "dd/MM/yyyy") : "—";
 
   const daysOverdue = (eta: string) => {
     const diff = Math.floor((Date.now() - new Date(eta).getTime()) / 86400000);
@@ -162,7 +163,7 @@ export function ProcurementAgendaTab() {
       {/* Date + refresh */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <p className="text-sm text-muted-foreground">
-          {new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          {new format(Date(), "dd/MM/yyyy")}
         </p>
         <div className="flex items-center gap-2">
           {lastFetch && (

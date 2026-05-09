@@ -13,6 +13,7 @@ import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { DiagnosticWizard, SimpleIssueForm } from "@/components/ProductIssuesTab";
 
+import { format } from "date-fns";
 type SortKey = "reported_date" | "product_id" | "reporter" | "severity" | "status";
 
 const COLUMN_DEFS = [
@@ -341,7 +342,7 @@ export default function IssuesPage() {
                 >
                   {isVisible("reported_date") && (
                     <td className="p-3">
-                      <div className="text-xs text-foreground">{new Date(issue.reported_date).toLocaleDateString("he-IL")}</div>
+                      <div className="text-xs text-foreground">{new format(Date(issue.reported_date), "dd/MM/yyyy")}</div>
                       <div className="text-[10px] text-muted-foreground mt-0.5">{relativeDate(issue.reported_date)}</div>
                     </td>
                   )}

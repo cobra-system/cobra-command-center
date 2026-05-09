@@ -380,7 +380,7 @@ export function RequestDetailPanel({
                       <div className="text-xs text-muted-foreground space-y-0.5 mt-0.5">
                         <div>זמן יבוא של {request.supplier}: <span className="font-semibold text-foreground">{leadDays} ימים</span></div>
                         {wouldArrive && noOrderYet && (
-                          <div>אם תבוצע ב-{format(exec!, "dd/MM/yy")} צפויה הגעה ב-<span className="font-semibold">{format(wouldArrive, "dd/MM/yy")}</span></div>
+                          <div>אם תבוצע ב-{format(exec!, "dd/MM/yyyy")} צפויה הגעה ב-<span className="font-semibold">{format(wouldArrive, "dd/MM/yyyy")}</span></div>
                         )}
                       </div>
                     </div>
@@ -392,11 +392,11 @@ export function RequestDetailPanel({
                 <DetailGrid>
                   <Detail
                     label="תאריך ביצוע הזמנה"
-                    value={request.order_execution_date ? format(new Date(request.order_execution_date), "dd/MM/yy") : "—"}
+                    value={request.order_execution_date ? format(new Date(request.order_execution_date), "dd/MM/yyyy") : "—"}
                   />
                   <Detail
                     label='תאריך הגעת עול"ב'
-                    value={request.incoming_arrival_date ? format(new Date(request.incoming_arrival_date), "dd/MM/yy") : "—"}
+                    value={request.incoming_arrival_date ? format(new Date(request.incoming_arrival_date), "dd/MM/yyyy") : "—"}
                   />
                   <Detail label="סוג משלוח" value={request.shipping_type ?? "—"} />
                   <Detail label="סטטוס תשלום" value={request.payment_status ?? "—"} />

@@ -5,6 +5,7 @@ import { Printer, X, MapPin } from "lucide-react";
 import type { WarehouseZone } from "@/data/warehouseZones";
 import type { ZoneInventoryData } from "@/hooks/useWarehouseInventory";
 
+import { format } from "date-fns";
 interface PickingListPanelProps {
   selectedZones: WarehouseZone[];
   zoneInventoryMap: Map<string, ZoneInventoryData>;
@@ -63,7 +64,7 @@ export default function PickingListPanel({
           </style>
         </head>
         <body>
-          <h1>רשימת ליקוט — ${new Date().toLocaleDateString("he-IL")}</h1>
+          <h1>רשימת ליקוט — ${new format(Date(), "dd/MM/yyyy")}</h1>
           <pre>${content}</pre>
         </body>
       </html>

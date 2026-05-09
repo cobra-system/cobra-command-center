@@ -183,7 +183,7 @@ export function AttachToOrderDialog({ open, onOpenChange, request, onAttached }:
                             </div>
                             <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
                               {o.pi_number && <span dir="ltr">PI {o.pi_number}</span>}
-                              {o.order_date && <span>{format(new Date(o.order_date), "dd/MM/yy")}</span>}
+                              {o.order_date && <span>{format(new Date(o.order_date), "dd/MM/yyyy")}</span>}
                               <span>{o.items?.length ?? 0} פריטים</span>
                             </div>
                             {o.notes && <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{o.notes}</div>}

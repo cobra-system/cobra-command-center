@@ -80,6 +80,8 @@ import {
   isOverdue,
   ageBadge,
   freeTextMatch,
+  daysSince,
+  suggestUrgency,
   URGENCY_OPTIONS,
   ORDER_TYPE_OPTIONS,
 } from "@/components/orders/orderRequestUtils";
@@ -1296,7 +1298,7 @@ export default function DivisionDetailPage() {
                                 <span className="font-medium">{dp.division_stock}</span>
                                 {dp.division_stock_updated_at && (
                                   <div className="text-[10px] text-muted-foreground">
-                                    עודכן: {format(new Date(dp.division_stock_updated_at), "dd/MM/yy")}
+                                    עודכן: {format(new Date(dp.division_stock_updated_at), "dd/MM/yyyy")}
                                   </div>
                                 )}
                               </div>
@@ -1345,7 +1347,7 @@ export default function DivisionDetailPage() {
                                 <span className="font-medium">{dp.quarterly_demand ?? "—"}</span>
                                 {dp.quarterly_demand_updated_at && (
                                   <div className="text-[10px] text-muted-foreground">
-                                    עודכן: {format(new Date(dp.quarterly_demand_updated_at), "dd/MM/yy")}
+                                    עודכן: {format(new Date(dp.quarterly_demand_updated_at), "dd/MM/yyyy")}
                                   </div>
                                 )}
                               </div>
@@ -1375,7 +1377,7 @@ export default function DivisionDetailPage() {
                         )}
                         {dpColVis.isVisible("last_pickup") && (
                           <td className="p-3 text-muted-foreground text-xs">
-                            {lastDate ? format(new Date(lastDate), "dd/MM/yy") : "—"}
+                            {lastDate ? format(new Date(lastDate), "dd/MM/yyyy") : "—"}
                           </td>
                         )}
                         <td className="p-3">
@@ -2061,7 +2063,7 @@ export default function DivisionDetailPage() {
                               <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${urgencyClass(req.urgency)}`}>{req.urgency}</span>
                               {req.order_execution_date && (
                                 <span className={`text-xs ${overdueDate ? "text-red-600 font-semibold" : "text-muted-foreground"}`}>
-                                  ביצוע: {format(new Date(req.order_execution_date), "dd/MM/yy")}
+                                  ביצוע: {format(new Date(req.order_execution_date), "dd/MM/yyyy")}
                                 </span>
                               )}
                               <div className="flex gap-1 ms-auto">
@@ -2236,7 +2238,7 @@ export default function DivisionDetailPage() {
                                     value={req.order_execution_date}
                                     type="date"
                                     disabled={!editable}
-                                    display={v => v ? format(new Date(String(v)), "dd/MM/yy") : "—"}
+                                    display={v => v ? format(new Date(String(v)), "dd/MM/yyyy") : "—"}
                                     onCommit={(v) => patchRequest(req.id, { order_execution_date: v })}
                                   />
                                 </TableCell>

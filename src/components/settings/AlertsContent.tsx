@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import type { OrderStatus } from "@/contexts/AppContext";
 
+import { format } from "date-fns";
 interface OverduePayment {
   id: string;
   order_id: string | null;
@@ -37,7 +38,7 @@ interface PIWithoutSWIFT {
 }
 
 const currencySymbol = (c: string) => c === "USD" ? "$" : c === "EUR" ? "€" : "₪";
-const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString("he-IL") : "—";
+const formatDate = (d: string | null) => d ? new format(Date(d), "dd/MM/yyyy") : "—";
 
 function AlertCard({
   title,

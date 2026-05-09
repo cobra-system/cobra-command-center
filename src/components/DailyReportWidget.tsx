@@ -6,6 +6,7 @@ import {
   Sun, CheckCircle2, Circle, Mail, AlertTriangle, Clock,
   ChevronDown, ChevronRight, ChevronLeft, Calendar
 } from "lucide-react";
+import { format } from "date-fns";
 
 interface CobraUpdate { order_name: string; description: string; }
 interface ActionItem { text: string; priority: "red" | "orange" | "yellow"; done: boolean; }
@@ -105,8 +106,8 @@ export default function DailyReportWidget() {
   const hasNext = currentIndex > 0;
   const isToday = currentIndex === 0;
 
-  const fmt = (d: string) => new Date(d).toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit" });
-  const fmtFull = (d: string) => new Date(d).toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const fmt = (d: string) => new format(Date(d), "dd/MM");
+  const fmtFull = (d: string) => new format(Date(d), "dd/MM/yyyy");
 
   if (loading) return (
     <div className="bg-card rounded-xl border p-6 flex items-center justify-center gap-2 text-muted-foreground">

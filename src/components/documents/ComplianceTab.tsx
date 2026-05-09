@@ -14,6 +14,7 @@ import { Plus, Upload, Loader2, Pencil, Trash2, Package, Download } from "lucide
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
+import { format } from "date-fns";
 interface ComplianceItem {
   id: string;
   name: string;
@@ -195,7 +196,7 @@ export default function ComplianceTab({ productId }: { productId?: string } = {}
                     </div>
 
                     <div className="space-y-1 text-xs text-muted-foreground">
-                      {item.expiry_date && <p>תוקף: {new Date(item.expiry_date).toLocaleDateString("he-IL")}</p>}
+                      {item.expiry_date && <p>תוקף: {new format(Date(item.expiry_date), "dd/MM/yyyy")}</p>}
                       {item.renewal_contact && <p>איש קשר: {item.renewal_contact}</p>}
                       {item.notes && <p className="text-foreground/70">{item.notes}</p>}
                     </div>

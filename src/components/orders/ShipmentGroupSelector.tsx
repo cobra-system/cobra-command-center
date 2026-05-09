@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import type { ShipmentGroup } from "@/contexts/types";
 
+import { format } from "date-fns";
 interface Props {
   orderId: string;
   currentGroupId?: string | null;
@@ -44,7 +45,7 @@ export function ShipmentGroupSelector({ orderId, currentGroupId, hasEdit, onUpda
 
   const options = groups.map(g => ({
     value: g.id,
-    label: `${g.name}${g.vessel_name ? ` — ${g.vessel_name}` : ""}${g.departure_date ? ` (${new Date(g.departure_date).toLocaleDateString("he-IL")})` : ""}`,
+    label: `${g.name}${g.vessel_name ? ` — ${g.vessel_name}` : ""}${g.departure_date ? ` (${new format(Date(g.departure_date), "dd/MM/yyyy")})` : ""}`,
   }));
 
   return (
