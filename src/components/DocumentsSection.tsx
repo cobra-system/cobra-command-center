@@ -164,7 +164,7 @@ export default function DocumentsSection({ supplierId, productId, orderId }: Pro
                         </PopoverContent>
                       </Popover>
                     </td>
-                    <td className="p-3 text-muted-foreground text-xs">{format(new Date(doc.created_at), "dd/MM/yy")}</td>
+                    <td className="p-3 text-muted-foreground text-xs">{format(new Date(doc.created_at), "dd/MM/yyyy")}</td>
                   </tr>
                 ))}
               </tbody>
@@ -199,7 +199,7 @@ export default function DocumentsSection({ supplierId, productId, orderId }: Pro
                       <tr key={p.id} className={isOverdue ? "bg-destructive/5" : ""}>
                         <td className="p-3 font-mono" dir="ltr">{currencySymbol[p.currency] || ""}{p.amount.toLocaleString()}</td>
                         <td className="p-3 text-muted-foreground">{paymentTypeLabels[p.payment_type] || p.payment_type}</td>
-                        <td className="p-3 text-muted-foreground text-xs">{p.due_date ? format(new Date(p.due_date), "dd/MM/yy") : "—"}</td>
+                        <td className="p-3 text-muted-foreground text-xs">{p.due_date ? format(new Date(p.due_date), "dd/MM/yyyy") : "—"}</td>
                         <td className="p-3">
                           <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", payStatusColors[displayStatus] || "bg-muted text-muted-foreground")}>
                             {displayStatus}

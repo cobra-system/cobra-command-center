@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import type { Product } from "@/contexts/AppContext";
 
+import { format } from "date-fns";
 interface WasteItem {
   id: string;
   product_name: string;
@@ -117,7 +118,7 @@ export function WasteItemsSection({ product }: WasteItemsSectionProps) {
                     <p className="text-xs text-muted-foreground truncate">{item.recommendations}</p>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    {new Date(item.created_at).toLocaleDateString("he-IL")}
+                    {new format(Date(item.created_at), "dd/MM/yyyy")}
                   </p>
                 </div>
                 <div className="shrink-0 space-y-1 text-right">
@@ -157,7 +158,7 @@ export function WasteItemsSection({ product }: WasteItemsSectionProps) {
                       {item.recommendations || "—"}
                     </td>
                     <td className="p-3 text-muted-foreground text-xs">
-                      {new Date(item.created_at).toLocaleDateString("he-IL")}
+                      {new format(Date(item.created_at), "dd/MM/yyyy")}
                     </td>
                     <td className="p-3 text-muted-foreground">{item.created_by_name || "—"}</td>
                   </tr>

@@ -174,7 +174,7 @@ export default function TaskGanttView() {
         if (months.length > 0) {
           months[months.length - 1].span = i - startCol;
         }
-        months.push({ label: format(day, "MMMM yyyy", { locale: he }), startCol: i, span: 0 });
+        months.push({ label: format(day, "MM/yyyy"), startCol: i, span: 0 });
         currentMonth = m;
         currentYear = y;
         startCol = i;

@@ -1,6 +1,7 @@
 import type { WarehouseZone } from "@/data/warehouseZones";
 import type { ZoneInventoryData } from "@/hooks/useWarehouseInventory";
 
+import { format } from "date-fns";
 const GRID_COLS = 24;
 const GRID_ROWS = 20;
 
@@ -74,7 +75,7 @@ export function printFloorPlan(
         </style>
       </head>
       <body>
-        <h2>מחסן לוגיסטר קוברה — ${new Date().toLocaleDateString("he-IL")}</h2>
+        <h2>מחסן לוגיסטר קוברה — ${new format(Date(), "dd/MM/yyyy")}</h2>
         <svg width="${svgW}" height="${svgH}" xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 ${svgW} ${svgH}">
           <rect width="${svgW}" height="${svgH}" fill="#f9fafb"/>

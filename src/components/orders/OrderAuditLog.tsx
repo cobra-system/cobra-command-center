@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AppContext";
 import { canSeePrices } from "@/lib/permissions";
 
+import { format } from "date-fns";
 interface AuditRow {
   id: string;
   action: string;
@@ -175,7 +176,7 @@ export function OrderAuditLog({ orderId }: { orderId: string }) {
                             : (actionLabel[entry.action || ""] || entry.action)}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(entry.timestamp).toLocaleString("he-IL", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                          {new format(Date(entry.timestamp), "dd/MM/yyyy HH:mm")}
                         </span>
                         {entry.changedBy && (
                           <span className="text-xs text-muted-foreground">— {entry.changedBy}</span>

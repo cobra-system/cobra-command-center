@@ -509,7 +509,7 @@ export default function EquipmentPage() {
             (s, r) => s + r.equipment_return_items.reduce((ss, i) => ss + i.quantity, 0),
             0
           );
-        return { month: format(new Date(m + "-01"), "MM/yy"), taken, returned };
+        return { month: format(new Date(m + "-01"), "MM/yyyy"), taken, returned };
       });
   }, [pickups, returns]);
 
@@ -776,7 +776,7 @@ export default function EquipmentPage() {
                     >
                       <div className="flex items-center gap-3">
                         <span className="font-semibold text-sm">
-                          {format(new Date(date), "dd/MM/yy")}
+                          {format(new Date(date), "dd/MM/yyyy")}
                         </span>
                         <span className="text-xs text-muted-foreground">
                           {divCount} חטיבות · {dayPickups.length} אירועים · {totalDayItems} פריטים

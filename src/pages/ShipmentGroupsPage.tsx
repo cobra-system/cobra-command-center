@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { ShipmentGroup } from "@/contexts/types";
 
+import { format } from "date-fns";
 const COLUMN_DEFS: ColDef[] = [
   { id: "name",           label: "שם קבוצה",       sortField: "name" },
   { id: "vessel_name",    label: "שם אונייה",       sortField: "vessel_name" },
@@ -210,9 +211,9 @@ export default function ShipmentGroupsPage() {
             </div>
             {(g.departure_date || g.arrival_date) && (
               <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                {g.departure_date && <span>יציאה: {new Date(g.departure_date).toLocaleDateString("he-IL")}</span>}
+                {g.departure_date && <span>יציאה: {new format(Date(g.departure_date), "dd/MM/yyyy")}</span>}
                 {g.departure_date && g.arrival_date && <span>→</span>}
-                {g.arrival_date && <span>הגעה: {new Date(g.arrival_date).toLocaleDateString("he-IL")}</span>}
+                {g.arrival_date && <span>הגעה: {new format(Date(g.arrival_date), "dd/MM/yyyy")}</span>}
               </div>
             )}
             {(g.booking_number || g.tclog_reference) && (
@@ -269,12 +270,12 @@ export default function ShipmentGroupsPage() {
                 )}
                 {isVisible("departure_date") && (
                   <td className="p-3 text-muted-foreground text-xs">
-                    {g.departure_date ? new Date(g.departure_date).toLocaleDateString("he-IL") : "—"}
+                    {g.departure_date ? new format(Date(g.departure_date), "dd/MM/yyyy") : "—"}
                   </td>
                 )}
                 {isVisible("arrival_date") && (
                   <td className="p-3 text-muted-foreground text-xs">
-                    {g.arrival_date ? new Date(g.arrival_date).toLocaleDateString("he-IL") : "—"}
+                    {g.arrival_date ? new format(Date(g.arrival_date), "dd/MM/yyyy") : "—"}
                   </td>
                 )}
                 {isVisible("booking_number") && (

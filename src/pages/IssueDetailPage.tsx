@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 import {
   ArrowRight, Wrench, AlertTriangle, Clock, Check, Circle,
   Minus, Hash, Upload, Trash2, Play, ImageIcon, Loader2, Plus,
@@ -336,7 +337,7 @@ export default function IssueDetailPage() {
               <h1 className="text-xl font-bold text-foreground leading-tight">{issue.description}</h1>
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              {new Date(issue.reported_date).toLocaleDateString("he-IL")} · {issue.reporter}
+              {new format(Date(issue.reported_date), "dd/MM/yyyy")} · {issue.reporter}
               {issue.ticket_number && (
                 <span className="inline-flex items-center gap-0.5 mr-2 bg-muted/70 border border-border rounded px-1.5 py-0.5 text-xs font-mono">
                   <Hash className="h-3 w-3" />{issue.ticket_number}
@@ -478,7 +479,7 @@ export default function IssueDetailPage() {
             <div>
               <p className="text-xs text-muted-foreground mb-1">תאריך דיווח</p>
               <p className="text-sm font-medium text-foreground">
-                {new Date(issue.reported_date).toLocaleDateString("he-IL")}
+                {new format(Date(issue.reported_date), "dd/MM/yyyy")}
               </p>
             </div>
 
@@ -512,7 +513,7 @@ export default function IssueDetailPage() {
               <div>
                 <p className="text-xs text-muted-foreground mb-1">תאריך סגירה</p>
                 <p className="text-sm font-medium text-foreground">
-                  {new Date(issue.resolved_date).toLocaleDateString("he-IL")}
+                  {new format(Date(issue.resolved_date), "dd/MM/yyyy")}
                 </p>
               </div>
             )}

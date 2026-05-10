@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
 import {
   Loader2, Plus, ShoppingCart, CheckCircle, XCircle,
   ChevronDown, ChevronUp, Lock, CreditCard, AlertTriangle,
@@ -84,7 +85,7 @@ function fmtAmount(amount: number | null | undefined, currency?: string | null) 
 }
 
 function fmtDate(d: string | null | undefined) {
-  return d ? new Date(d).toLocaleDateString("he-IL") : "—";
+  return d ? new format(Date(d), "dd/MM/yyyy") : "—";
 }
 
 function DecisionBadge({ decision }: { decision: ProcurementDecision }) {
@@ -422,7 +423,7 @@ export default function ProcurementMeetingTab() {
 
   const createTodayMeeting = async () => {
     const today = new Date();
-    const title = `ישיבת רכש — ${today.toLocaleDateString("he-IL")}`;
+    const title = `ישיבת רכש — ${format(today, "dd/MM/yyyy")}`;
     const { data, error } = await supabase
       .from("meetings")
       .insert({ title, meeting_date: today.toISOString(), type: "procurement", status: "open" })
@@ -553,7 +554,7 @@ export default function ProcurementMeetingTab() {
                 <SelectItem key={m.id} value={m.id}>
                   <span className="flex items-center gap-2">
                     {m.status === "closed" && <Lock className="h-3 w-3 text-muted-foreground" />}
-                    {m.title} — {new Date(m.meeting_date).toLocaleDateString("he-IL")}
+                    {m.title} — {new format(Date(m.meeting_date), "dd/MM/yyyy")}
                     {m.status === "closed" && (
                       <span className="text-xs text-muted-foreground">(סגורה)</span>
                     )}

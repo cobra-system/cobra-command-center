@@ -3,6 +3,7 @@ import { RefreshCw, Truck, MapPin, Calendar, AlertTriangle, Check, Package, Chev
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useData } from "@/contexts/AppContext";
+import { format } from "date-fns";
 import {
   DHL_LEVELS,
   DHL_PROGRESS_STAGES,
@@ -26,14 +27,14 @@ function formatDate(value: string | null | undefined): string {
   if (!value) return "—";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" });
+  return format(d, "dd/MM/yyyy HH:mm");
 }
 
 function formatDateOnly(value: string | null | undefined): string {
   if (!value) return "—";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString("he-IL");
+  return format(d, "dd/MM/yyyy");
 }
 
 function ProgressBar({ level, eventCode }: { level: TrackingLevel; eventCode: string | null | undefined }) {

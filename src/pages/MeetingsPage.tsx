@@ -9,6 +9,7 @@ import MeetingFormDialog from "@/components/meetings/MeetingFormDialog";
 import MeetingDetailDialog from "@/components/meetings/MeetingDetailDialog";
 import type { Meeting, MeetingActionItem } from "@/components/meetings/types";
 
+import { format } from "date-fns";
 export default function MeetingsPage() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [actionCounts, setActionCounts] = useState<Record<string, { total: number; pending: number }>>({});
@@ -141,7 +142,7 @@ export default function MeetingsPage() {
                     <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <CalendarDays className="h-3.5 w-3.5" />
-                        {new Date(meeting.meeting_date).toLocaleDateString("he-IL")}
+                        {new format(Date(meeting.meeting_date), "dd/MM/yyyy")}
                       </span>
                       {counts && (
                         <span className="flex items-center gap-1">

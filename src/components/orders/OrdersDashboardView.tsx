@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { useData } from "@/contexts/AppContext";
 import { toast } from "sonner";
 
+import { format } from "date-fns";
 interface OrderPayment {
   id: string;
   order_id: string;
@@ -221,7 +222,7 @@ export function OrdersDashboardView({ orders, orderPaymentStatuses, suppliers }:
     for (let i = 0; i < 6; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const label = d.toLocaleDateString("he-IL", { month: "short", year: "2-digit" });
+      const label = format(d, "MM/yyyy");
       months.push({ key, label, paid: 0, pending: 0 });
     }
     for (const p of allPayments) {
@@ -477,7 +478,7 @@ export function OrdersDashboardView({ orders, orderPaymentStatuses, suppliers }:
                     {order.items.map(i => i.name).join(", ") || "ללא פריטים"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {order.supplier_name} • {new Date(order.eta!).toLocaleDateString("he-IL")}
+                    {order.supplier_name} • {format(new Date(order.eta!), "dd/MM/yyyy")}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
@@ -545,7 +546,7 @@ export function OrdersDashboardView({ orders, orderPaymentStatuses, suppliers }:
                           {order.items.map(i => i.name).join(", ") || "ללא פריטים"}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {order.supplier_name || "—"} • {new Date(order.eta!).toLocaleDateString("he-IL")}
+                          {order.supplier_name || "—"} • {format(new Date(order.eta!), "dd/MM/yyyy")}
                         </p>
                       </div>
 

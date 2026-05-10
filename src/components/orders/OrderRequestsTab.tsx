@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NewOrderDialog } from "@/components/orders/NewOrderDialog";
 import { OrderRequestDialog } from "@/components/orders/OrderRequestDialog";
+import { AttachToOrderDialog } from "@/components/orders/AttachToOrderDialog";
 import { RejectRequestDialog } from "@/components/orders/RejectRequestDialog";
 import { OrderRequestsDashboard } from "@/components/orders/OrderRequestsDashboard";
 import { RequestDetailPanel } from "@/components/orders/RequestDetailPanel";
@@ -32,28 +33,27 @@ import type { OrderRequest } from "@/contexts/types";
 import { DIVISIONS, BONDED_DIVISIONS } from "@/components/equipment/constants";
 import { isDivisionManager } from "@/lib/permissions";
 import {
-  fmtNum, fmtPct, fmtMoney, urgencyClass, statusClass, STATUS_LABELS,
+  fmtNum, fmtPct, urgencyClass, statusClass, STATUS_LABELS,
   utilizationColor, isOverdue, ageBadge, freeTextMatch, daysSince, suggestUrgency,
+  URGENCY_OPTIONS, ORDER_TYPE_OPTIONS,
 } from "./orderRequestUtils";
-import { fetchDivisionStockMap, hydrateDivisionStock } from "./divisionStockHelpers";
+import { fetchDivisionStockMap, hydrateDivisionStock, updateDivisionStock } from "./divisionStockHelpers";
+import { InlineEditCell } from "@/components/orders/InlineEditCell";
+import { InlineSelectCell } from "@/components/orders/InlineSelectCell";
 
 const COLUMN_DEFS: ColDef[] = [
   { id: "division", label: "חטיבה", sortField: "division" },
   { id: "product", label: "מוצר", sortField: "product_name" },
   { id: "sku", label: "מק״ט", sortField: "product_sku" },
   { id: "supplier", label: "ספק", sortField: "supplier" },
-  { id: "quantity", label: "כמות", sortField: "quantity" },
-  { id: "required_to_order", label: "נדרש להזמין", sortField: "required_to_order" },
-  { id: "main_warehouse_stock", label: "מלאי מחסן 1", sortField: "main_warehouse_stock" },
+  { id: "required_to_order", label: "כמות", sortField: "required_to_order" },
   { id: "division_stock", label: "מלאי חטיבה", sortField: "division_stock" },
   { id: "quarterly_forecast", label: "צפי רבעון", sortField: "quarterly_forecast" },
   { id: "utilization_pct", label: "% מימוש", sortField: "utilization_pct" },
-  { id: "estimated_unit_price", label: "מחיר יח׳", sortField: "estimated_unit_price" },
-  { id: "estimated_value", label: "ערך משוער" },
   { id: "urgency", label: "דחיפות", sortField: "urgency" },
   { id: "order_type", label: "סוג הזמנה" },
   { id: "order_execution_date", label: "תאריך ביצוע", sortField: "order_execution_date" },
-  { id: "consumption", label: "צריכה" },
+  { id: "consumption", label: "צריכה חודשית ממוצעת" },
   { id: "reason", label: "סיבה" },
   { id: "created_by", label: "נשלחה ע״י" },
   { id: "created_at", label: "נשלחה ב", sortField: "created_at" },
@@ -86,6 +86,8 @@ export function OrderRequestsTab() {
   const [sortField, setSortField] = usePersistedState<string | null>("order-requests:sort-field", "created_at");
   const [sortDir, setSortDir] = usePersistedState<"asc" | "desc">("order-requests:sort-dir", "desc");
   const [fulfillingRequest, setFulfillingRequest] = useState<OrderRequest | null>(null);
+  const [fulfillChooserRequest, setFulfillChooserRequest] = useState<OrderRequest | null>(null);
+  const [attachingRequest, setAttachingRequest] = useState<OrderRequest | null>(null);
   const [editingRequest, setEditingRequest] = useState<OrderRequest | null>(null);
   const [rejectingRequest, setRejectingRequest] = useState<OrderRequest | null>(null);
   const [detailRequest, setDetailRequest] = useState<OrderRequest | null>(null);
@@ -118,7 +120,7 @@ export function OrderRequestsTab() {
     COLUMN_DEFS,
     isManager
       // Manager: hide low-value text fields by default; show planning numbers
-      ? ["consumption", "reason", "ordered_by", "sku", "estimated_unit_price", "main_warehouse_stock", "quarterly_forecast"]
+      ? ["consumption", "reason", "ordered_by", "sku", "quarterly_forecast"]
       // Division manager: hide division (their own), reviewer/ordered metadata
       : ["division", "ordered_by", "ordered_at", "consumption", "reason"]
   );
@@ -156,20 +158,30 @@ export function OrderRequestsTab() {
     return () => { void supabase.removeChannel(ch); };
   }, [fetchRequests]);
 
+  const fetchDivisionProductIds = useCallback(async () => {
+    if (!canCreateRequest) return;
+    const { data, error } = await supabase
+      .from("division_products")
+      .select("product_id")
+      .eq("division", userDivision);
+    if (error) { setDivisionProductIds([]); return; }
+    setDivisionProductIds((data ?? []).map(d => d.product_id as string));
+  }, [canCreateRequest, userDivision]);
+
+  useEffect(() => { void fetchDivisionProductIds(); }, [fetchDivisionProductIds]);
+
+  // Realtime: react to division_products changes (covers inline product creation +
+  // attach-to-division popup) so the dialog's set is always fresh.
   useEffect(() => {
     if (!canCreateRequest) return;
-    let cancelled = false;
-    (async () => {
-      const { data, error } = await supabase
-        .from("division_products")
-        .select("product_id")
-        .eq("division", userDivision);
-      if (cancelled) return;
-      if (error) { setDivisionProductIds([]); return; }
-      setDivisionProductIds((data ?? []).map(d => d.product_id as string));
-    })();
-    return () => { cancelled = true; };
-  }, [canCreateRequest, userDivision]);
+    const ch = supabase
+      .channel(`division-products-${userDivision}`)
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "division_products", filter: `division=eq.${userDivision}` },
+        () => { void fetchDivisionProductIds(); })
+      .subscribe();
+    return () => { void supabase.removeChannel(ch); };
+  }, [canCreateRequest, userDivision, fetchDivisionProductIds]);
 
   const dialogDivisionProducts = useMemo(
     () => divisionProductIds.map(product_id => ({
@@ -204,6 +216,15 @@ export function OrderRequestsTab() {
     setFulfillingRequest(null);
     await fetchRequests();
   }, [fulfillingRequest, currentUser, fetchRequests]);
+
+  const patchRequest = useCallback(async (id: string, patch: Record<string, unknown>) => {
+    const { error } = await supabase.from("order_requests").update(patch).eq("id", id);
+    if (error) {
+      toast.error("שגיאה בעדכון");
+      return;
+    }
+    setRequests(prev => prev.map(r => r.id === id ? ({ ...r, ...patch } as OrderRequest) : r));
+  }, []);
 
   const handleDelete = useCallback(async (req: OrderRequest) => {
     if (!confirm(`למחוק את הבקשה "${req.product_name}"?`)) return;
@@ -544,7 +565,6 @@ export function OrderRequestsTab() {
           <div className="md:hidden space-y-2">
             {filtered.map(req => {
               const age = ageBadge(req);
-              const estValue = (req.required_to_order ?? req.quantity ?? 0) * (req.estimated_unit_price ?? 0);
               return (
                 <div key={req.id} className="bg-card rounded-xl border shadow-sm p-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
@@ -578,7 +598,6 @@ export function OrderRequestsTab() {
                   <div className="flex items-center justify-between gap-2 mt-3 flex-wrap">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${urgencyClass(req.urgency)}`}>{req.urgency}</span>
                     {age && <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${age.cls}`}>{age.text}</span>}
-                    {estValue > 0 && <span className="text-xs text-muted-foreground tabular-nums">{fmtMoney(estValue)}</span>}
                     <span className="text-xs text-muted-foreground">{format(new Date(req.created_at), "dd/MM/yyyy")}</span>
                     <div className="flex gap-1 ms-auto">
                       {canEditRow(req) && (
@@ -587,7 +606,7 @@ export function OrderRequestsTab() {
                         </Button>
                       )}
                       {req.status === "pending" && canFulfill && (
-                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setFulfillingRequest(req)}>
+                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setFulfillChooserRequest(req)}>
                           <ShoppingCart className="h-3 w-3" />הזמן
                         </Button>
                       )}
@@ -648,7 +667,7 @@ export function OrderRequestsTab() {
                       ) : col.label}
                     </th>
                   ) : null)}
-                  <th className={`${cellPadding} w-32`} />
+                  <th className={`${cellPadding} w-44 text-right font-semibold text-foreground text-xs`}>פעולות</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -692,14 +711,13 @@ export function OrderRequestsTab() {
                     }
                     const req = item.req;
                     const age = ageBadge(req);
-                    const orderQty = req.required_to_order ?? req.quantity ?? 0;
-                    const estValue = orderQty * (req.estimated_unit_price ?? 0);
                     const overdueDate = isOverdue(req.order_execution_date) && req.status === "pending";
                     const stale = (() => {
                       const d = daysSince(req.updated_at ?? req.created_at);
                       return d !== null && d >= 30;
                     })();
                     const suggested = suggestUrgency(req);
+                    const editable = canEditRow(req) && req.status === "pending";
                     rendered.push(
                       <tr
                         key={req.id}
@@ -751,35 +769,111 @@ export function OrderRequestsTab() {
                             ) : "—"}
                           </td>
                         )}
-                        {isVisible("quantity") && <td className={`${cellPadding} tabular-nums`}>{fmtNum(req.quantity)}</td>}
                         {isVisible("required_to_order") && (
                           <td className={`${cellPadding} tabular-nums font-semibold`}>
-                            <span className={orderQty > 0 ? "text-foreground" : "text-muted-foreground"}>
-                              {fmtNum(req.required_to_order)}
-                            </span>
+                            <InlineEditCell
+                              value={req.required_to_order ?? req.quantity ?? null}
+                              type="number"
+                              disabled={!editable}
+                              display={v => (
+                                <span className={(v as number) > 0 ? "text-foreground" : "text-muted-foreground"}>
+                                  {fmtNum(v as number | null)}
+                                </span>
+                              )}
+                              onCommit={(v) => patchRequest(req.id, { required_to_order: v, quantity: v })}
+                            />
                           </td>
                         )}
-                        {isVisible("main_warehouse_stock") && <td className={`${cellPadding} tabular-nums`}>{fmtNum(req.main_warehouse_stock)}</td>}
-                        {isVisible("division_stock") && <td className={`${cellPadding} tabular-nums`}>{fmtNum(req.division_stock)}</td>}
-                        {isVisible("quarterly_forecast") && <td className={`${cellPadding} tabular-nums`}>{fmtNum(req.quarterly_forecast)}</td>}
-                        {isVisible("utilization_pct") && (
-                          <td className={`${cellPadding} tabular-nums ${utilizationColor(req.utilization_pct)}`}>{fmtPct(req.utilization_pct)}</td>
+                        {isVisible("division_stock") && (
+                          <td className={`${cellPadding} tabular-nums`}>
+                            <InlineEditCell
+                              value={req.division_stock}
+                              type="number"
+                              disabled={!editable}
+                              display={v => fmtNum(v as number | null)}
+                              onCommit={async (v) => {
+                                if (!req.product_id) { toast.error("לא ניתן לעדכן מלאי לשורה ללא מוצר משויך"); return; }
+                                const r = await updateDivisionStock(req.division, req.product_id, typeof v === "number" ? v : null);
+                                if (!r.ok) { toast.error(r.error ?? "שגיאה בעדכון"); return; }
+                                setRequests(prev => prev.map(rr => rr.id === req.id ? ({ ...rr, division_stock: typeof v === "number" ? v : null } as OrderRequest) : rr));
+                              }}
+                            />
+                          </td>
                         )}
-                        {isVisible("estimated_unit_price") && <td className={`${cellPadding} tabular-nums`}>{fmtMoney(req.estimated_unit_price)}</td>}
-                        {isVisible("estimated_value") && <td className={`${cellPadding} tabular-nums`}>{estValue > 0 ? fmtMoney(estValue) : "—"}</td>}
+                        {isVisible("quarterly_forecast") && (
+                          <td className={`${cellPadding} tabular-nums`}>
+                            <InlineEditCell
+                              value={req.quarterly_forecast}
+                              type="number"
+                              disabled={!editable}
+                              display={v => fmtNum(v as number | null)}
+                              onCommit={(v) => patchRequest(req.id, { quarterly_forecast: v })}
+                            />
+                          </td>
+                        )}
+                        {isVisible("utilization_pct") && (
+                          <td className={`${cellPadding} tabular-nums ${utilizationColor(req.utilization_pct)}`}>
+                            <InlineEditCell
+                              value={req.utilization_pct}
+                              type="number"
+                              disabled={!editable}
+                              display={v => fmtPct(v as number | null)}
+                              onCommit={(v) => patchRequest(req.id, { utilization_pct: v })}
+                            />
+                          </td>
+                        )}
                         {isVisible("urgency") && (
                           <td className={cellPadding}>
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${urgencyClass(req.urgency)}`}>{req.urgency}</span>
+                            <InlineSelectCell
+                              value={req.urgency}
+                              disabled={!editable}
+                              options={URGENCY_OPTIONS.map(u => ({ value: u, label: u }))}
+                              display={(v) => (
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${urgencyClass(v as typeof URGENCY_OPTIONS[number])}`}>
+                                  {v ?? "—"}
+                                </span>
+                              )}
+                              onCommit={(v) => patchRequest(req.id, { urgency: v })}
+                            />
                           </td>
                         )}
-                        {isVisible("order_type") && <td className={`${cellPadding} text-muted-foreground text-xs`}>{req.order_type}</td>}
+                        {isVisible("order_type") && (
+                          <td className={`${cellPadding} text-muted-foreground text-xs`}>
+                            <InlineSelectCell
+                              value={req.order_type}
+                              disabled={!editable}
+                              options={ORDER_TYPE_OPTIONS.map(o => ({ value: o, label: o }))}
+                              display={(v) => <span>{v ?? "—"}</span>}
+                              onCommit={(v) => patchRequest(req.id, { order_type: v })}
+                            />
+                          </td>
+                        )}
                         {isVisible("order_execution_date") && (
                           <td className={`${cellPadding} text-xs whitespace-nowrap ${overdueDate ? "text-red-600 font-semibold" : "text-muted-foreground"}`}>
-                            {req.order_execution_date ? format(new Date(req.order_execution_date), "dd/MM/yyyy") : "—"}
+                            <InlineEditCell
+                              value={req.order_execution_date}
+                              type="date"
+                              disabled={!editable}
+                              display={v => v ? format(new Date(String(v)), "dd/MM/yyyy") : "—"}
+                              onCommit={(v) => patchRequest(req.id, { order_execution_date: v })}
+                            />
                           </td>
                         )}
                         {isVisible("consumption") && <td className={`${cellPadding} text-muted-foreground tabular-nums`}>{req.current_consumption ?? "—"}</td>}
-                        {isVisible("reason") && <td className={`${cellPadding} text-muted-foreground max-w-[180px] truncate`} title={req.reason ?? ""}>{req.reason ?? "—"}</td>}
+                        {isVisible("reason") && (
+                          <td className={`${cellPadding} text-muted-foreground max-w-[180px]`}>
+                            <InlineEditCell
+                              value={req.reason}
+                              disabled={!editable}
+                              display={v => (
+                                <span className="block truncate text-right" title={String(v ?? "")}>
+                                  {v ?? "—"}
+                                </span>
+                              )}
+                              onCommit={(v) => patchRequest(req.id, { reason: v })}
+                            />
+                          </td>
+                        )}
                         {isVisible("created_by") && <td className={`${cellPadding} text-muted-foreground text-xs`}>{req.created_by_name ?? "—"}</td>}
                         {isVisible("created_at") && (
                           <td className={`${cellPadding} text-muted-foreground text-xs whitespace-nowrap`}>
@@ -816,44 +910,67 @@ export function OrderRequestsTab() {
                           </td>
                         )}
                         <td className={cellPadding}>
-                          <div className="flex gap-0.5 justify-end">
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setDetailRequest(req); }} title="פרטים מלאים">
-                              <Eye className="h-3 w-3" />
-                            </Button>
-                            {canEditRow(req) && (
-                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setEditingRequest(req); }} title="ערוך">
-                                <Pencil className="h-3 w-3" />
+                          <div className="flex items-center gap-1 justify-end">
+                            {/* View / edit / clone group */}
+                            <div className="flex items-center">
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setDetailRequest(req); }} title="פרטים מלאים">
+                                <Eye className="h-3.5 w-3.5" />
                               </Button>
-                            )}
-                            {canCreateRequest && req.division === userDivision && (
-                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setCloneTemplate(req); }} title="שכפל">
-                                <Copy className="h-3 w-3" />
-                              </Button>
-                            )}
+                              {canEditRow(req) && (
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setEditingRequest(req); }} title="ערוך">
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                              {canCreateRequest && req.division === userDivision && (
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setCloneTemplate(req); }} title="שכפל">
+                                  <Copy className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
+
+                            {/* Primary status action */}
                             {req.status === "pending" && canFulfill && (
-                              <Button size="sm" variant="outline" className="h-7 text-xs gap-1 px-2" onClick={(e) => { e.stopPropagation(); setFulfillingRequest(req); }}>
-                                <ShoppingCart className="h-3 w-3" />הזמן
-                              </Button>
-                            )}
-                            {req.status === "pending" && canFulfill && (
-                              <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={(e) => { e.stopPropagation(); setRejectingRequest(req); }} title="דחה">
-                                <Ban className="h-3 w-3" />
-                              </Button>
+                              <>
+                                <span className="h-4 w-px bg-border mx-0.5" aria-hidden />
+                                <Button size="sm" className="h-7 text-xs gap-1 px-2.5" onClick={(e) => { e.stopPropagation(); setFulfillChooserRequest(req); }}>
+                                  <ShoppingCart className="h-3.5 w-3.5" />הזמן
+                                </Button>
+                              </>
                             )}
                             {req.status === "ordered" && req.order_id && (
-                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); navigateToOrder(req.order_id); }} title="פתח הזמנה">
-                                <ExternalLink className="h-3 w-3" />
-                              </Button>
+                              <>
+                                <span className="h-4 w-px bg-border mx-0.5" aria-hidden />
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); navigateToOrder(req.order_id); }} title="פתח הזמנה">
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </Button>
+                              </>
                             )}
                             {(req.status === "rejected" || req.status === "cancelled") && canFulfill && (
-                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleRevert(req); }} title="החזר ל-ממתין">
-                                <RotateCcw className="h-3 w-3" />
-                              </Button>
+                              <>
+                                <span className="h-4 w-px bg-border mx-0.5" aria-hidden />
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleRevert(req); }} title="החזר ל-ממתין">
+                                  <RotateCcw className="h-3.5 w-3.5" />
+                                </Button>
+                              </>
                             )}
-                            {canDeleteRow(req) && (
-                              <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={(e) => { e.stopPropagation(); handleDelete(req); }} title="מחק">
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
+
+                            {/* Destructive group */}
+                            {((req.status === "pending" && canFulfill) || canDeleteRow(req)) && (
+                              <>
+                                <span className="h-4 w-px bg-border mx-0.5" aria-hidden />
+                                <div className="flex items-center">
+                                  {req.status === "pending" && canFulfill && (
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); setRejectingRequest(req); }} title="דחה">
+                                      <Ban className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
+                                  {canDeleteRow(req) && (
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); handleDelete(req); }} title="מחק">
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </>
                             )}
                           </div>
                         </td>
@@ -863,19 +980,6 @@ export function OrderRequestsTab() {
                   return rendered;
                 })()}
               </tbody>
-              {/* Aggregations row */}
-              <tfoot className="bg-muted/40">
-                <tr className="border-t font-semibold text-xs">
-                  <td colSpan={(canFulfill ? 1 : 0) + visibleCount + 1} className={`${cellPadding} text-muted-foreground`}>
-                    מציג {filtered.length} מתוך {requests.length} בקשות ·
-                    סה״כ נדרש להזמין: <span className="text-foreground tabular-nums">{fmtNum(filtered.reduce((s, r) => s + (r.required_to_order ?? r.quantity ?? 0), 0))}</span> יח׳
-                    {(() => {
-                      const v = filtered.reduce((s, r) => s + ((r.required_to_order ?? r.quantity ?? 0) * (r.estimated_unit_price ?? 0)), 0);
-                      return v > 0 ? <> · ערך משוער: <span className="text-foreground tabular-nums">{fmtMoney(v)}</span></> : null;
-                    })()}
-                  </td>
-                </tr>
-              </tfoot>
             </table>
           </div>
         </>
@@ -904,8 +1008,8 @@ export function OrderRequestsTab() {
         const notesParts = [
           r.reason && `סיבת הבקשה: ${r.reason}`,
           r.notes && `הערות תכנון: ${r.notes}`,
-          r.current_consumption && `צריכה נוכחית: ${r.current_consumption}`,
-          r.required_to_order != null && `נדרש להזמין: ${r.required_to_order}`,
+          r.current_consumption && `צריכה חודשית ממוצעת: ${r.current_consumption}`,
+          r.required_to_order != null && `כמות: ${r.required_to_order}`,
           `נוצר על ידי: ${r.created_by_name ?? "—"} · חטיבה: ${r.division}`,
         ].filter(Boolean).join("\n");
         const priorityMap: Record<string, "דחוף" | "גבוה" | "בינוני" | "נמוך"> = {
@@ -985,7 +1089,7 @@ export function OrderRequestsTab() {
         request={detailRequest}
         onOpenChange={(o) => { if (!o) setDetailRequest(null); }}
         onEdit={(r) => { setDetailRequest(null); setEditingRequest(r); }}
-        onFulfill={(r) => { setDetailRequest(null); setFulfillingRequest(r); }}
+        onFulfill={(r) => { setDetailRequest(null); setFulfillChooserRequest(r); }}
         onReject={(r) => { setDetailRequest(null); setRejectingRequest(r); }}
         onDelete={(r) => { setDetailRequest(null); void handleDelete(r); }}
         onRevert={(r) => { setDetailRequest(null); void handleRevert(r); }}
@@ -996,6 +1100,61 @@ export function OrderRequestsTab() {
           const s = suppliers.find(s => s.company === name);
           if (s) { setDetailRequest(null); navigate(`/suppliers/${s.id}`); }
         }}
+      />
+
+      {/* Fulfillment action chooser (manager only) */}
+      <Dialog open={!!fulfillChooserRequest} onOpenChange={(o) => { if (!o) setFulfillChooserRequest(null); }}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>איך לטפל בבקשה?</DialogTitle>
+          </DialogHeader>
+          {fulfillChooserRequest && (
+            <div className="space-y-3 pt-2">
+              <div className="rounded-lg border bg-muted/20 p-3 text-sm">
+                <div className="font-semibold">{fulfillChooserRequest.product_name}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {fulfillChooserRequest.supplier ?? "ללא ספק"} · כמות {fmtNum(fulfillChooserRequest.required_to_order ?? fulfillChooserRequest.quantity)}
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  const r = fulfillChooserRequest;
+                  setFulfillChooserRequest(null);
+                  setFulfillingRequest(r);
+                }}
+                className="w-full text-right rounded-lg border p-3 hover:bg-accent/40 transition-colors flex items-center gap-3"
+              >
+                <Plus className="h-5 w-5 text-primary shrink-0" />
+                <div>
+                  <div className="font-semibold text-sm">צור הזמנה חדשה</div>
+                  <div className="text-xs text-muted-foreground">פתיחת הזמנה חדשה לספק עם הפריט הזה</div>
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  const r = fulfillChooserRequest;
+                  setFulfillChooserRequest(null);
+                  setAttachingRequest(r);
+                }}
+                className="w-full text-right rounded-lg border p-3 hover:bg-accent/40 transition-colors flex items-center gap-3"
+              >
+                <ClipboardList className="h-5 w-5 text-primary shrink-0" />
+                <div>
+                  <div className="font-semibold text-sm">שייך להזמנה קיימת</div>
+                  <div className="text-xs text-muted-foreground">הוספת הפריט להזמנה אחת או יותר שכבר פתוחות</div>
+                </div>
+              </button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Attach to existing order dialog */}
+      <AttachToOrderDialog
+        open={!!attachingRequest}
+        onOpenChange={(o) => { if (!o) setAttachingRequest(null); }}
+        request={attachingRequest}
+        onAttached={fetchRequests}
       />
 
       {menu && (

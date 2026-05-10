@@ -5,7 +5,6 @@ import { supabase } from "@/lib/supabase";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { type RecurringTask, recurringMatchesDay, findOrCreateRecurringInstance } from "@/lib/recurringUtils";
 import { format, startOfWeek, addDays, isSameDay, isToday, isPast, addWeeks, subWeeks, getDay, startOfDay, isWithinInterval } from "date-fns";
-import { he } from "date-fns/locale";
 import { ChevronRight, ChevronLeft, CalendarDays, AlertTriangle, Users, Repeat, Settings, X, Plus, ClipboardList, Pencil, CheckCircle2, Trash2, Zap } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Button } from "@/components/ui/button";
@@ -182,7 +181,7 @@ export default function TaskWeeklyView() {
           <h1 className="text-2xl font-bold text-foreground">ניהול משימות</h1>
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground border rounded-lg px-3 py-1.5 bg-muted/30">
             <CalendarDays className="h-4 w-4" />
-            <span>{format(days[0], "d MMM", { locale: he })} – {format(days[days.length - 1], "d MMM yyyy", { locale: he })}</span>
+            <span>{format(days[0], "dd/MM/yyyy")} – {format(days[days.length - 1], "dd/MM/yyyy")}</span>
           </div>
         </div>
 

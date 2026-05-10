@@ -4,7 +4,6 @@ import { PriorityBadge } from "@/components/PriorityBadge";
 import { type RecurringTask, recurringMatchesDay, findOrCreateRecurringInstance } from "@/lib/recurringUtils";
 import { supabase } from "@/lib/supabase";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths, startOfDay, isSameDay, getDay, isWithinInterval } from "date-fns";
-import { he } from "date-fns/locale";
 import { ChevronRight, ChevronLeft, Calendar, Users, Settings, Plus, Repeat, Pencil, CheckCircle2, Trash2, Zap } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Button } from "@/components/ui/button";
@@ -299,7 +298,7 @@ export default function TaskMonthlyView() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {selectedDay ? format(selectedDay, "EEEE, d MMMM yyyy", { locale: he }) : ""}
+              {selectedDay ? format(selectedDay, "dd/MM/yyyy") : ""}
             </DialogTitle>
           </DialogHeader>
 

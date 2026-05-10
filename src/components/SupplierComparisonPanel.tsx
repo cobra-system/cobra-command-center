@@ -173,7 +173,7 @@ export default function SupplierComparisonPanel({ componentName, productId }: { 
                   </td>
                   <td className="p-2 text-muted-foreground">{q.moq || "—"}</td>
                   <td className="p-2 text-muted-foreground">{q.lead_time_days ? `${q.lead_time_days}d` : "—"}</td>
-                  <td className="p-2 text-muted-foreground">{q.valid_until ? format(new Date(q.valid_until), "dd/MM/yy") : "—"}</td>
+                  <td className="p-2 text-muted-foreground">{q.valid_until ? format(new Date(q.valid_until), "dd/MM/yyyy") : "—"}</td>
                   <td className="p-2">
                     {!q.is_primary && <Button variant="ghost" size="sm" className="text-xs h-6 px-2" onClick={() => setPrimary(q.id)}>⭐ בחר</Button>}
                   </td>

@@ -28,6 +28,7 @@ import { useAuth } from "@/contexts/AppContext";
 import { canSeePrices } from "@/lib/permissions";
 import { toast } from "sonner";
 
+import { format } from "date-fns";
 const allStatuses: { value: OrderStatus; label: string }[] = [
   { value: "PENDING", label: "ממתין" },
   { value: "ORDERED", label: "הוזמן" },
@@ -423,7 +424,7 @@ export default function OrderDetailPage() {
               {hasEdit ? (
                 <DateInput value={date} onChange={dt => handleDateSave(d.field, dt)} clearable />
               ) : (
-                <div className="text-sm font-semibold text-foreground">{date ? date.toLocaleDateString("he-IL") : "—"}</div>
+                <div className="text-sm font-semibold text-foreground">{date ? format(date, "dd/MM/yyyy") : "—"}</div>
               )}
               {isEta && showDhlEta && trackingEta && hasEdit && (
                 <button
@@ -432,7 +433,7 @@ export default function OrderDetailPage() {
                   className="text-xs text-primary hover:underline flex items-center gap-1 mt-1"
                   title="עדכן ETA לפי DHL"
                 >
-                  DHL: {trackingEta.toLocaleDateString("he-IL")} — סנכרן
+                  DHL: {format(trackingEta, "dd/MM/yyyy")} — סנכרן
                 </button>
               )}
             </div>

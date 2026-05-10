@@ -199,7 +199,7 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
                 {supplierName(doc.supplier_id) !== "—" && <span>{supplierName(doc.supplier_id)}</span>}
                 {productName(doc.product_id) !== "—" && <span>{productName(doc.product_id)}</span>}
                 {doc.quantity && <span>{doc.quantity} יח׳</span>}
-                <span>{format(new Date(doc.created_at), "dd/MM/yy")}</span>
+                <span>{format(new Date(doc.created_at), "dd/MM/yyyy")}</span>
               </div>
               <div className="mt-2 flex gap-3" onClick={e => e.stopPropagation()}>
                 {onEdit && (
@@ -338,10 +338,10 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
                 )}
                 {isVisible("approval") && (
                   <td className="p-3 text-xs text-muted-foreground">
-                    {doc.approved_by ? format(new Date(doc.approval_date!), "dd/MM/yy") : "—"}
+                    {doc.approved_by ? format(new Date(doc.approval_date!), "dd/MM/yyyy") : "—"}
                   </td>
                 )}
-                {isVisible("created_at") && <td className="p-3 text-muted-foreground text-xs">{format(new Date(doc.created_at), "dd/MM/yy")}</td>}
+                {isVisible("created_at") && <td className="p-3 text-muted-foreground text-xs">{format(new Date(doc.created_at), "dd/MM/yyyy")}</td>}
                 <td className="p-3" onClick={e => e.stopPropagation()}>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>

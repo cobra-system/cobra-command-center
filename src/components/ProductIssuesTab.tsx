@@ -413,7 +413,7 @@ export default function ProductIssuesTab({ productId, productName }: { productId
             <tbody className="divide-y">
               {issues.map(issue => (
                 <tr key={issue.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="p-3 text-muted-foreground text-xs">{format(new Date(issue.reported_date), "dd/MM/yy")}</td>
+                  <td className="p-3 text-muted-foreground text-xs">{format(new Date(issue.reported_date), "dd/MM/yyyy")}</td>
                   <td className="p-3 text-foreground">{issue.reporter}</td>
                   <td className="p-3 text-foreground max-w-[300px] truncate">{issue.description}</td>
                   <td className="p-3">

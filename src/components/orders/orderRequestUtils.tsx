@@ -81,7 +81,7 @@ export const ORDER_TYPE_OPTIONS = ["מיידית", "חודשית", "רבעוני
 
 // Suggest a stronger urgency when stock is below quarterly need.
 export function suggestUrgency(req: OrderRequest): OrderRequestUrgency | null {
-  const stock = (req.division_stock ?? 0) + (req.main_warehouse_stock ?? 0);
+  const stock = req.division_stock ?? 0;
   const need = req.smoothed_required ?? req.quarterly_forecast ?? 0;
   if (stock <= 0 && need > 0) return "דחוף";
   if (need > 0 && stock < need * 0.3) return "דחוף";

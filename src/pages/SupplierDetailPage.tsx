@@ -19,6 +19,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { canSeePrices } from "@/lib/permissions";
 
+import { format } from "date-fns";
 export default function SupplierDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -429,7 +430,7 @@ export default function SupplierDetailPage() {
                   <div className="flex items-center gap-2 mt-2 flex-wrap">
                     <PriorityBadge priority={order.priority as Priority} />
                     {showPrices && order.total_price && <span className="text-xs font-semibold text-foreground">${order.total_price}</span>}
-                    <span className="text-xs text-muted-foreground ms-auto">{order.order_date ? new Date(order.order_date).toLocaleDateString("he-IL") : "—"}</span>
+                    <span className="text-xs text-muted-foreground ms-auto">{order.order_date ? new format(Date(order.order_date), "dd/MM/yyyy") : "—"}</span>
                   </div>
                 </div>
               ))}
@@ -452,7 +453,7 @@ export default function SupplierDetailPage() {
                       <td className="p-3 text-muted-foreground text-xs">{order.items.map(i => i.name).join(", ")}</td>
                       {showPrices && <td className="p-3 text-muted-foreground">{order.total_price ? `$${order.total_price}` : "—"}</td>}
                       <td className="p-3"><OrderStatusBadge status={order.status as OrderStatus} /></td>
-                      <td className="p-3 text-muted-foreground text-xs">{order.order_date ? new Date(order.order_date).toLocaleDateString("he-IL") : "—"}</td>
+                      <td className="p-3 text-muted-foreground text-xs">{order.order_date ? new format(Date(order.order_date), "dd/MM/yyyy") : "—"}</td>
                     </tr>
                   ))}
                 </tbody>

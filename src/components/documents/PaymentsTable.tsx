@@ -154,8 +154,8 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
                 </div>
               </div>
               <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                {p.due_date && <span>פירעון: {format(new Date(p.due_date), "dd/MM/yy")}</span>}
-                {p.paid_date && <span>שולם: {format(new Date(p.paid_date), "dd/MM/yy")}</span>}
+                {p.due_date && <span>פירעון: {format(new Date(p.due_date), "dd/MM/yyyy")}</span>}
+                {p.paid_date && <span>שולם: {format(new Date(p.paid_date), "dd/MM/yyyy")}</span>}
               </div>
               <div className="mt-2 flex gap-2">
                 {p.status !== "שולם" && (
@@ -222,7 +222,7 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
                       ) : <span className="text-muted-foreground">—</span>}
                     </td>
                   )}
-                  {isVisible("due_date") && <td className="p-3 text-muted-foreground text-xs">{p.due_date ? format(new Date(p.due_date), "dd/MM/yy") : "—"}</td>}
+                  {isVisible("due_date") && <td className="p-3 text-muted-foreground text-xs">{p.due_date ? format(new Date(p.due_date), "dd/MM/yyyy") : "—"}</td>}
                   {isVisible("status") && (
                     <td className="p-3">
                       <Popover>
@@ -254,7 +254,7 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
                       </Popover>
                     </td>
                   )}
-                  {isVisible("paid_date") && <td className="p-3 text-muted-foreground text-xs">{p.paid_date ? format(new Date(p.paid_date), "dd/MM/yy") : "—"}</td>}
+                  {isVisible("paid_date") && <td className="p-3 text-muted-foreground text-xs">{p.paid_date ? format(new Date(p.paid_date), "dd/MM/yyyy") : "—"}</td>}
                   {onEdit && (
                     <td className="p-3">
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(p)}>

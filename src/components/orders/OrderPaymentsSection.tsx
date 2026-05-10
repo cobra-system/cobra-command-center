@@ -17,6 +17,7 @@ import type { OrderPayment } from "@/contexts/types";
 import { useAuth } from "@/contexts/AppContext";
 import { canSeePrices } from "@/lib/permissions";
 
+import { format } from "date-fns";
 const COLUMN_DEFS: ColDef[] = [
   { id: "payment_type", label: "סוג",          sortField: "payment_type" },
   { id: "percentage",   label: "אחוז" },
@@ -299,7 +300,7 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit }: Props) {
                   )}
                   {isVisible("due_date") && (
                     <td className="p-3 text-muted-foreground text-xs">
-                      {p.due_date ? new Date(p.due_date).toLocaleDateString("he-IL") : "—"}
+                      {p.due_date ? new format(Date(p.due_date), "dd/MM/yyyy") : "—"}
                     </td>
                   )}
                   {isVisible("status") && (
@@ -339,7 +340,7 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit }: Props) {
                   )}
                   {isVisible("paid_date") && (
                     <td className="p-3 text-muted-foreground text-xs">
-                      {p.paid_date ? new Date(p.paid_date).toLocaleDateString("he-IL") : "—"}
+                      {p.paid_date ? new format(Date(p.paid_date), "dd/MM/yyyy") : "—"}
                     </td>
                   )}
                   {isVisible("swift_ref") && (

@@ -73,7 +73,6 @@ import { InlineSelectCell } from "@/components/orders/InlineSelectCell";
 import {
   fmtNum as fmtNumOR,
   fmtPct as fmtPctOR,
-  fmtMoney as fmtMoneyOR,
   utilizationColor,
   urgencyClass,
   statusClass,
@@ -81,6 +80,8 @@ import {
   isOverdue,
   ageBadge,
   freeTextMatch,
+  daysSince,
+  suggestUrgency,
   URGENCY_OPTIONS,
   ORDER_TYPE_OPTIONS,
 } from "@/components/orders/orderRequestUtils";
@@ -215,19 +216,17 @@ const OR_COLS: ColDef[] = [
   { id: "product", label: "תיאור פריט", sortField: "product_name" },
   { id: "supplier", label: "ספק", sortField: "supplier" },
   { id: "sku", label: 'מק"ט', sortField: "product_sku" },
-  { id: "main_warehouse_stock", label: "מלאי תקין מחסן 1", sortField: "main_warehouse_stock" },
   { id: "division_stock", label: "כמות מלאי תקין בפועל", sortField: "division_stock" },
   { id: "quarterly_forecast", label: "צפי רבעון Q1 2026", sortField: "quarterly_forecast" },
   { id: "utilization_pct", label: "% מימוש", sortField: "utilization_pct" },
   { id: "incoming_orders", label: 'עול"ב', sortField: "incoming_orders" },
   { id: "smoothed_required", label: "נדרש משוכלל (כולל מלאי ביטחון)", sortField: "smoothed_required" },
-  { id: "required_to_order", label: "נדרש להזמין", sortField: "required_to_order" },
+  { id: "required_to_order", label: "כמות", sortField: "required_to_order" },
   { id: "incoming_arrival_date", label: 'תאריך הגעת עול"ב', sortField: "incoming_arrival_date" },
   { id: "order_execution_date", label: "תאריך ביצוע הזמנה", sortField: "order_execution_date" },
   { id: "payment_status", label: "סטאטוס תשלום" },
   { id: "actual_ordered_qty", label: "כמות שהוזמנה בפועל", sortField: "actual_ordered_qty" },
   { id: "shipping_type", label: "סוג משלוח" },
-  { id: "estimated_arrival_date", label: "תאריך הגעה משוער", sortField: "estimated_arrival_date" },
   { id: "notes", label: "הערות" },
   { id: "urgency", label: "דחיפות", sortField: "urgency" },
   { id: "status", label: "סטטוס", sortField: "status" },
@@ -349,7 +348,7 @@ export default function DivisionDetailPage() {
     "order-requests:hidden-columns",
     OR_COLS,
     // Less-used planning columns hidden by default; users can show them via context menu.
-    ["payment_status", "actual_ordered_qty", "shipping_type", "estimated_arrival_date", "incoming_orders", "smoothed_required"]
+    ["payment_status", "actual_ordered_qty", "shipping_type", "incoming_orders", "smoothed_required"]
   );
   const { menu: orMenu, setMenu: setOrMenu, closeMenu: closeOrMenu } = useColMenu();
 
@@ -861,7 +860,7 @@ export default function DivisionDetailPage() {
     // and ensuring a non-null quantity is set from required_to_order.
     const targetQty = req.required_to_order ?? req.quantity;
     if (!targetQty || targetQty <= 0) {
-      toast.error("יש להזין 'נדרש להזמין' לפני שליחה לרכש");
+      toast.error("יש להזין כמות לפני שליחה לרכש");
       return;
     }
     const patch: Record<string, unknown> = { quantity: targetQty };
@@ -1299,7 +1298,7 @@ export default function DivisionDetailPage() {
                                 <span className="font-medium">{dp.division_stock}</span>
                                 {dp.division_stock_updated_at && (
                                   <div className="text-[10px] text-muted-foreground">
-                                    עודכן: {format(new Date(dp.division_stock_updated_at), "dd/MM/yy")}
+                                    עודכן: {format(new Date(dp.division_stock_updated_at), "dd/MM/yyyy")}
                                   </div>
                                 )}
                               </div>
@@ -1348,7 +1347,7 @@ export default function DivisionDetailPage() {
                                 <span className="font-medium">{dp.quarterly_demand ?? "—"}</span>
                                 {dp.quarterly_demand_updated_at && (
                                   <div className="text-[10px] text-muted-foreground">
-                                    עודכן: {format(new Date(dp.quarterly_demand_updated_at), "dd/MM/yy")}
+                                    עודכן: {format(new Date(dp.quarterly_demand_updated_at), "dd/MM/yyyy")}
                                   </div>
                                 )}
                               </div>
@@ -1378,7 +1377,7 @@ export default function DivisionDetailPage() {
                         )}
                         {dpColVis.isVisible("last_pickup") && (
                           <td className="p-3 text-muted-foreground text-xs">
-                            {lastDate ? format(new Date(lastDate), "dd/MM/yy") : "—"}
+                            {lastDate ? format(new Date(lastDate), "dd/MM/yyyy") : "—"}
                           </td>
                         )}
                         <td className="p-3">
@@ -2009,7 +2008,6 @@ export default function DivisionDetailPage() {
                 }
 
                 const totalRequired = filteredOR.reduce((s, r) => s + (r.required_to_order ?? r.quantity ?? 0), 0);
-                const totalEstValue = filteredOR.reduce((s, r) => s + ((r.required_to_order ?? r.quantity ?? 0) * (r.estimated_unit_price ?? 0)), 0);
 
                 return (
                   <>
@@ -2054,7 +2052,7 @@ export default function DivisionDetailPage() {
                               </div>
                               <div className="col-span-3 border-t pt-2 mt-1">
                                 <div className="flex items-center justify-between gap-2">
-                                  <span className="text-[10px] text-muted-foreground">נדרש להזמין</span>
+                                  <span className="text-[10px] text-muted-foreground">כמות</span>
                                   <span className={`text-sm font-semibold tabular-nums ${orderQty > 0 ? "text-foreground" : "text-muted-foreground"}`}>
                                     {fmtNumOR(orderQty)} יח׳
                                   </span>
@@ -2090,10 +2088,7 @@ export default function DivisionDetailPage() {
                       {/* Aggregations */}
                       <div className="px-3 py-2 bg-muted/30 text-xs text-muted-foreground space-y-0.5">
                         <div>מציג {filteredOR.length} מתוך {orderRequests.length} שורות</div>
-                        <div>סה״כ נדרש להזמין: <span className="text-foreground font-semibold tabular-nums">{fmtNumOR(totalRequired)}</span> יח׳</div>
-                        {totalEstValue > 0 && (
-                          <div>ערך משוער: <span className="text-foreground font-semibold tabular-nums">{fmtMoneyOR(totalEstValue)}</span></div>
-                        )}
+                        <div>סה״כ כמות: <span className="text-foreground font-semibold tabular-nums">{fmtNumOR(totalRequired)}</span> יח׳</div>
                       </div>
                     </div>
 
@@ -2149,17 +2144,6 @@ export default function DivisionDetailPage() {
                               )}
                               {orColVis.isVisible("sku") && (
                                 <TableCell className="p-2 text-muted-foreground" dir="ltr">{req.product_sku ?? "—"}</TableCell>
-                              )}
-                              {orColVis.isVisible("main_warehouse_stock") && (
-                                <TableCell className="p-1">
-                                  <InlineEditCell
-                                    value={req.main_warehouse_stock}
-                                    type="number"
-                                    disabled={!editable}
-                                    display={v => fmtNumOR(v as number | null)}
-                                    onCommit={(v) => patchRequest(req.id, { main_warehouse_stock: v })}
-                                  />
-                                </TableCell>
                               )}
                               {orColVis.isVisible("division_stock") && (
                                 <TableCell className="p-1">
@@ -2288,17 +2272,6 @@ export default function DivisionDetailPage() {
                                   />
                                 </TableCell>
                               )}
-                              {orColVis.isVisible("estimated_arrival_date") && (
-                                <TableCell className="p-1 text-xs">
-                                  <InlineEditCell
-                                    value={req.estimated_arrival_date}
-                                    type="date"
-                                    disabled={!editable}
-                                    display={v => v ? format(new Date(String(v)), "dd/MM/yyyy") : "—"}
-                                    onCommit={(v) => patchRequest(req.id, { estimated_arrival_date: v })}
-                                  />
-                                </TableCell>
-                              )}
                               {orColVis.isVisible("notes") && (
                                 <TableCell className="p-1 text-muted-foreground max-w-[200px]">
                                   <InlineEditCell
@@ -2392,10 +2365,7 @@ export default function DivisionDetailPage() {
                     {/* Aggregations footer (desktop only) */}
                     <div className="px-4 py-2 border-t bg-muted/30 text-xs text-muted-foreground flex flex-wrap gap-4">
                       <span>מציג {filteredOR.length} מתוך {orderRequests.length}</span>
-                      <span>סה״כ נדרש להזמין: <span className="text-foreground font-semibold tabular-nums">{fmtNumOR(totalRequired)}</span> יח׳</span>
-                      {totalEstValue > 0 && (
-                        <span>ערך משוער: <span className="text-foreground font-semibold tabular-nums">{fmtMoneyOR(totalEstValue)}</span></span>
-                      )}
+                      <span>סה״כ כמות: <span className="text-foreground font-semibold tabular-nums">{fmtNumOR(totalRequired)}</span> יח׳</span>
                     </div>
                     </div>
                   </>

@@ -10,6 +10,7 @@ import { Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import type { MeetingActionItem } from "./types";
 
+import { format } from "date-fns";
 interface Props {
   meetingId: string;
 }
@@ -101,7 +102,7 @@ export default function MeetingActionItemsList({ meetingId }: Props) {
               )}
               {item.due_date && (
                 <span className="text-xs text-muted-foreground">
-                  {new Date(item.due_date).toLocaleDateString("he-IL")}
+                  {new format(Date(item.due_date), "dd/MM/yyyy")}
                 </span>
               )}
             </div>

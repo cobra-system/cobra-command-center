@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import type { OrderRequest, OrderRequestHistory, OrderRequestComment, OrderRequestAttachment } from "@/contexts/types";
 import {
-  fmtNum, fmtPct, fmtMoney, urgencyClass, statusClass, STATUS_LABELS,
+  fmtNum, fmtPct, urgencyClass, statusClass, STATUS_LABELS,
   utilizationColor, daysSince, suggestUrgency, ageBadge,
 } from "./orderRequestUtils";
 
@@ -36,7 +36,7 @@ interface Props {
 const FIELD_LABELS: Record<string, string> = {
   status: "סטטוס",
   quantity: "כמות",
-  required_to_order: "נדרש להזמין",
+  required_to_order: "כמות",
   urgency: "דחיפות",
   division_stock: "מלאי חטיבה",
   order_execution_date: "תאריך ביצוע",
@@ -181,8 +181,6 @@ export function RequestDetailPanel({
 
   if (!request) return null;
 
-  const orderQty = request.required_to_order ?? request.quantity ?? 0;
-  const estValue = orderQty * (request.estimated_unit_price ?? 0);
   const suggested = suggestUrgency(request);
   const stale = (() => {
     const d = daysSince(request.updated_at ?? request.created_at);
@@ -327,15 +325,15 @@ export function RequestDetailPanel({
                   ) : "—"}
                 />
                 <Detail label="סוג הזמנה" value={request.order_type} />
-                <Detail label="כמות" value={fmtNum(request.quantity)} />
-                <Detail label="נדרש להזמין" value={fmtNum(request.required_to_order)} highlight={(request.required_to_order ?? 0) > 0} />
-                <Detail label="מחיר יחידה משוער" value={fmtMoney(request.estimated_unit_price)} />
-                <Detail label="ערך משוער" value={estValue > 0 ? fmtMoney(estValue) : "—"} highlight={estValue > 0} />
+                <Detail
+                  label="כמות"
+                  value={fmtNum(request.required_to_order ?? request.quantity)}
+                  highlight={((request.required_to_order ?? request.quantity) ?? 0) > 0}
+                />
               </DetailGrid>
 
               <Section title="מלאי וצפי">
                 <DetailGrid>
-                  <Detail label="מלאי מחסן 1" value={fmtNum(request.main_warehouse_stock)} />
                   <Detail
                     label={<LabelWithHelp text="מלאי חטיבה" help="הערך הנוכחי החי. מתעדכן בכל שינוי." />}
                     value={
@@ -372,24 +370,16 @@ export function RequestDetailPanel({
                 if (!leadDays) return null;
                 const today = new Date();
                 const exec = request.order_execution_date ? new Date(request.order_execution_date) : null;
-                const eta  = request.estimated_arrival_date ? new Date(request.estimated_arrival_date) : null;
-                const minOrderBy = eta ? addDays(eta, -leadDays) : null;
                 const wouldArrive = exec ? addDays(exec, leadDays) : null;
-                const tooLate = minOrderBy && exec ? exec.getTime() > minOrderBy.getTime() : false;
                 const noOrderYet = exec && exec.getTime() > today.getTime() && request.status === "pending";
                 return (
-                  <div className={`rounded-lg border p-3 text-sm flex items-start gap-2 ${tooLate ? "bg-red-50 border-red-200" : "bg-blue-50 border-blue-200"}`}>
-                    <Truck className={`h-4 w-4 mt-0.5 shrink-0 ${tooLate ? "text-red-700" : "text-blue-700"}`} />
+                  <div className="rounded-lg border p-3 text-sm flex items-start gap-2 bg-blue-50 border-blue-200">
+                    <Truck className="h-4 w-4 mt-0.5 shrink-0 text-blue-700" />
                     <div className="flex-1">
-                      <div className={`font-semibold ${tooLate ? "text-red-700" : "text-blue-800"}`}>
-                        {tooLate ? "תאריך ביצוע מאוחר מדי" : "מודיעין ספק"}
-                      </div>
+                      <div className="font-semibold text-blue-800">מודיעין ספק</div>
                       <div className="text-xs text-muted-foreground space-y-0.5 mt-0.5">
                         <div>זמן יבוא של {request.supplier}: <span className="font-semibold text-foreground">{leadDays} ימים</span></div>
-                        {minOrderBy && eta && (
-                          <div>כדי להגיע ב-{format(eta, "dd/MM/yyyy")} יש לבצע הזמנה לכל המאוחר ב-<span className="font-semibold">{format(minOrderBy, "dd/MM/yyyy")}</span></div>
-                        )}
-                        {wouldArrive && noOrderYet && !eta && (
+                        {wouldArrive && noOrderYet && (
                           <div>אם תבוצע ב-{format(exec!, "dd/MM/yyyy")} צפויה הגעה ב-<span className="font-semibold">{format(wouldArrive, "dd/MM/yyyy")}</span></div>
                         )}
                       </div>
@@ -405,10 +395,6 @@ export function RequestDetailPanel({
                     value={request.order_execution_date ? format(new Date(request.order_execution_date), "dd/MM/yyyy") : "—"}
                   />
                   <Detail
-                    label="תאריך הגעה משוער"
-                    value={request.estimated_arrival_date ? format(new Date(request.estimated_arrival_date), "dd/MM/yyyy") : "—"}
-                  />
-                  <Detail
                     label='תאריך הגעת עול"ב'
                     value={request.incoming_arrival_date ? format(new Date(request.incoming_arrival_date), "dd/MM/yyyy") : "—"}
                   />
@@ -421,7 +407,7 @@ export function RequestDetailPanel({
               {(request.reason || request.notes || request.current_consumption) && (
                 <Section title="פירוט">
                   {request.reason && <NoteBlock label="סיבת ההזמנה" body={request.reason} />}
-                  {request.current_consumption && <NoteBlock label="צריכה נוכחית" body={request.current_consumption} />}
+                  {request.current_consumption && <NoteBlock label="צריכה חודשית ממוצעת" body={request.current_consumption} />}
                   {request.notes && <NoteBlock label="הערות" body={request.notes} />}
                 </Section>
               )}
