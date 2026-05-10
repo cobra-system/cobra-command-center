@@ -5,11 +5,20 @@
 
 ---
 
+## [2026-05-10]
+
+- Finish DD/MM/YYYY rollout + auto-refresh division products list (0ac345a)
+- Standardize all date displays to DD/MM/YYYY + fix DivisionDetailPage crash (e0c06b6)
+- Drop footer row + offer attach-to-existing-order on הזמן (dd749a0)
+- Open product picker to all products, add create-new + attach flow (eff0a9d)
+- Trim order-request UI per request (25fdcc5)
+- Inline-edit order requests table and tidy the action column (218d14c)
+
+<!-- last-commit: 554d9ed37e3b24a338002be1d0273d9f556afb4d -->
 ## [2026-05-09]
 
 - fix(division-detail): hoist isBonded above useEffect that depends on it (9c2b198)
 
-<!-- last-commit: def5cc369b0df685916c3eb1298123700127e7d9 -->
 ## [2026-05-09]
 
 - merge: resolve OrdersPage tabs conflict with main (8557218)
