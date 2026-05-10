@@ -176,7 +176,7 @@ export function OrderAuditLog({ orderId }: { orderId: string }) {
                             : (actionLabel[entry.action || ""] || entry.action)}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {new format(Date(entry.timestamp), "dd/MM/yyyy HH:mm")}
+                          {format(new Date(entry.timestamp), "dd/MM/yyyy HH:mm")}
                         </span>
                         {entry.changedBy && (
                           <span className="text-xs text-muted-foreground">— {entry.changedBy}</span>

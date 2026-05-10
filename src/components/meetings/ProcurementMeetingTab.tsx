@@ -85,7 +85,7 @@ function fmtAmount(amount: number | null | undefined, currency?: string | null) 
 }
 
 function fmtDate(d: string | null | undefined) {
-  return d ? new format(Date(d), "dd/MM/yyyy") : "—";
+  return d ? format(new Date(d), "dd/MM/yyyy") : "—";
 }
 
 function DecisionBadge({ decision }: { decision: ProcurementDecision }) {
@@ -554,7 +554,7 @@ export default function ProcurementMeetingTab() {
                 <SelectItem key={m.id} value={m.id}>
                   <span className="flex items-center gap-2">
                     {m.status === "closed" && <Lock className="h-3 w-3 text-muted-foreground" />}
-                    {m.title} — {new format(Date(m.meeting_date), "dd/MM/yyyy")}
+                    {m.title} — {format(new Date(m.meeting_date), "dd/MM/yyyy")}
                     {m.status === "closed" && (
                       <span className="text-xs text-muted-foreground">(סגורה)</span>
                     )}

@@ -147,7 +147,7 @@ export function ProcurementAgendaTab() {
 
   const currencySymbol = (c: string) => c === "USD" ? "$" : c === "EUR" ? "€" : "₪";
 
-  const formatDate = (d: string | null) => d ? new format(Date(d), "dd/MM/yyyy") : "—";
+  const formatDate = (d: string | null) => d ? format(new Date(d), "dd/MM/yyyy") : "—";
 
   const daysOverdue = (eta: string) => {
     const diff = Math.floor((Date.now() - new Date(eta).getTime()) / 86400000);
@@ -163,7 +163,7 @@ export function ProcurementAgendaTab() {
       {/* Date + refresh */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <p className="text-sm text-muted-foreground">
-          {new format(Date(), "dd/MM/yyyy")}
+          {format(new Date(), "dd/MM/yyyy")}
         </p>
         <div className="flex items-center gap-2">
           {lastFetch && (

@@ -142,7 +142,7 @@ export default function MeetingsPage() {
                     <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <CalendarDays className="h-3.5 w-3.5" />
-                        {new format(Date(meeting.meeting_date), "dd/MM/yyyy")}
+                        {format(new Date(meeting.meeting_date), "dd/MM/yyyy")}
                       </span>
                       {counts && (
                         <span className="flex items-center gap-1">

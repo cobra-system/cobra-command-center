@@ -54,7 +54,7 @@ export function OrdersHistoryTable({ relatedOrders, product, hasEdit }: OrdersHi
                   <div className="shrink-0 text-left">
                     <OrderStatusBadge status={order.status as OrderStatus} />
                     <p className="text-xs text-muted-foreground mt-1">
-                      {order.eta ? new format(Date(order.eta), "dd/MM/yyyy") : "—"}
+                      {order.eta ? format(new Date(order.eta), "dd/MM/yyyy") : "—"}
                     </p>
                   </div>
                 </div>
@@ -89,7 +89,7 @@ export function OrdersHistoryTable({ relatedOrders, product, hasEdit }: OrdersHi
                     <td className="p-3 text-muted-foreground">{relevantItem?.qty || "—"}</td>
                     <td className="p-3"><OrderStatusBadge status={order.status as OrderStatus} /></td>
                     <td className="p-3 text-muted-foreground text-xs">
-                      {order.eta ? new format(Date(order.eta), "dd/MM/yyyy") : "—"}
+                      {order.eta ? format(new Date(order.eta), "dd/MM/yyyy") : "—"}
                     </td>
                   </tr>
                 );

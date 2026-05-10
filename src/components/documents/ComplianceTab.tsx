@@ -196,7 +196,7 @@ export default function ComplianceTab({ productId }: { productId?: string } = {}
                     </div>
 
                     <div className="space-y-1 text-xs text-muted-foreground">
-                      {item.expiry_date && <p>תוקף: {new format(Date(item.expiry_date), "dd/MM/yyyy")}</p>}
+                      {item.expiry_date && <p>תוקף: {format(new Date(item.expiry_date), "dd/MM/yyyy")}</p>}
                       {item.renewal_contact && <p>איש קשר: {item.renewal_contact}</p>}
                       {item.notes && <p className="text-foreground/70">{item.notes}</p>}
                     </div>

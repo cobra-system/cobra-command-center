@@ -337,7 +337,7 @@ export default function IssueDetailPage() {
               <h1 className="text-xl font-bold text-foreground leading-tight">{issue.description}</h1>
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              {new format(Date(issue.reported_date), "dd/MM/yyyy")} · {issue.reporter}
+              {format(new Date(issue.reported_date), "dd/MM/yyyy")} · {issue.reporter}
               {issue.ticket_number && (
                 <span className="inline-flex items-center gap-0.5 mr-2 bg-muted/70 border border-border rounded px-1.5 py-0.5 text-xs font-mono">
                   <Hash className="h-3 w-3" />{issue.ticket_number}
@@ -479,7 +479,7 @@ export default function IssueDetailPage() {
             <div>
               <p className="text-xs text-muted-foreground mb-1">תאריך דיווח</p>
               <p className="text-sm font-medium text-foreground">
-                {new format(Date(issue.reported_date), "dd/MM/yyyy")}
+                {format(new Date(issue.reported_date), "dd/MM/yyyy")}
               </p>
             </div>
 
@@ -513,7 +513,7 @@ export default function IssueDetailPage() {
               <div>
                 <p className="text-xs text-muted-foreground mb-1">תאריך סגירה</p>
                 <p className="text-sm font-medium text-foreground">
-                  {new format(Date(issue.resolved_date), "dd/MM/yyyy")}
+                  {format(new Date(issue.resolved_date), "dd/MM/yyyy")}
                 </p>
               </div>
             )}

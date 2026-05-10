@@ -106,8 +106,8 @@ export default function DailyReportWidget() {
   const hasNext = currentIndex > 0;
   const isToday = currentIndex === 0;
 
-  const fmt = (d: string) => new format(Date(d), "dd/MM");
-  const fmtFull = (d: string) => new format(Date(d), "dd/MM/yyyy");
+  const fmt = (d: string) => format(new Date(d), "dd/MM");
+  const fmtFull = (d: string) => format(new Date(d), "dd/MM/yyyy");
 
   if (loading) return (
     <div className="bg-card rounded-xl border p-6 flex items-center justify-center gap-2 text-muted-foreground">

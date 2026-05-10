@@ -204,12 +204,12 @@ export function ShipmentGroupsTab() {
                 )}
                 {isVisible("departure_date") && (
                   <td className="p-3 text-muted-foreground text-xs">
-                    {g.departure_date ? new format(Date(g.departure_date), "dd/MM/yyyy") : "—"}
+                    {g.departure_date ? format(new Date(g.departure_date), "dd/MM/yyyy") : "—"}
                   </td>
                 )}
                 {isVisible("arrival_date") && (
                   <td className="p-3 text-muted-foreground text-xs">
-                    {g.arrival_date ? new format(Date(g.arrival_date), "dd/MM/yyyy") : "—"}
+                    {g.arrival_date ? format(new Date(g.arrival_date), "dd/MM/yyyy") : "—"}
                   </td>
                 )}
                 {isVisible("booking_number") && (

@@ -157,7 +157,7 @@ export function OrderTable({
               {/* ETA + tracking */}
               {(order.eta || order.tracking_number) && (
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  {order.eta && <span>ETA: {new format(Date(order.eta), "dd/MM/yyyy")}</span>}
+                  {order.eta && <span>ETA: {format(new Date(order.eta), "dd/MM/yyyy")}</span>}
                   {order.tracking_number && <span className="font-mono truncate">{order.tracking_number}</span>}
                 </div>
               )}
@@ -367,13 +367,13 @@ export function OrderTable({
                       </td>
                     )}
                     {isVisible("order_date") && (
-                      <td className="p-3 text-muted-foreground text-xs">{order.order_date ? new format(Date(order.order_date), "dd/MM/yyyy") : "—"}</td>
+                      <td className="p-3 text-muted-foreground text-xs">{order.order_date ? format(new Date(order.order_date), "dd/MM/yyyy") : "—"}</td>
                     )}
                     {isVisible("etd") && (
-                      <td className="p-3 text-muted-foreground text-xs">{order.etd ? new format(Date(order.etd), "dd/MM/yyyy") : "—"}</td>
+                      <td className="p-3 text-muted-foreground text-xs">{order.etd ? format(new Date(order.etd), "dd/MM/yyyy") : "—"}</td>
                     )}
                     {isVisible("eta") && (
-                      <td className="p-3 text-muted-foreground text-xs">{order.eta ? new format(Date(order.eta), "dd/MM/yyyy") : "—"}</td>
+                      <td className="p-3 text-muted-foreground text-xs">{order.eta ? format(new Date(order.eta), "dd/MM/yyyy") : "—"}</td>
                     )}
                     {isVisible("total_price") && (
                       <td className="p-3 text-muted-foreground text-xs">{order.total_price ? `$${order.total_price.toLocaleString()}` : "—"}</td>
@@ -431,7 +431,7 @@ export function OrderTable({
                       <td className="p-3 text-muted-foreground text-xs font-mono">{order.pi_number || "—"}</td>
                     )}
                     {isVisible("updated_at") && (
-                      <td className="p-3 text-muted-foreground text-xs">{order.updated_at ? new format(Date(order.updated_at), "dd/MM/yyyy") : "—"}</td>
+                      <td className="p-3 text-muted-foreground text-xs">{order.updated_at ? format(new Date(order.updated_at), "dd/MM/yyyy") : "—"}</td>
                     )}
                     <td className="p-3" onClick={e => e.stopPropagation()}>
                       <PhotoCaptureButton

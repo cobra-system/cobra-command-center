@@ -38,7 +38,7 @@ interface PIWithoutSWIFT {
 }
 
 const currencySymbol = (c: string) => c === "USD" ? "$" : c === "EUR" ? "€" : "₪";
-const formatDate = (d: string | null) => d ? new format(Date(d), "dd/MM/yyyy") : "—";
+const formatDate = (d: string | null) => d ? format(new Date(d), "dd/MM/yyyy") : "—";
 
 function AlertCard({
   title,
