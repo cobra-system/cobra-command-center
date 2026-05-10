@@ -170,7 +170,7 @@ export default function MeetingDetailDialog({ meeting, onClose, onRefresh }: Pro
               <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mt-1">
                 <span className="flex items-center gap-1">
                   <CalendarDays className="h-3.5 w-3.5" />
-                  {new format(Date(meeting.meeting_date), "dd/MM/yyyy")}
+                  {format(new Date(meeting.meeting_date), "dd/MM/yyyy")}
                 </span>
                 {dbParticipants.length > 0 && !editing && (
                   <span className="flex items-center gap-1">

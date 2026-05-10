@@ -102,7 +102,7 @@ export default function MeetingActionItemsList({ meetingId }: Props) {
               )}
               {item.due_date && (
                 <span className="text-xs text-muted-foreground">
-                  {new format(Date(item.due_date), "dd/MM/yyyy")}
+                  {format(new Date(item.due_date), "dd/MM/yyyy")}
                 </span>
               )}
             </div>

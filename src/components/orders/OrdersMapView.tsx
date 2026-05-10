@@ -117,7 +117,7 @@ export function OrdersMapView({ orders, orderPaymentStatuses, suppliers }: Order
                     {order.eta && (
                       <span className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        {new format(Date(order.eta), "dd/MM/yyyy")}
+                        {format(new Date(order.eta), "dd/MM/yyyy")}
                       </span>
                     )}
                     {order.total_price ? (

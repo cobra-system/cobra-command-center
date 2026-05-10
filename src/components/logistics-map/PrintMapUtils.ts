@@ -75,7 +75,7 @@ export function printFloorPlan(
         </style>
       </head>
       <body>
-        <h2>מחסן לוגיסטר קוברה — ${new format(Date(), "dd/MM/yyyy")}</h2>
+        <h2>מחסן לוגיסטר קוברה — ${format(new Date(), "dd/MM/yyyy")}</h2>
         <svg width="${svgW}" height="${svgH}" xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 ${svgW} ${svgH}">
           <rect width="${svgW}" height="${svgH}" fill="#f9fafb"/>

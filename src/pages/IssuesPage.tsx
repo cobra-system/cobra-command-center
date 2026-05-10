@@ -342,7 +342,7 @@ export default function IssuesPage() {
                 >
                   {isVisible("reported_date") && (
                     <td className="p-3">
-                      <div className="text-xs text-foreground">{new format(Date(issue.reported_date), "dd/MM/yyyy")}</div>
+                      <div className="text-xs text-foreground">{format(new Date(issue.reported_date), "dd/MM/yyyy")}</div>
                       <div className="text-[10px] text-muted-foreground mt-0.5">{relativeDate(issue.reported_date)}</div>
                     </td>
                   )}

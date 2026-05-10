@@ -300,7 +300,7 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit }: Props) {
                   )}
                   {isVisible("due_date") && (
                     <td className="p-3 text-muted-foreground text-xs">
-                      {p.due_date ? new format(Date(p.due_date), "dd/MM/yyyy") : "—"}
+                      {p.due_date ? format(new Date(p.due_date), "dd/MM/yyyy") : "—"}
                     </td>
                   )}
                   {isVisible("status") && (
@@ -340,7 +340,7 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit }: Props) {
                   )}
                   {isVisible("paid_date") && (
                     <td className="p-3 text-muted-foreground text-xs">
-                      {p.paid_date ? new format(Date(p.paid_date), "dd/MM/yyyy") : "—"}
+                      {p.paid_date ? format(new Date(p.paid_date), "dd/MM/yyyy") : "—"}
                     </td>
                   )}
                   {isVisible("swift_ref") && (

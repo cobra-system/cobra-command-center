@@ -211,9 +211,9 @@ export default function ShipmentGroupsPage() {
             </div>
             {(g.departure_date || g.arrival_date) && (
               <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                {g.departure_date && <span>יציאה: {new format(Date(g.departure_date), "dd/MM/yyyy")}</span>}
+                {g.departure_date && <span>יציאה: {format(new Date(g.departure_date), "dd/MM/yyyy")}</span>}
                 {g.departure_date && g.arrival_date && <span>→</span>}
-                {g.arrival_date && <span>הגעה: {new format(Date(g.arrival_date), "dd/MM/yyyy")}</span>}
+                {g.arrival_date && <span>הגעה: {format(new Date(g.arrival_date), "dd/MM/yyyy")}</span>}
               </div>
             )}
             {(g.booking_number || g.tclog_reference) && (
@@ -270,12 +270,12 @@ export default function ShipmentGroupsPage() {
                 )}
                 {isVisible("departure_date") && (
                   <td className="p-3 text-muted-foreground text-xs">
-                    {g.departure_date ? new format(Date(g.departure_date), "dd/MM/yyyy") : "—"}
+                    {g.departure_date ? format(new Date(g.departure_date), "dd/MM/yyyy") : "—"}
                   </td>
                 )}
                 {isVisible("arrival_date") && (
                   <td className="p-3 text-muted-foreground text-xs">
-                    {g.arrival_date ? new format(Date(g.arrival_date), "dd/MM/yyyy") : "—"}
+                    {g.arrival_date ? format(new Date(g.arrival_date), "dd/MM/yyyy") : "—"}
                   </td>
                 )}
                 {isVisible("booking_number") && (

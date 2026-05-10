@@ -45,7 +45,7 @@ export function ShipmentGroupSelector({ orderId, currentGroupId, hasEdit, onUpda
 
   const options = groups.map(g => ({
     value: g.id,
-    label: `${g.name}${g.vessel_name ? ` — ${g.vessel_name}` : ""}${g.departure_date ? ` (${new format(Date(g.departure_date), "dd/MM/yyyy")})` : ""}`,
+    label: `${g.name}${g.vessel_name ? ` — ${g.vessel_name}` : ""}${g.departure_date ? ` (${format(new Date(g.departure_date), "dd/MM/yyyy")})` : ""}`,
   }));
 
   return (

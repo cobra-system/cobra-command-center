@@ -64,7 +64,7 @@ export default function PickingListPanel({
           </style>
         </head>
         <body>
-          <h1>רשימת ליקוט — ${new format(Date(), "dd/MM/yyyy")}</h1>
+          <h1>רשימת ליקוט — ${format(new Date(), "dd/MM/yyyy")}</h1>
           <pre>${content}</pre>
         </body>
       </html>
