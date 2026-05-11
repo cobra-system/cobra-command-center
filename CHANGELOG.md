@@ -5,11 +5,15 @@
 
 ---
 
+## [2026-05-11]
+
+- feat(orders): simplify purchase-request UI for bonded division managers (4db1dd7)
+
+<!-- last-commit: f293e9066bbed0f983746aca03be9d2d9944983d -->
 ## [2026-05-10]
 
 - fix(dates): correct misplaced `new` keyword breaking date formatting (5638b67)
 
-<!-- last-commit: ef63730a3338abfdc7307abee6dc6786064f484f -->
 ## [2026-05-10]
 
 - Finish DD/MM/YYYY rollout + auto-refresh division products list (0ac345a)
