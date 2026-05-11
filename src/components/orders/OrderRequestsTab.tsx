@@ -17,17 +17,18 @@ import { ExcelImportDialog } from "@/components/orders/ExcelImportDialog";
 import { SnapshotsDialog } from "@/components/orders/SnapshotsDialog";
 import { OrderRequestNotificationSettings } from "@/components/orders/OrderRequestNotificationSettings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   ArrowUpDown, ArrowUp, ArrowDown, ShoppingCart, Plus, ClipboardList, Inbox,
   Search, X, ExternalLink, Pencil, Trash2, RotateCcw, Ban, Eye,
-  AlertTriangle, Download, Upload, Copy, Camera, Bell,
+  AlertTriangle, Download, Upload, Copy, Camera, Bell, MoreVertical, SlidersHorizontal,
 } from "lucide-react";
 import { downloadCsv } from "./orderRequestExcel";
 import type { ColDef } from "@/hooks/useColumnVisibility";
@@ -328,7 +329,7 @@ export function OrderRequestsTab() {
           ? String(av).localeCompare(String(bv))
           : String(bv).localeCompare(String(av));
       });
-  }, [requests, statusFilter, divisionFilter, urgencyFilter, dateFrom, dateTo, search, sortField, sortDir]);
+  }, [requests, statusFilter, divisionFilter, dateFrom, dateTo, search, sortField, sortDir]);
 
   const pendingCount = requests.filter(r => r.status === "pending").length;
   const orderedCount = requests.filter(r => r.status === "ordered").length;
@@ -464,36 +465,64 @@ export function OrderRequestsTab() {
               </Select>
             </div>
           )}
-          {/* Date range filter on created_at */}
+          {/* Extra filters (date range) hidden behind a popover */}
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">מתאריך</label>
-            <div className="relative">
-              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-9 text-sm" />
-              {dateFrom && (
-                <button
-                  onClick={() => setDateFrom("")}
-                  className="absolute left-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  aria-label="נקה תאריך"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">עד תאריך</label>
-            <div className="relative">
-              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-9 text-sm" />
-              {dateTo && (
-                <button
-                  onClick={() => setDateTo("")}
-                  className="absolute left-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  aria-label="נקה תאריך"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-            </div>
+            <label className="text-xs text-muted-foreground">מסננים נוספים</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="h-9 w-full justify-between text-sm font-normal">
+                  <span className="flex items-center gap-1.5">
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                    תאריכים
+                  </span>
+                  {(dateFrom || dateTo) && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-label="מסנן פעיל" />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-72 space-y-3" dir="rtl">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">מתאריך</label>
+                  <div className="relative">
+                    <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-9 text-sm" />
+                    {dateFrom && (
+                      <button
+                        onClick={() => setDateFrom("")}
+                        className="absolute left-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label="נקה תאריך"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">עד תאריך</label>
+                  <div className="relative">
+                    <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-9 text-sm" />
+                    {dateTo && (
+                      <button
+                        onClick={() => setDateTo("")}
+                        className="absolute left-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label="נקה תאריך"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {(dateFrom || dateTo) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => { setDateFrom(""); setDateTo(""); }}
+                  >
+                    נקה תאריכים
+                  </Button>
+                )}
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       </div>
@@ -667,7 +696,7 @@ export function OrderRequestsTab() {
                       ) : col.label}
                     </th>
                   ) : null)}
-                  <th className={`${cellPadding} w-44 text-right font-semibold text-foreground text-xs`}>פעולות</th>
+                  <th className={`${cellPadding} w-12 text-right font-semibold text-foreground text-xs`}>פעולות</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -869,101 +898,93 @@ export function OrderRequestsTab() {
                           </td>
                         )}
                         <td className={cellPadding}>
-                          <div className="flex items-center gap-1 justify-end">
-                            {/* View / edit / clone group */}
-                            <div className="flex items-center">
-                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setDetailRequest(req); }} title="פרטים מלאים">
-                                <Eye className="h-3.5 w-3.5" />
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                onClick={(e) => e.stopPropagation()}
+                                aria-label="פעולות"
+                              >
+                                <MoreVertical className="h-4 w-4" />
                               </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                              <DropdownMenuItem onClick={() => setDetailRequest(req)}>
+                                <Eye className="h-4 w-4 ml-2" />
+                                פרטים מלאים
+                              </DropdownMenuItem>
                               {canEditRow(req) && (
-                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setEditingRequest(req); }} title="ערוך">
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
+                                <DropdownMenuItem onClick={() => setEditingRequest(req)}>
+                                  <Pencil className="h-4 w-4 ml-2" />
+                                  ערוך
+                                </DropdownMenuItem>
                               )}
                               {canCreateRequest && req.division === userDivision && (
-                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setCloneTemplate(req); }} title="שכפל">
-                                  <Copy className="h-3.5 w-3.5" />
-                                </Button>
+                                <DropdownMenuItem onClick={() => setCloneTemplate(req)}>
+                                  <Copy className="h-4 w-4 ml-2" />
+                                  שכפל
+                                </DropdownMenuItem>
                               )}
-                            </div>
-
-                            {/* Primary status action */}
-                            {req.status === "pending" && canFulfill && (
-                              <>
-                                <span className="h-4 w-px bg-border mx-0.5" aria-hidden />
-                                <Button size="sm" className="h-7 text-xs gap-1 px-2.5" onClick={(e) => { e.stopPropagation(); setFulfillChooserRequest(req); }}>
-                                  <ShoppingCart className="h-3.5 w-3.5" />הזמן
-                                </Button>
-                              </>
-                            )}
-                            {req.status === "ordered" && (() => {
-                              const linked = linkedOrdersFor(req);
-                              if (linked.length === 0) return null;
-                              if (linked.length === 1) {
+                              {req.status === "pending" && canFulfill && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => setFulfillChooserRequest(req)}>
+                                    <ShoppingCart className="h-4 w-4 ml-2" />
+                                    הזמן
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              {req.status === "ordered" && (() => {
+                                const linked = linkedOrdersFor(req);
+                                if (linked.length === 0) return null;
                                 return (
                                   <>
-                                    <span className="h-4 w-px bg-border mx-0.5" aria-hidden />
-                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); navigateToOrder(linked[0].id); }} title="פתח הזמנה">
-                                      <ExternalLink className="h-3.5 w-3.5" />
-                                    </Button>
+                                    <DropdownMenuSeparator />
+                                    {linked.map(o => (
+                                      <DropdownMenuItem key={o.id} onClick={() => navigateToOrder(o.id)}>
+                                        <ExternalLink className="h-4 w-4 ml-2" />
+                                        {linked.length === 1 ? "פתח הזמנה" : orderLabel(o)}
+                                      </DropdownMenuItem>
+                                    ))}
                                   </>
                                 );
-                              }
-                              return (
+                              })()}
+                              {(req.status === "rejected" || req.status === "cancelled") && canFulfill && (
                                 <>
-                                  <span className="h-4 w-px bg-border mx-0.5" aria-hidden />
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="h-7 px-2 gap-1 text-xs"
-                                        onClick={(e) => e.stopPropagation()}
-                                        title={`${linked.length} הזמנות משויכות`}
-                                      >
-                                        <ExternalLink className="h-3.5 w-3.5" />
-                                        <span>{linked.length}</span>
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
-                                      {linked.map(o => (
-                                        <DropdownMenuItem key={o.id} onClick={() => navigateToOrder(o.id)}>
-                                          {orderLabel(o)}
-                                        </DropdownMenuItem>
-                                      ))}
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleRevert(req)}>
+                                    <RotateCcw className="h-4 w-4 ml-2" />
+                                    החזר ל-ממתין
+                                  </DropdownMenuItem>
                                 </>
-                              );
-                            })()}
-                            {(req.status === "rejected" || req.status === "cancelled") && canFulfill && (
-                              <>
-                                <span className="h-4 w-px bg-border mx-0.5" aria-hidden />
-                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleRevert(req); }} title="החזר ל-ממתין">
-                                  <RotateCcw className="h-3.5 w-3.5" />
-                                </Button>
-                              </>
-                            )}
-
-                            {/* Destructive group */}
-                            {((req.status === "pending" && canFulfill) || canDeleteRow(req)) && (
-                              <>
-                                <span className="h-4 w-px bg-border mx-0.5" aria-hidden />
-                                <div className="flex items-center">
+                              )}
+                              {((req.status === "pending" && canFulfill) || canDeleteRow(req)) && (
+                                <>
+                                  <DropdownMenuSeparator />
                                   {req.status === "pending" && canFulfill && (
-                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); setRejectingRequest(req); }} title="דחה">
-                                      <Ban className="h-3.5 w-3.5" />
-                                    </Button>
+                                    <DropdownMenuItem
+                                      onClick={() => setRejectingRequest(req)}
+                                      className="text-red-600 focus:text-red-700 focus:bg-red-50"
+                                    >
+                                      <Ban className="h-4 w-4 ml-2" />
+                                      דחה
+                                    </DropdownMenuItem>
                                   )}
                                   {canDeleteRow(req) && (
-                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); handleDelete(req); }} title="מחק">
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
+                                    <DropdownMenuItem
+                                      onClick={() => handleDelete(req)}
+                                      className="text-red-600 focus:text-red-700 focus:bg-red-50"
+                                    >
+                                      <Trash2 className="h-4 w-4 ml-2" />
+                                      מחק
+                                    </DropdownMenuItem>
                                   )}
-                                </div>
-                              </>
-                            )}
-                          </div>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </td>
                       </tr>
                   );
