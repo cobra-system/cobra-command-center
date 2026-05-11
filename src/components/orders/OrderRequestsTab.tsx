@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { useData, useAuth } from "@/contexts/AppContext";
+import { useData, useAuth, useProducts } from "@/contexts/AppContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -11,21 +11,24 @@ import { NewOrderDialog } from "@/components/orders/NewOrderDialog";
 import { OrderRequestDialog } from "@/components/orders/OrderRequestDialog";
 import { AttachToOrderDialog } from "@/components/orders/AttachToOrderDialog";
 import { RejectRequestDialog } from "@/components/orders/RejectRequestDialog";
-import { OrderRequestsDashboard } from "@/components/orders/OrderRequestsDashboard";
 import { RequestDetailPanel } from "@/components/orders/RequestDetailPanel";
 import { BulkFulfillDialog } from "@/components/orders/BulkFulfillDialog";
 import { ExcelImportDialog } from "@/components/orders/ExcelImportDialog";
 import { SnapshotsDialog } from "@/components/orders/SnapshotsDialog";
 import { OrderRequestNotificationSettings } from "@/components/orders/OrderRequestNotificationSettings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
   ArrowUpDown, ArrowUp, ArrowDown, ShoppingCart, Plus, ClipboardList, Inbox,
-  Search, X, ExternalLink, Pencil, Trash2, RotateCcw, Ban, Eye, Layers, Rows3, Rows4,
-  AlertTriangle, Lightbulb, Download, Upload, Copy, Camera, Bell,
+  Search, X, ExternalLink, Pencil, Trash2, RotateCcw, Ban, Eye,
+  AlertTriangle, Download, Upload, Copy, Camera, Bell, MoreVertical, SlidersHorizontal,
 } from "lucide-react";
 import { downloadCsv } from "./orderRequestExcel";
 import type { ColDef } from "@/hooks/useColumnVisibility";
@@ -34,7 +37,7 @@ import { DIVISIONS, BONDED_DIVISIONS } from "@/components/equipment/constants";
 import { isDivisionManager } from "@/lib/permissions";
 import {
   fmtNum, fmtPct, urgencyClass, statusClass, STATUS_LABELS,
-  utilizationColor, isOverdue, ageBadge, freeTextMatch, daysSince, suggestUrgency,
+  utilizationColor, isOverdue, ageBadge, freeTextMatch, daysSince,
   URGENCY_OPTIONS, ORDER_TYPE_OPTIONS,
 } from "./orderRequestUtils";
 import { fetchDivisionStockMap, hydrateDivisionStock, updateDivisionStock } from "./divisionStockHelpers";
@@ -48,7 +51,6 @@ const COLUMN_DEFS: ColDef[] = [
   { id: "supplier", label: "ספק", sortField: "supplier" },
   { id: "required_to_order", label: "כמות", sortField: "required_to_order" },
   { id: "division_stock", label: "מלאי חטיבה", sortField: "division_stock" },
-  { id: "quarterly_forecast", label: "צפי רבעון", sortField: "quarterly_forecast" },
   { id: "utilization_pct", label: "% מימוש", sortField: "utilization_pct" },
   { id: "urgency", label: "דחיפות", sortField: "urgency" },
   { id: "order_type", label: "סוג הזמנה" },
@@ -70,7 +72,8 @@ function SortIcon({ field, currentField, currentDir }: { field: string; currentF
 
 export function OrderRequestsTab() {
   const navigate = useNavigate();
-  const { addOrder, suppliers, products } = useData();
+  const { addOrder, suppliers, products, orders } = useData();
+  const { allProducts } = useProducts();
   const { currentUser } = useAuth();
 
   const [requests, setRequests] = useState<OrderRequest[]>([]);
@@ -79,7 +82,6 @@ export function OrderRequestsTab() {
     "order-requests:status-filter", "active"
   );
   const [divisionFilter, setDivisionFilter] = usePersistedState<string>("order-requests:division-filter", "all");
-  const [urgencyFilter, setUrgencyFilter] = usePersistedState<string>("order-requests:urgency-filter", "all");
   const [dateFrom, setDateFrom] = usePersistedState<string>("order-requests:date-from", "");
   const [dateTo, setDateTo] = usePersistedState<string>("order-requests:date-to", "");
   const [search, setSearch] = useState("");
@@ -100,9 +102,7 @@ export function OrderRequestsTab() {
   const [cloneTemplate, setCloneTemplate] = useState<OrderRequest | null>(null);
   const [showNotifSettings, setShowNotifSettings] = useState(false);
   const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY ?? "";
-  const [groupBy, setGroupBy] = usePersistedState<"none" | "supplier" | "urgency">("order-requests:group-by", "none");
-  const [density, setDensity] = usePersistedState<"comfortable" | "compact">("order-requests:density", "comfortable");
-  const cellPadding = density === "compact" ? "p-1.5" : "p-3";
+  const cellPadding = "p-1.5";
 
   // Bonded division managers can submit requests for their own division.
   // Procurement managers fulfill requests but don't create them here.
@@ -115,14 +115,12 @@ export function OrderRequestsTab() {
     isManager || (isDivMgr && req.division === userDivision && req.status === "pending");
   const canDeleteRow = canEditRow;
 
-  const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility(
+  const { isVisible, hide, show, hiddenCols } = useColumnVisibility(
     "manager-order-requests:hidden-columns",
     COLUMN_DEFS,
     isManager
-      // Manager: hide low-value text fields by default; show planning numbers
-      ? ["consumption", "reason", "ordered_by", "sku", "quarterly_forecast"]
-      // Division manager: hide division (their own), reviewer/ordered metadata
-      : ["division", "ordered_by", "ordered_at", "consumption", "reason"]
+      ? ["utilization_pct", "order_execution_date", "created_by", "created_at", "age", "ordered_by", "ordered_at"]
+      : ["division", "utilization_pct", "order_execution_date", "created_by", "created_at", "age", "ordered_by", "ordered_at"]
   );
   const { menu, setMenu, closeMenu } = useColMenu();
 
@@ -203,6 +201,7 @@ export function OrderRequestsTab() {
       .update({
         status: "ordered",
         order_id: orderId,
+        linked_order_ids: [orderId],
         ordered_at: new Date().toISOString(),
         ordered_by: currentUser?.id ?? null,
         ordered_by_name: currentUser?.name ?? null,
@@ -266,6 +265,27 @@ export function OrderRequestsTab() {
     if (orderId) navigate(`/orders?focus=${orderId}`);
   };
 
+  // Resolve every order linked to a request. Falls back to the single order_id
+  // for legacy rows where linked_order_ids hadn't been backfilled.
+  const linkedOrdersFor = useCallback((req: OrderRequest) => {
+    const ids = (req.linked_order_ids && req.linked_order_ids.length > 0)
+      ? req.linked_order_ids
+      : (req.order_id ? [req.order_id] : []);
+    const byId = new Map(orders.map(o => [o.id, o]));
+    return ids
+      .map(id => byId.get(id) ?? { id, supplier_name: null, pi_number: null, order_date: null } as Pick<typeof orders[number], "id" | "supplier_name" | "pi_number" | "order_date">)
+      .filter(Boolean);
+  }, [orders]);
+
+  const orderLabel = (o: { id: string; supplier_name?: string | null; pi_number?: string | null; order_date?: string | null }) => {
+    const parts: string[] = [];
+    if (o.pi_number) parts.push(`PI ${o.pi_number}`);
+    if (o.supplier_name) parts.push(o.supplier_name);
+    if (o.order_date) parts.push(format(new Date(o.order_date), "dd/MM/yyyy"));
+    if (parts.length > 0) return parts.join(" · ");
+    return `הזמנה ${o.id.slice(0, 8)}`;
+  };
+
   // Keep the detail panel showing fresh data after refresh
   useEffect(() => {
     if (!detailRequest) return;
@@ -292,7 +312,6 @@ export function OrderRequestsTab() {
         return r.status === statusFilter;
       })
       .filter(r => divisionFilter === "all" || r.division === divisionFilter)
-      .filter(r => urgencyFilter === "all" || r.urgency === urgencyFilter)
       .filter(r => {
         if (!dateFrom && !dateTo) return true;
         const t = new Date(r.created_at).getTime();
@@ -310,7 +329,7 @@ export function OrderRequestsTab() {
           ? String(av).localeCompare(String(bv))
           : String(bv).localeCompare(String(av));
       });
-  }, [requests, statusFilter, divisionFilter, urgencyFilter, dateFrom, dateTo, search, sortField, sortDir]);
+  }, [requests, statusFilter, divisionFilter, dateFrom, dateTo, search, sortField, sortDir]);
 
   const pendingCount = requests.filter(r => r.status === "pending").length;
   const orderedCount = requests.filter(r => r.status === "ordered").length;
@@ -329,13 +348,6 @@ export function OrderRequestsTab() {
 
   return (
     <div className="space-y-4" dir="rtl">
-      {/* KPI dashboard */}
-      <OrderRequestsDashboard
-        requests={isDivMgr ? requests.filter(r => r.division === userDivision) : requests}
-        scope={isManager ? "manager" : "division"}
-        divisionLabel={isDivMgr ? userDivision : undefined}
-      />
-
       {/* Header card with search + filters */}
       <div className="bg-card rounded-xl border shadow-sm p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -351,28 +363,6 @@ export function OrderRequestsTab() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Density toggle */}
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-8 w-8 p-0"
-              onClick={() => setDensity(d => d === "compact" ? "comfortable" : "compact")}
-              title={density === "compact" ? "תצוגה רגילה" : "תצוגה מצומצמת"}
-            >
-              {density === "compact" ? <Rows3 className="h-4 w-4" /> : <Rows4 className="h-4 w-4" />}
-            </Button>
-            {/* Group-by toggle */}
-            <Select value={groupBy} onValueChange={v => setGroupBy(v as typeof groupBy)}>
-              <SelectTrigger className="h-8 text-xs gap-1.5 px-2 w-auto">
-                <Layers className="h-3 w-3" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">ללא קיבוץ</SelectItem>
-                <SelectItem value="supplier">לפי ספק</SelectItem>
-                <SelectItem value="urgency">לפי דחיפות</SelectItem>
-              </SelectContent>
-            </Select>
             {/* Excel export */}
             <Button
               size="sm"
@@ -462,18 +452,6 @@ export function OrderRequestsTab() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">דחיפות</label>
-            <Select value={urgencyFilter} onValueChange={setUrgencyFilter}>
-              <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">הכל</SelectItem>
-                <SelectItem value="דחוף">דחוף</SelectItem>
-                <SelectItem value="רגיל">רגיל</SelectItem>
-                <SelectItem value="נמוך">נמוך</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
           {/* Division dropdown only for procurement managers (cross-division view) */}
           {!isDivMgr && (
             <div className="space-y-1 md:col-span-2">
@@ -487,36 +465,64 @@ export function OrderRequestsTab() {
               </Select>
             </div>
           )}
-          {/* Date range filter on created_at */}
+          {/* Extra filters (date range) hidden behind a popover */}
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">מתאריך</label>
-            <div className="relative">
-              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-9 text-sm" />
-              {dateFrom && (
-                <button
-                  onClick={() => setDateFrom("")}
-                  className="absolute left-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  aria-label="נקה תאריך"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">עד תאריך</label>
-            <div className="relative">
-              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-9 text-sm" />
-              {dateTo && (
-                <button
-                  onClick={() => setDateTo("")}
-                  className="absolute left-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  aria-label="נקה תאריך"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-            </div>
+            <label className="text-xs text-muted-foreground">מסננים נוספים</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="h-9 w-full justify-between text-sm font-normal">
+                  <span className="flex items-center gap-1.5">
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                    תאריכים
+                  </span>
+                  {(dateFrom || dateTo) && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-label="מסנן פעיל" />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-72 space-y-3" dir="rtl">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">מתאריך</label>
+                  <div className="relative">
+                    <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-9 text-sm" />
+                    {dateFrom && (
+                      <button
+                        onClick={() => setDateFrom("")}
+                        className="absolute left-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label="נקה תאריך"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">עד תאריך</label>
+                  <div className="relative">
+                    <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-9 text-sm" />
+                    {dateTo && (
+                      <button
+                        onClick={() => setDateTo("")}
+                        className="absolute left-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label="נקה תאריך"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {(dateFrom || dateTo) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => { setDateFrom(""); setDateTo(""); }}
+                  >
+                    נקה תאריכים
+                  </Button>
+                )}
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       </div>
@@ -550,7 +556,7 @@ export function OrderRequestsTab() {
           </div>
           <p className="text-sm font-medium text-foreground">אין בקשות הזמנה</p>
           <p className="text-xs text-muted-foreground mt-1">
-            {search || statusFilter !== "active" || divisionFilter !== "all" || urgencyFilter !== "all"
+            {search || statusFilter !== "active" || divisionFilter !== "all"
               ? "נסה לשנות את הסינון או החיפוש"
               : canCreateRequest
               ? "פתחו בקשה חדשה כדי להתחיל"
@@ -615,11 +621,34 @@ export function OrderRequestsTab() {
                           <Ban className="h-3 w-3" />
                         </Button>
                       )}
-                      {req.status === "ordered" && req.order_id && (
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => navigateToOrder(req.order_id)} aria-label="פתח הזמנה">
-                          <ExternalLink className="h-3 w-3" />
-                        </Button>
-                      )}
+                      {req.status === "ordered" && (() => {
+                        const linked = linkedOrdersFor(req);
+                        if (linked.length === 0) return null;
+                        if (linked.length === 1) {
+                          return (
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => navigateToOrder(linked[0].id)} aria-label="פתח הזמנה">
+                              <ExternalLink className="h-3 w-3" />
+                            </Button>
+                          );
+                        }
+                        return (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="sm" variant="ghost" className="h-7 px-1.5 text-xs gap-1" aria-label="פתח הזמנה">
+                                <ExternalLink className="h-3 w-3" />
+                                <span>{linked.length}</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              {linked.map(o => (
+                                <DropdownMenuItem key={o.id} onClick={() => navigateToOrder(o.id)}>
+                                  {orderLabel(o)}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        );
+                      })()}
                     </div>
                   </div>
                   {req.reject_reason && (
@@ -667,58 +696,19 @@ export function OrderRequestsTab() {
                       ) : col.label}
                     </th>
                   ) : null)}
-                  <th className={`${cellPadding} w-44 text-right font-semibold text-foreground text-xs`}>פעולות</th>
+                  <th className={`${cellPadding} w-12 text-right font-semibold text-foreground text-xs`}>פעולות</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {(() => {
-                  // Group rendering
-                  const groupedFlat: { type: "group"; key: string; label: string; count: number; qty: number }[] = [];
-                  const allRows: { type: "row"; req: OrderRequest }[] = [];
-                  if (groupBy === "none") {
-                    filtered.forEach(req => allRows.push({ type: "row", req }));
-                  } else {
-                    const buckets = new Map<string, OrderRequest[]>();
-                    for (const req of filtered) {
-                      const k = groupBy === "supplier" ? (req.supplier ?? "ללא ספק") : req.urgency;
-                      if (!buckets.has(k)) buckets.set(k, []);
-                      buckets.get(k)!.push(req);
-                    }
-                    for (const [k, rs] of buckets) {
-                      const qty = rs.reduce((s, r) => s + (r.required_to_order ?? r.quantity ?? 0), 0);
-                      groupedFlat.push({ type: "group", key: k, label: k, count: rs.length, qty });
-                      rs.forEach(req => allRows.push({ type: "row", req }));
-                    }
-                  }
-                  const rendered: React.ReactNode[] = [];
-                  let groupIdx = 0;
-                  let lastGroupKey: string | null = null;
-                  for (const item of allRows) {
-                    if (groupBy !== "none") {
-                      const k = groupBy === "supplier" ? (item.req.supplier ?? "ללא ספק") : item.req.urgency;
-                      if (k !== lastGroupKey) {
-                        const g = groupedFlat[groupIdx++];
-                        rendered.push(
-                          <tr key={`g-${g.key}`} className="bg-muted/40 sticky top-9 z-[9]">
-                            <td colSpan={(canFulfill ? 1 : 0) + visibleCount + 1} className={`${cellPadding} text-xs font-semibold`}>
-                              <span className="text-foreground">{g.label}</span>
-                              <span className="text-muted-foreground font-normal ms-2">· {g.count} בקשות · {fmtNum(g.qty)} יח׳</span>
-                            </td>
-                          </tr>
-                        );
-                        lastGroupKey = k;
-                      }
-                    }
-                    const req = item.req;
-                    const age = ageBadge(req);
-                    const overdueDate = isOverdue(req.order_execution_date) && req.status === "pending";
-                    const stale = (() => {
-                      const d = daysSince(req.updated_at ?? req.created_at);
-                      return d !== null && d >= 30;
-                    })();
-                    const suggested = suggestUrgency(req);
-                    const editable = canEditRow(req) && req.status === "pending";
-                    rendered.push(
+                {filtered.map(req => {
+                  const age = ageBadge(req);
+                  const overdueDate = isOverdue(req.order_execution_date) && req.status === "pending";
+                  const stale = (() => {
+                    const d = daysSince(req.updated_at ?? req.created_at);
+                    return d !== null && d >= 30;
+                  })();
+                  const editable = canEditRow(req) && req.status === "pending";
+                  return (
                       <tr
                         key={req.id}
                         className={`hover:bg-muted/30 transition-colors cursor-pointer ${overdueDate ? "bg-red-50/40" : ""} ${selected.has(req.id) ? "bg-primary/5" : ""}`}
@@ -753,9 +743,6 @@ export function OrderRequestsTab() {
                                 </button>
                               ) : req.product_name}
                               {stale && <AlertTriangle className="h-3 w-3 text-orange-500 shrink-0" aria-label="נתון מיושן" />}
-                              {suggested && suggested !== req.urgency && (
-                                <Lightbulb className="h-3 w-3 text-purple-600 shrink-0" aria-label={`מומלץ: ${suggested}`} />
-                              )}
                             </div>
                           </td>
                         )}
@@ -797,17 +784,6 @@ export function OrderRequestsTab() {
                                 if (!r.ok) { toast.error(r.error ?? "שגיאה בעדכון"); return; }
                                 setRequests(prev => prev.map(rr => rr.id === req.id ? ({ ...rr, division_stock: typeof v === "number" ? v : null } as OrderRequest) : rr));
                               }}
-                            />
-                          </td>
-                        )}
-                        {isVisible("quarterly_forecast") && (
-                          <td className={`${cellPadding} tabular-nums`}>
-                            <InlineEditCell
-                              value={req.quarterly_forecast}
-                              type="number"
-                              disabled={!editable}
-                              display={v => fmtNum(v as number | null)}
-                              onCommit={(v) => patchRequest(req.id, { quarterly_forecast: v })}
                             />
                           </td>
                         )}
@@ -859,7 +835,19 @@ export function OrderRequestsTab() {
                             />
                           </td>
                         )}
-                        {isVisible("consumption") && <td className={`${cellPadding} text-muted-foreground tabular-nums`}>{req.current_consumption ?? "—"}</td>}
+                        {isVisible("consumption") && (
+                          <td className={`${cellPadding} text-muted-foreground tabular-nums`}>
+                            <InlineEditCell
+                              value={req.current_consumption ?? null}
+                              type="number"
+                              disabled={!editable}
+                              display={v => v ?? "—"}
+                              onCommit={(v) => patchRequest(req.id, {
+                                current_consumption: v === null ? null : String(v),
+                              })}
+                            />
+                          </td>
+                        )}
                         {isVisible("reason") && (
                           <td className={`${cellPadding} text-muted-foreground max-w-[180px]`}>
                             <InlineEditCell
@@ -910,75 +898,97 @@ export function OrderRequestsTab() {
                           </td>
                         )}
                         <td className={cellPadding}>
-                          <div className="flex items-center gap-1 justify-end">
-                            {/* View / edit / clone group */}
-                            <div className="flex items-center">
-                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setDetailRequest(req); }} title="פרטים מלאים">
-                                <Eye className="h-3.5 w-3.5" />
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                onClick={(e) => e.stopPropagation()}
+                                aria-label="פעולות"
+                              >
+                                <MoreVertical className="h-4 w-4" />
                               </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                              <DropdownMenuItem onClick={() => setDetailRequest(req)}>
+                                <Eye className="h-4 w-4 ml-2" />
+                                פרטים מלאים
+                              </DropdownMenuItem>
                               {canEditRow(req) && (
-                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setEditingRequest(req); }} title="ערוך">
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
+                                <DropdownMenuItem onClick={() => setEditingRequest(req)}>
+                                  <Pencil className="h-4 w-4 ml-2" />
+                                  ערוך
+                                </DropdownMenuItem>
                               )}
                               {canCreateRequest && req.division === userDivision && (
-                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setCloneTemplate(req); }} title="שכפל">
-                                  <Copy className="h-3.5 w-3.5" />
-                                </Button>
+                                <DropdownMenuItem onClick={() => setCloneTemplate(req)}>
+                                  <Copy className="h-4 w-4 ml-2" />
+                                  שכפל
+                                </DropdownMenuItem>
                               )}
-                            </div>
-
-                            {/* Primary status action */}
-                            {req.status === "pending" && canFulfill && (
-                              <>
-                                <span className="h-4 w-px bg-border mx-0.5" aria-hidden />
-                                <Button size="sm" className="h-7 text-xs gap-1 px-2.5" onClick={(e) => { e.stopPropagation(); setFulfillChooserRequest(req); }}>
-                                  <ShoppingCart className="h-3.5 w-3.5" />הזמן
-                                </Button>
-                              </>
-                            )}
-                            {req.status === "ordered" && req.order_id && (
-                              <>
-                                <span className="h-4 w-px bg-border mx-0.5" aria-hidden />
-                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); navigateToOrder(req.order_id); }} title="פתח הזמנה">
-                                  <ExternalLink className="h-3.5 w-3.5" />
-                                </Button>
-                              </>
-                            )}
-                            {(req.status === "rejected" || req.status === "cancelled") && canFulfill && (
-                              <>
-                                <span className="h-4 w-px bg-border mx-0.5" aria-hidden />
-                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleRevert(req); }} title="החזר ל-ממתין">
-                                  <RotateCcw className="h-3.5 w-3.5" />
-                                </Button>
-                              </>
-                            )}
-
-                            {/* Destructive group */}
-                            {((req.status === "pending" && canFulfill) || canDeleteRow(req)) && (
-                              <>
-                                <span className="h-4 w-px bg-border mx-0.5" aria-hidden />
-                                <div className="flex items-center">
+                              {req.status === "pending" && canFulfill && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => setFulfillChooserRequest(req)}>
+                                    <ShoppingCart className="h-4 w-4 ml-2" />
+                                    הזמן
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              {req.status === "ordered" && (() => {
+                                const linked = linkedOrdersFor(req);
+                                if (linked.length === 0) return null;
+                                return (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    {linked.map(o => (
+                                      <DropdownMenuItem key={o.id} onClick={() => navigateToOrder(o.id)}>
+                                        <ExternalLink className="h-4 w-4 ml-2" />
+                                        {linked.length === 1 ? "פתח הזמנה" : orderLabel(o)}
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </>
+                                );
+                              })()}
+                              {(req.status === "rejected" || req.status === "cancelled") && canFulfill && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleRevert(req)}>
+                                    <RotateCcw className="h-4 w-4 ml-2" />
+                                    החזר ל-ממתין
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              {((req.status === "pending" && canFulfill) || canDeleteRow(req)) && (
+                                <>
+                                  <DropdownMenuSeparator />
                                   {req.status === "pending" && canFulfill && (
-                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); setRejectingRequest(req); }} title="דחה">
-                                      <Ban className="h-3.5 w-3.5" />
-                                    </Button>
+                                    <DropdownMenuItem
+                                      onClick={() => setRejectingRequest(req)}
+                                      className="text-red-600 focus:text-red-700 focus:bg-red-50"
+                                    >
+                                      <Ban className="h-4 w-4 ml-2" />
+                                      דחה
+                                    </DropdownMenuItem>
                                   )}
                                   {canDeleteRow(req) && (
-                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); handleDelete(req); }} title="מחק">
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
+                                    <DropdownMenuItem
+                                      onClick={() => handleDelete(req)}
+                                      className="text-red-600 focus:text-red-700 focus:bg-red-50"
+                                    >
+                                      <Trash2 className="h-4 w-4 ml-2" />
+                                      מחק
+                                    </DropdownMenuItem>
                                   )}
-                                </div>
-                              </>
-                            )}
-                          </div>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </td>
                       </tr>
-                    );
-                  }
-                  return rendered;
-                })()}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -995,7 +1005,7 @@ export function OrderRequestsTab() {
           }}
           division={editingRequest?.division ?? cloneTemplate?.division ?? userDivision}
           divisionProducts={dialogDivisionProducts}
-          allProducts={products}
+          allProducts={allProducts}
           onCreated={fetchRequests}
           editingRequest={editingRequest}
           template={cloneTemplate}

@@ -57,7 +57,6 @@ export function OrderRequestDialog({
   const [urgency, setUrgency] = useState<OrderRequestUrgency>("רגיל");
   const [orderType, setOrderType] = useState<OrderRequestType>("חודשית");
   const [divisionStock, setDivisionStock] = useState("");
-  const [quarterlyForecast, setQuarterlyForecast] = useState("");
   const [orderExecutionDate, setOrderExecutionDate] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -75,12 +74,17 @@ export function OrderRequestDialog({
   const divisionProductIds = new Set(divisionProducts.map(dp => dp.product_id));
   // Show ALL products (not only the ones already linked to this division). If the
   // user picks one outside their set, we ask after submission whether to attach it.
-  const productOptions = allProducts.map(p => ({
-    value: p.id,
-    label: p.name,
-    hint: p.sku || undefined,
-    keywords: p.sku ? [p.sku] : undefined,
-  }));
+  // The combobox is searchable by SKU and supplier name in addition to product name.
+  const productOptions = allProducts.map(p => {
+    const keywords = [p.sku, p.supplier].filter((v): v is string => !!v);
+    const hint = [p.sku, p.supplier].filter(Boolean).join(" · ") || undefined;
+    return {
+      value: p.id,
+      label: p.name,
+      hint,
+      keywords: keywords.length > 0 ? keywords : undefined,
+    };
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -97,7 +101,6 @@ export function OrderRequestDialog({
       setUrgency(seed.urgency ?? "רגיל");
       setOrderType(seed.order_type ?? "חודשית");
       setDivisionStock(seed.division_stock != null ? String(seed.division_stock) : "");
-      setQuarterlyForecast(seed.quarterly_forecast != null ? String(seed.quarterly_forecast) : "");
       setOrderExecutionDate(seed.order_execution_date ?? today);
       setNotes(seed.notes ?? "");
       // Auto-expand "advanced" section when editing a request that already has values there.
@@ -105,7 +108,6 @@ export function OrderRequestDialog({
         !!seed.current_consumption ||
         !!seed.reason ||
         seed.division_stock != null ||
-        seed.quarterly_forecast != null ||
         (seed.order_type && seed.order_type !== "חודשית");
       setShowMore(!!hasAdvanced);
     } else {
@@ -119,7 +121,6 @@ export function OrderRequestDialog({
       setUrgency("רגיל");
       setOrderType("חודשית");
       setDivisionStock("");
-      setQuarterlyForecast("");
       setOrderExecutionDate(today);
       setNotes("");
       setShowMore(false);
@@ -187,7 +188,6 @@ export function OrderRequestDialog({
       current_consumption: currentConsumption.trim() || null,
       reason: reason.trim() || null,
       // division_stock lives on division_products only; we write it separately below
-      quarterly_forecast: numOrNull(quarterlyForecast),
       order_execution_date: orderExecutionDate || null,
       notes: notes.trim() || null,
     };
@@ -280,22 +280,12 @@ export function OrderRequestDialog({
             />
           </div>
 
-          {/* When a product is picked, show its SKU + name as readouts; else allow editing */}
-          {productId ? (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>שם תצוגה</Label>
-                <Input value={productName} onChange={e => setProductName(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>מק״ט</Label>
-                <Input value={productSku} onChange={e => setProductSku(e.target.value)} dir="ltr" />
-              </div>
-            </div>
-          ) : (
+          {/* When a product is picked, allow editing display name. SKU is intrinsic
+              to the product and editable on the product itself, so it isn't repeated here. */}
+          {productId && (
             <div className="space-y-1.5">
-              <Label>מק״ט</Label>
-              <Input value={productSku} onChange={e => setProductSku(e.target.value)} dir="ltr" />
+              <Label>שם תצוגה</Label>
+              <Input value={productName} onChange={e => setProductName(e.target.value)} />
             </div>
           )}
 
@@ -340,11 +330,6 @@ export function OrderRequestDialog({
           {(!compact || showMore) && (
             <div className="space-y-4 border-t pt-4">
               <div className="space-y-1.5">
-                <Label>ספק</Label>
-                <Input value={supplier} onChange={e => setSupplier(e.target.value)} placeholder="שם ספק" />
-              </div>
-
-              <div className="space-y-1.5">
                 <Label>סוג הזמנה</Label>
                 <Select value={orderType} onValueChange={v => setOrderType(v as OrderRequestType)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -357,9 +342,12 @@ export function OrderRequestDialog({
               <div className="space-y-1.5">
                 <Label>צריכה חודשית ממוצעת</Label>
                 <Input
+                  type="number"
+                  min="0"
+                  inputMode="numeric"
                   value={currentConsumption}
                   onChange={e => setCurrentConsumption(e.target.value)}
-                  placeholder="לדוגמה: 50 יחידות לחודש"
+                  placeholder="0"
                 />
               </div>
 
@@ -373,14 +361,10 @@ export function OrderRequestDialog({
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>מלאי חטיבה</Label>
                   <Input type="number" value={divisionStock} onChange={e => setDivisionStock(e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>צפי רבעון</Label>
-                  <Input type="number" value={quarterlyForecast} onChange={e => setQuarterlyForecast(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
                   <Label>תאריך ביצוע הזמנה</Label>

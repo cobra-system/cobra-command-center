@@ -239,6 +239,8 @@ export interface OrderRequest {
   order_type: OrderRequestType;
   status: OrderRequestStatus;
   order_id?: string | null;
+  /** Every order this request was attached to. The first item mirrors order_id. */
+  linked_order_ids?: string[] | null;
   ordered_at?: string | null;
   ordered_by?: string | null;
   ordered_by_name?: string | null;
