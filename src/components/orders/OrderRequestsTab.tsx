@@ -27,8 +27,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   ArrowUpDown, ArrowUp, ArrowDown, ShoppingCart, Plus, ClipboardList, Inbox,
-  Search, X, ExternalLink, Pencil, Trash2, RotateCcw, Ban, Eye,
-  AlertTriangle, Download, Upload, Copy, Camera, Bell, MoreVertical, SlidersHorizontal,
+  Search, X, ExternalLink, Pencil, Ban,
+  AlertTriangle, Download, Upload, Camera, Bell, MoreVertical, SlidersHorizontal,
 } from "lucide-react";
 import { downloadCsv } from "./orderRequestExcel";
 import type { ColDef } from "@/hooks/useColumnVisibility";
@@ -262,7 +262,7 @@ export function OrderRequestsTab() {
     if (s) navigate(`/suppliers/${s.id}`);
   };
   const navigateToOrder = (orderId?: string | null) => {
-    if (orderId) navigate(`/orders?focus=${orderId}`);
+    if (orderId) navigate(`/orders/${orderId}`);
   };
 
   // Resolve every order linked to a request. Falls back to the single order_id
@@ -912,18 +912,15 @@ export function OrderRequestsTab() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                               <DropdownMenuItem onClick={() => setDetailRequest(req)}>
-                                <Eye className="h-4 w-4 ml-2" />
                                 פרטים מלאים
                               </DropdownMenuItem>
                               {canEditRow(req) && (
                                 <DropdownMenuItem onClick={() => setEditingRequest(req)}>
-                                  <Pencil className="h-4 w-4 ml-2" />
                                   ערוך
                                 </DropdownMenuItem>
                               )}
                               {canCreateRequest && req.division === userDivision && (
                                 <DropdownMenuItem onClick={() => setCloneTemplate(req)}>
-                                  <Copy className="h-4 w-4 ml-2" />
                                   שכפל
                                 </DropdownMenuItem>
                               )}
@@ -931,7 +928,6 @@ export function OrderRequestsTab() {
                                 <>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem onClick={() => setFulfillChooserRequest(req)}>
-                                    <ShoppingCart className="h-4 w-4 ml-2" />
                                     הזמן
                                   </DropdownMenuItem>
                                 </>
@@ -944,7 +940,6 @@ export function OrderRequestsTab() {
                                     <DropdownMenuSeparator />
                                     {linked.map(o => (
                                       <DropdownMenuItem key={o.id} onClick={() => navigateToOrder(o.id)}>
-                                        <ExternalLink className="h-4 w-4 ml-2" />
                                         {linked.length === 1 ? "פתח הזמנה" : orderLabel(o)}
                                       </DropdownMenuItem>
                                     ))}
@@ -955,7 +950,6 @@ export function OrderRequestsTab() {
                                 <>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem onClick={() => handleRevert(req)}>
-                                    <RotateCcw className="h-4 w-4 ml-2" />
                                     החזר ל-ממתין
                                   </DropdownMenuItem>
                                 </>
@@ -968,7 +962,6 @@ export function OrderRequestsTab() {
                                       onClick={() => setRejectingRequest(req)}
                                       className="text-red-600 focus:text-red-700 focus:bg-red-50"
                                     >
-                                      <Ban className="h-4 w-4 ml-2" />
                                       דחה
                                     </DropdownMenuItem>
                                   )}
@@ -977,7 +970,6 @@ export function OrderRequestsTab() {
                                       onClick={() => handleDelete(req)}
                                       className="text-red-600 focus:text-red-700 focus:bg-red-50"
                                     >
-                                      <Trash2 className="h-4 w-4 ml-2" />
                                       מחק
                                     </DropdownMenuItem>
                                   )}
