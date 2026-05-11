@@ -7,9 +7,10 @@ interface Props {
   requests: OrderRequest[];
   scope: "division" | "manager";
   divisionLabel?: string;
+  variant?: "card" | "compact";
 }
 
-export function OrderRequestsDashboard({ requests, scope, divisionLabel }: Props) {
+export function OrderRequestsDashboard({ requests, scope, divisionLabel, variant = "card" }: Props) {
   const stats = useMemo(() => {
     const pending = requests.filter(r => r.status === "pending");
     const ordered = requests.filter(r => r.status === "ordered");
@@ -74,6 +75,21 @@ export function OrderRequestsDashboard({ requests, scope, divisionLabel }: Props
       tone: "text-green-600",
     },
   ];
+
+  if (variant === "compact") {
+    return (
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs" dir="rtl">
+        {cards.map((c, i) => (
+          <span key={c.label} className="inline-flex items-center gap-1.5">
+            {i > 0 && <span className="h-3 w-px bg-border" aria-hidden />}
+            <c.icon className={`h-3.5 w-3.5 ${c.tone}`} />
+            <span className="text-muted-foreground">{c.label}:</span>
+            <span className={`font-semibold tabular-nums ${c.tone}`}>{c.value}</span>
+          </span>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="bg-card rounded-xl border shadow-sm p-4 sm:p-5" dir="rtl">

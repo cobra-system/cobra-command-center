@@ -55,6 +55,7 @@ import {
   Lightbulb,
   Camera,
   Copy,
+  MoreHorizontal,
 } from "lucide-react";
 import { NewPickupDialog } from "@/components/equipment/NewPickupDialog";
 import { NewReturnDialog } from "@/components/equipment/NewReturnDialog";
@@ -86,6 +87,13 @@ import {
   ORDER_TYPE_OPTIONS,
 } from "@/components/orders/orderRequestUtils";
 import { Combobox } from "@/components/ui/combobox";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import ProductFormDialog from "@/components/products/ProductFormDialog";
 import { DIVISION_COLORS, BONDED_DIVISIONS } from "@/components/equipment/constants";
 import type { OrderRequest } from "@/contexts/types";
@@ -216,12 +224,14 @@ const OR_COLS: ColDef[] = [
   { id: "product", label: "תיאור פריט", sortField: "product_name" },
   { id: "supplier", label: "ספק", sortField: "supplier" },
   { id: "sku", label: 'מק"ט', sortField: "product_sku" },
-  { id: "division_stock", label: "כמות מלאי תקין בפועל", sortField: "division_stock" },
+  { id: "division_stock", label: "מלאי", sortField: "division_stock" },
   { id: "quarterly_forecast", label: "צפי רבעון Q1 2026", sortField: "quarterly_forecast" },
   { id: "utilization_pct", label: "% מימוש", sortField: "utilization_pct" },
   { id: "incoming_orders", label: 'עול"ב', sortField: "incoming_orders" },
   { id: "smoothed_required", label: "נדרש משוכלל (כולל מלאי ביטחון)", sortField: "smoothed_required" },
   { id: "required_to_order", label: "כמות", sortField: "required_to_order" },
+  { id: "current_consumption", label: "צריכה" },
+  { id: "order_type", label: "סוג", sortField: "order_type" },
   { id: "incoming_arrival_date", label: 'תאריך הגעת עול"ב', sortField: "incoming_arrival_date" },
   { id: "order_execution_date", label: "תאריך ביצוע הזמנה", sortField: "order_execution_date" },
   { id: "payment_status", label: "סטאטוס תשלום" },
@@ -347,8 +357,12 @@ export default function DivisionDetailPage() {
   const orColVis = useColumnVisibility(
     "order-requests:hidden-columns",
     OR_COLS,
-    // Less-used planning columns hidden by default; users can show them via context menu.
-    ["payment_status", "actual_ordered_qty", "shipping_type", "incoming_orders", "smoothed_required"]
+    // Default view for division managers: only essentials. All others available via right-click menu.
+    [
+      "supplier", "urgency", "quarterly_forecast", "utilization_pct", "incoming_orders",
+      "smoothed_required", "incoming_arrival_date", "order_execution_date",
+      "payment_status", "actual_ordered_qty", "shipping_type", "notes",
+    ]
   );
   const { menu: orMenu, setMenu: setOrMenu, closeMenu: closeOrMenu } = useColMenu();
 
@@ -831,6 +845,9 @@ export default function DivisionDetailPage() {
   // System-wide users (no division assignment) get column-visibility controls;
   // division managers see the default fixed view.
   const canCustomizeColumns = !currentUser?.division;
+  // Order-requests table is always customizable — bonded division managers need to
+  // adjust which columns they see, since their default view is intentionally minimal.
+  const canCustomizeOrColumns = true;
   const isManagerRole = currentUser?.role === "MANAGER";
   // Both system managers and the division manager for this division can edit/delete planning rows
   const canManagePlanning = isManagerRole || currentUser?.division === division;
@@ -1932,7 +1949,7 @@ export default function DivisionDetailPage() {
           </div>
 
           {/* KPI dashboard for the division */}
-          <OrderRequestsDashboard requests={orderRequests} scope="division" divisionLabel={division} />
+          <OrderRequestsDashboard requests={orderRequests} scope="division" divisionLabel={division} variant="compact" />
 
           {/* Search + filters */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -2098,7 +2115,7 @@ export default function DivisionDetailPage() {
                       <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
                         <TableRow
                           className="border-b"
-                          onContextMenu={canCustomizeColumns ? trContextMenu(orColVis.hiddenCols, setOrMenu) : undefined}
+                          onContextMenu={canCustomizeOrColumns ? trContextMenu(orColVis.hiddenCols, setOrMenu) : undefined}
                         >
                           {OR_COLS.map(col => orColVis.isVisible(col.id) ? (
                             <TableHead
@@ -2106,7 +2123,7 @@ export default function DivisionDetailPage() {
                               className={`text-right p-3 font-semibold text-foreground text-xs whitespace-nowrap ${
                                 col.id === "product" ? "sticky right-0 bg-muted/95 z-20" : ""
                               }`}
-                              onContextMenu={canCustomizeColumns ? colThContextMenu(col, setOrMenu) : undefined}
+                              onContextMenu={canCustomizeOrColumns ? colThContextMenu(col, setOrMenu) : undefined}
                             >
                               {col.sortField ? (
                                 <button
@@ -2221,6 +2238,31 @@ export default function DivisionDetailPage() {
                                   />
                                 </TableCell>
                               )}
+                              {orColVis.isVisible("current_consumption") && (
+                                <TableCell className="p-1 text-muted-foreground max-w-[160px]">
+                                  <InlineEditCell
+                                    value={req.current_consumption}
+                                    disabled={!editable}
+                                    display={v => (
+                                      <span className="block truncate text-right" title={String(v ?? "")}>
+                                        {v ?? "—"}
+                                      </span>
+                                    )}
+                                    onCommit={(v) => patchRequest(req.id, { current_consumption: v })}
+                                  />
+                                </TableCell>
+                              )}
+                              {orColVis.isVisible("order_type") && (
+                                <TableCell className="p-1 text-xs">
+                                  <InlineSelectCell
+                                    value={req.order_type}
+                                    disabled={!editable}
+                                    options={ORDER_TYPE_OPTIONS.map(o => ({ value: o, label: o }))}
+                                    display={v => <span>{v ?? "—"}</span>}
+                                    onCommit={(v) => patchRequest(req.id, { order_type: v })}
+                                  />
+                                </TableCell>
+                              )}
                               {orColVis.isVisible("incoming_arrival_date") && (
                                 <TableCell className="p-1 text-xs">
                                   <InlineEditCell
@@ -2320,43 +2362,60 @@ export default function DivisionDetailPage() {
                                   </div>
                                 </TableCell>
                               )}
-                              {canManagePlanning && (
-                                <TableCell className="p-2">
-                                  <div className="flex gap-0.5 justify-end">
-                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setDetailOrderRequest(req)} title="פרטים מלאים">
-                                      <Eye className="h-3 w-3" />
-                                    </Button>
-                                    {req.status === "pending" && orderQty > 0 && (
-                                      <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600" onClick={() => sendToProcurement(req)} title="שלח לרכש">
-                                        <ShoppingCart className="h-3 w-3" />
+                              {canManagePlanning && (() => {
+                                const canOpenOrder = req.status === "ordered" && !!req.order_id;
+                                const canRevert = (req.status === "rejected" || req.status === "cancelled") && isManagerRole;
+                                const canDelete = req.status === "pending" || isManagerRole;
+                                return (
+                                  <TableCell className="p-2">
+                                    <div className="flex gap-0.5 justify-end">
+                                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setDetailOrderRequest(req)} title="פרטים מלאים">
+                                        <Eye className="h-3 w-3" />
                                       </Button>
-                                    )}
-                                    {req.status === "pending" && (
-                                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingOrderRequest(req)} title="פתח לעריכה מלאה">
-                                        <Pencil className="h-3 w-3" />
-                                      </Button>
-                                    )}
-                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setCloneTemplate(req)} title="שכפל">
-                                      <Copy className="h-3 w-3" />
-                                    </Button>
-                                    {req.status === "ordered" && req.order_id && (
-                                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => navigateToOrderOR(req.order_id)} title="פתח הזמנה">
-                                        <ExternalLink className="h-3 w-3" />
-                                      </Button>
-                                    )}
-                                    {(req.status === "rejected" || req.status === "cancelled") && isManagerRole && (
-                                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => revertRequest(req)} title="החזר ל-ממתין">
-                                        <RotateCcw className="h-3 w-3" />
-                                      </Button>
-                                    )}
-                                    {(req.status === "pending" || isManagerRole) && (
-                                      <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={() => deleteRequest(req)} title="מחק">
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
-                                    )}
-                                  </div>
-                                </TableCell>
-                              )}
+                                      {req.status === "pending" && orderQty > 0 && (
+                                        <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600" onClick={() => sendToProcurement(req)} title="שלח לרכש">
+                                          <ShoppingCart className="h-3 w-3" />
+                                        </Button>
+                                      )}
+                                      {req.status === "pending" && (
+                                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingOrderRequest(req)} title="פתח לעריכה מלאה">
+                                          <Pencil className="h-3 w-3" />
+                                        </Button>
+                                      )}
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button size="icon" variant="ghost" className="h-7 w-7" title="פעולות נוספות">
+                                            <MoreHorizontal className="h-3 w-3" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" dir="rtl">
+                                          <DropdownMenuItem onClick={() => setCloneTemplate(req)}>
+                                            <Copy className="h-3.5 w-3.5 me-2" /> שכפל
+                                          </DropdownMenuItem>
+                                          {canOpenOrder && (
+                                            <DropdownMenuItem onClick={() => navigateToOrderOR(req.order_id)}>
+                                              <ExternalLink className="h-3.5 w-3.5 me-2" /> פתח הזמנה
+                                            </DropdownMenuItem>
+                                          )}
+                                          {canRevert && (
+                                            <DropdownMenuItem onClick={() => revertRequest(req)}>
+                                              <RotateCcw className="h-3.5 w-3.5 me-2" /> החזר לממתין
+                                            </DropdownMenuItem>
+                                          )}
+                                          {canDelete && (
+                                            <>
+                                              <DropdownMenuSeparator />
+                                              <DropdownMenuItem onClick={() => deleteRequest(req)} className="text-red-600 focus:text-red-600">
+                                                <Trash2 className="h-3.5 w-3.5 me-2" /> מחק
+                                              </DropdownMenuItem>
+                                            </>
+                                          )}
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    </div>
+                                  </TableCell>
+                                );
+                              })()}
                             </TableRow>
                           );
                         })}
@@ -2487,7 +2546,7 @@ export default function DivisionDetailPage() {
           onSortDesc={(field) => { setDpSortField(field); setDpSortDir("desc"); closeDpMenu(); }}
         />
       )}
-      {orMenu && canCustomizeColumns && (
+      {orMenu && canCustomizeOrColumns && (
         <ColContextMenu
           menu={orMenu}
           sortField={orSortField}
@@ -2513,6 +2572,7 @@ export default function DivisionDetailPage() {
           onCreated={fetchData}
           editingRequest={editingOrderRequest}
           template={cloneTemplate}
+          compact={!isManagerRole}
         />
       )}
 
