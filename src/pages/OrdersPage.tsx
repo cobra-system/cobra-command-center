@@ -203,6 +203,7 @@ export default function OrdersPage() {
         // Notes are managerOnly; excluding them from the searchable
         // string avoids leaking note contents via search (value oracle).
         const searchable = [
+          o.id,
           scopeOrderItems(o.items).map(i => i.name).join(" "),
           o.supplier_name,
           o.pi_number,

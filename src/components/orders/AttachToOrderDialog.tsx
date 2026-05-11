@@ -90,6 +90,7 @@ export function AttachToOrderDialog({ open, onOpenChange, request, onAttached }:
       .update({
         status: "ordered",
         order_id: ids[0],
+        linked_order_ids: ids,
         ordered_at: now,
         ordered_by: currentUser?.id ?? null,
         ordered_by_name: currentUser?.name ?? null,

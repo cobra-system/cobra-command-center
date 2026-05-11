@@ -11,12 +11,15 @@ import { format, formatDistanceToNow, addDays } from "date-fns";
 import { he } from "date-fns/locale";
 import {
   Pencil, MessageSquare, Clock, ShoppingCart, Ban, RotateCcw, Trash2, ExternalLink,
-  Send, AlertTriangle, Lightbulb, Paperclip, Info, Truck, Sparkles,
+  Send, AlertTriangle, Paperclip, Info, Truck, Sparkles,
 } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { OrderRequest, OrderRequestHistory, OrderRequestComment, OrderRequestAttachment } from "@/contexts/types";
 import {
   fmtNum, fmtPct, urgencyClass, statusClass, STATUS_LABELS,
-  utilizationColor, daysSince, suggestUrgency, ageBadge,
+  utilizationColor, daysSince, ageBadge,
 } from "./orderRequestUtils";
 
 interface Props {
@@ -66,7 +69,7 @@ export function RequestDetailPanel({
   navigateToSupplier,
 }: Props) {
   const { currentUser } = useAuth();
-  const { suppliers } = useData();
+  const { suppliers, orders } = useData();
   const [tab, setTab] = useState<"details" | "history" | "comments" | "files">("details");
   const [history, setHistory] = useState<OrderRequestHistory[]>([]);
   const [comments, setComments] = useState<OrderRequestComment[]>([]);
@@ -181,7 +184,6 @@ export function RequestDetailPanel({
 
   if (!request) return null;
 
-  const suggested = suggestUrgency(request);
   const stale = (() => {
     const d = daysSince(request.updated_at ?? request.created_at);
     return d !== null && d >= 30;
@@ -216,24 +218,6 @@ export function RequestDetailPanel({
                     <AlertTriangle className="h-3 w-3" /> מיושן
                   </span>
                 )}
-                {suggested && suggested !== request.urgency && editable && (
-                  <button
-                    className="text-xs font-medium px-2 py-0.5 rounded-full border bg-purple-50 text-purple-700 border-purple-200 flex items-center gap-1 hover:bg-purple-100 transition-colors"
-                    title="לחץ ליישום הדחיפות המומלצת"
-                    onClick={async () => {
-                      const { error } = await supabase.from("order_requests").update({ urgency: suggested }).eq("id", request.id);
-                      if (error) toast.error("שגיאה בעדכון");
-                      else { toast.success("הדחיפות עודכנה"); onRefresh(); }
-                    }}
-                  >
-                    <Lightbulb className="h-3 w-3" /> החל המלצה: {suggested}
-                  </button>
-                )}
-                {suggested && suggested !== request.urgency && !editable && (
-                  <span className="text-xs font-medium px-2 py-0.5 rounded-full border bg-purple-50 text-purple-700 border-purple-200 flex items-center gap-1" title="לפי המלאי הנוכחי המערכת מציעה דחיפות גבוהה יותר">
-                    <Lightbulb className="h-3 w-3" /> מומלץ: {suggested}
-                  </span>
-                )}
               </div>
             </div>
           </div>
@@ -256,11 +240,44 @@ export function RequestDetailPanel({
               <Ban className="h-3.5 w-3.5" /> דחה
             </Button>
           )}
-          {request.status === "ordered" && request.order_id && (
-            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => navigateToOrder(request.order_id!)}>
-              <ExternalLink className="h-3.5 w-3.5" /> פתח הזמנה
-            </Button>
-          )}
+          {request.status === "ordered" && (() => {
+            const ids = (request.linked_order_ids && request.linked_order_ids.length > 0)
+              ? request.linked_order_ids
+              : (request.order_id ? [request.order_id] : []);
+            if (ids.length === 0) return null;
+            const byId = new Map(orders.map(o => [o.id, o]));
+            const labelFor = (id: string) => {
+              const o = byId.get(id);
+              const parts: string[] = [];
+              if (o?.pi_number) parts.push(`PI ${o.pi_number}`);
+              if (o?.supplier_name) parts.push(o.supplier_name);
+              if (o?.order_date) parts.push(format(new Date(o.order_date), "dd/MM/yyyy"));
+              return parts.length > 0 ? parts.join(" · ") : `הזמנה ${id.slice(0, 8)}`;
+            };
+            if (ids.length === 1) {
+              return (
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => navigateToOrder(ids[0])}>
+                  <ExternalLink className="h-3.5 w-3.5" /> פתח הזמנה
+                </Button>
+              );
+            }
+            return (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="outline" className="gap-1.5">
+                    <ExternalLink className="h-3.5 w-3.5" /> פתח הזמנה ({ids.length})
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {ids.map(id => (
+                    <DropdownMenuItem key={id} onClick={() => navigateToOrder(id)}>
+                      {labelFor(id)}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          })()}
           {(request.status === "rejected" || request.status === "cancelled") && isManager && (
             <Button size="sm" variant="outline" className="gap-1.5" onClick={() => onRevert(request)}>
               <RotateCcw className="h-3.5 w-3.5" /> החזר
@@ -347,10 +364,6 @@ export function RequestDetailPanel({
                         )}
                       </div>
                     }
-                  />
-                  <Detail
-                    label={<LabelWithHelp text="צפי רבעון" help="הצריכה הצפויה ברבעון הנוכחי על בסיס היסטוריה." />}
-                    value={fmtNum(request.quarterly_forecast)}
                   />
                   <Detail
                     label={<LabelWithHelp text="% מימוש" help="הערכת אחוז הצריכה בפועל מתוך הצפי. ערך נמוך משמעותו פחות צריכה ולכן פחות צורך להזמין." />}

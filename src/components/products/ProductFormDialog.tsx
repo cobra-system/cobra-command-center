@@ -1,8 +1,11 @@
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useCallback } from "react";
 import { useData, useAuth, categories, divisions, type Product, type ProductComponent } from "@/contexts/AppContext";
 import { canSeePrices } from "@/lib/permissions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,8 +13,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Combobox } from "@/components/ui/combobox";
 import { CategorySelect } from "@/components/ui/CategorySelect";
-import { Plus, Trash2, AlertTriangle } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
 import { productSchema, productComponentSchema } from "@/lib/schemas/productSchema";
 
 interface Props {
@@ -39,7 +43,6 @@ const emptyComp = (): CompDraft => ({ name: "", sku: "", supplier: "", origin: "
 
 export default function ProductFormDialog({ open, onOpenChange, editProduct, presetSupplierId, presetSupplierName, presetProductName, presetDivision, onCreated }: Props) {
   const { addProduct, updateProduct, suppliers, products } = useData();
-  const navigate = useNavigate();
   const { currentUser } = useAuth();
   const showPrices = canSeePrices(currentUser);
 
@@ -50,6 +53,10 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
       origin: c.origin || "", stock_qty: String(c.stock_qty ?? ""), price: String(c.price ?? ""), notes: c.notes || "",
     })) || []
   );
+  // When the typed name matches an existing product (exact or close), we
+  // prompt instead of creating a duplicate: attach the existing product to
+  // this division, or cancel.
+  const [existingPrompt, setExistingPrompt] = useState<Product | null>(null);
 
   function initForm(p?: Product | null, preDiv?: string) {
     return {
@@ -85,18 +92,61 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
 
   const setField = (key: string, val: string) => setForm(prev => ({ ...prev, [key]: val }));
 
-  // Detect similar existing products while typing (only when creating, not editing)
-  const similarProducts = useMemo(() => {
-    if (!form.name.trim() || editProduct) return [];
+  // Detect an existing product with a matching or close-matching name. Compared
+  // by trimmed lowercase: exact equality first, otherwise a substring match
+  // either way (≥3 chars). Only meaningful when creating, not editing.
+  const findExistingMatch = useCallback((): Product | null => {
+    if (editProduct) return null;
     const q = form.name.trim().toLowerCase();
-    return products.filter(p =>
-      p.name.toLowerCase().includes(q) || q.includes(p.name.toLowerCase().slice(0, Math.max(q.length - 1, 3)))
-    ).slice(0, 3);
+    if (!q) return null;
+    const exact = products.find(p => p.name.trim().toLowerCase() === q);
+    if (exact) return exact;
+    if (q.length < 3) return null;
+    return products.find(p => {
+      const pn = p.name.trim().toLowerCase();
+      return pn.includes(q) || q.includes(pn);
+    }) ?? null;
   }, [form.name, products, editProduct]);
 
   const numOrNull = (v: string) => v === "" ? null : Number(v);
 
   const handleSubmit = async () => {
+    // If a product with the same/similar name already exists, ask whether to
+    // attach it to the current division instead of silently creating a duplicate.
+    const existing = findExistingMatch();
+    if (existing) {
+      setExistingPrompt(existing);
+      return;
+    }
+    await persistProduct();
+  };
+
+  const handleAttachExistingToDivision = async () => {
+    if (!existingPrompt) return;
+    const targetDivision = presetDivision || form.division;
+    if (!targetDivision) {
+      toast.error("לא נבחרה חטיבה לצירוף");
+      setExistingPrompt(null);
+      return;
+    }
+    // Each division gets one row per product; conflict is silent so the
+    // operation is idempotent (e.g. user confirms twice).
+    const divisions = targetDivision.split(",").map(d => d.trim()).filter(Boolean);
+    const rows = divisions.map(d => ({ division: d, product_id: existingPrompt.id }));
+    const { error } = await supabase
+      .from("division_products")
+      .upsert(rows, { onConflict: "division,product_id" });
+    if (error) {
+      toast.error("שגיאה בצירוף המוצר לחטיבה");
+      return;
+    }
+    toast.success("המוצר צורף לחטיבה");
+    setExistingPrompt(null);
+    onCreated?.();
+    onOpenChange(false);
+  };
+
+  const persistProduct = async () => {
     // Build raw data for Zod validation
     const rawProduct = {
       name: form.name.trim(),
@@ -159,6 +209,7 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
   const catOptions = categories.filter(c => c !== "הכל");
 
   return (
+    <>
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg md:max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
@@ -169,23 +220,6 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
             <div className="space-y-1">
               <Label>שם מוצר *</Label>
               <Input value={form.name} onChange={e => setField("name", e.target.value)} />
-              {similarProducts.length > 0 && (
-                <div className="bg-warning/10 border border-warning/30 rounded-lg p-2 space-y-1">
-                  <p className="text-xs font-medium text-warning flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" />מוצרים דומים כבר קיימים:
-                  </p>
-                  {similarProducts.map(p => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => { onOpenChange(false); navigate(`/products/${p.id}`); }}
-                      className="block w-full text-right text-xs text-primary hover:underline"
-                    >
-                      {p.name} — {p.sku}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
             <div className="space-y-1">
               <Label>מק״ט *</Label>
@@ -341,5 +375,26 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
         </div>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={!!existingPrompt} onOpenChange={(o) => { if (!o) setExistingPrompt(null); }}>
+      <AlertDialogContent dir="rtl">
+        <AlertDialogHeader>
+          <AlertDialogTitle>המוצר קיים במערכת</AlertDialogTitle>
+          <AlertDialogDescription>
+            {existingPrompt && (
+              <>
+                המוצר &quot;{existingPrompt.name}&quot;{existingPrompt.sku ? ` (מק״ט ${existingPrompt.sku})` : ""} כבר קיים במערכת.
+                האם להוסיף אותו לחטיבה?
+              </>
+            )}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setExistingPrompt(null)}>לא</AlertDialogCancel>
+          <AlertDialogAction onClick={handleAttachExistingToDivision}>כן, הוסף לחטיבה</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

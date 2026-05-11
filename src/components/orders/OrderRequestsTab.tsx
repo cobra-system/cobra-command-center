@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { useData, useAuth } from "@/contexts/AppContext";
+import { useData, useAuth, useProducts } from "@/contexts/AppContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -23,9 +23,12 @@ import { usePersistedState } from "@/hooks/usePersistedState";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   ArrowUpDown, ArrowUp, ArrowDown, ShoppingCart, Plus, ClipboardList, Inbox,
   Search, X, ExternalLink, Pencil, Trash2, RotateCcw, Ban, Eye, Layers, Rows3, Rows4,
-  AlertTriangle, Lightbulb, Download, Upload, Copy, Camera, Bell,
+  AlertTriangle, Download, Upload, Copy, Camera, Bell,
 } from "lucide-react";
 import { downloadCsv } from "./orderRequestExcel";
 import type { ColDef } from "@/hooks/useColumnVisibility";
@@ -34,7 +37,7 @@ import { DIVISIONS, BONDED_DIVISIONS } from "@/components/equipment/constants";
 import { isDivisionManager } from "@/lib/permissions";
 import {
   fmtNum, fmtPct, urgencyClass, statusClass, STATUS_LABELS,
-  utilizationColor, isOverdue, ageBadge, freeTextMatch, daysSince, suggestUrgency,
+  utilizationColor, isOverdue, ageBadge, freeTextMatch, daysSince,
   URGENCY_OPTIONS, ORDER_TYPE_OPTIONS,
 } from "./orderRequestUtils";
 import { fetchDivisionStockMap, hydrateDivisionStock, updateDivisionStock } from "./divisionStockHelpers";
@@ -48,7 +51,6 @@ const COLUMN_DEFS: ColDef[] = [
   { id: "supplier", label: "ספק", sortField: "supplier" },
   { id: "required_to_order", label: "כמות", sortField: "required_to_order" },
   { id: "division_stock", label: "מלאי חטיבה", sortField: "division_stock" },
-  { id: "quarterly_forecast", label: "צפי רבעון", sortField: "quarterly_forecast" },
   { id: "utilization_pct", label: "% מימוש", sortField: "utilization_pct" },
   { id: "urgency", label: "דחיפות", sortField: "urgency" },
   { id: "order_type", label: "סוג הזמנה" },
@@ -70,7 +72,8 @@ function SortIcon({ field, currentField, currentDir }: { field: string; currentF
 
 export function OrderRequestsTab() {
   const navigate = useNavigate();
-  const { addOrder, suppliers, products } = useData();
+  const { addOrder, suppliers, products, orders } = useData();
+  const { allProducts } = useProducts();
   const { currentUser } = useAuth();
 
   const [requests, setRequests] = useState<OrderRequest[]>([]);
@@ -120,7 +123,7 @@ export function OrderRequestsTab() {
     COLUMN_DEFS,
     isManager
       // Manager: hide low-value text fields by default; show planning numbers
-      ? ["consumption", "reason", "ordered_by", "sku", "quarterly_forecast"]
+      ? ["consumption", "reason", "ordered_by", "sku"]
       // Division manager: hide division (their own), reviewer/ordered metadata
       : ["division", "ordered_by", "ordered_at", "consumption", "reason"]
   );
@@ -203,6 +206,7 @@ export function OrderRequestsTab() {
       .update({
         status: "ordered",
         order_id: orderId,
+        linked_order_ids: [orderId],
         ordered_at: new Date().toISOString(),
         ordered_by: currentUser?.id ?? null,
         ordered_by_name: currentUser?.name ?? null,
@@ -264,6 +268,27 @@ export function OrderRequestsTab() {
   };
   const navigateToOrder = (orderId?: string | null) => {
     if (orderId) navigate(`/orders?focus=${orderId}`);
+  };
+
+  // Resolve every order linked to a request. Falls back to the single order_id
+  // for legacy rows where linked_order_ids hadn't been backfilled.
+  const linkedOrdersFor = useCallback((req: OrderRequest) => {
+    const ids = (req.linked_order_ids && req.linked_order_ids.length > 0)
+      ? req.linked_order_ids
+      : (req.order_id ? [req.order_id] : []);
+    const byId = new Map(orders.map(o => [o.id, o]));
+    return ids
+      .map(id => byId.get(id) ?? { id, supplier_name: null, pi_number: null, order_date: null } as Pick<typeof orders[number], "id" | "supplier_name" | "pi_number" | "order_date">)
+      .filter(Boolean);
+  }, [orders]);
+
+  const orderLabel = (o: { id: string; supplier_name?: string | null; pi_number?: string | null; order_date?: string | null }) => {
+    const parts: string[] = [];
+    if (o.pi_number) parts.push(`PI ${o.pi_number}`);
+    if (o.supplier_name) parts.push(o.supplier_name);
+    if (o.order_date) parts.push(format(new Date(o.order_date), "dd/MM/yyyy"));
+    if (parts.length > 0) return parts.join(" · ");
+    return `הזמנה ${o.id.slice(0, 8)}`;
   };
 
   // Keep the detail panel showing fresh data after refresh
@@ -615,11 +640,34 @@ export function OrderRequestsTab() {
                           <Ban className="h-3 w-3" />
                         </Button>
                       )}
-                      {req.status === "ordered" && req.order_id && (
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => navigateToOrder(req.order_id)} aria-label="פתח הזמנה">
-                          <ExternalLink className="h-3 w-3" />
-                        </Button>
-                      )}
+                      {req.status === "ordered" && (() => {
+                        const linked = linkedOrdersFor(req);
+                        if (linked.length === 0) return null;
+                        if (linked.length === 1) {
+                          return (
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => navigateToOrder(linked[0].id)} aria-label="פתח הזמנה">
+                              <ExternalLink className="h-3 w-3" />
+                            </Button>
+                          );
+                        }
+                        return (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="sm" variant="ghost" className="h-7 px-1.5 text-xs gap-1" aria-label="פתח הזמנה">
+                                <ExternalLink className="h-3 w-3" />
+                                <span>{linked.length}</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              {linked.map(o => (
+                                <DropdownMenuItem key={o.id} onClick={() => navigateToOrder(o.id)}>
+                                  {orderLabel(o)}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        );
+                      })()}
                     </div>
                   </div>
                   {req.reject_reason && (
@@ -716,7 +764,6 @@ export function OrderRequestsTab() {
                       const d = daysSince(req.updated_at ?? req.created_at);
                       return d !== null && d >= 30;
                     })();
-                    const suggested = suggestUrgency(req);
                     const editable = canEditRow(req) && req.status === "pending";
                     rendered.push(
                       <tr
@@ -753,9 +800,6 @@ export function OrderRequestsTab() {
                                 </button>
                               ) : req.product_name}
                               {stale && <AlertTriangle className="h-3 w-3 text-orange-500 shrink-0" aria-label="נתון מיושן" />}
-                              {suggested && suggested !== req.urgency && (
-                                <Lightbulb className="h-3 w-3 text-purple-600 shrink-0" aria-label={`מומלץ: ${suggested}`} />
-                              )}
                             </div>
                           </td>
                         )}
@@ -797,17 +841,6 @@ export function OrderRequestsTab() {
                                 if (!r.ok) { toast.error(r.error ?? "שגיאה בעדכון"); return; }
                                 setRequests(prev => prev.map(rr => rr.id === req.id ? ({ ...rr, division_stock: typeof v === "number" ? v : null } as OrderRequest) : rr));
                               }}
-                            />
-                          </td>
-                        )}
-                        {isVisible("quarterly_forecast") && (
-                          <td className={`${cellPadding} tabular-nums`}>
-                            <InlineEditCell
-                              value={req.quarterly_forecast}
-                              type="number"
-                              disabled={!editable}
-                              display={v => fmtNum(v as number | null)}
-                              onCommit={(v) => patchRequest(req.id, { quarterly_forecast: v })}
                             />
                           </td>
                         )}
@@ -859,7 +892,19 @@ export function OrderRequestsTab() {
                             />
                           </td>
                         )}
-                        {isVisible("consumption") && <td className={`${cellPadding} text-muted-foreground tabular-nums`}>{req.current_consumption ?? "—"}</td>}
+                        {isVisible("consumption") && (
+                          <td className={`${cellPadding} text-muted-foreground tabular-nums`}>
+                            <InlineEditCell
+                              value={req.current_consumption ?? null}
+                              type="number"
+                              disabled={!editable}
+                              display={v => v ?? "—"}
+                              onCommit={(v) => patchRequest(req.id, {
+                                current_consumption: v === null ? null : String(v),
+                              })}
+                            />
+                          </td>
+                        )}
                         {isVisible("reason") && (
                           <td className={`${cellPadding} text-muted-foreground max-w-[180px]`}>
                             <InlineEditCell
@@ -937,14 +982,46 @@ export function OrderRequestsTab() {
                                 </Button>
                               </>
                             )}
-                            {req.status === "ordered" && req.order_id && (
-                              <>
-                                <span className="h-4 w-px bg-border mx-0.5" aria-hidden />
-                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); navigateToOrder(req.order_id); }} title="פתח הזמנה">
-                                  <ExternalLink className="h-3.5 w-3.5" />
-                                </Button>
-                              </>
-                            )}
+                            {req.status === "ordered" && (() => {
+                              const linked = linkedOrdersFor(req);
+                              if (linked.length === 0) return null;
+                              if (linked.length === 1) {
+                                return (
+                                  <>
+                                    <span className="h-4 w-px bg-border mx-0.5" aria-hidden />
+                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); navigateToOrder(linked[0].id); }} title="פתח הזמנה">
+                                      <ExternalLink className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </>
+                                );
+                              }
+                              return (
+                                <>
+                                  <span className="h-4 w-px bg-border mx-0.5" aria-hidden />
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-7 px-2 gap-1 text-xs"
+                                        onClick={(e) => e.stopPropagation()}
+                                        title={`${linked.length} הזמנות משויכות`}
+                                      >
+                                        <ExternalLink className="h-3.5 w-3.5" />
+                                        <span>{linked.length}</span>
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
+                                      {linked.map(o => (
+                                        <DropdownMenuItem key={o.id} onClick={() => navigateToOrder(o.id)}>
+                                          {orderLabel(o)}
+                                        </DropdownMenuItem>
+                                      ))}
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </>
+                              );
+                            })()}
                             {(req.status === "rejected" || req.status === "cancelled") && canFulfill && (
                               <>
                                 <span className="h-4 w-px bg-border mx-0.5" aria-hidden />
@@ -995,7 +1072,7 @@ export function OrderRequestsTab() {
           }}
           division={editingRequest?.division ?? cloneTemplate?.division ?? userDivision}
           divisionProducts={dialogDivisionProducts}
-          allProducts={products}
+          allProducts={allProducts}
           onCreated={fetchRequests}
           editingRequest={editingRequest}
           template={cloneTemplate}

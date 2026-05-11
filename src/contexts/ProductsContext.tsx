@@ -9,6 +9,9 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface ProductsState {
   products: Product[];
+  /** Unfiltered list — every product the current user is allowed to read.
+   *  Use this for cross-division pickers (e.g. purchase request creation). */
+  allProducts: Product[];
   refreshProducts: () => Promise<void>;
   updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
   addProduct: (product: Omit<Product, "id" | "components">, components?: Omit<ProductComponent, "id" | "product_id">[]) => Promise<void>;
@@ -232,6 +235,7 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
   return (
     <ProductsContext.Provider value={{
       products,
+      allProducts: rawProducts,
       refreshProducts,
       updateProduct,
       addProduct,

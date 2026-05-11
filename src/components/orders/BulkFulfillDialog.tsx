@@ -73,6 +73,7 @@ export function BulkFulfillDialog({ open, onOpenChange, requests, addOrder, onDo
           .update({
             status: "ordered",
             order_id: orderId,
+            linked_order_ids: [orderId],
             ordered_at: now,
             ordered_by: currentUser?.id ?? null,
             ordered_by_name: currentUser?.name ?? null,
