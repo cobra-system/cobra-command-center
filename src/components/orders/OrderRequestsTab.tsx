@@ -11,7 +11,6 @@ import { NewOrderDialog } from "@/components/orders/NewOrderDialog";
 import { OrderRequestDialog } from "@/components/orders/OrderRequestDialog";
 import { AttachToOrderDialog } from "@/components/orders/AttachToOrderDialog";
 import { RejectRequestDialog } from "@/components/orders/RejectRequestDialog";
-import { OrderRequestsDashboard } from "@/components/orders/OrderRequestsDashboard";
 import { RequestDetailPanel } from "@/components/orders/RequestDetailPanel";
 import { BulkFulfillDialog } from "@/components/orders/BulkFulfillDialog";
 import { ExcelImportDialog } from "@/components/orders/ExcelImportDialog";
@@ -27,7 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   ArrowUpDown, ArrowUp, ArrowDown, ShoppingCart, Plus, ClipboardList, Inbox,
-  Search, X, ExternalLink, Pencil, Trash2, RotateCcw, Ban, Eye, Layers, Rows3, Rows4,
+  Search, X, ExternalLink, Pencil, Trash2, RotateCcw, Ban, Eye,
   AlertTriangle, Download, Upload, Copy, Camera, Bell,
 } from "lucide-react";
 import { downloadCsv } from "./orderRequestExcel";
@@ -82,7 +81,6 @@ export function OrderRequestsTab() {
     "order-requests:status-filter", "active"
   );
   const [divisionFilter, setDivisionFilter] = usePersistedState<string>("order-requests:division-filter", "all");
-  const [urgencyFilter, setUrgencyFilter] = usePersistedState<string>("order-requests:urgency-filter", "all");
   const [dateFrom, setDateFrom] = usePersistedState<string>("order-requests:date-from", "");
   const [dateTo, setDateTo] = usePersistedState<string>("order-requests:date-to", "");
   const [search, setSearch] = useState("");
@@ -103,9 +101,7 @@ export function OrderRequestsTab() {
   const [cloneTemplate, setCloneTemplate] = useState<OrderRequest | null>(null);
   const [showNotifSettings, setShowNotifSettings] = useState(false);
   const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY ?? "";
-  const [groupBy, setGroupBy] = usePersistedState<"none" | "supplier" | "urgency">("order-requests:group-by", "none");
-  const [density, setDensity] = usePersistedState<"comfortable" | "compact">("order-requests:density", "comfortable");
-  const cellPadding = density === "compact" ? "p-1.5" : "p-3";
+  const cellPadding = "p-1.5";
 
   // Bonded division managers can submit requests for their own division.
   // Procurement managers fulfill requests but don't create them here.
@@ -118,14 +114,12 @@ export function OrderRequestsTab() {
     isManager || (isDivMgr && req.division === userDivision && req.status === "pending");
   const canDeleteRow = canEditRow;
 
-  const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility(
+  const { isVisible, hide, show, hiddenCols } = useColumnVisibility(
     "manager-order-requests:hidden-columns",
     COLUMN_DEFS,
     isManager
-      // Manager: hide low-value text fields by default; show planning numbers
-      ? ["consumption", "reason", "ordered_by", "sku"]
-      // Division manager: hide division (their own), reviewer/ordered metadata
-      : ["division", "ordered_by", "ordered_at", "consumption", "reason"]
+      ? ["utilization_pct", "order_execution_date", "created_by", "created_at", "age", "ordered_by", "ordered_at"]
+      : ["division", "utilization_pct", "order_execution_date", "created_by", "created_at", "age", "ordered_by", "ordered_at"]
   );
   const { menu, setMenu, closeMenu } = useColMenu();
 
@@ -317,7 +311,6 @@ export function OrderRequestsTab() {
         return r.status === statusFilter;
       })
       .filter(r => divisionFilter === "all" || r.division === divisionFilter)
-      .filter(r => urgencyFilter === "all" || r.urgency === urgencyFilter)
       .filter(r => {
         if (!dateFrom && !dateTo) return true;
         const t = new Date(r.created_at).getTime();
@@ -354,13 +347,6 @@ export function OrderRequestsTab() {
 
   return (
     <div className="space-y-4" dir="rtl">
-      {/* KPI dashboard */}
-      <OrderRequestsDashboard
-        requests={isDivMgr ? requests.filter(r => r.division === userDivision) : requests}
-        scope={isManager ? "manager" : "division"}
-        divisionLabel={isDivMgr ? userDivision : undefined}
-      />
-
       {/* Header card with search + filters */}
       <div className="bg-card rounded-xl border shadow-sm p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -376,28 +362,6 @@ export function OrderRequestsTab() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Density toggle */}
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-8 w-8 p-0"
-              onClick={() => setDensity(d => d === "compact" ? "comfortable" : "compact")}
-              title={density === "compact" ? "תצוגה רגילה" : "תצוגה מצומצמת"}
-            >
-              {density === "compact" ? <Rows3 className="h-4 w-4" /> : <Rows4 className="h-4 w-4" />}
-            </Button>
-            {/* Group-by toggle */}
-            <Select value={groupBy} onValueChange={v => setGroupBy(v as typeof groupBy)}>
-              <SelectTrigger className="h-8 text-xs gap-1.5 px-2 w-auto">
-                <Layers className="h-3 w-3" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">ללא קיבוץ</SelectItem>
-                <SelectItem value="supplier">לפי ספק</SelectItem>
-                <SelectItem value="urgency">לפי דחיפות</SelectItem>
-              </SelectContent>
-            </Select>
             {/* Excel export */}
             <Button
               size="sm"
@@ -487,18 +451,6 @@ export function OrderRequestsTab() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">דחיפות</label>
-            <Select value={urgencyFilter} onValueChange={setUrgencyFilter}>
-              <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">הכל</SelectItem>
-                <SelectItem value="דחוף">דחוף</SelectItem>
-                <SelectItem value="רגיל">רגיל</SelectItem>
-                <SelectItem value="נמוך">נמוך</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
           {/* Division dropdown only for procurement managers (cross-division view) */}
           {!isDivMgr && (
             <div className="space-y-1 md:col-span-2">
@@ -575,7 +527,7 @@ export function OrderRequestsTab() {
           </div>
           <p className="text-sm font-medium text-foreground">אין בקשות הזמנה</p>
           <p className="text-xs text-muted-foreground mt-1">
-            {search || statusFilter !== "active" || divisionFilter !== "all" || urgencyFilter !== "all"
+            {search || statusFilter !== "active" || divisionFilter !== "all"
               ? "נסה לשנות את הסינון או החיפוש"
               : canCreateRequest
               ? "פתחו בקשה חדשה כדי להתחיל"
@@ -719,53 +671,15 @@ export function OrderRequestsTab() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {(() => {
-                  // Group rendering
-                  const groupedFlat: { type: "group"; key: string; label: string; count: number; qty: number }[] = [];
-                  const allRows: { type: "row"; req: OrderRequest }[] = [];
-                  if (groupBy === "none") {
-                    filtered.forEach(req => allRows.push({ type: "row", req }));
-                  } else {
-                    const buckets = new Map<string, OrderRequest[]>();
-                    for (const req of filtered) {
-                      const k = groupBy === "supplier" ? (req.supplier ?? "ללא ספק") : req.urgency;
-                      if (!buckets.has(k)) buckets.set(k, []);
-                      buckets.get(k)!.push(req);
-                    }
-                    for (const [k, rs] of buckets) {
-                      const qty = rs.reduce((s, r) => s + (r.required_to_order ?? r.quantity ?? 0), 0);
-                      groupedFlat.push({ type: "group", key: k, label: k, count: rs.length, qty });
-                      rs.forEach(req => allRows.push({ type: "row", req }));
-                    }
-                  }
-                  const rendered: React.ReactNode[] = [];
-                  let groupIdx = 0;
-                  let lastGroupKey: string | null = null;
-                  for (const item of allRows) {
-                    if (groupBy !== "none") {
-                      const k = groupBy === "supplier" ? (item.req.supplier ?? "ללא ספק") : item.req.urgency;
-                      if (k !== lastGroupKey) {
-                        const g = groupedFlat[groupIdx++];
-                        rendered.push(
-                          <tr key={`g-${g.key}`} className="bg-muted/40 sticky top-9 z-[9]">
-                            <td colSpan={(canFulfill ? 1 : 0) + visibleCount + 1} className={`${cellPadding} text-xs font-semibold`}>
-                              <span className="text-foreground">{g.label}</span>
-                              <span className="text-muted-foreground font-normal ms-2">· {g.count} בקשות · {fmtNum(g.qty)} יח׳</span>
-                            </td>
-                          </tr>
-                        );
-                        lastGroupKey = k;
-                      }
-                    }
-                    const req = item.req;
-                    const age = ageBadge(req);
-                    const overdueDate = isOverdue(req.order_execution_date) && req.status === "pending";
-                    const stale = (() => {
-                      const d = daysSince(req.updated_at ?? req.created_at);
-                      return d !== null && d >= 30;
-                    })();
-                    const editable = canEditRow(req) && req.status === "pending";
-                    rendered.push(
+                {filtered.map(req => {
+                  const age = ageBadge(req);
+                  const overdueDate = isOverdue(req.order_execution_date) && req.status === "pending";
+                  const stale = (() => {
+                    const d = daysSince(req.updated_at ?? req.created_at);
+                    return d !== null && d >= 30;
+                  })();
+                  const editable = canEditRow(req) && req.status === "pending";
+                  return (
                       <tr
                         key={req.id}
                         className={`hover:bg-muted/30 transition-colors cursor-pointer ${overdueDate ? "bg-red-50/40" : ""} ${selected.has(req.id) ? "bg-primary/5" : ""}`}
@@ -1052,10 +966,8 @@ export function OrderRequestsTab() {
                           </div>
                         </td>
                       </tr>
-                    );
-                  }
-                  return rendered;
-                })()}
+                  );
+                })}
               </tbody>
             </table>
           </div>
