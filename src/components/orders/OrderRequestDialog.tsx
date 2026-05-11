@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Combobox } from "@/components/ui/combobox";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AppContext";
@@ -30,6 +31,8 @@ interface Props {
   editingRequest?: OrderRequest | null;
   /** When provided, dialog opens in CREATE mode but with these fields prefilled. */
   template?: OrderRequest | null;
+  /** Compact mode: collapse planning fields (stock, forecast, order_type, consumption, reason, execution date) behind a "פרטים נוספים" disclosure. */
+  compact?: boolean;
 }
 
 export function OrderRequestDialog({
@@ -41,6 +44,7 @@ export function OrderRequestDialog({
   onCreated,
   editingRequest,
   template,
+  compact = false,
 }: Props) {
   const { currentUser } = useAuth();
   const [productId, setProductId] = useState("");
@@ -57,6 +61,7 @@ export function OrderRequestDialog({
   const [orderExecutionDate, setOrderExecutionDate] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showMore, setShowMore] = useState(false);
 
   // Create-product flow
   const [productCreateOpen, setProductCreateOpen] = useState(false);
@@ -95,6 +100,14 @@ export function OrderRequestDialog({
       setQuarterlyForecast(seed.quarterly_forecast != null ? String(seed.quarterly_forecast) : "");
       setOrderExecutionDate(seed.order_execution_date ?? today);
       setNotes(seed.notes ?? "");
+      // Auto-expand "advanced" section when editing a request that already has values there.
+      const hasAdvanced =
+        !!seed.current_consumption ||
+        !!seed.reason ||
+        seed.division_stock != null ||
+        seed.quarterly_forecast != null ||
+        (seed.order_type && seed.order_type !== "חודשית");
+      setShowMore(!!hasAdvanced);
     } else {
       setProductId("");
       setProductName("");
@@ -109,6 +122,7 @@ export function OrderRequestDialog({
       setQuarterlyForecast("");
       setOrderExecutionDate(today);
       setNotes("");
+      setShowMore(false);
     }
   }, [open, editingRequest, template]);
 
@@ -285,11 +299,6 @@ export function OrderRequestDialog({
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <Label>ספק</Label>
-            <Input value={supplier} onChange={e => setSupplier(e.target.value)} placeholder="שם ספק" />
-          </div>
-
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>כמות</Label>
@@ -313,53 +322,73 @@ export function OrderRequestDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>סוג הזמנה</Label>
-            <Select value={orderType} onValueChange={v => setOrderType(v as OrderRequestType)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {ORDER_TYPE_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>צריכה חודשית ממוצעת</Label>
-            <Input
-              value={currentConsumption}
-              onChange={e => setCurrentConsumption(e.target.value)}
-              placeholder="לדוגמה: 50 יחידות לחודש"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>סיבת ההזמנה</Label>
-            <Textarea
-              value={reason}
-              onChange={e => setReason(e.target.value)}
-              placeholder="תיאור הצורך בהזמנה..."
-              rows={2}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="space-y-1.5">
-              <Label>מלאי חטיבה</Label>
-              <Input type="number" value={divisionStock} onChange={e => setDivisionStock(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>צפי רבעון</Label>
-              <Input type="number" value={quarterlyForecast} onChange={e => setQuarterlyForecast(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>תאריך ביצוע הזמנה</Label>
-              <Input type="date" value={orderExecutionDate} onChange={e => setOrderExecutionDate(e.target.value)} />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
             <Label>הערות</Label>
             <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
           </div>
+
+          {compact && (
+            <button
+              type="button"
+              onClick={() => setShowMore(s => !s)}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showMore ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              פרטים נוספים
+            </button>
+          )}
+
+          {(!compact || showMore) && (
+            <div className="space-y-4 border-t pt-4">
+              <div className="space-y-1.5">
+                <Label>ספק</Label>
+                <Input value={supplier} onChange={e => setSupplier(e.target.value)} placeholder="שם ספק" />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>סוג הזמנה</Label>
+                <Select value={orderType} onValueChange={v => setOrderType(v as OrderRequestType)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {ORDER_TYPE_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>צריכה חודשית ממוצעת</Label>
+                <Input
+                  value={currentConsumption}
+                  onChange={e => setCurrentConsumption(e.target.value)}
+                  placeholder="לדוגמה: 50 יחידות לחודש"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>סיבת ההזמנה</Label>
+                <Textarea
+                  value={reason}
+                  onChange={e => setReason(e.target.value)}
+                  placeholder="תיאור הצורך בהזמנה..."
+                  rows={2}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label>מלאי חטיבה</Label>
+                  <Input type="number" value={divisionStock} onChange={e => setDivisionStock(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>צפי רבעון</Label>
+                  <Input type="number" value={quarterlyForecast} onChange={e => setQuarterlyForecast(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>תאריך ביצוע הזמנה</Label>
+                  <Input type="date" value={orderExecutionDate} onChange={e => setOrderExecutionDate(e.target.value)} />
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-2 justify-end pt-2 border-t">
             <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>ביטול</Button>
