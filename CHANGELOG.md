@@ -7,9 +7,15 @@
 
 ## [2026-05-11]
 
+- feat(orders): collapse date filters into popover and unify row actions in overflow menu (cc42ec2)
+- feat(orders): simplify purchase-request tab UX per division-manager feedback (b8b409c)
+- fix(orders): polish purchase-request tab for division managers (f71f7fd)
+
+<!-- last-commit: f9b2371637b64ddfec860e3300ea9e53b4de82fa -->
+## [2026-05-11]
+
 - feat(orders): simplify purchase-request UI for bonded division managers (4db1dd7)
 
-<!-- last-commit: f293e9066bbed0f983746aca03be9d2d9944983d -->
 ## [2026-05-10]
 
 - fix(dates): correct misplaced `new` keyword breaking date formatting (5638b67)
