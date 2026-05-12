@@ -149,62 +149,139 @@ has_role()    — STABLE, body: SELECT EXISTS(SELECT 1 FROM user_roles WHERE use
 
 ---
 
-## 6. מדידות שלא בוצעו אוטומטית
+## 6. Lighthouse — דף הלוגין (ניתן לריצה ללא auth)
 
-הפריטים הבאים מ-Phase 0 דורשים הרצה ידנית (דפדפן/UI) ולא ניתן להריץ אותם ב-CI:
+נמדד אוטומטית מול `vite preview` על Chromium headless. דפי המערכת המאומתים (Dashboard/Orders/Products) דורשים credentials של משתמש בדיקה — לא רץ אוטומטית כדי לא ליצור משתמש פיקטיבי ב-DB של ייצור.
 
-| מדידה | איך להריץ | איפה לתעד |
-|---|---|---|
-| Lighthouse (mobile, Fast 3G) על Dashboard/Orders/Products/Issues/DocumentDetail | Chrome DevTools → Lighthouse | לעדכן טבלה כאן בעמודה "Baseline" |
-| React DevTools Profiler — Products search, OrderTable sort, Dashboard cold | React DevTools → Profiler | לעדכן טבלה כאן |
-| Network HAR של OrdersPage קרה | Chrome DevTools → Network → Save HAR | לעדכן טבלה כאן |
-| `console.time` סביב DataLoader (`src/contexts/AppContext.tsx:90-105`) | להוסיף קצרות, להריץ, להסיר | לעדכן טבלה כאן |
+### Login — Desktop preset
+| Metric | ערך |
+|---|---|
+| Performance score | **1.00** |
+| FCP | 0.5 s |
+| LCP | 0.6 s |
+| TBT | 0 ms |
+| CLS | 0.004 |
+| Speed Index | 0.5 s |
+| TTI | 0.6 s |
+| Script bootup | 0.1 s |
+| Main thread work | 0.3 s |
+| Unused JS estimate | 110 KiB |
+| Total transferred | 251 KiB |
 
-טבלת baseline למילוי ידני:
+### Login — Mobile preset (Slow 4G simulated)
+| Metric | ערך |
+|---|---|
+| Performance score | **0.96** |
+| FCP | 2.1 s |
+| LCP | 2.3 s |
+| TBT | 90 ms |
+| CLS | 0 |
+| Speed Index | 2.1 s |
+| Script bootup | 0.4 s |
+| Main thread work | 1.1 s |
+| Unused JS estimate | 110 KiB |
+| Render-blocking savings | ~300 ms |
+| Total transferred | 251 KiB |
 
-| Metric | Route / Scenario | Baseline |
-|---|---|---|
-| Lighthouse LCP (mobile, Fast 3G) | / (Dashboard) | _TBD_ |
-| Lighthouse LCP | /orders | _TBD_ |
-| Lighthouse LCP | /products | _TBD_ |
-| Lighthouse TTI | / | _TBD_ |
-| Lighthouse TBT | / | _TBD_ |
-| Profiler longest commit | ProductsPage typing 1 char | _TBD_ |
-| Profiler commit count | OrderTable column sort | _TBD_ |
-| Network HAR — request count | /orders cold | _TBD_ |
-| Network HAR — total payload | /orders cold | _TBD_ |
-| DataLoader Tier total | post-login | _TBD_ |
+**הערה:** דף הלוגין כבר מהיר (LoginPage eager-loaded הוא 17 KB gzipped בלבד; שאר המסכים lazy). השיפורים בתכנית ישפיעו על דפים מאומתים, לא על הלוגין עצמו. ה-render-blocking של 300ms ב-mobile מגיע מ-Google Fonts (Heebo) ו-CSS bundle.
+
+## 7. Playwright trace — קר על `/` (localhost, no throttling)
+
+מדידות Performance API:
+
+| Metric | ערך |
+|---|---|
+| Navigation time | 1,193 ms |
+| First Paint | 44 ms |
+| First Contentful Paint | 144 ms |
+| DOMContentLoaded | 86 ms |
+| Load event | 87 ms |
+| Resources fetched | 29 |
+| Total encoded bytes | 265 KB |
+| Total decoded bytes | 841 KB |
+| JS Heap used (לאחר settle) | 5.6 MB |
+| JS Heap total | 7.8 MB |
+
+## 8. Bundle vendor breakdown (rollup-plugin-visualizer)
+
+Top vendors לפי gzip (סך 3.29 MB כולל duplication בין chunks):
+
+| Vendor | GZ KB | RAW KB | Files | הערה |
+|---|---:|---:|---:|---|
+| **lucide-react** | 469 | 771 | 1,547 | 148 קבצים מייבאים icons. כל icon ~3KB; שווה לבדוק tree-shaking או manual chunk |
+| **html2pdf.js** | 343 | 1,523 | 2 | מונוליטי; dynamic import חיוני |
+| src/components | 263 | 1,145 | 132 | קוד היישום |
+| **html5-qrcode** | 222 | 1,190 | 16 | dynamic-import בלחיצה הראשונה |
+| **xlsx** | 217 | 860 | 1 | **לא היה בתכנית** — להוסיף לרשימת dynamic-import |
+| **pdf-lib** | 165 | 712 | 126 | dynamic-import בעורך מסמכים |
+| **pdfjs-dist** | 159 | 780 | 1 | dynamic-import בעורך מסמכים |
+| **recharts** | 157 | 567 | 70 | React.lazy לתת-עץ הצ׳ארטים |
+| src/pages | 135 | 748 | 29 | קוד היישום |
+| @pdf-lib/standard-fonts | 97 | 131 | 18 | נכלל ב-pdf-lib |
+| **fabric** | 83 | 280 | 1 | dynamic-import ב-DocumentAnnotationEditor |
+| date-fns | 81 | 242 | 131 | יחסית סביר |
+| lodash | 75 | 151 | 195 | transitive (לא משימוש ישיר באפליקציה — מ-html2pdf/pdfjs) |
+| html2canvas | 73 | 446 | 2 | תלות transitive של html2pdf |
+| pako | 61 | 214 | 23 | זיפ — transitive |
+| @supabase/auth-js | 49 | 238 | 16 | בליבת supabase |
+| bluebird | 44 | 176 | 38 | transitive — לבדוק מי מביא |
+| react-dom | 42 | 130 | 5 | core |
+
+**מי שמשתמש ב-xlsx**: `src/components/documents/BulkActionsBar.tsx`, `src/pages/DocumentDetailPage.tsx` — שניהם מועמדים מצוינים ל-dynamic-import בתוך handler.
+
+## 9. מה לא נמדד אוטומטית
+
+| מדידה | מה חסר |
+|---|---|
+| Lighthouse על Dashboard/Orders/Products/Issues/DocumentDetail | דורש משתמש בדיקה (לא יצרתי כזה ב-DB של ייצור) |
+| React DevTools Profiler — typing in ProductsPage, sort OrderTable | אינטראקטיבי בלבד |
+| RLS overhead per-row למשתמש non-manager | דורש משתמש בדיקה |
+| DataLoader Tier total post-login | דורש משתמש בדיקה |
+
+ניתן להריץ אחרי שיהיה credentials של משתמש בדיקה: לסקריפט Playwright להוסיף `page.fill('input[type=email]', '...')` ו-`page.fill('input[type=password]', '...')`, ואז `npx lighthouse` עם `--extra-headers='{"Cookie":"..."}'` או `--save-assets`.
 
 ---
 
-## 7. תרגום ה-baseline ל-acceptance gates של Phase 3
+## 10. תרגום ה-baseline ל-acceptance gates של Phase 3
 
 | Metric | Baseline | Target |
 |---|---|---|
-| Total JS gzipped | 1.81 MB | ≤ 1.10 MB (60%) |
+| Total JS gzipped (dist/assets) | 1.81 MB | ≤ 1.10 MB (60%) |
 | Main entry `index-*.js` gzipped | 205 KB | ≤ 100 KB |
-| `DocumentDetailPage` chunk gzipped (לא חוסם initial) | 424 KB | מקובל אם dynamic-imported behind handler |
-| `DocumentAnnotationEditor` gzipped (לא חוסם initial) | 554 KB | מקובל אם behind route + dynamic import |
+| `DocumentDetailPage` chunk gzipped | 424 KB | מקובל אם dynamic-imported behind handler |
+| `DocumentAnnotationEditor` gzipped | 554 KB | מקובל אם behind route + dynamic import |
+| Login mobile LCP (Slow 4G simulated) | 2.3 s | < 2.0 s |
+| Login mobile TBT | 90 ms | < 50 ms |
+| Login mobile render-blocking savings | 300 ms | < 50 ms (fonts + CSS) |
+| `lucide-react` gz contribution | 469 KB | ≤ 200 KB (manual chunk + audit unused icons) |
+| `xlsx` gz contribution (not in initial chunk) | 217 KB | 0 KB ב-initial (dynamic-imported) |
+| `html2pdf.js` gz contribution (not in initial chunk) | 343 KB | 0 KB ב-initial |
 | EXPLAIN Q1 (orders status+created) | Seq Scan, 11 ms | Index Scan, < 5 ms |
 | EXPLAIN Q3 (products category+name) | Seq Scan, 10 ms | Index Scan, < 5 ms |
 | EXPLAIN Q4 (orders notes ilike) | Seq Scan, 0.5 ms (טבלה קטנה) | GIN trigram scan; שמירה < 20 ms גם עם 10x נתונים |
-| RLS overhead למשתמש non-manager על orders list | _TBD_ (לא נמדד עוד) | ≤ 10% מזמן השאילתה הכולל |
-| Lighthouse LCP mobile (Dashboard) | _TBD_ | < 2.5s |
-| Lighthouse TTI mobile (Dashboard) | _TBD_ | < 3.5s |
-| ProductsPage typing commit | _TBD_ | < 16ms |
+| RLS overhead למשתמש non-manager על orders list | _TBD_ (דורש משתמש בדיקה) | ≤ 10% מזמן השאילתה הכולל |
+| Lighthouse LCP mobile (Dashboard) | _TBD_ (דורש auth) | < 2.5s |
+| Lighthouse TTI mobile (Dashboard) | _TBD_ (דורש auth) | < 3.5s |
+| ProductsPage typing commit | _TBD_ (אינטראקטיבי) | < 16ms |
 
 ---
 
-## 8. סיכום וההמלצה לגבי סדר ביצוע
+## 11. סיכום וההמלצה לגבי סדר ביצוע
 
-הנקודות עם ההחזר הגבוה ביותר על ה-DB **הקיים** (80-450 שורות בטבלאות חמות) הן בצד הפרונט:
+המדידות מאשרות את ההיפותזה של התכנית, ועוד מגלות 3 פריטים שלא היו במקור:
 
-1. **Dynamic-import של `DocumentDetailPage` ו-`DocumentAnnotationEditor`** — מסירות 978 KB גזיפ מאיתחול הניווט.
-2. **`manualChunks` להפרדת recharts/pdf/radix/supabase/sentry** ב-vite — מקטין את ה-main entry.
-3. **Debounce + memo row + virtualization** — שיפור משמעותי ב-UX של דפי טבלה גדולים (במיוחד `FrisbeeDashboard` שניגש ל-39k שורות).
+**ממצאים חדשים שכדאי לכלול:**
+1. **`lucide-react` 469 KB gz** — הכי גדול בכל ה-bundle. 148 קבצים מייבאים ממנו. שווה לבדוק אם tree-shaking עובד; אם לא — לעבור לייבוא per-icon (`lucide-react/dist/esm/icons/x`) או manual-chunk.
+2. **`xlsx` 217 KB gz** — לא היה ברשימת dynamic-import המקורית. רק 2 קבצים משתמשים (`BulkActionsBar.tsx`, `DocumentDetailPage.tsx`) — קל להפוך ל-`await import()` בתוך handler.
+3. **300ms render-blocking על mobile** — Google Fonts + CSS bundle. שווה לשקול `font-display: swap` או הזרמה inline של critical CSS.
 
-האינדקסים החדשים ו-GIN trigram (Phase 2.2) הם **מניעה לעתיד** — שווה לבצע, אבל לא יראו win מיידי ב-EXPLAIN עד שהטבלאות יגדלו.
+**עדיפויות לפי ROI על ה-DB הקיים** (80-450 שורות בטבלאות חמות):
 
-האופטימיזציה של `is_manager()` ב-RLS (Phase 2.3) **תיתן win מיידי** למשתמשי non-manager כי הסאב-סלקט נקרא לכל שורה בכל שאילתה — שווה לבצע גם עם DB קטן.
+1. **Dynamic-import של DocumentDetailPage + DocumentAnnotationEditor + xlsx + html5-qrcode** — מסירים ~1.4 MB gz מ-bundle הראשוני (Phase 1.2 מורחב).
+2. **`manualChunks` ב-vite** — מקטין את ה-`index-*.js` (205 KB) פי 2 (Phase 2.6).
+3. **Debounce + memo row + virtualization על FrisbeeDashboard** — הטבלה החיה היחידה עם 39k שורות (Phase 1.1+1.3+2.1).
+4. **אופטימיזציית `is_manager()` ב-RLS** — נותנת win מיידי גם עם DB קטן (Phase 2.3).
 
-עדכן את ה-_TBD_ הידניים אחרי הרצת Lighthouse/Profiler לפני שמתחילים את Phase 1.
+**preventive (לעתיד):** האינדקסים החדשים והגרסיון של GIN trigram (Phase 2.2) — לא יראו win מיידי ב-EXPLAIN על הנתונים הנוכחיים, אבל מונעים רגרסיה כשטבלאות יגדלו.
+
+**שלא נמדד:** דפים מאומתים (Dashboard, Orders, Products) דורשים credentials של משתמש בדיקה. אם תיתן credentials בעתיד, ניתן להריץ Lighthouse עליהם ולמלא את ה-_TBD_ הנותרים.
