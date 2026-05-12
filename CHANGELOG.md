@@ -7,9 +7,14 @@
 
 ## [2026-05-12]
 
+- Store Yaki's Base44 credentials and prep future inspection fields (261dfca)
+- Add FrisbeeDashboard: 3-tab analytics for division manager (a0dd9e7)
+
+<!-- last-commit: 20091fe59f924416dea5d038b6bf490d2cd60400 -->
+## [2026-05-12]
+
 - feat(frisbee): Base44 QA inspection sync + equipment consumption analytics (59ef79a)
 
-<!-- last-commit: 29bd2dd50fafbd322bf98e17d04e038bd32776d9 -->
 ## [2026-05-12]
 
 - fix(orders): remove dropdown icons + open order navigates to detail page (9109f38)
