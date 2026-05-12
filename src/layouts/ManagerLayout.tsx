@@ -3,6 +3,7 @@ import { useAuth, useData } from "@/contexts/AppContext";
 import MobileNavPopup from "@/components/MobileNavPopup";
 import MobileSearchOverlay from "@/components/MobileSearchOverlay";
 import { canView, getModuleKeyFromRoute, isDivisionManager } from "@/lib/permissions";
+import { BONDED_DIVISIONS } from "@/components/equipment/constants";
 import {
   LayoutDashboard,
   Package,
@@ -98,14 +99,24 @@ export default function ManagerLayout() {
 
   const isManager = currentUser?.role === "MANAGER";
   const divisionManager = isDivisionManager(currentUser);
+  const isBondedDivMgr = divisionManager && BONDED_DIVISIONS.has(currentUser!.division!);
+  const divEnc = divisionManager ? encodeURIComponent(currentUser!.division!) : "";
   const visibleNavItems = divisionManager
-    ? [
-        { to: `/equipment/division/${encodeURIComponent(currentUser!.division!)}`, icon: "Boxes", label: "החטיבה שלי" },
-        { to: "/products", icon: "Package", label: "מוצרים" },
-        { to: "/orders", icon: "ShoppingCart", label: "רכש" },
-        { to: "/suppliers", icon: "Truck", label: "ספקים" },
-        { to: "/waste-management", icon: "Recycle", label: "ניהול בלאי" },
-      ]
+    ? isBondedDivMgr
+      ? [
+          { to: `/division/${divEnc}/consumption`, icon: "BarChart3", label: "צריכה" },
+          { to: `/division/${divEnc}/products`, icon: "Package", label: "מוצרים" },
+          { to: "/orders", icon: "ShoppingCart", label: "רכש" },
+          { to: "/suppliers", icon: "Truck", label: "ספקים" },
+          { to: "/waste-management", icon: "Recycle", label: "בלאי" },
+        ]
+      : [
+          { to: `/equipment/division/${divEnc}`, icon: "Boxes", label: "החטיבה שלי" },
+          { to: "/products", icon: "Package", label: "מוצרים" },
+          { to: "/orders", icon: "ShoppingCart", label: "רכש" },
+          { to: "/suppliers", icon: "Truck", label: "ספקים" },
+          { to: "/waste-management", icon: "Recycle", label: "ניהול בלאי" },
+        ]
     : navItems.filter((item) => {
         if (isManager) return true;
         if (item.to === "/settings") return false;
@@ -159,7 +170,7 @@ export default function ManagerLayout() {
               alt="COBRA.IO"
               className="h-8 cursor-pointer opacity-90 hover:opacity-100 transition-opacity"
               onClick={() => {
-                navigate(divisionManager ? `/equipment/division/${encodeURIComponent(currentUser!.division!)}` : "/dashboard");
+                navigate(divisionManager ? (isBondedDivMgr ? `/division/${divEnc}/consumption` : `/equipment/division/${divEnc}`) : "/dashboard");
                 window.location.reload();
               }}
             />
@@ -170,7 +181,7 @@ export default function ManagerLayout() {
               alt="COBRA.IO"
               className="h-7 cursor-pointer opacity-90 hover:opacity-100 transition-opacity"
               onClick={() => {
-                navigate(divisionManager ? `/equipment/division/${encodeURIComponent(currentUser!.division!)}` : "/dashboard");
+                navigate(divisionManager ? (isBondedDivMgr ? `/division/${divEnc}/consumption` : `/equipment/division/${divEnc}`) : "/dashboard");
                 window.location.reload();
               }}
             />
