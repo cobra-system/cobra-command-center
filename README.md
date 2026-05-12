@@ -132,6 +132,11 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 - `division_products` — מוצרי חטיבה (מלאי שטח ידני, דרישה לרבעון, צריכה חודשית מחושבת)
 - `order_requests` — בקשות הזמנה ממנהלי חטיבות בונדד (מוצר, כמות, דחיפות, סוג הזמנה, סטטוס, קישור להזמנה)
 
+### בדיקות QA פריזבי (Base44 Sync)
+- `frisbee_inspections` — בדיקות QA לאחר התקנה, מסונכרן מ-Base44 (רכב, מתקין, בודק, סטטוס, ליקויים)
+- `frisbee_inspection_equipment` — רשימת ציוד מנורמלת לכל בדיקה (base44_equipment_id, checked)
+- `frisbee_product_mapping` — מיפוי מזהי ציוד Base44 למוצרים פנימיים
+
 ### ניהול פסולת
 - `waste_items` — פריטי פסולת/בלאי (מוצר, כמות, מקור, המלצות, `product_id → products`, `component_id → product_components`)
 
@@ -279,12 +284,13 @@ mcp-server/              # MCP Server לאינטגרציה עם Claude Code (30+
 | `request-signup` | קליטת בקשת הרשמה ציבורית ושליחת מייל למנהלים לאישור |
 | `review-signup-request` | אישור/דחיית בקשת הרשמה ע"י מנהל — יוצר משתמש ושולח מייל למבקש |
 | `dispatch-order-request-notifications` | שליחת התראות לבקשות הזמנה (אימייל ב-Resend + Web Push דרך VAPID) |
+| `sync-frisbee` | סינכרון בדיקות QA מ-Base44 לטבלאות `frisbee_inspections` + `frisbee_inspection_equipment` |
 
 ---
 
 ## MCP Tools
 
-שרת MCP מאפשר ל-Claude Code גישה ישירה לכל מסד הנתונים ללא ממשק גרפי — **250 כלים** ב-**33 מודולים**.
+שרת MCP מאפשר ל-Claude Code גישה ישירה לכל מסד הנתונים ללא ממשק גרפי — **255 כלים** ב-**34 מודולים**.
 
 | מודול | Domain | כלים |
 |-------|--------|-----:|
@@ -321,6 +327,7 @@ mcp-server/              # MCP Server לאינטגרציה עם Claude Code (30+
 | `warehouse-locks` | Lock control & scan log | 5 |
 | `waste` | Waste tracking | 5 |
 | `workflows` | Workflows | 4 |
+| `frisbee` | Base44 QA sync & consumption | 5 |
 
 ראה [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md) לתיעוד מלא: מיפוי טבלה→מודול, תהליך עדכון, ו-pattern להוספת מודול חדש.
 

@@ -52,6 +52,13 @@
 
 ## [Unreleased]
 
+### Added — Base44 QA sync: צריכת אביזרים לפריזבי קרסו
+
+- **3 DB tables**: `frisbee_inspections`, `frisbee_inspection_equipment`, `frisbee_product_mapping` + view `frisbee_equipment_consumption`
+- **Edge Function `sync-frisbee`**: מסנכרן את כל בדיקות ה-QA (~4,000) מ-Base44 API לסופה‑בייס (upsert על base44_id; rebuild equipment items)
+- **MCP module `frisbee`**: 5 כלים — `sync_frisbee_data`, `get_frisbee_consumption`, `get_frisbee_inspections`, `update_frisbee_product_mapping`, `list_frisbee_product_mappings`
+- **DivisionDetailPage**: סקשן חדש "צריכת אביזרים (QA)" עבור פריזבי קרסו ודלק מוטורס — KPIs + טבלת צריכה עם מיפוי למוצרים פנימיים + column visibility
+
 ### Added — בקשות הזמנה (order requests) for bonded divisions
 
 A complete planning + fulfillment loop with collaboration, snapshots, notifications, and the Excel-equivalent column layout used by procurement.

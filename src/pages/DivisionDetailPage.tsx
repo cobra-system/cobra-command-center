@@ -175,6 +175,22 @@ interface DivisionProduct {
   products: { id: string; name: string; sku: string; category: string };
 }
 
+interface FrisbeeConsumptionRow {
+  base44_equipment_id: string;
+  equipment_name: string;
+  installed_count: number;
+  total_inspections: number;
+  last_synced_at: string | null;
+  product_name?: string;
+  product_sku?: string;
+  product_id?: string;
+}
+
+// Base44 branch IDs for divisions that have QA inspection data
+const FRISBEE_BASE44_BRANCHES: Record<string, string> = {
+  "פריזבי קרסו": "68fa0cbd274acbfa7b159523",
+};
+
 // ─── Column Defs ─────────────────────────────────────────────────────────────
 
 const TECH_COLS: ColDef[] = [
@@ -205,6 +221,13 @@ const RETURN_COLS: ColDef[] = [
   { id: "date", label: "תאריך", sortField: "date" },
   { id: "recipient", label: "מחזיר", sortField: "recipient" },
   { id: "returned", label: "הוחזרו", sortField: "returned" },
+];
+
+const FRISBEE_COLS: ColDef[] = [
+  { id: "equipment", label: "אביזר" },
+  { id: "product", label: "מוצר אצלנו" },
+  { id: "installed", label: "הותקן" },
+  { id: "pct", label: "% מרכבים" },
 ];
 
 const DP_COLS: ColDef[] = [
@@ -303,6 +326,12 @@ export default function DivisionDetailPage() {
   const [contacts, setContacts] = useState<DivisionContact[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Frisbee Base44 consumption state (only populated for פריזבי קרסו / דלק מוטורס)
+  const [frisbeeConsumption, setFrisbeeConsumption] = useState<FrisbeeConsumptionRow[]>([]);
+  const [frisbeeTotalInspections, setFrisbeeTotalInspections] = useState(0);
+  const [frisbeeLastSynced, setFrisbeeLastSynced] = useState<string | null>(null);
+  const [frisbeeWithFaults, setFrisbeeWithFaults] = useState(0);
+
   const [expandedPickupId, setExpandedPickupId] = useState<string | null>(null);
   const [showNewPickup, setShowNewPickup] = useState(false);
   const [showNewReturn, setShowNewReturn] = useState(false);
@@ -399,6 +428,8 @@ export default function DivisionDetailPage() {
     ["main_stock", "incoming_qty", "reorder_point"]
   );
   const { menu: dpMenu, setMenu: setDpMenu, closeMenu: closeDpMenu } = useColMenu();
+  const frisbeeColVis = useColumnVisibility("frisbee-consumption:hidden-columns", FRISBEE_COLS);
+  const { menu: frisbeeMenu, setMenu: setFrisbeeMenu, closeMenu: closeFrisbeeMenu } = useColMenu();
   const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const installerMap = useMemo(() => new Map(installers.map((i) => [i.id, i])), [installers]);
 
@@ -482,6 +513,60 @@ export default function DivisionDetailPage() {
 
     if (pickRes.error) toast.error("שגיאה בטעינת הצטיידויות");
     if (retRes.error) toast.error("שגיאה בטעינת החזרות");
+
+    // Frisbee Base44 consumption (only for branches that have QA data)
+    const frisbeeBranchId = FRISBEE_BASE44_BRANCHES[division] ?? null;
+    if (frisbeeBranchId) {
+      const [consumRes, mappingRes, faultsRes] = await Promise.all([
+        supabase
+          .from("frisbee_equipment_consumption")
+          .select("base44_equipment_id, equipment_name, installed_count, total_inspections, last_synced_at")
+          .eq("base44_branch_id", frisbeeBranchId),
+        supabase
+          .from("frisbee_product_mapping")
+          .select("base44_equipment_id, product_id, display_name, products(name, sku)"),
+        supabase
+          .from("frisbee_inspections")
+          .select("*", { count: "exact", head: true })
+          .eq("base44_branch_id", frisbeeBranchId)
+          .eq("status", "completed")
+          .gt("fault_count", 0),
+      ]);
+
+      const mappingMap = new Map(
+        (mappingRes.data ?? []).map((m) => [m.base44_equipment_id, m])
+      );
+
+      type ProductRef = { name: string; sku: string } | null;
+
+      const rows: FrisbeeConsumptionRow[] = (consumRes.data ?? [])
+        .map((row) => {
+          const mapping = mappingMap.get(row.base44_equipment_id);
+          const product = (mapping?.products ?? null) as ProductRef;
+          return {
+            base44_equipment_id: row.base44_equipment_id,
+            equipment_name: row.equipment_name,
+            installed_count: Number(row.installed_count),
+            total_inspections: Number(row.total_inspections),
+            last_synced_at: row.last_synced_at,
+            product_name: product?.name ?? (mapping?.display_name as string | undefined) ?? undefined,
+            product_sku: product?.sku ?? undefined,
+            product_id: (mapping?.product_id as string | undefined) ?? undefined,
+          };
+        })
+        .sort((a, b) => b.installed_count - a.installed_count);
+
+      const totalInspections = rows[0]?.total_inspections ?? 0;
+      const lastSynced = rows.reduce<string | null>(
+        (max, r) => (r.last_synced_at && (!max || r.last_synced_at > max) ? r.last_synced_at : max),
+        null
+      );
+
+      setFrisbeeConsumption(rows);
+      setFrisbeeTotalInspections(totalInspections);
+      setFrisbeeLastSynced(lastSynced);
+      setFrisbeeWithFaults(faultsRes.count ?? 0);
+    }
 
     setLoading(false);
   }, [division]);
@@ -1770,6 +1855,103 @@ export default function DivisionDetailPage() {
         </Card>
       </div>
 
+      {/* ── Section F: Frisbee QA Equipment Consumption ── */}
+      {FRISBEE_BASE44_BRANCHES[division] && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+              צריכת אביזרים (QA)
+            </h2>
+            {frisbeeLastSynced && (
+              <span className="text-xs text-muted-foreground">
+                עודכן {format(new Date(frisbeeLastSynced), "dd/MM HH:mm")}
+              </span>
+            )}
+          </div>
+
+          {/* KPI strip */}
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            {[
+              { label: "בדיקות QA", value: frisbeeTotalInspections, color: "text-blue-600", bg: "bg-blue-50" },
+              { label: "עם ליקויים", value: frisbeeWithFaults, color: frisbeeWithFaults > 0 ? "text-red-600" : "text-green-600", bg: frisbeeWithFaults > 0 ? "bg-red-50" : "bg-green-50" },
+              { label: "סוגי אביזרים", value: frisbeeConsumption.length, color: "text-purple-600", bg: "bg-purple-50" },
+            ].map((kpi) => (
+              <Card key={kpi.label}>
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">{kpi.label}</p>
+                  <p className={`text-2xl font-bold mt-0.5 ${kpi.color}`}>{kpi.value}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {frisbeeConsumption.length === 0 ? (
+            <div className="text-center py-8 border rounded-md text-sm text-muted-foreground">
+              אין נתוני בדיקות QA. הרץ <code className="font-mono text-xs bg-muted px-1 rounded">sync_frisbee_data</code> מה-MCP לסנכרן נתונים.
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(frisbeeColVis.hiddenCols, setFrisbeeMenu)}>
+                        {FRISBEE_COLS.map((col) =>
+                          frisbeeColVis.isVisible(col.id) ? (
+                            <th
+                              key={col.id}
+                              className="text-right p-3 font-semibold text-foreground"
+                              onContextMenu={colThContextMenu(col, setFrisbeeMenu)}
+                            >
+                              {col.label}
+                            </th>
+                          ) : null
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {frisbeeConsumption.map((row) => {
+                        const pct = frisbeeTotalInspections > 0
+                          ? Math.round((row.installed_count / frisbeeTotalInspections) * 100)
+                          : 0;
+                        return (
+                          <tr key={row.base44_equipment_id} className="border-b last:border-0 hover:bg-muted/20">
+                            {frisbeeColVis.isVisible("equipment") && (
+                              <td className="p-3 font-medium">{row.equipment_name}</td>
+                            )}
+                            {frisbeeColVis.isVisible("product") && (
+                              <td className="p-3">
+                                {row.product_name ? (
+                                  <Badge variant="outline" className="text-xs font-mono">
+                                    {row.product_sku ? `${row.product_sku} · ` : ""}{row.product_name}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-muted-foreground text-xs">לא ממופה</span>
+                                )}
+                              </td>
+                            )}
+                            {frisbeeColVis.isVisible("installed") && (
+                              <td className="p-3 font-mono font-bold">{row.installed_count.toLocaleString()}</td>
+                            )}
+                            {frisbeeColVis.isVisible("pct") && (
+                              <td className="p-3">
+                                <span className={pct >= 50 ? "text-green-600 font-semibold" : "text-muted-foreground"}>
+                                  {pct}%
+                                </span>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
       {/* ── Section E: Contacts ── */}
       <div>
         <div className="flex items-center justify-between mb-3">
@@ -2557,6 +2739,19 @@ export default function DivisionDetailPage() {
           onShow={orColVis.show}
           onSortAsc={(field) => { setOrSortField(field); setOrSortDir("asc"); closeOrMenu(); }}
           onSortDesc={(field) => { setOrSortField(field); setOrSortDir("desc"); closeOrMenu(); }}
+        />
+      )}
+      {frisbeeMenu && (
+        <ColContextMenu
+          menu={frisbeeMenu}
+          sortField={null}
+          sortDir="asc"
+          hiddenCols={frisbeeColVis.hiddenCols}
+          onClose={closeFrisbeeMenu}
+          onHide={frisbeeColVis.hide}
+          onShow={frisbeeColVis.show}
+          onSortAsc={() => { closeFrisbeeMenu(); }}
+          onSortDesc={() => { closeFrisbeeMenu(); }}
         />
       )}
       {isBonded && (
