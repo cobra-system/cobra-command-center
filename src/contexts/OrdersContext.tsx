@@ -31,7 +31,13 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   const { data: rawOrders = [] } = useQuery({
     queryKey: ["orders"],
     queryFn: async () => {
-      const { data: ords } = await supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(500);
+      const { data: ords } = await supabase
+        .from("orders")
+        .select(
+          "id, priority, supplier_id, supplier_name, shipping, status, order_date, payment_date, etd, eta, total_price, contact_name, notes, tracking_number, tracking_carrier, tracking_status, tracking_last_event, tracking_updated_at, tracking_status_code, tracking_raw_status, tracking_description, tracking_eta, tracking_last_location, tracking_origin, tracking_destination, tracking_events, tracking_last_synced_at, tracking_sync_error, pi_number, vessel_name, booking_number, tclog_reference, shipment_group_id, destination_supplier_id, destination_supplier_name, updated_at, order_image, division, created_at, order_items(id, order_id, product_id, name, qty, price)"
+        )
+        .order("created_at", { ascending: false })
+        .limit(500);
       if (ords) {
         return ords.map(o => {
           const items = o.order_items || [];

@@ -61,7 +61,10 @@ export default function ShipmentGroupsPage() {
 
   const fetchData = useCallback(async () => {
     const [groupsRes, countsRes] = await Promise.all([
-      supabase.from("shipment_groups").select("*").order("departure_date", { ascending: false }),
+      supabase
+        .from("shipment_groups")
+        .select("id, name, vessel_name, departure_date, arrival_date, booking_number, tclog_reference, notes, created_at, updated_at")
+        .order("departure_date", { ascending: false }),
       supabase.from("orders").select("shipment_group_id").not("shipment_group_id", "is", null),
     ]);
     if (groupsRes.data) setGroups(groupsRes.data as ShipmentGroup[]);

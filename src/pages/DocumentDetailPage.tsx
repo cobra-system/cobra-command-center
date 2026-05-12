@@ -1,7 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { useFileDropPaste } from "@/hooks/useFileDropPaste";
-import * as XLSX from "xlsx";
-import mammoth from "mammoth";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData, useAuth } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
@@ -20,14 +18,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { InlineEditField } from "@/components/InlineEditField";
 import { ArrowRight, FileText, Upload, ExternalLink, X, Loader2, Check, Download, Trash2, PenLine, Eye } from "lucide-react";
-import DocumentAnnotationEditor from "@/components/documents/DocumentAnnotationEditor";
-import DocumentPdfViewerDialog from "@/components/documents/DocumentPdfViewerDialog";
+const DocumentAnnotationEditor = lazy(() => import("@/components/documents/DocumentAnnotationEditor"));
+const DocumentPdfViewerDialog = lazy(() => import("@/components/documents/DocumentPdfViewerDialog"));
 import { toast } from "sonner";
 import { format, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Payment } from "@/components/documents/types";
 import { docStatusFlow, docStatusColors, currencySymbol, payStatusColors, paymentTypeLabels } from "@/components/documents/constants";
-import html2pdf from "html2pdf.js";
 import { usePermissions } from "@/hooks/usePermissions";
 import DocumentProductSelector from "@/components/documents/DocumentProductSelector";
 
@@ -85,17 +82,18 @@ function FilePreview({ url, filename }: { url: string; filename?: string }) {
 
     fetch(url)
       .then(r => r.arrayBuffer())
-      .then(buf => {
+      .then(async buf => {
         if (cancelled) return;
         if (isExcel) {
+          const XLSX = await import("xlsx");
           const wb = XLSX.read(buf, { type: "array" });
           const ws = wb.Sheets[wb.SheetNames[0]];
           const html = XLSX.utils.sheet_to_html(ws);
           if (!cancelled) setExcelHtml(html);
         } else if (isWord) {
-          return mammoth.convertToHtml({ arrayBuffer: buf }).then(result => {
-            if (!cancelled) setWordHtml(result.value);
-          });
+          const mammoth = (await import("mammoth")).default;
+          const result = await mammoth.convertToHtml({ arrayBuffer: buf });
+          if (!cancelled) setWordHtml(result.value);
         }
       })
       .catch(() => { if (!cancelled) setDocError(true); })
@@ -128,7 +126,7 @@ function FilePreview({ url, filename }: { url: string; filename?: string }) {
   if (isImage) {
     return (
       <div className="flex flex-col items-center gap-2">
-        <img src={url} alt={filename || "document"} className="max-w-full max-h-[70vh] rounded-lg border shadow object-contain" />
+        <img src={url} alt={filename || "document"} loading="lazy" decoding="async" className="max-w-full max-h-[70vh] rounded-lg border shadow object-contain" />
         <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary hover:underline">
           <ExternalLink className="h-3 w-3" />פתח בחלון חדש
         </a>
@@ -246,7 +244,7 @@ function FilePreview({ url, filename }: { url: string; filename?: string }) {
   );
 }
 
-function generateDocumentPDF(
+async function generateDocumentPDF(
   doc: PurchaseDocument,
   supplierName: string | undefined,
   productName: string | undefined
@@ -346,6 +344,7 @@ function generateDocumentPDF(
     jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
   };
 
+  const html2pdf = (await import("html2pdf.js")).default;
   html2pdf().set(opt).from(element).save();
 }
 
@@ -932,23 +931,27 @@ export default function DocumentDetailPage() {
     </div>
 
     {/* PDF Annotation Editor */}
-    {doc && (
-      <DocumentAnnotationEditor
-        open={annotateOpen}
-        onOpenChange={setAnnotateOpen}
-        doc={doc}
-        onSaved={fetchDoc}
-      />
+    {doc && annotateOpen && (
+      <Suspense fallback={null}>
+        <DocumentAnnotationEditor
+          open={annotateOpen}
+          onOpenChange={setAnnotateOpen}
+          doc={doc}
+          onSaved={fetchDoc}
+        />
+      </Suspense>
     )}
 
     {/* PDF Viewer */}
     {doc && viewingPdf && (
-      <DocumentPdfViewerDialog
-        open={viewingPdf}
-        onOpenChange={setViewingPdf}
-        doc={doc}
-        onAnnotate={() => { setViewingPdf(false); setAnnotateOpen(true); }}
-      />
+      <Suspense fallback={null}>
+        <DocumentPdfViewerDialog
+          open={viewingPdf}
+          onOpenChange={setViewingPdf}
+          doc={doc}
+          onAnnotate={() => { setViewingPdf(false); setAnnotateOpen(true); }}
+        />
+      </Suspense>
     )}
     </>
   );

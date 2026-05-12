@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,12 +8,13 @@ import { FileText, Upload, Search, CreditCard, ScrollText } from "lucide-react";
 import type { PurchaseDocument, Payment } from "@/components/documents/types";
 import DocumentSummaryCards from "@/components/documents/DocumentSummaryCards";
 import DocumentsDriveView from "@/components/documents/DocumentsDriveView";
-import DocumentAnnotationEditor from "@/components/documents/DocumentAnnotationEditor";
+const DocumentAnnotationEditor = lazy(() => import("@/components/documents/DocumentAnnotationEditor"));
 import PaymentsTable from "@/components/documents/PaymentsTable";
 import ComplianceTab from "@/components/documents/ComplianceTab";
 import SimpleFileUploadDialog from "@/components/documents/SimpleFileUploadDialog";
 import PaymentFormDialog from "@/components/documents/PaymentFormDialog";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 export default function DocumentsPage() {
   const [docs, setDocs] = useState<PurchaseDocument[]>([]);
@@ -21,6 +22,7 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("documents");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 250);
 
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [payDialogOpen, setPayDialogOpen] = useState(false);
@@ -31,8 +33,14 @@ export default function DocumentsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     const [docsRes, paysRes] = await Promise.all([
-      supabase.from("purchase_documents").select("*").order("created_at", { ascending: false }),
-      supabase.from("supplier_payments").select("*").order("created_at", { ascending: false }),
+      supabase
+        .from("purchase_documents")
+        .select("id, type, document_name, supplier_id, product_id, order_id, quantity, unit_price, total_price, currency, status, approval_date, approved_by, file_url, notes, folder_id, is_starred, document_number, expiry_date, created_at, updated_at")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("supplier_payments")
+        .select("id, supplier_id, order_id, document_id, amount, currency, payment_type, status, due_date, paid_date, notes, created_at, updated_at")
+        .order("created_at", { ascending: false }),
     ]);
     if (docsRes.data) setDocs(docsRes.data as PurchaseDocument[]);
     if (paysRes.data) setPayments(paysRes.data as Payment[]);
@@ -92,12 +100,12 @@ export default function DocumentsPage() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="documents">
-          <DocumentsDriveView docs={docs} search={search} onRefresh={fetchData} onAnnotate={setAnnotatingDoc} />
+          <DocumentsDriveView docs={docs} search={debouncedSearch} onRefresh={fetchData} onAnnotate={setAnnotatingDoc} />
         </TabsContent>
         <TabsContent value="payments">
           <PaymentsTable
             payments={payments}
-            search={search}
+            search={debouncedSearch}
             onRefresh={fetchData}
             onEdit={p => { setEditingPayment(p); setPayDialogOpen(true); }}
           />
@@ -121,12 +129,14 @@ export default function DocumentsPage() {
         editPayment={editingPayment}
       />
       {annotatingDoc && (
-        <DocumentAnnotationEditor
-          open={!!annotatingDoc}
-          onOpenChange={v => { if (!v) setAnnotatingDoc(null); }}
-          doc={annotatingDoc}
-          onSaved={fetchData}
-        />
+        <Suspense fallback={null}>
+          <DocumentAnnotationEditor
+            open={!!annotatingDoc}
+            onOpenChange={v => { if (!v) setAnnotatingDoc(null); }}
+            doc={annotatingDoc}
+            onSaved={fetchData}
+          />
+        </Suspense>
       )}
     </div>
   );

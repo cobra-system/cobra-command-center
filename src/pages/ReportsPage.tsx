@@ -31,9 +31,18 @@ export default function ReportsPage() {
   const fetchExtra = useCallback(async () => {
     setLoading(true);
     const [issueRes, allIssueRes, paymentRes] = await Promise.all([
-      supabase.from("product_issues").select("*").gte("reported_date", format(monthStart, "yyyy-MM-dd")).lte("reported_date", format(monthEnd, "yyyy-MM-dd")),
-      supabase.from("product_issues").select("*").order("reported_date", { ascending: false }),
-      supabase.from("supplier_payments").select("*"),
+      supabase
+        .from("product_issues")
+        .select("id, severity, product_id, status, reported_date")
+        .gte("reported_date", format(monthStart, "yyyy-MM-dd"))
+        .lte("reported_date", format(monthEnd, "yyyy-MM-dd")),
+      supabase
+        .from("product_issues")
+        .select("id, reported_date")
+        .order("reported_date", { ascending: false }),
+      supabase
+        .from("supplier_payments")
+        .select("id, status, paid_date, amount"),
     ]);
     if (issueRes.data) setIssues(issueRes.data);
     if (allIssueRes.data) setAllIssues(allIssueRes.data);

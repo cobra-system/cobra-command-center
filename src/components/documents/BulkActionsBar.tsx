@@ -4,7 +4,6 @@
  * Supports: status change, move-to-folder, star/unstar, export to Excel, delete.
  */
 import { useState } from "react";
-import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -83,7 +82,7 @@ export default function BulkActionsBar({ selectedIds, docs, folders, onClearSele
     setWorking(false);
   }
 
-  function exportExcel() {
+  async function exportExcel() {
     const rows = selectedDocs.map(d => ({
       "שם מסמך":      d.document_name || d.notes || "ללא שם",
       "מספר מסמך":    d.document_number || "",
@@ -96,6 +95,7 @@ export default function BulkActionsBar({ selectedIds, docs, folders, onClearSele
       "תאריך יצירה":  format(new Date(d.created_at), "dd/MM/yyyy"),
       "תאריך תפוגה":  d.expiry_date ? format(new Date(d.expiry_date), "dd/MM/yyyy") : "",
     }));
+    const XLSX = await import("xlsx");
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "מסמכים");

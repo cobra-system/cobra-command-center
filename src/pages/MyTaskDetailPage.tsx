@@ -8,7 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowRight, CheckCircle2, AlertOctagon, FileText, MessageSquare, Camera, Loader2, Trash2, ImageIcon, File } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import confetti from "canvas-confetti";
+
+type ConfettiOptions = Parameters<typeof import("canvas-confetti")["default"]>[0];
+const fireConfetti = (opts: ConfettiOptions) =>
+  import("canvas-confetti").then(m => { m.default(opts); }).catch(() => {});
 
 interface TaskDoc {
   name: string;
@@ -56,7 +59,7 @@ export default function MyTaskDetailPage() {
 
   const handleStatusChange = async (status: TaskStatus) => {
     if (status === "DONE") {
-      confetti({
+      fireConfetti({
         particleCount: 60,
         spread: 55,
         origin: { y: 0.8, x: 0.5 },
@@ -206,7 +209,7 @@ export default function MyTaskDetailPage() {
               <div key={doc.name} className="relative rounded-xl overflow-hidden border bg-muted/20">
                 {doc.isImage ? (
                   <a href={doc.url} target="_blank" rel="noopener noreferrer">
-                    <img src={doc.url} alt={doc.name} className="w-full h-24 object-cover" />
+                    <img src={doc.url} alt={doc.name} loading="lazy" decoding="async" className="w-full h-24 object-cover" />
                   </a>
                 ) : (
                   <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-3">

@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -90,6 +91,7 @@ export default function SuppliersPage() {
   const { addSupplier, updateSupplier, deleteSupplier, refreshSuppliers, products } = useData();
   const { scopedSuppliers: suppliers, scopedOrders } = useProductScope();
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 250);
   const [addOpen, setAddOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
   const [editSupplierTarget, setEditSupplierTarget] = useState<Supplier | null>(null);
@@ -132,8 +134,8 @@ export default function SuppliersPage() {
   const filtered = useMemo(() => {
     let result = suppliers.filter(s => {
       if (countryFilter !== "all" && s.country !== countryFilter) return false;
-      if (!search) return true;
-      const q = search.toLowerCase();
+      if (!debouncedSearch) return true;
+      const q = debouncedSearch.toLowerCase();
       return s.contact_name.toLowerCase().includes(q) || s.company.toLowerCase().includes(q) || (s.email || "").toLowerCase().includes(q) || (s.phone || "").toLowerCase().includes(q) || (s.notes || "").toLowerCase().includes(q);
     });
 
@@ -155,7 +157,7 @@ export default function SuppliersPage() {
     }
 
     return result;
-  }, [suppliers, search, countryFilter, sortKey, sortDir, productCountMap, orderCountMap]);
+  }, [suppliers, debouncedSearch, countryFilter, sortKey, sortDir, productCountMap, orderCountMap]);
 
   const duplicateGroups = useMemo(() => detectDuplicates(suppliers), [suppliers]);
 

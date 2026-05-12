@@ -67,7 +67,7 @@ export function PhotoCaptureButton({ imageUrl, storagePath, onSave, disabled, cl
           title="הצג תמונה"
           type="button"
         >
-          <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+          <img src={imageUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
           <span className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity">
             <ImageIcon className="h-3 w-3 text-white" />
           </span>
@@ -88,7 +88,7 @@ export function PhotoCaptureButton({ imageUrl, storagePath, onSave, disabled, cl
                   <X className="h-4 w-4 text-muted-foreground" />
                 </button>
               </div>
-              <img src={imageUrl} alt="" className="w-full object-contain max-h-80" />
+              <img src={imageUrl} alt="" loading="lazy" decoding="async" className="w-full object-contain max-h-80" />
               {!disabled && (
                 <div className="p-3 border-t">
                   <label className="cursor-pointer w-full">

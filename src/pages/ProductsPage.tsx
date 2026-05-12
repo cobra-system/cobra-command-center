@@ -14,6 +14,7 @@ import ProductFormDialog from "@/components/products/ProductFormDialog";
 import ProductDeleteDialog from "@/components/products/ProductDeleteDialog";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { usePermissions } from "@/hooks/usePermissions";
 import { QuantityBar } from "@/components/ui/QuantityBar";
@@ -68,6 +69,7 @@ export default function ProductsPage() {
   const navigate = useNavigate();
   const [category, setCategory] = useState("הכל");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 250);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
@@ -108,7 +110,7 @@ export default function ProductsPage() {
       if (category !== "הכל" && p.category !== category) return false;
       if (typeFilter !== "all" && p.product_type !== typeFilter) return false;
       if (supplierFilter !== "all" && p.supplier !== supplierFilter) return false;
-      if (search && !p.name.includes(search) && !p.sku.includes(search) && !(p.notes || "").toLowerCase().includes(search.toLowerCase())) return false;
+      if (debouncedSearch && !p.name.includes(debouncedSearch) && !p.sku.includes(debouncedSearch) && !(p.notes || "").toLowerCase().includes(debouncedSearch.toLowerCase())) return false;
       return true;
     });
 
@@ -124,7 +126,7 @@ export default function ProductsPage() {
       });
     }
     return result;
-  }, [products, category, typeFilter, supplierFilter, search, sortKey, sortDir]);
+  }, [products, category, typeFilter, supplierFilter, debouncedSearch, sortKey, sortDir]);
 
   const uniqueSuppliers = useMemo(() => {
     const set = new Set(products.map(p => p.supplier).filter(Boolean) as string[]);
@@ -220,7 +222,7 @@ export default function ProductsPage() {
                 <div className="flex items-start gap-3">
                   <div className="shrink-0 mt-0.5">
                     {p.end_product_image ? (
-                      <img src={p.end_product_image} alt={p.name} className="h-10 w-10 rounded object-cover" />
+                      <img src={p.end_product_image} alt={p.name} loading="lazy" decoding="async" className="h-10 w-10 rounded object-cover" />
                     ) : isComposite ? (
                       <div className="h-10 w-10 rounded bg-accent/10 flex items-center justify-center">
                         <Boxes className="h-5 w-5 text-accent" />
@@ -381,7 +383,7 @@ export default function ProductsPage() {
                       <td className="p-2 sm:p-3 font-medium text-foreground">
                         <div className="flex items-center gap-2">
                           {p.end_product_image ? (
-                            <img src={p.end_product_image} alt={p.name} className="h-8 w-8 rounded object-cover shrink-0" />
+                            <img src={p.end_product_image} alt={p.name} loading="lazy" decoding="async" className="h-8 w-8 rounded object-cover shrink-0" />
                           ) : isComposite ? (
                             <Boxes className="h-3.5 w-3.5 text-accent shrink-0" />
                           ) : null}

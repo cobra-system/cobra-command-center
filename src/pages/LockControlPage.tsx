@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import {
   Lock,
@@ -16,7 +16,9 @@ import { supabase } from "@/lib/supabase";
 import { useAuth, useData } from "@/contexts/AppContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { BarcodeScanner } from "@/components/lock-control/BarcodeScanner";
+const BarcodeScanner = lazy(() =>
+  import("@/components/lock-control/BarcodeScanner").then(m => ({ default: m.BarcodeScanner }))
+);
 import {
   feedbackError,
   feedbackSuccess,
@@ -556,28 +558,32 @@ export default function LockControlPage() {
         </Card>
       )}
 
-      <BarcodeScanner
-        open={scannerOpen}
-        title={
-          freeScan
-            ? "סריקה חופשית"
-            : scanningLock
-            ? `סריקת ברקוד — ${scanningLock.name}`
-            : "סריקת ברקוד"
-        }
-        hint={
-          freeScan
-            ? "סרוק/י כל ברקוד מהרשימה — המנעול יזוהה אוטומטית והסטטוס יתחלף."
-            : scanningLock
-            ? scanningLock.current_status === "open"
-              ? "סרוק/י את הברקוד ליד המנעול לרישום סגירה"
-              : "סרוק/י את הברקוד ליד המנעול לרישום פתיחה"
-            : undefined
-        }
-        onScan={(value) => handleScan(value, "camera")}
-        onManualEntry={(value) => handleScan(value, "manual")}
-        onClose={closeScanner}
-      />
+      {scannerOpen && (
+        <Suspense fallback={null}>
+          <BarcodeScanner
+            open={scannerOpen}
+            title={
+              freeScan
+                ? "סריקה חופשית"
+                : scanningLock
+                ? `סריקת ברקוד — ${scanningLock.name}`
+                : "סריקת ברקוד"
+            }
+            hint={
+              freeScan
+                ? "סרוק/י כל ברקוד מהרשימה — המנעול יזוהה אוטומטית והסטטוס יתחלף."
+                : scanningLock
+                ? scanningLock.current_status === "open"
+                  ? "סרוק/י את הברקוד ליד המנעול לרישום סגירה"
+                  : "סרוק/י את הברקוד ליד המנעול לרישום פתיחה"
+                : undefined
+            }
+            onScan={(value) => handleScan(value, "camera")}
+            onManualEntry={(value) => handleScan(value, "manual")}
+            onClose={closeScanner}
+          />
+        </Suspense>
+      )}
 
       {openAllConfirm && (
         <div

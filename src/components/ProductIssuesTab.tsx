@@ -86,7 +86,7 @@ function ImagePicker({ imageFile, setImageFile, previewUrl, setPreviewUrl }: {
       <Label className="text-xs">צילום מסך / תמונה</Label>
       {previewUrl ? (
         <div className="relative inline-block">
-          <img src={previewUrl} alt="preview" className="h-24 rounded-lg border object-cover" />
+          <img src={previewUrl} alt="preview" loading="lazy" decoding="async" className="h-24 rounded-lg border object-cover" />
           <button
             type="button"
             onClick={() => { setImageFile(null); setPreviewUrl(null); }}
@@ -389,7 +389,7 @@ export default function ProductIssuesTab({ productId, productName }: { productId
       {/* Image viewer dialog */}
       <Dialog open={!!viewImage} onOpenChange={() => setViewImage(null)}>
         <DialogContent className="sm:max-w-lg p-2">
-          {viewImage && <img src={viewImage} alt="issue" className="w-full rounded-lg" />}
+          {viewImage && <img src={viewImage} alt="issue" loading="lazy" decoding="async" className="w-full rounded-lg" />}
         </DialogContent>
       </Dialog>
 

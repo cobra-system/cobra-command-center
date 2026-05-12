@@ -3,8 +3,11 @@ import { PriorityBadge } from "@/components/PriorityBadge";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, Circle, Flame, Trophy, Star, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
-import confetti from "canvas-confetti";
 import TaskCreateDialog from "@/components/tasks/TaskCreateDialog";
+
+type ConfettiOptions = Parameters<typeof import("canvas-confetti")["default"]>[0];
+const fireConfetti = (opts: ConfettiOptions) =>
+  import("canvas-confetti").then(m => { m.default(opts); }).catch(() => {});
 
 const motivationalMessages = [
   "בוא נסגור את היום! 💪",
@@ -102,7 +105,7 @@ export default function MyTasksPage() {
   // Confetti on 100%
   useEffect(() => {
     if (pct === 100 && prevPctRef.current < 100 && myTasks.length > 0) {
-      confetti({
+      fireConfetti({
         particleCount: 120,
         spread: 80,
         origin: { y: 0.6, x: 0.5 },
@@ -116,8 +119,7 @@ export default function MyTasksPage() {
     if (newStatus === "DONE") {
       setJustCompleted(taskId);
       setTimeout(() => setJustCompleted(null), 600);
-      // Small confetti burst on individual completion
-      confetti({
+      fireConfetti({
         particleCount: 25,
         spread: 45,
         startVelocity: 20,

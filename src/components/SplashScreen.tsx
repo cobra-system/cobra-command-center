@@ -5,12 +5,29 @@ interface SplashScreenProps {
   onComplete: () => void;
 }
 
+function hasCachedSession(): boolean {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("sb-") && key.endsWith("-auth-token")) {
+        return true;
+      }
+    }
+  } catch {
+    // localStorage may throw in private mode / sandboxed iframes
+  }
+  return false;
+}
+
 export default function SplashScreen({ onComplete }: SplashScreenProps) {
   const [fadeOut, setFadeOut] = useState(false);
 
   useEffect(() => {
-    const fadeTimer = setTimeout(() => setFadeOut(true), 2200);
-    const completeTimer = setTimeout(() => onComplete(), 2800);
+    const cached = hasCachedSession();
+    const fadeDelay = cached ? 200 : 1700;
+    const completeDelay = cached ? 400 : 2200;
+    const fadeTimer = setTimeout(() => setFadeOut(true), fadeDelay);
+    const completeTimer = setTimeout(() => onComplete(), completeDelay);
     return () => { clearTimeout(fadeTimer); clearTimeout(completeTimer); };
   }, [onComplete]);
 

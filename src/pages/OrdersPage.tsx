@@ -12,6 +12,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useProductScope } from "@/hooks/useProductScope";
 import { useBackgroundTrackingSync } from "@/hooks/useBackgroundTrackingSync";
 import { useTableSelection } from "@/hooks/useTableSelection";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { OrderBulkActionsBar } from "@/components/orders/OrderBulkActionsBar";
 import { TrackingSyncErrorsBanner } from "@/components/orders/TrackingSyncErrorsBanner";
 import { NewOrderDialog } from "@/components/orders/NewOrderDialog";
@@ -117,6 +118,8 @@ export default function OrdersPage() {
 
   // Filters — URL params (shareable/bookmarkable)
   const search = searchParams.get("q") || "";
+  const debouncedSearch = useDebouncedValue(search, 250);
+  const debouncedArchiveSearch = useDebouncedValue(archiveSearch, 250);
   const statusFilter = searchParams.get("status") || "all";
   const priorityFilter = searchParams.get("priority") || "all";
   const paymentFilter = searchParams.get("payment") || "all";
@@ -158,7 +161,7 @@ export default function OrdersPage() {
   }, []);
 
   const archivedOrders = useMemo(() => {
-    const q = archiveSearch.toLowerCase();
+    const q = debouncedArchiveSearch.toLowerCase();
     return orders
       .filter(o => {
         if (o.status !== "ARRIVED" && o.status !== "CANCELLED") return false;
@@ -174,7 +177,7 @@ export default function OrdersPage() {
         const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
         return dateB - dateA;
       });
-  }, [orders, archiveSearch, scopeOrderItems]);
+  }, [orders, debouncedArchiveSearch, scopeOrderItems]);
 
   const filtered = useMemo(() => {
     let result = orders.filter(o => {
@@ -198,8 +201,8 @@ export default function OrdersPage() {
           return false;
         }
       }
-      if (search) {
-        const q = search.toLowerCase();
+      if (debouncedSearch) {
+        const q = debouncedSearch.toLowerCase();
         // Notes are managerOnly; excluding them from the searchable
         // string avoids leaking note contents via search (value oracle).
         const searchable = [
@@ -260,7 +263,7 @@ export default function OrdersPage() {
     }
 
     return result;
-  }, [orders, statusFilter, priorityFilter, paymentFilter, carrierFilter, trackingStateFilter, search, sortField, sortDir, orderPaymentStatuses, scopeOrderItems]);
+  }, [orders, statusFilter, priorityFilter, paymentFilter, carrierFilter, trackingStateFilter, debouncedSearch, sortField, sortDir, orderPaymentStatuses, scopeOrderItems, hidePrices]);
 
   const orderCounts = useMemo(() => {
     const counts: Record<string, number> = {};

@@ -97,7 +97,7 @@ function MediaThumbnail({
   return (
     <div className="relative group rounded-lg border overflow-hidden aspect-square bg-muted/30">
       {fileType === "image" ? (
-        <img src={url} alt={fileName || "media"} className="w-full h-full object-cover" />
+        <img src={url} alt={fileName || "media"} loading="lazy" decoding="async" className="w-full h-full object-cover" />
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center gap-1 p-2">
           <Play className="h-8 w-8 text-muted-foreground" />
@@ -702,7 +702,7 @@ export default function IssueDetailPage() {
       <Dialog open={!!lightboxUrl} onOpenChange={() => setLightboxUrl(null)}>
         <DialogContent className="sm:max-w-3xl p-2">
           {lightboxUrl && (
-            <img src={lightboxUrl} alt="media" className="w-full rounded-lg max-h-[80vh] object-contain" />
+            <img src={lightboxUrl} alt="media" loading="lazy" decoding="async" className="w-full rounded-lg max-h-[80vh] object-contain" />
           )}
         </DialogContent>
       </Dialog>
