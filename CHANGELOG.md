@@ -7,9 +7,13 @@
 
 ## [2026-05-12]
 
+- feat(frisbee): Base44 QA inspection sync + equipment consumption analytics (59ef79a)
+
+<!-- last-commit: 29bd2dd50fafbd322bf98e17d04e038bd32776d9 -->
+## [2026-05-12]
+
 - fix(orders): remove dropdown icons + open order navigates to detail page (9109f38)
 
-<!-- last-commit: acbd26f3b6cd1297d7b7e370f462a55a5d787ce2 -->
 ## [2026-05-11]
 
 - feat(orders): collapse date filters into popover and unify row actions in overflow menu (cc42ec2)
