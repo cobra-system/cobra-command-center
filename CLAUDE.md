@@ -80,6 +80,7 @@ const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 - `order-payments:hidden-columns` — OrderPaymentsSection
 - `order-requests:hidden-columns` — DivisionDetailPage (bonded requests section)
 - `manager-order-requests:hidden-columns` — OrderRequestsTab (manager view)
+- `frisbee-consumption:hidden-columns` — DivisionDetailPage (Base44 QA consumption section)
 
 Use a new unique key for each new table (e.g. `"invoices:hidden-columns"`).
 
@@ -111,7 +112,7 @@ grep -r "\"TABLE_NAME\"" mcp-server/src/tools/
 cd mcp-server && npm run build
 ```
 
-### Module inventory (32 modules · 253 tools)
+### Module inventory (33 modules · 258 tools)
 
 | Module | Domain | Key tables | Tools |
 |--------|--------|------------|------:|
@@ -147,6 +148,7 @@ cd mcp-server && npm run build
 | `warehouse` | Warehouse zones | warehouse_zones, warehouse_zone_products | 6 |
 | `warehouse-locks` | Lock control & scan log | warehouse_locks, warehouse_lock_scans | 5 |
 | `waste` | Waste tracking | waste_items | 5 |
+| `frisbee` | Base44 QA sync & consumption | frisbee_inspections, frisbee_inspection_equipment, frisbee_product_mapping | 5 |
 
 See `docs/MCP_TOOLS.md` for the full reference including table→module mapping.
 
