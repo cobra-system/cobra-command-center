@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useData } from "@/contexts/AppContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart3, Package, TrendingDown, ShoppingCart } from "lucide-react";
+import { BarChart3, Package, TrendingDown, ShoppingCart, RefreshCw } from "lucide-react";
 import { FrisbeeDashboard } from "@/components/frisbee/FrisbeeDashboard";
 import { DIVISION_COLORS, BONDED_DIVISIONS } from "@/components/equipment/constants";
 
@@ -13,6 +13,12 @@ import { DIVISION_COLORS, BONDED_DIVISIONS } from "@/components/equipment/consta
 const FRISBEE_BASE44_BRANCHES: Record<string, string> = {
   "פריזבי קרסו": "68fa0cbd274acbfa7b159523",
   "לובינסקי": "lubinski",
+};
+
+// Maps division name → Edge Function that syncs its data
+const SYNC_FUNCTION: Record<string, string> = {
+  "פריזבי קרסו": "sync-frisbee",
+  "לובינסקי":    "sync-lubinski",
 };
 
 interface DivisionProduct {
@@ -50,6 +56,34 @@ export default function DivisionConsumptionPage() {
   const [orderRequests, setOrderRequests] = useState<OrderRequest[]>([]);
   const [frisbeeLastSynced, setFrisbeeLastSynced] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncVersion, setSyncVersion] = useState(0);
+  const syncTriggered = useRef(false);
+
+  const fetchLastSynced = useCallback(async (branchId: string) => {
+    const { data } = await supabase
+      .from("frisbee_equipment_consumption")
+      .select("last_synced_at")
+      .eq("base44_branch_id", branchId)
+      .order("last_synced_at", { ascending: false })
+      .limit(1)
+      .single();
+    setFrisbeeLastSynced(data?.last_synced_at ?? null);
+  }, []);
+
+  // Trigger background sync on page load (once per mount)
+  useEffect(() => {
+    const fnName = SYNC_FUNCTION[division];
+    if (!fnName || syncTriggered.current) return;
+    syncTriggered.current = true;
+    setSyncing(true);
+    supabase.functions.invoke(fnName).then(() => {
+      setSyncing(false);
+      setSyncVersion((v) => v + 1);
+      const branchId = FRISBEE_BASE44_BRANCHES[division];
+      if (branchId) fetchLastSynced(branchId);
+    }).catch(() => setSyncing(false));
+  }, [division, fetchLastSynced]);
 
   const fetchData = useCallback(async () => {
     if (!division) return;
@@ -70,19 +104,10 @@ export default function DivisionConsumptionPage() {
     setOrderRequests((orRes.data ?? []) as OrderRequest[]);
 
     const frisbeeBranchId = FRISBEE_BASE44_BRANCHES[division] ?? null;
-    if (frisbeeBranchId) {
-      const { data: syncData } = await supabase
-        .from("frisbee_equipment_consumption")
-        .select("last_synced_at")
-        .eq("base44_branch_id", frisbeeBranchId)
-        .order("last_synced_at", { ascending: false })
-        .limit(1)
-        .single();
-      setFrisbeeLastSynced(syncData?.last_synced_at ?? null);
-    }
+    if (frisbeeBranchId) fetchLastSynced(frisbeeBranchId);
 
     setLoading(false);
-  }, [division]);
+  }, [division, fetchLastSynced]);
 
   useEffect(() => {
     fetchData();
@@ -127,6 +152,12 @@ export default function DivisionConsumptionPage() {
           <BarChart3 className="h-4 w-4" />
           ניתוח צריכה
         </span>
+        {syncing && (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <RefreshCw className="h-3 w-3 animate-spin" />
+            מסנכרן…
+          </span>
+        )}
       </div>
 
       {/* KPI strip */}
@@ -176,6 +207,7 @@ export default function DivisionConsumptionPage() {
       {/* Frisbee analytics (only for branches with Base44 integration) */}
       {frisbeeBranchId && (
         <FrisbeeDashboard
+          key={syncVersion}
           branchId={frisbeeBranchId}
           division={division}
           lastSynced={frisbeeLastSynced}
