@@ -311,7 +311,7 @@ export function OrderRequestsTab() {
         if (statusFilter === "active") return r.status === "pending" || r.status === "ordered";
         return r.status === statusFilter;
       })
-      .filter(r => divisionFilter === "all" || r.division === divisionFilter)
+      .filter(r => isDivMgr || divisionFilter === "all" || r.division === divisionFilter)
       .filter(r => {
         if (!dateFrom && !dateTo) return true;
         const t = new Date(r.created_at).getTime();
@@ -556,7 +556,7 @@ export function OrderRequestsTab() {
           </div>
           <p className="text-sm font-medium text-foreground">אין בקשות הזמנה</p>
           <p className="text-xs text-muted-foreground mt-1">
-            {search || statusFilter !== "active" || divisionFilter !== "all"
+            {search || statusFilter !== "active" || (!isDivMgr && divisionFilter !== "all") || dateFrom || dateTo
               ? "נסה לשנות את הסינון או החיפוש"
               : canCreateRequest
               ? "פתחו בקשה חדשה כדי להתחיל"
