@@ -7,13 +7,20 @@
 
 ## [2026-05-13]
 
+- fix(order-requests): bypass stale division filter for division managers (70e2b98)
+- fix(frisbee): add DB-level sync throttle and skip auto-sync when data is fresh (3e55a38)
+- fix(rtl): align pivot table month headers to right in FrisbeeDashboard (b50c2c7)
+- fix(frisbee): add 5-minute rate limit to sync-frisbee and sync-lubinski (b236db0)
+
+<!-- last-commit: 4781847424a1cfdf56f0a761ce9f7a426c310553 -->
+## [2026-05-13]
+
 - feat(consumption): auto-sync on page load for bonded division dashboards (67736ed)
 - docs: add sync-lubinski to README edge functions table (d818b58)
 - feat(lubinski): add Base44 sync and consumption dashboard for לובינסקי division (66cd6c8)
 - docs: add bonded division routes to README modules table (0bc3478)
 - refactor(bonded-divisions): replace monolithic DivisionDetailPage with dedicated pages (4eaba2f)
 
-<!-- last-commit: 6faa10df5af705e83328fc01693d06e85a8ef3b7 -->
 ## [2026-05-12]
 
 - Store Yaki's Base44 credentials and prep future inspection fields (261dfca)
