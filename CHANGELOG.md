@@ -7,12 +7,17 @@
 
 ## [2026-05-13]
 
+- refactor: rename FrisbeeDashboard → DivisionDashboard (af3df4c)
+- fix: correct RTL DOM order in FrisbeeDashboard tabs (b033751)
+
+<!-- last-commit: ebbced6aca2cd14a17c902d582c911b68e7c2c36 -->
+## [2026-05-13]
+
 - fix(order-requests): bypass stale division filter for division managers (70e2b98)
 - fix(frisbee): add DB-level sync throttle and skip auto-sync when data is fresh (3e55a38)
 - fix(rtl): align pivot table month headers to right in FrisbeeDashboard (b50c2c7)
 - fix(frisbee): add 5-minute rate limit to sync-frisbee and sync-lubinski (b236db0)
 
-<!-- last-commit: 4781847424a1cfdf56f0a761ce9f7a426c310553 -->
 ## [2026-05-13]
 
 - feat(consumption): auto-sync on page load for bonded division dashboards (67736ed)
