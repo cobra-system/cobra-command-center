@@ -5,12 +5,20 @@
 
 ---
 
+## [2026-05-13]
+
+- feat(consumption): auto-sync on page load for bonded division dashboards (67736ed)
+- docs: add sync-lubinski to README edge functions table (d818b58)
+- feat(lubinski): add Base44 sync and consumption dashboard for לובינסקי division (66cd6c8)
+- docs: add bonded division routes to README modules table (0bc3478)
+- refactor(bonded-divisions): replace monolithic DivisionDetailPage with dedicated pages (4eaba2f)
+
+<!-- last-commit: 6faa10df5af705e83328fc01693d06e85a8ef3b7 -->
 ## [2026-05-12]
 
 - Store Yaki's Base44 credentials and prep future inspection fields (261dfca)
 - Add FrisbeeDashboard: 3-tab analytics for division manager (a0dd9e7)
 
-<!-- last-commit: 20091fe59f924416dea5d038b6bf490d2cd60400 -->
 ## [2026-05-12]
 
 - feat(frisbee): Base44 QA inspection sync + equipment consumption analytics (59ef79a)
