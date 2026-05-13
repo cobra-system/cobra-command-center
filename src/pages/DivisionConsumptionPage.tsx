@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart3, Package, TrendingDown, ShoppingCart, RefreshCw } from "lucide-react";
-import { FrisbeeDashboard } from "@/components/frisbee/FrisbeeDashboard";
+import { DivisionDashboard } from "@/components/frisbee/DivisionDashboard";
 import { DIVISION_COLORS, BONDED_DIVISIONS } from "@/components/equipment/constants";
 
 // Base44 branch IDs for divisions that have QA inspection data
@@ -220,7 +220,7 @@ export default function DivisionConsumptionPage() {
 
       {/* Frisbee analytics (only for branches with Base44 integration) */}
       {frisbeeBranchId && (
-        <FrisbeeDashboard
+        <DivisionDashboard
           key={syncVersion}
           branchId={frisbeeBranchId}
           division={division}

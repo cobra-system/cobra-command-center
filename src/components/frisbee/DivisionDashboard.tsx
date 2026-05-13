@@ -124,7 +124,7 @@ function exportCsv(rows: Record<string, unknown>[], filename: string) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function FrisbeeDashboard({ branchId, lastSynced }: Props) {
+export function DivisionDashboard({ branchId, lastSynced }: Props) {
   // ── Shared filter state ──
   const [monthRange, setMonthRange] = useState("6");
   const [activeTab, setActiveTab] = useState("consumption");

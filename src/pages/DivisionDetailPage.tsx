@@ -106,7 +106,7 @@ import {
   colThContextMenu,
   trContextMenu,
 } from "@/components/ui/ColContextMenu";
-import { FrisbeeDashboard } from "@/components/frisbee/FrisbeeDashboard";
+import { DivisionDashboard } from "@/components/frisbee/DivisionDashboard";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1801,7 +1801,7 @@ export default function DivisionDetailPage() {
 
       {/* ── Section F: Frisbee Analytics Dashboard ── */}
       {FRISBEE_BASE44_BRANCHES[division] && (
-        <FrisbeeDashboard
+        <DivisionDashboard
           branchId={FRISBEE_BASE44_BRANCHES[division]}
           division={division}
           lastSynced={frisbeeLastSynced}
