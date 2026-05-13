@@ -124,7 +124,7 @@ function exportCsv(rows: Record<string, unknown>[], filename: string) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function FrisbeeDashboard({ branchId, lastSynced }: Props) {
+export function DivisionDashboard({ branchId, lastSynced }: Props) {
   // ── Shared filter state ──
   const [monthRange, setMonthRange] = useState("6");
   const [activeTab, setActiveTab] = useState("consumption");
@@ -508,6 +508,7 @@ export function FrisbeeDashboard({ branchId, lastSynced }: Props) {
           <Card>
             <CardContent className="p-0">
               <div className="flex items-center justify-between p-4 pb-2">
+                <h3 className="text-sm font-semibold">סיכום לפי אביזר</h3>
                 <Button
                   variant="outline"
                   size="sm"
@@ -521,7 +522,6 @@ export function FrisbeeDashboard({ branchId, lastSynced }: Props) {
                 >
                   <Download className="w-3.5 h-3.5" /> ייצוא לאקסל
                 </Button>
-                <h3 className="text-sm font-semibold">סיכום לפי אביזר</h3>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -658,8 +658,8 @@ export function FrisbeeDashboard({ branchId, lastSynced }: Props) {
                 <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-muted-foreground cursor-pointer">↗</span>
                       <h3 className="text-sm font-semibold">פילוח אביזרים מובילים</h3>
+                      <span className="text-xs text-muted-foreground cursor-pointer">↗</span>
                     </div>
                     {pieData.length === 0 ? (
                       <div className="h-52 flex items-center justify-center text-sm text-muted-foreground">אין נתונים</div>
@@ -690,8 +690,8 @@ export function FrisbeeDashboard({ branchId, lastSynced }: Props) {
                 <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-muted-foreground cursor-pointer">↗</span>
                       <h3 className="text-sm font-semibold">ממוצע אביזרים לרכב לפי דגם (Top 8)</h3>
+                      <span className="text-xs text-muted-foreground cursor-pointer">↗</span>
                     </div>
                     {modelBarData.length === 0 ? (
                       <div className="h-52 flex items-center justify-center text-sm text-muted-foreground">אין נתונים</div>
@@ -714,6 +714,7 @@ export function FrisbeeDashboard({ branchId, lastSynced }: Props) {
               <Card>
                 <CardContent className="p-0">
                   <div className="flex items-center justify-between p-4 pb-2">
+                    <h3 className="text-sm font-semibold">פילוח לפי דגם רכב</h3>
                     <Button
                       variant="outline"
                       size="sm"
@@ -728,7 +729,6 @@ export function FrisbeeDashboard({ branchId, lastSynced }: Props) {
                     >
                       <Download className="w-3.5 h-3.5" /> ייצוא לאקסל
                     </Button>
-                    <h3 className="text-sm font-semibold">פילוח לפי דגם רכב</h3>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -821,15 +821,6 @@ export function FrisbeeDashboard({ branchId, lastSynced }: Props) {
                   </Select>
                 </div>
                 <div className="flex flex-col gap-1 items-end">
-                  <span className="text-xs text-muted-foreground">עד תאריך</span>
-                  <input
-                    type="date"
-                    value={searchDateTo}
-                    onChange={e => setSearchDateTo(e.target.value)}
-                    className="border rounded-md px-3 py-1.5 text-sm bg-background"
-                  />
-                </div>
-                <div className="flex flex-col gap-1 items-end">
                   <span className="text-xs text-muted-foreground">מתאריך</span>
                   <input
                     type="date"
@@ -838,13 +829,22 @@ export function FrisbeeDashboard({ branchId, lastSynced }: Props) {
                     className="border rounded-md px-3 py-1.5 text-sm bg-background"
                   />
                 </div>
+                <div className="flex flex-col gap-1 items-end">
+                  <span className="text-xs text-muted-foreground">עד תאריך</span>
+                  <input
+                    type="date"
+                    value={searchDateTo}
+                    onChange={e => setSearchDateTo(e.target.value)}
+                    className="border rounded-md px-3 py-1.5 text-sm bg-background"
+                  />
+                </div>
               </div>
 
               {/* Accessory tag filter */}
               <div className="mt-3">
                 <div className="flex items-center gap-2 mb-2 justify-end">
-                  <span className="text-xs text-muted-foreground">בחר פריטים (ריק = כולם)</span>
                   <Search className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">בחר פריטים (ריק = כולם)</span>
                 </div>
                 <input
                   type="text"
@@ -883,6 +883,9 @@ export function FrisbeeDashboard({ branchId, lastSynced }: Props) {
           <Card>
             <CardContent className="p-0">
               <div className="flex items-center justify-between p-4 pb-2">
+                <h3 className="text-sm font-semibold">
+                  פירוט לפי פריט ({pivotEquipment.length} פריטים)
+                </h3>
                 <Button
                   variant="outline"
                   size="sm"
@@ -896,9 +899,6 @@ export function FrisbeeDashboard({ branchId, lastSynced }: Props) {
                 >
                   <Download className="w-3.5 h-3.5" /> ייצוא לאקסל
                 </Button>
-                <h3 className="text-sm font-semibold">
-                  פירוט לפי פריט ({pivotEquipment.length} פריטים)
-                </h3>
               </div>
               {loadingSearch ? (
                 <div className="py-12 text-center text-sm text-muted-foreground">טוען...</div>
