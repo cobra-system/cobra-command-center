@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.98.0";
 import { corsHeaders, handleCors } from "../_shared/cors.ts";
+import { checkRateLimit } from "../_shared/rate-limit.ts";
 
 const BASE44_BASE_URL = "https://base44.app/api/apps";
 
@@ -183,10 +184,39 @@ Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
   if (corsResponse) return corsResponse;
 
+  // In-memory guard (fast path, single instance)
+  const { limited, retryAfterMs } = checkRateLimit("sync-frisbee:global", 1, 5 * 60_000);
+  if (limited) {
+    return new Response(
+      JSON.stringify({ error: "סנכרון כבר בוצע לאחרונה — יש להמתין לפחות 5 דקות בין סנכרונים", retry_after_seconds: Math.ceil((retryAfterMs ?? 300_000) / 1000) }),
+      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": String(Math.ceil((retryAfterMs ?? 300_000) / 1000)) } },
+    );
+  }
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  // DB-level guard: works across all Edge Function instances
+  {
+    const { data: recent } = await supabase
+      .from("frisbee_inspections")
+      .select("synced_at")
+      .order("synced_at", { ascending: false })
+      .limit(1)
+      .single();
+    if (recent?.synced_at) {
+      const ageMs = Date.now() - new Date(recent.synced_at).getTime();
+      if (ageMs < 5 * 60_000) {
+        const retrySeconds = Math.ceil((5 * 60_000 - ageMs) / 1000);
+        return new Response(
+          JSON.stringify({ error: "סנכרון כבר בוצע לאחרונה — יש להמתין לפחות 5 דקות בין סנכרונים", retry_after_seconds: retrySeconds }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": String(retrySeconds) } },
+        );
+      }
+    }
+  }
 
   const startMs = Date.now();
 
