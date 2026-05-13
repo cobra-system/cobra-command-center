@@ -87,7 +87,7 @@ All tables have RLS enabled. Key policies:
 
 ## Edge Functions
 
-14 Edge Functions deployed to Supabase:
+16 Edge Functions deployed to Supabase:
 
 | Function | Purpose | Auth | Rate Limit |
 |----------|---------|------|------------|
@@ -105,6 +105,8 @@ All tables have RLS enabled. Key policies:
 | `debug-external` | Debug external connections | MANAGER | — |
 | `track-shipment` | Refresh DHL tracking for an order | JWT (any role) | — |
 | `notify-daily-digest` | Send daily email digest (overdue orders + upcoming payments) | CRON_SECRET | — |
+| `sync-frisbee` | Sync פריזבי קרסו inspection data from Base44 (Bearer auth) | CRON_SECRET | — |
+| `sync-lubinski` | Sync לובינסקי inspection data from Base44 (api_key auth) | CRON_SECRET | — |
 
 ### Deploying Edge Functions
 ```bash

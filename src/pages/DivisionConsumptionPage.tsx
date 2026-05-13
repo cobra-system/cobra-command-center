@@ -12,6 +12,7 @@ import { DIVISION_COLORS, BONDED_DIVISIONS } from "@/components/equipment/consta
 // Base44 branch IDs for divisions that have QA inspection data
 const FRISBEE_BASE44_BRANCHES: Record<string, string> = {
   "פריזבי קרסו": "68fa0cbd274acbfa7b159523",
+  "לובינסקי": "lubinski",
 };
 
 interface DivisionProduct {
