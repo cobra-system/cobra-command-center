@@ -909,11 +909,11 @@ export function FrisbeeDashboard({ branchId, lastSynced }: Props) {
                       <tr className="border-b bg-muted/50">
                         <th className="text-right p-3 font-semibold text-foreground">פריט</th>
                         {searchMonths.map(m => (
-                          <th key={m} className="text-left p-3 font-semibold text-foreground whitespace-nowrap">
+                          <th key={m} className="text-right p-3 font-semibold text-foreground whitespace-nowrap">
                             {hebrewMonth(m)}
                           </th>
                         ))}
-                        <th className="text-left p-3 font-semibold text-primary whitespace-nowrap">סה"כ</th>
+                        <th className="text-right p-3 font-semibold text-primary whitespace-nowrap">סה"כ</th>
                       </tr>
                     </thead>
                     <tbody>
