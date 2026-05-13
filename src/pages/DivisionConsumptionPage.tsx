@@ -21,6 +21,8 @@ const SYNC_FUNCTION: Record<string, string> = {
   "לובינסקי":    "sync-lubinski",
 };
 
+const SYNC_THROTTLE_MS = 5 * 60 * 1000; // 5 minutes — matches Edge Function rate limit
+
 interface DivisionProduct {
   id: string;
   product_id: string;
@@ -71,18 +73,30 @@ export default function DivisionConsumptionPage() {
     setFrisbeeLastSynced(data?.last_synced_at ?? null);
   }, []);
 
-  // Trigger background sync on page load (once per mount)
+  // Trigger background sync on page load only if data is stale (> 5 minutes old)
   useEffect(() => {
     const fnName = SYNC_FUNCTION[division];
-    if (!fnName || syncTriggered.current) return;
+    const branchId = FRISBEE_BASE44_BRANCHES[division];
+    if (!fnName || !branchId || syncTriggered.current) return;
     syncTriggered.current = true;
-    setSyncing(true);
-    supabase.functions.invoke(fnName).then(() => {
-      setSyncing(false);
-      setSyncVersion((v) => v + 1);
-      const branchId = FRISBEE_BASE44_BRANCHES[division];
-      if (branchId) fetchLastSynced(branchId);
-    }).catch(() => setSyncing(false));
+
+    supabase
+      .from("frisbee_equipment_consumption")
+      .select("last_synced_at")
+      .eq("base44_branch_id", branchId)
+      .order("last_synced_at", { ascending: false })
+      .limit(1)
+      .single()
+      .then(({ data }) => {
+        const lastSynced = data?.last_synced_at ? new Date(data.last_synced_at).getTime() : 0;
+        if (Date.now() - lastSynced < SYNC_THROTTLE_MS) return; // fresh enough, skip
+        setSyncing(true);
+        supabase.functions.invoke(fnName).then(() => {
+          setSyncing(false);
+          setSyncVersion((v) => v + 1);
+          fetchLastSynced(branchId);
+        }).catch(() => setSyncing(false));
+      });
   }, [division, fetchLastSynced]);
 
   const fetchData = useCallback(async () => {
