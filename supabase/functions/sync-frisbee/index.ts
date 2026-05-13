@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.98.0";
 import { corsHeaders, handleCors } from "../_shared/cors.ts";
+import { checkRateLimit } from "../_shared/rate-limit.ts";
 
 const BASE44_BASE_URL = "https://base44.app/api/apps";
 
@@ -182,6 +183,16 @@ async function syncApp(
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
   if (corsResponse) return corsResponse;
+
+  // Enforce a 5-minute minimum interval to avoid hammering the Base44 API
+  // and triggering their bot-detection / captcha screens.
+  const { limited, retryAfterMs } = checkRateLimit("sync-frisbee:global", 1, 5 * 60_000);
+  if (limited) {
+    return new Response(
+      JSON.stringify({ error: "סנכרון כבר בוצע לאחרונה — יש להמתין לפחות 5 דקות בין סנכרונים", retry_after_seconds: Math.ceil((retryAfterMs ?? 300_000) / 1000) }),
+      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": String(Math.ceil((retryAfterMs ?? 300_000) / 1000)) } },
+    );
+  }
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
