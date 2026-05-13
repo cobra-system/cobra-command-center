@@ -286,7 +286,8 @@ mcp-server/              # MCP Server לאינטגרציה עם Claude Code (30+
 | `request-signup` | קליטת בקשת הרשמה ציבורית ושליחת מייל למנהלים לאישור |
 | `review-signup-request` | אישור/דחיית בקשת הרשמה ע"י מנהל — יוצר משתמש ושולח מייל למבקש |
 | `dispatch-order-request-notifications` | שליחת התראות לבקשות הזמנה (אימייל ב-Resend + Web Push דרך VAPID) |
-| `sync-frisbee` | סינכרון בדיקות QA מ-Base44 לטבלאות `frisbee_inspections` + `frisbee_inspection_equipment` |
+| `sync-frisbee` | סינכרון בדיקות QA מ-Base44 לטבלאות `frisbee_inspections` + `frisbee_inspection_equipment` (פריזבי קרסו — Bearer auth) |
+| `sync-lubinski` | סינכרון נתוני אביזרים מ-Base44 לטבלאות frisbee_* (לובינסקי — api_key auth) |
 
 ---
 
