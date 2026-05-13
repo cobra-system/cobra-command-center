@@ -9,6 +9,7 @@ import { Suspense, lazy, useState, useCallback } from "react";
 import SplashScreen from "@/components/SplashScreen";
 import { useMiddleClickNavigation } from "@/hooks/useMiddleClickNavigation";
 import { canView, getModuleKeyFromRoute, MODULES, isDivisionManager, isDivisionManagerAllowedPath } from "@/lib/permissions";
+import { BONDED_DIVISIONS } from "@/components/equipment/constants";
 import { ThemeProvider } from "next-themes";
 
 // Eager: needed on first render
@@ -39,6 +40,8 @@ const WasteManagementPage = lazy(() => import("@/pages/WasteManagementPage"));
 const EquipmentPage = lazy(() => import("@/pages/EquipmentPage"));
 const InstallerDetailPage = lazy(() => import("@/pages/InstallerDetailPage"));
 const DivisionDetailPage = lazy(() => import("@/pages/DivisionDetailPage"));
+const DivisionConsumptionPage = lazy(() => import("@/pages/DivisionConsumptionPage"));
+const DivisionProductsPage = lazy(() => import("@/pages/DivisionProductsPage"));
 const LogisticsMapPage = lazy(() => import("@/pages/LogisticsMapPage"));
 const IssueDetailPage = lazy(() => import("@/pages/IssueDetailPage"));
 const ComponentDetailPage = lazy(() => import("@/pages/ComponentDetailPage"));
@@ -58,6 +61,9 @@ const queryClient = new QueryClient({
 });
 
 function divisionHome(division: string) {
+  if (BONDED_DIVISIONS.has(division)) {
+    return `/division/${encodeURIComponent(division)}/consumption`;
+  }
   return `/equipment/division/${encodeURIComponent(division)}`;
 }
 
@@ -153,6 +159,8 @@ function AppRoutes() {
         <Route path="/equipment" element={<EquipmentPage />} />
         <Route path="/equipment/installer/:id" element={<InstallerDetailPage />} />
         <Route path="/equipment/division/:divisionName" element={<DivisionDetailPage />} />
+        <Route path="/division/:divisionName/consumption" element={<DivisionConsumptionPage />} />
+        <Route path="/division/:divisionName/products" element={<DivisionProductsPage />} />
         <Route path="/compliance" element={<Navigate to="/documents" replace />} />
         <Route path="/shipment-groups" element={<Navigate to="/orders" replace />} />
         <Route path="/alerts" element={<Navigate to="/settings?tab=notifications" replace />} />

@@ -56,6 +56,7 @@ export const DIVISION_MANAGER_ALLOWED_PREFIXES = [
   "/waste-management",
   "/equipment/division",
   "/equipment/installer",
+  "/division/",
 ];
 
 export function isDivisionManagerAllowedPath(pathname: string): boolean {

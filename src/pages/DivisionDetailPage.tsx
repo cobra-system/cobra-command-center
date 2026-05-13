@@ -297,6 +297,13 @@ export default function DivisionDetailPage() {
   const division = divisionName ? decodeURIComponent(divisionName) : "";
   const isBonded = BONDED_DIVISIONS.has(division);
 
+  // Bonded divisions have their own dedicated pages — redirect away from the equipment view
+  useEffect(() => {
+    if (isBonded) {
+      navigate(`/division/${encodeURIComponent(division)}/consumption`, { replace: true });
+    }
+  }, [isBonded, division, navigate]);
+
   // Division managers can only access their own division
   useEffect(() => {
     if (currentUser?.division && currentUser.division !== division) {

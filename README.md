@@ -58,7 +58,9 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 | ניהול פסולת | `/waste-management` | מעקב פסולת ובלאי, חיבור לציוד וסיבות החזרה |
 | ניהול חטיבות | `/equipment` | ניהול חטיבות: ציוד, הצטיידויות, החזרות ופעילות התקנה |
 | פירוט מתקין | `/equipment/installer/:id` | פרטי מתקין, ציוד בשטח, היסטוריית החזרות |
-| פרטי חטיבה | `/equipment/division/:divisionName` | טכנאים, הצטיידויות, מלאי, אנשי קשר לפי חטיבה |
+| פרטי חטיבה | `/equipment/division/:divisionName` | טכנאים, הצטיידויות, מלאי, אנשי קשר לפי חטיבה (חטיבות ציוד) |
+| צריכה — חטיבה בונדד | `/division/:divisionName/consumption` | ניתוח צריכה, FrisbeeDashboard, KPIs לחטיבות בונדד |
+| מוצרי חטיבה בונדד | `/division/:divisionName/products` | מלאי שטח, דרישה רבעונית לחטיבות בונדד |
 | דוחות | `/reports` | גרפי מגמות, ביצועי ספקים, ניתוח הזמנות |
 | הגדרות | `/settings` | ניהול צוות, תפקידים, הרשאות גרנולריות, נתונים |
 | התראות | `/alerts` | מרכז התראות מערכת ותזכורות |
@@ -284,7 +286,8 @@ mcp-server/              # MCP Server לאינטגרציה עם Claude Code (30+
 | `request-signup` | קליטת בקשת הרשמה ציבורית ושליחת מייל למנהלים לאישור |
 | `review-signup-request` | אישור/דחיית בקשת הרשמה ע"י מנהל — יוצר משתמש ושולח מייל למבקש |
 | `dispatch-order-request-notifications` | שליחת התראות לבקשות הזמנה (אימייל ב-Resend + Web Push דרך VAPID) |
-| `sync-frisbee` | סינכרון בדיקות QA מ-Base44 לטבלאות `frisbee_inspections` + `frisbee_inspection_equipment` |
+| `sync-frisbee` | סינכרון בדיקות QA מ-Base44 לטבלאות `frisbee_inspections` + `frisbee_inspection_equipment` (פריזבי קרסו — Bearer auth) |
+| `sync-lubinski` | סינכרון נתוני אביזרים מ-Base44 לטבלאות frisbee_* (לובינסקי — api_key auth) |
 
 ---
 
