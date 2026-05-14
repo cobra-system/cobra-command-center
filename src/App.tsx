@@ -48,6 +48,7 @@ const ComponentDetailPage = lazy(() => import("@/pages/ComponentDetailPage"));
 const LockControlPage = lazy(() => import("@/pages/LockControlPage"));
 const LockControlPrintPage = lazy(() => import("@/pages/LockControlPrintPage"));
 const LockControlHistoryPage = lazy(() => import("@/pages/LockControlHistoryPage"));
+const TrashPage = lazy(() => import("@/pages/TrashPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -168,6 +169,7 @@ function AppRoutes() {
         <Route path="/lock-control" element={<LockControlPage />} />
         <Route path="/lock-control/history" element={<LockControlHistoryPage />} />
         <Route path="/lock-control/print" element={<LockControlPrintPage />} />
+        <Route path="/trash" element={<TrashPage />} />
       </Route>
 
       <Route element={<RequireAuth />}>

@@ -40,6 +40,7 @@ export function registerTaskTools(server: McpServer) {
       let query = supabase
         .from("tasks")
         .select("*")
+        .is("deleted_at", null)
         .eq("status", "TEMPLATE")
         .order("title")
         .limit(limit);
@@ -216,6 +217,7 @@ export function registerTaskTools(server: McpServer) {
       let query = supabase
         .from("tasks")
         .select("*")
+        .is("deleted_at", null)
         .neq("status", "TEMPLATE")
         .order("due_date", { ascending: true })
         .limit(limit);
