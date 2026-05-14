@@ -135,6 +135,7 @@ function AppRoutes() {
 
       <Route element={<RequireManager />}>
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/trash" element={<TrashPage />} />
       </Route>
 
       <Route element={<RequirePermission />}>
@@ -169,7 +170,6 @@ function AppRoutes() {
         <Route path="/lock-control" element={<LockControlPage />} />
         <Route path="/lock-control/history" element={<LockControlHistoryPage />} />
         <Route path="/lock-control/print" element={<LockControlPrintPage />} />
-        <Route path="/trash" element={<TrashPage />} />
       </Route>
 
       <Route element={<RequireAuth />}>

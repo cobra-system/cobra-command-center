@@ -16,6 +16,7 @@ export function registerMeetingTools(server: McpServer) {
       let query = supabase
         .from("meetings")
         .select("*")
+        .is("deleted_at", null)
         .order("meeting_date", { ascending: false })
         .limit(limit);
 

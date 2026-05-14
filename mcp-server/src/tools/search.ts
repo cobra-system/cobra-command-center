@@ -22,6 +22,7 @@ export function registerSearchTools(server: McpServer) {
         promises.push(
           supabase.from("products")
             .select("id, name, sku, category, supplier")
+            .is("deleted_at", null)
             .or(`name.ilike.%${query}%,sku.ilike.%${query}%,category.ilike.%${query}%`)
             .limit(limit)
             .then(({ data }) => { results.products = data || []; })
@@ -32,6 +33,7 @@ export function registerSearchTools(server: McpServer) {
         promises.push(
           supabase.from("orders")
             .select("id, supplier_name, status, notes, priority")
+            .is("deleted_at", null)
             .or(`supplier_name.ilike.%${query}%,notes.ilike.%${query}%`)
             .limit(limit)
             .then(({ data }) => { results.orders = data || []; })
@@ -42,6 +44,7 @@ export function registerSearchTools(server: McpServer) {
         promises.push(
           supabase.from("suppliers")
             .select("id, company, contact_name, country, products")
+            .is("deleted_at", null)
             .or(`company.ilike.%${query}%,contact_name.ilike.%${query}%,products.ilike.%${query}%`)
             .limit(limit)
             .then(({ data }) => { results.suppliers = data || []; })
@@ -52,6 +55,7 @@ export function registerSearchTools(server: McpServer) {
         promises.push(
           supabase.from("purchase_documents")
             .select("id, document_name, type, status, supplier_id")
+            .is("deleted_at", null)
             .ilike("document_name", `%${query}%`)
             .limit(limit)
             .then(({ data }) => { results.documents = data || []; })
@@ -62,6 +66,7 @@ export function registerSearchTools(server: McpServer) {
         promises.push(
           supabase.from("tasks")
             .select("id, title, status, priority, assignee_name, due_date")
+            .is("deleted_at", null)
             .neq("status", "TEMPLATE")
             .or(`title.ilike.%${query}%,description.ilike.%${query}%`)
             .limit(limit)
@@ -73,6 +78,7 @@ export function registerSearchTools(server: McpServer) {
         promises.push(
           supabase.from("product_issues")
             .select("id, description, severity, status, reporter, product_id")
+            .is("deleted_at", null)
             .ilike("description", `%${query}%`)
             .limit(limit)
             .then(({ data }) => { results.issues = data || []; })
@@ -83,6 +89,7 @@ export function registerSearchTools(server: McpServer) {
         promises.push(
           supabase.from("compliance_items")
             .select("id, name, category, status, expiry_date")
+            .is("deleted_at", null)
             .or(`name.ilike.%${query}%,category.ilike.%${query}%`)
             .limit(limit)
             .then(({ data }) => { results.compliance = data || []; })

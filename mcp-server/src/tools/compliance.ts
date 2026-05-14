@@ -15,6 +15,7 @@ export function registerComplianceTools(server: McpServer) {
       let query = supabase
         .from("compliance_items")
         .select("*")
+        .is("deleted_at", null)
         .order("expiry_date", { ascending: true })
         .limit(limit);
 
