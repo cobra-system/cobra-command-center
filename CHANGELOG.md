@@ -7,12 +7,17 @@
 
 ## [2026-05-17]
 
+- fix(division-products): add dir="rtl" to Tabs to restore RTL layout (3e23630)
+- fix(frisbee): apply RTL layout to Recharts charts and Tabs in DivisionDashboard (d2545ec)
+
+<!-- last-commit: e2957cd9147e9b523204b21e30786674cb363e0b -->
+## [2026-05-17]
+
 - merge: resolve conflicts with main (soft-delete + docs) (84d1b2f)
 - docs: fix CLAUDE.md divisions tool count and module inventory (be81544)
 - docs: update docs for division_product_items feature (f526e24)
 - feat: equip divisions with product items (components) (f6062b7)
 
-<!-- last-commit: f81bc9cfbc982cf401f1ca6c9c4527bdff508923 -->
 ## [2026-05-17]
 
 ### Added
