@@ -7,6 +7,14 @@
 
 ## [2026-05-17]
 
+- merge: resolve conflicts with main (soft-delete + docs) (84d1b2f)
+- docs: fix CLAUDE.md divisions tool count and module inventory (be81544)
+- docs: update docs for division_product_items feature (f526e24)
+- feat: equip divisions with product items (components) (f6062b7)
+
+<!-- last-commit: f81bc9cfbc982cf401f1ca6c9c4527bdff508923 -->
+## [2026-05-17]
+
 ### Added
 - **ציוד חטיבה — פריטי מוצר**: אפשרות לצייד חטיבות עם רכיבי מוצר בודדים (לדוגמה: מצלמה, תושבת, כרטיס זיכרון) בנוסף למוצרים שלמים. טאב חדש "פריטים" בדף מוצרי חטיבה עם עריכת מלאי שטח, תאריך עדכון, ותפריט נראות עמודות.
 - טבלת `division_product_items` עם RLS זהה ל-`division_products`
@@ -16,7 +24,6 @@
 - Add /trash route to README modules table (991d8d6)
 - Sync George to manager role + add soft-delete for all core tables (a088428)
 
-<!-- last-commit: e480394d92f53655fc7716c3d3204daec1a4fb59 -->
 ## [2026-05-14]
 
 ### Added
