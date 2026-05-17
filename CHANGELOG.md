@@ -5,6 +5,13 @@
 
 ---
 
+## [2026-05-17]
+
+- Fix gaps: route protection, MCP soft-delete filters, docs (f9d0a69)
+- Add /trash route to README modules table (991d8d6)
+- Sync George to manager role + add soft-delete for all core tables (a088428)
+
+<!-- last-commit: e480394d92f53655fc7716c3d3204daec1a4fb59 -->
 ## [2026-05-14]
 
 ### Added
@@ -25,7 +32,6 @@
 - refactor: rename FrisbeeDashboard → DivisionDashboard (af3df4c)
 - fix: correct RTL DOM order in FrisbeeDashboard tabs (b033751)
 
-<!-- last-commit: ebbced6aca2cd14a17c902d582c911b68e7c2c36 -->
 ## [2026-05-13]
 
 - fix(order-requests): bypass stale division filter for division managers (70e2b98)
