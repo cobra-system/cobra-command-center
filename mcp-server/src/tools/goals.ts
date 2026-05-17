@@ -13,6 +13,7 @@ export function registerGoalTools(server: McpServer) {
       const { data, error } = await supabase
         .from("goals")
         .select("*")
+        .is("deleted_at", null)
         .order("sort_order", { ascending: true })
         .limit(limit);
 

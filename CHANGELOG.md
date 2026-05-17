@@ -5,6 +5,21 @@
 
 ---
 
+## [2026-05-14]
+
+### Added
+- **Soft-delete לכל הטבלאות המרכזיות** — מחיקה של הזמנה, מוצר, ספק, משימה ועוד 15 ישויות נוספות
+  מעבירה אותן לסל מחזור במקום למחוק לצמיתות. trigger ב-PostgreSQL מיירט DELETE אוטומטית.
+- **עמוד סל מחזור (`/trash`)** — מנהלים יכולים לראות פריטים שנמחקו, לשחזר אותם או למחוק לצמיתות.
+  כולל חיפוש, סינון לפי סוג, וספירת ימים עד תפוגה.
+- **pg_cron cleanup** — מחיקה קבועה אוטומטית של פריטים ישנים מ-30 יום (כל יום ב-03:00 UTC).
+- **RPC functions**: `get_deleted_items()`, `restore_item()`, `hard_delete_item()` — מנהלים בלבד.
+
+### Changed
+- **גיאורגי גריגוריאנץ** שונה מ-`WAREHOUSE_MANAGER` ל-`MANAGER` כדי שתצוגתו תהיה זהה למנהל.
+- כלי MCP (orders, products, suppliers, tasks, issues, meetings, compliance, goals, search)
+  מסננים פריטים מחוקים מתוצאות.
+
 ## [2026-05-13]
 
 - refactor: rename FrisbeeDashboard → DivisionDashboard (af3df4c)

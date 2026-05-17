@@ -29,6 +29,7 @@ export function registerOrderTools(server: McpServer) {
       let query = supabase
         .from("orders")
         .select("*")
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(limit);
 
@@ -81,6 +82,7 @@ export function registerOrderTools(server: McpServer) {
       const { data, error } = await supabase
         .from("orders")
         .select("*")
+        .is("deleted_at", null)
         .or(`pi_number.ilike.%${pi_number}%,notes.ilike.%${pi_number}%`)
         .order("created_at", { ascending: false });
 
