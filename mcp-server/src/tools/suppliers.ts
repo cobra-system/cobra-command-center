@@ -14,6 +14,7 @@ export function registerSupplierTools(server: McpServer) {
       let query = supabase
         .from("suppliers")
         .select("*")
+        .is("deleted_at", null)
         .order("company")
         .limit(limit);
 

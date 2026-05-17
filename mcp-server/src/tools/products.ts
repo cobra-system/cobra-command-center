@@ -15,6 +15,7 @@ export function registerProductTools(server: McpServer) {
       let query = supabase
         .from("products")
         .select("id, name, sku, category, product_type, stock_qty, incoming_qty, sale_price, purchase_price, supplier, division")
+        .is("deleted_at", null)
         .order("name")
         .limit(limit);
 
@@ -185,6 +186,7 @@ export function registerProductTools(server: McpServer) {
       let query = supabase
         .from("products")
         .select("id, name, sku, category, product_type, stock_qty, incoming_qty, sale_price, purchase_price, supplier, division")
+        .is("deleted_at", null)
         .order("name")
         .limit(limit);
 

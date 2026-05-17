@@ -32,6 +32,7 @@ import {
   Lock,
   Moon,
   Sun,
+  Trash2,
   type LucideIcon,
 } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
@@ -55,12 +56,13 @@ const defaultNavItems = [
   { to: "/logistics-map", icon: "Map", label: "מפת מחסן" },
   { to: "/lock-control", icon: "Lock", label: "בקרת נעילה" },
   { to: "/reports", icon: "BarChart3", label: "דוחות" },
+  { to: "/trash", icon: "Trash2", label: "סל מחזור" },
   { to: "/settings", icon: "Settings", label: "הגדרות" },
 ];
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard, Package, ShoppingCart, Truck, ListTodo,
-  Settings, FileText, CalendarClock, BarChart3, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Recycle, Boxes, Map, Lock,
+  Settings, FileText, CalendarClock, BarChart3, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Recycle, Boxes, Map, Lock, Trash2,
 };
 
 const NAV_ORDER_KEY = "cobra-nav-order";

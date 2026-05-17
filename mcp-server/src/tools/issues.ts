@@ -16,6 +16,7 @@ export function registerIssueTools(server: McpServer) {
       let query = supabase
         .from("product_issues")
         .select("*")
+        .is("deleted_at", null)
         .order("reported_date", { ascending: false })
         .limit(limit);
 

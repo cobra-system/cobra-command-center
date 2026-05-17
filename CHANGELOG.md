@@ -12,12 +12,31 @@
 - טבלת `division_product_items` עם RLS זהה ל-`division_products`
 - 3 כלי MCP חדשים: `list_division_product_items`, `upsert_division_product_item`, `delete_division_product_item`
 
+- Fix gaps: route protection, MCP soft-delete filters, docs (f9d0a69)
+- Add /trash route to README modules table (991d8d6)
+- Sync George to manager role + add soft-delete for all core tables (a088428)
+
+<!-- last-commit: e480394d92f53655fc7716c3d3204daec1a4fb59 -->
+## [2026-05-14]
+
+### Added
+- **Soft-delete לכל הטבלאות המרכזיות** — מחיקה של הזמנה, מוצר, ספק, משימה ועוד 15 ישויות נוספות
+  מעבירה אותן לסל מחזור במקום למחוק לצמיתות. trigger ב-PostgreSQL מיירט DELETE אוטומטית.
+- **עמוד סל מחזור (`/trash`)** — מנהלים יכולים לראות פריטים שנמחקו, לשחזר אותם או למחוק לצמיתות.
+  כולל חיפוש, סינון לפי סוג, וספירת ימים עד תפוגה.
+- **pg_cron cleanup** — מחיקה קבועה אוטומטית של פריטים ישנים מ-30 יום (כל יום ב-03:00 UTC).
+- **RPC functions**: `get_deleted_items()`, `restore_item()`, `hard_delete_item()` — מנהלים בלבד.
+
+### Changed
+- **גיאורגי גריגוריאנץ** שונה מ-`WAREHOUSE_MANAGER` ל-`MANAGER` כדי שתצוגתו תהיה זהה למנהל.
+- כלי MCP (orders, products, suppliers, tasks, issues, meetings, compliance, goals, search)
+  מסננים פריטים מחוקים מתוצאות.
+
 ## [2026-05-13]
 
 - refactor: rename FrisbeeDashboard → DivisionDashboard (af3df4c)
 - fix: correct RTL DOM order in FrisbeeDashboard tabs (b033751)
 
-<!-- last-commit: ebbced6aca2cd14a17c902d582c911b68e7c2c36 -->
 ## [2026-05-13]
 
 - fix(order-requests): bypass stale division filter for division managers (70e2b98)
