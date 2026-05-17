@@ -82,6 +82,7 @@ const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 - `manager-order-requests:hidden-columns` — OrderRequestsTab (manager view)
 - `frisbee-consumption-v2:hidden-columns` — FrisbeeDashboard (consumption tab summary table)
 - `frisbee-models:hidden-columns` — FrisbeeDashboard (sales dashboard model breakdown table)
+- `division-product-items:hidden-columns` — DivisionProductsPage (items tab)
 
 Use a new unique key for each new table (e.g. `"invoices:hidden-columns"`).
 
@@ -113,7 +114,7 @@ grep -r "\"TABLE_NAME\"" mcp-server/src/tools/
 cd mcp-server && npm run build
 ```
 
-### Module inventory (33 modules · 258 tools)
+### Module inventory (33 modules · 261 tools)
 
 | Module | Domain | Key tables | Tools |
 |--------|--------|------------|------:|
@@ -122,7 +123,7 @@ cd mcp-server && npm run build
 | `bulk-ops` | Bulk operations | orders, products, tasks | 5 |
 | `compliance` | Compliance items | compliance_items, compliance_product_links | 7 |
 | `daily-reports` | Daily reports | daily_reports, tasks | 5 |
-| `divisions` | Division management | division_products, order_requests, profiles | 7 |
+| `divisions` | Division management | division_products, division_product_items, order_requests, profiles | 10 |
 | `documents` | Documents | documents, purchase_documents | 10 |
 | `equipment` | Equipment tracking | installers, equipment_pickups, equipment_returns | 36 |
 | `finance` | Finance & payments | orders, supplier_payments | 4 |

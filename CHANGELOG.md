@@ -7,6 +7,11 @@
 
 ## [2026-05-17]
 
+### Added
+- **ציוד חטיבה — פריטי מוצר**: אפשרות לצייד חטיבות עם רכיבי מוצר בודדים (לדוגמה: מצלמה, תושבת, כרטיס זיכרון) בנוסף למוצרים שלמים. טאב חדש "פריטים" בדף מוצרי חטיבה עם עריכת מלאי שטח, תאריך עדכון, ותפריט נראות עמודות.
+- טבלת `division_product_items` עם RLS זהה ל-`division_products`
+- 3 כלי MCP חדשים: `list_division_product_items`, `upsert_division_product_item`, `delete_division_product_item`
+
 - Fix gaps: route protection, MCP soft-delete filters, docs (f9d0a69)
 - Add /trash route to README modules table (991d8d6)
 - Sync George to manager role + add soft-delete for all core tables (a088428)
