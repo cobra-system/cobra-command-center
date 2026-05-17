@@ -82,6 +82,7 @@ const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 - `manager-order-requests:hidden-columns` — OrderRequestsTab (manager view)
 - `frisbee-consumption-v2:hidden-columns` — FrisbeeDashboard (consumption tab summary table)
 - `frisbee-models:hidden-columns` — FrisbeeDashboard (sales dashboard model breakdown table)
+- `division-product-items:hidden-columns` — DivisionProductsPage (items tab)
 
 Use a new unique key for each new table (e.g. `"invoices:hidden-columns"`).
 

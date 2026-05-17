@@ -90,6 +90,77 @@ export function registerDivisionTools(server: McpServer) {
   );
 
   // ═══════════════════════════════════════════════════════════════
+  // Division Product Items — פריטי מוצרים לחטיבה
+  // ═══════════════════════════════════════════════════════════════
+
+  server.tool(
+    "list_division_product_items",
+    "פריטי מוצרים לחטיבה — List individual product component items equipped to a division (e.g. camera, mount, memory card). Filter by division or component_id.",
+    {
+      division: z.string().optional().describe("Filter by division name"),
+      component_id: z.string().uuid().optional().describe("Filter by product_components UUID"),
+    },
+    async ({ division, component_id }) => {
+      let query = supabase
+        .from("division_product_items")
+        .select(`
+          id, division, component_id, division_stock, division_stock_updated_at, created_at, updated_at,
+          product_components(id, name, sku, product_id, products(name))
+        `)
+        .order("division")
+        .order("created_at");
+
+      if (division) query = query.eq("division", division);
+      if (component_id) query = query.eq("component_id", component_id);
+
+      const { data, error } = await query;
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "upsert_division_product_item",
+    "עדכון פריט חטיבה — Create or update a product component item for a division. Sets division_stock.",
+    {
+      division: z.string().describe("Division name"),
+      component_id: z.string().uuid().describe("product_components UUID"),
+      division_stock: z.number().int().min(0).optional().describe("Current field stock quantity"),
+    },
+    async ({ division, component_id, division_stock }) => {
+      const now = new Date().toISOString();
+      const payload: Record<string, unknown> = { division, component_id, updated_at: now };
+      if (division_stock !== undefined) {
+        payload.division_stock = division_stock;
+        payload.division_stock_updated_at = now;
+      }
+      const { data, error } = await supabase
+        .from("division_product_items")
+        .upsert(payload, { onConflict: "division,component_id" })
+        .select()
+        .single();
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "delete_division_product_item",
+    "מחיקת פריט חטיבה — Remove a product component item from division tracking by id.",
+    {
+      id: z.string().uuid().describe("division_product_items record UUID"),
+    },
+    async ({ id }) => {
+      const { error } = await supabase
+        .from("division_product_items")
+        .delete()
+        .eq("id", id);
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify({ success: true, deleted_id: id }) }] };
+    }
+  );
+
+  // ═══════════════════════════════════════════════════════════════
   // Division Manager Assignment — שיוך מנהל חטיבה
   // ═══════════════════════════════════════════════════════════════
 
