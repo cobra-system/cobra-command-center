@@ -60,7 +60,7 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 | פירוט מתקין | `/equipment/installer/:id` | פרטי מתקין, ציוד בשטח, היסטוריית החזרות |
 | פרטי חטיבה | `/equipment/division/:divisionName` | טכנאים, הצטיידויות, מלאי, אנשי קשר לפי חטיבה (חטיבות ציוד) |
 | צריכה — חטיבה בונדד | `/division/:divisionName/consumption` | ניתוח צריכה, FrisbeeDashboard, KPIs לחטיבות בונדד |
-| מוצרי חטיבה בונדד | `/division/:divisionName/products` | מלאי שטח, דרישה רבעונית לחטיבות בונדד |
+| מוצרי חטיבה בונדד | `/division/:divisionName/products` | מלאי שטח, דרישה רבעונית, פריטי מוצר (רכיבים) לחטיבות בונדד |
 | דוחות | `/reports` | גרפי מגמות, ביצועי ספקים, ניתוח הזמנות |
 | הגדרות | `/settings` | ניהול צוות, תפקידים, הרשאות גרנולריות, נתונים |
 | התראות | `/alerts` | מרכז התראות מערכת ותזכורות |
@@ -132,6 +132,7 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 - `equipment_returns` — החזרות בלאי (header)
 - `equipment_return_items` — פריטי החזרה (סיבה, מצב, תוית)
 - `division_products` — מוצרי חטיבה (מלאי שטח ידני, דרישה לרבעון, צריכה חודשית מחושבת)
+- `division_product_items` — פריטי מוצר לחטיבה (רכיב, מלאי שטח לפי חטיבה)
 - `order_requests` — בקשות הזמנה ממנהלי חטיבות בונדד (מוצר, כמות, דחיפות, סוג הזמנה, סטטוס, קישור להזמנה)
 
 ### בדיקות QA פריזבי (Base44 Sync)
@@ -293,7 +294,7 @@ mcp-server/              # MCP Server לאינטגרציה עם Claude Code (30+
 
 ## MCP Tools
 
-שרת MCP מאפשר ל-Claude Code גישה ישירה לכל מסד הנתונים ללא ממשק גרפי — **255 כלים** ב-**34 מודולים**.
+שרת MCP מאפשר ל-Claude Code גישה ישירה לכל מסד הנתונים ללא ממשק גרפי — **258 כלים** ב-**34 מודולים**.
 
 | מודול | Domain | כלים |
 |-------|--------|-----:|
@@ -302,7 +303,7 @@ mcp-server/              # MCP Server לאינטגרציה עם Claude Code (30+
 | `bulk-ops` | Bulk operations | 5 |
 | `compliance` | Compliance & licensing | 7 |
 | `daily-reports` | Daily reports | 5 |
-| `divisions` | Division management | 4 |
+| `divisions` | Division management | 7 |
 | `documents` | Documents (PI/PO) | 10 |
 | `equipment` | Equipment & installers | 36 |
 | `finance` | Finance summary | 4 |
