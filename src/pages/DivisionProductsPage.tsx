@@ -289,7 +289,7 @@ export default function DivisionProductsPage() {
         </span>
       </div>
 
-      <Tabs defaultValue="products">
+      <Tabs defaultValue="products" dir="rtl">
         <TabsList className="mb-4">
           <TabsTrigger value="products" className="flex items-center gap-1.5">
             <Package className="h-4 w-4" />

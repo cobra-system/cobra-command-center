@@ -415,7 +415,7 @@ export function DivisionDashboard({ branchId, lastSynced }: Props) {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl">
         <TabsList className="mb-4">
           <TabsTrigger value="consumption" className="flex items-center gap-1.5">
             <BarChart3 className="w-4 h-4" /> צריכת אביזרים
@@ -477,7 +477,7 @@ export function DivisionDashboard({ branchId, lastSynced }: Props) {
               <CardContent className="p-4">
                 <h3 className="text-sm font-semibold mb-4 text-right">פרטו צריכה לפי אביזר ולפי חודש</h3>
                 <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={barChartData} margin={{ top: 5, right: 10, left: 10, bottom: 60 }}>
+                  <BarChart data={barChartData} margin={{ top: 5, right: 30, left: 10, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis
                       dataKey="equipment"
@@ -485,8 +485,9 @@ export function DivisionDashboard({ branchId, lastSynced }: Props) {
                       angle={-35}
                       textAnchor="end"
                       interval={0}
+                      reversed
                     />
-                    <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} />
+                    <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} orientation="right" />
                     <Tooltip
                       formatter={(value: number, name: string) => [value, hebrewMonth(name)]}
                       labelStyle={{ direction: "rtl" }}
@@ -697,10 +698,10 @@ export function DivisionDashboard({ branchId, lastSynced }: Props) {
                       <div className="h-52 flex items-center justify-center text-sm text-muted-foreground">אין נתונים</div>
                     ) : (
                       <ResponsiveContainer width="100%" height={220}>
-                        <BarChart data={modelBarData} margin={{ top: 5, right: 10, left: 0, bottom: 40 }}>
+                        <BarChart data={modelBarData} margin={{ top: 5, right: 30, left: 0, bottom: 40 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="model" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" interval={0} />
-                          <YAxis tick={{ fontSize: 11 }} />
+                          <XAxis dataKey="model" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" interval={0} reversed />
+                          <YAxis tick={{ fontSize: 11 }} orientation="right" />
                           <Tooltip formatter={(v: number) => [v, "ממוצע לרכב"]} />
                           <Bar dataKey="avg" fill="#1e3a5f" radius={[3, 3, 0, 0]} />
                         </BarChart>
