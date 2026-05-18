@@ -5,12 +5,16 @@
 
 ---
 
+## [2026-05-18]
+
+- Show managers in task assignee filter dropdown (747e1c0)
+
+<!-- last-commit: f3b2cb4fee3fb3a151dcdc57276b3eeefedbf562 -->
 ## [2026-05-17]
 
 - fix(division-products): add dir="rtl" to Tabs to restore RTL layout (3e23630)
 - fix(frisbee): apply RTL layout to Recharts charts and Tabs in DivisionDashboard (d2545ec)
 
-<!-- last-commit: e2957cd9147e9b523204b21e30786674cb363e0b -->
 ## [2026-05-17]
 
 - merge: resolve conflicts with main (soft-delete + docs) (84d1b2f)
