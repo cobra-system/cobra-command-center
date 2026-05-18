@@ -29,7 +29,7 @@ export default function TaskDayView() {
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [recurringTasks, setRecurringTasks] = useState<RecurringTask[]>([]);
 
-  const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
+  const assignableUsers = profiles;
 
   const loadRecurring = useCallback(async () => {
     const { data } = await supabase.from("tasks").select("*").eq("status", "TEMPLATE").eq("is_active", true);

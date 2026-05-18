@@ -47,7 +47,7 @@ export default function TaskMonthlyView() {
   // Filter out Saturdays from the calendar days
   const calendarDays = [...previousMonthDays, ...daysInMonth].filter(d => getDay(d) !== 6);
 
-  const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
+  const assignableUsers = profiles;
 
   const loadRecurring = useCallback(async () => {
     const { data } = await supabase.from("tasks").select("*").eq("status", "TEMPLATE").eq("is_active", true);

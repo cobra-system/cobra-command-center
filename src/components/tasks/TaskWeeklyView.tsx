@@ -93,7 +93,7 @@ export default function TaskWeeklyView() {
     }
   }, [searchParams]);
 
-  const assignableUsers = profiles.filter(u => u.role !== "MANAGER" || u.id === currentUser?.id);
+  const assignableUsers = profiles;
 
   const weekStart = useMemo(() => {
     const base = startOfWeek(new Date(), { weekStartsOn: 0 });
