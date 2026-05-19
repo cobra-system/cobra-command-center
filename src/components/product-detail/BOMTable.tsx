@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import SupplierComparisonPanel from "@/components/SupplierComparisonPanel";
 import { InlineEditField } from "@/components/InlineEditField";
 import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 import { toast } from "sonner";
@@ -333,13 +332,6 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
             </>
           ) : (
             <p className="text-sm text-muted-foreground py-4 text-center">לא הוגדרו רכיבים למוצר זה</p>
-          )}
-          {showPrices && product.components && product.components.length > 0 && (
-            <div className="mt-4 space-y-3">
-              {product.components.map(comp => (
-                <SupplierComparisonPanel key={comp.id} componentName={comp.name} productId={product.id} />
-              ))}
-            </div>
           )}
         </div>
       )}

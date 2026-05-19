@@ -5,6 +5,12 @@
 
 ---
 
+## [2026-05-19]
+
+### Removed
+- Supplier comparison panels (השוואת ספקים) from BOM table in product detail page
+- Removed `create_supplier_price_quote` and `list_supplier_price_quotes` MCP tools
+
 ## [2026-05-18]
 
 - Show managers in task assignee filter dropdown (747e1c0)
