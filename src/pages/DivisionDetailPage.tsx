@@ -574,7 +574,7 @@ export default function DivisionDetailPage() {
       if (techSortField === "taken") return (a.taken - b.taken) * dir;
       if (techSortField === "returned") return (a.returned - b.returned) * dir;
       if (techSortField === "balance") return (a.balance - b.balance) * dir;
-      if (techSortField === "status") return a.status.localeCompare(b.status, "he") * dir;
+      if (techSortField === "status") return (a.status ?? "").localeCompare(b.status ?? "", "he") * dir;
       return a.name.localeCompare(b.name, "he");
     });
   }, [installerStats, techSortField, techSortDir]);
@@ -707,7 +707,7 @@ export default function DivisionDetailPage() {
       if (dpSortField === "last_pickup") {
         return (lastPickupByProduct.get(a.product_id) ?? "").localeCompare(lastPickupByProduct.get(b.product_id) ?? "") * dir;
       }
-      return a.products.name.localeCompare(b.products.name, "he") * dir;
+      return (a.products?.name ?? "").localeCompare(b.products?.name ?? "", "he") * dir;
     });
   }, [divisionProducts, dpSortField, dpSortDir, lastPickupByProduct, productMap]);
 
@@ -1301,12 +1301,12 @@ export default function DivisionDetailPage() {
                       <tr key={dp.id} className="hover:bg-muted/30 transition-colors">
                         {dpColVis.isVisible("product") && (
                           <td className="p-3">
-                            <div className="font-medium">{dp.products.name}</div>
+                            <div className="font-medium">{dp.products?.name ?? "—"}</div>
                             <div className="flex gap-2 mt-0.5">
-                              {dp.products.sku && (
+                              {dp.products?.sku && (
                                 <span className="font-mono text-xs text-muted-foreground">{dp.products.sku}</span>
                               )}
-                              {dp.products.category && (
+                              {dp.products?.category && (
                                 <span className="text-xs text-muted-foreground">· {dp.products.category}</span>
                               )}
                             </div>
