@@ -7,6 +7,11 @@
 
 ## [2026-05-19]
 
+- remove supplier comparison (השוואת ספקים) feature (d61f750)
+
+<!-- last-commit: bbe9737314e71ce1a722d0e15ee561813034b89f -->
+## [2026-05-19]
+
 ### Removed
 - Supplier comparison panels (השוואת ספקים) from BOM table in product detail page
 - Removed `create_supplier_price_quote` and `list_supplier_price_quotes` MCP tools
@@ -15,7 +20,6 @@
 
 - Show managers in task assignee filter dropdown (747e1c0)
 
-<!-- last-commit: f3b2cb4fee3fb3a151dcdc57276b3eeefedbf562 -->
 ## [2026-05-17]
 
 - fix(division-products): add dir="rtl" to Tabs to restore RTL layout (3e23630)
