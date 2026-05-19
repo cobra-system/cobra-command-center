@@ -231,62 +231,6 @@ export function registerSupplierTools(server: McpServer) {
     }
   );
 
-  // --- Supplier Price Quotes ---
-
-  server.tool(
-    "create_supplier_price_quote",
-    "יצירת הצעת מחיר מספק — Create a price quote from a supplier",
-    {
-      supplier_id: z.string().uuid().describe("Supplier UUID"),
-      product_id: z.string().uuid().optional().describe("Product UUID"),
-      price: z.number().describe("Quoted price"),
-      currency: z.enum(["USD", "EUR", "ILS"]).default("USD").describe("Currency"),
-      valid_until: z.string().optional().describe("Quote expiry date (YYYY-MM-DD)"),
-      notes: z.string().optional().describe("Additional notes"),
-    },
-    async ({ supplier_id, product_id, price, currency, valid_until, notes }) => {
-      const { data, error } = await supabase
-        .from("supplier_price_quotes")
-        .insert({
-          supplier_id,
-          product_id: product_id || null,
-          price,
-          currency,
-          valid_until: valid_until || null,
-          notes: notes || null,
-        })
-        .select()
-        .single();
-
-      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
-      return { content: [{ type: "text" as const, text: `Price quote created:\n${JSON.stringify(data, null, 2)}` }] };
-    }
-  );
-
-  server.tool(
-    "list_supplier_price_quotes",
-    "רשימת הצעות מחיר מספק — List price quotes for a supplier",
-    {
-      supplier_id: z.string().uuid().describe("Supplier UUID"),
-      product_id: z.string().uuid().optional().describe("Filter by product UUID"),
-      limit: z.number().default(50).describe("Max results"),
-    },
-    async ({ supplier_id, product_id, limit }) => {
-      let query = supabase
-        .from("supplier_price_quotes")
-        .select("*")
-        .eq("supplier_id", supplier_id)
-        .order("created_at", { ascending: false })
-        .limit(limit);
-
-      if (product_id) query = query.eq("product_id", product_id);
-
-      const { data, error } = await query;
-      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
-      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
-    }
-  );
-
   // ═══════════════════════════════════════════════════════════════
   // Supplier Bank Details — פרטי בנק לספק
   // ═══════════════════════════════════════════════════════════════

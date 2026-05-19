@@ -18,7 +18,6 @@ interface ProductImpact {
   complianceLinks: number;
   issues: number;
   purchaseDocuments: number;
-  priceQuotes: number;
   equipmentPickupItems: number;
   equipmentReturnItems: number;
   warehouseZoneProducts: number;
@@ -48,7 +47,6 @@ export default function ProductDeleteDialog({ open, productId, productName, onCo
       supabase.from("compliance_product_links").select("id", { count: "exact", head: true }).eq("product_id", productId),
       supabase.from("product_issues").select("id", { count: "exact", head: true }).eq("product_id", productId),
       supabase.from("purchase_documents").select("id", { count: "exact", head: true }).eq("product_id", productId),
-      supabase.from("supplier_price_quotes").select("id", { count: "exact", head: true }).eq("product_id", productId),
       supabase.from("equipment_pickup_items").select("id", { count: "exact", head: true }).eq("product_id", productId),
       supabase.from("equipment_return_items").select("id", { count: "exact", head: true }).eq("product_id", productId),
       supabase.from("warehouse_zone_products").select("id", { count: "exact", head: true }).eq("product_id", productId),
@@ -60,10 +58,9 @@ export default function ProductDeleteDialog({ open, productId, productName, onCo
         complianceLinks: results[3].count ?? 0,
         issues: results[4].count ?? 0,
         purchaseDocuments: results[5].count ?? 0,
-        priceQuotes: results[6].count ?? 0,
-        equipmentPickupItems: results[7].count ?? 0,
-        equipmentReturnItems: results[8].count ?? 0,
-        warehouseZoneProducts: results[9].count ?? 0,
+        equipmentPickupItems: results[6].count ?? 0,
+        equipmentReturnItems: results[7].count ?? 0,
+        warehouseZoneProducts: results[8].count ?? 0,
       });
     }).finally(() => setLoading(false));
   }, [open, productId]);
@@ -75,8 +72,7 @@ export default function ProductDeleteDialog({ open, productId, productName, onCo
     { label: "קישורי ציות", count: impact.complianceLinks, action: "ימחק" },
     { label: "בעיות מוצר", count: impact.issues, action: "ימחק" },
     { label: "מסמכי רכש", count: impact.purchaseDocuments, action: "יינותק" },
-    { label: "ציטוטי מחיר", count: impact.priceQuotes, action: "יינותק" },
-    { label: "פריטי איסוף ציוד", count: impact.equipmentPickupItems, action: "ימחק" },
+{ label: "פריטי איסוף ציוד", count: impact.equipmentPickupItems, action: "ימחק" },
     { label: "פריטי החזרת ציוד", count: impact.equipmentReturnItems, action: "ימחק" },
     { label: "הקצאות מחסן", count: impact.warehouseZoneProducts, action: "ימחק" },
   ].filter(r => r.count > 0) : [];
