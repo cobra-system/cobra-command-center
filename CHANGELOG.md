@@ -5,11 +5,15 @@
 
 ---
 
+## [2026-05-27]
+
+- Add column visibility to OrdersHistoryTable (#213) (e09f985)
+
+<!-- last-commit: e09f985b92d12230460a51ea28f19ae10d777cc1 -->
 ## [2026-05-19]
 
 - remove supplier comparison (השוואת ספקים) feature (d61f750)
 
-<!-- last-commit: bbe9737314e71ce1a722d0e15ee561813034b89f -->
 ## [2026-05-19]
 
 ### Removed
