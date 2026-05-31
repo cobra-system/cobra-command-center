@@ -366,6 +366,8 @@ export function WasteItemsTab({ products }: Props) {
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, in_use: !i.in_use } : i)));
   };
 
+  const csvEscape = (val: string) => `"${val.replace(/"/g, '""')}"`;
+
   const handleExportCSV = () => {
     const rows = [
       ["מוצר", 'מק"ט', "כמות", "סטטוס שימוש", "disposition", "תאריך disposition", "יוצר", "תאריך יצירה"],
@@ -380,7 +382,7 @@ export function WasteItemsTab({ products }: Props) {
         new Date(i.created_at).toLocaleDateString("he-IL"),
       ])
     ];
-    const csv = rows.map(r => r.join(",")).join("\n");
+    const csv = rows.map(r => r.map(csvEscape).join(",")).join("\n");
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -930,7 +932,7 @@ export function WasteItemsTab({ products }: Props) {
 
               {filteredItems.length === 0 && !editingRow && (
                 <TableRow>
-                  <TableCell colSpan={visibleCount + FIXED_COLS} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={visibleCount + (hasEdit ? 1 : 0)} className="text-center py-12 text-muted-foreground">
                     <Recycle className="h-12 w-12 mx-auto mb-3 opacity-20" />
                     <p className="text-lg font-medium mb-1">אין פריטי בלאי</p>
                     <p className="text-sm">{search ? "לא נמצאו תוצאות לחיפוש" : hasEdit ? 'לחץ על "הוסף שורה" כדי להתחיל לתעד בלאי' : "לא נוספו פריטי בלאי עדיין"}</p>

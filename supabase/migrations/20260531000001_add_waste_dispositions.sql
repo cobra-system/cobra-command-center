@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS supplier_returns (
   created_by       UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_by_name  TEXT,
   notes            TEXT,
+  photo_url        TEXT,
   created_at       TIMESTAMPTZ DEFAULT now(),
   updated_at       TIMESTAMPTZ DEFAULT now(),
   deleted_at       TIMESTAMPTZ DEFAULT NULL
@@ -30,18 +31,10 @@ CREATE INDEX IF NOT EXISTS idx_supplier_returns_supplier_id ON supplier_returns(
 CREATE INDEX IF NOT EXISTS idx_supplier_returns_status      ON supplier_returns(status);
 CREATE INDEX IF NOT EXISTS idx_supplier_returns_deleted     ON supplier_returns(deleted_at) WHERE deleted_at IS NOT NULL;
 
--- updated_at trigger
-CREATE OR REPLACE FUNCTION update_supplier_returns_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
+-- updated_at trigger (reuses shared update_updated_at_column function)
 CREATE TRIGGER supplier_returns_updated_at
   BEFORE UPDATE ON supplier_returns
-  FOR EACH ROW EXECUTE FUNCTION update_supplier_returns_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Soft-delete trigger (reuses existing soft_delete_handler function)
 CREATE TRIGGER supplier_returns_soft_delete

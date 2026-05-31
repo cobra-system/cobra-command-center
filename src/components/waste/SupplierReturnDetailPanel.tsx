@@ -175,19 +175,21 @@ export function SupplierReturnDetailPanel({ open, onClose, onUpdated, supplierRe
     }
   };
 
+  const csvEscape = (val: string) => `"${val.replace(/"/g, '""')}"`;
+
   const handleExport = () => {
     const rows = [
       ["מוצר", 'מק"ט', "כמות"],
       ...items.map(i => [i.product_name, i.sku ?? "", String(i.quantity)])
     ];
     const header = [
-      `החזרה לספק: ${supplierReturn.suppliers?.name}`,
+      `החזרה לספק: ${supplierReturn.suppliers?.name ?? ""}`,
       `סטטוס: ${supplierReturn.status}`,
       `מספר מעקב: ${supplierReturn.tracking_number ?? ""}`,
       `סיבה: ${supplierReturn.return_reason ?? ""}`,
       "",
     ];
-    const csv = [...header.map(h => h), ...rows.map(r => r.join(","))].join("\n");
+    const csv = [...header.map(csvEscape), ...rows.map(r => r.map(csvEscape).join(","))].join("\n");
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" }); // BOM for Hebrew Excel
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
