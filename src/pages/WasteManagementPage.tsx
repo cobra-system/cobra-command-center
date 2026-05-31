@@ -30,6 +30,8 @@ interface WasteItem {
   supplier_return_id: string | null;
   sale_buyer_name: string | null;
   sale_price: number | null;
+  unit_cost: number | null;
+  supplier_id: string | null;
 }
 
 interface SupplierReturn {

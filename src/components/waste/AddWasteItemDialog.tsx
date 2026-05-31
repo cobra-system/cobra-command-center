@@ -45,6 +45,8 @@ interface Product {
   id: string;
   name: string;
   sku: string;
+  purchase_price?: number | null;
+  supplier_id?: string | null;
   components?: Array<{ id: string; name: string; sku: string }>;
 }
 
@@ -87,9 +89,16 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
   const [notes, setNotes] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [generalSupplierId, setGeneralSupplierId] = useState("");
+  const [unitCost, setUnitCost] = useState("");
 
-  // Action
+  // Action — auto-fill return supplier from general supplier when switching to return
   const [action, setAction] = useState<ActionType>("ממתין");
+  const handleActionChange = (v: ActionType) => {
+    setAction(v);
+    if (v === "החזרה לספק" && generalSupplierId && !returnSupplierId) {
+      setReturnSupplierId(generalSupplierId);
+    }
+  };
 
   // Action-specific fields
   const [returnSupplierId, setReturnSupplierId] = useState("");
@@ -112,6 +121,7 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
     setNotes("");
     setDate(new Date().toISOString().slice(0, 10));
     setGeneralSupplierId("");
+    setUnitCost("");
     setAction("ממתין");
     setReturnSupplierId("");
     setTrackingNumber("");
@@ -130,8 +140,8 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
     [products]
   );
   const productMap = useMemo(() => {
-    const map = new Map<string, { id: string; sku: string }>();
-    products.forEach((p) => map.set(p.name, { id: p.id, sku: p.sku }));
+    const map = new Map<string, { id: string; sku: string; purchase_price?: number | null; supplier_id?: string | null }>();
+    products.forEach((p) => map.set(p.name, { id: p.id, sku: p.sku, purchase_price: p.purchase_price, supplier_id: p.supplier_id }));
     return map;
   }, [products]);
   const componentOptions = useMemo(
@@ -172,6 +182,8 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
     setSku(hit?.sku ?? "");
     setProductId(hit?.id ?? null);
     setComponentId(null);
+    if (hit?.purchase_price != null) setUnitCost(String(hit.purchase_price));
+    if (hit?.supplier_id) setGeneralSupplierId(hit.supplier_id);
   };
 
   const handleComponentSelect = (val: string) => {
@@ -221,6 +233,7 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
         disposition_type: dispositionType,
         disposition_date: dispositionDate,
         supplier_id: generalSupplierId || null,
+        unit_cost: unitCost ? parseFloat(unitCost) : null,
         created_at: new Date(date).toISOString(),
       };
 
@@ -340,8 +353,8 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
               />
             </div>
 
-            {/* SKU + Quantity + Date row */}
-            <div className="grid grid-cols-3 gap-3">
+            {/* SKU + Quantity + Cost + Date row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="space-y-2">
                 <Label className="text-sm font-medium flex items-center gap-1"><Hash className="h-3.5 w-3.5 text-primary" />מק"ט</Label>
                 <Input placeholder="XXX-000" value={sku} onChange={(e) => setSku(e.target.value)}
@@ -352,6 +365,11 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
                 <Input type="number" min={1} value={quantity}
                   onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
                   className="text-center" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium flex items-center gap-1"><DollarSign className="h-3.5 w-3.5 text-primary" />עלות ליח׳ (₪)</Label>
+                <Input type="number" min={0} step={0.01} placeholder="0.00" value={unitCost}
+                  onChange={(e) => setUnitCost(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-medium flex items-center gap-1"><CalendarIcon className="h-3.5 w-3.5 text-primary" />תאריך</Label>
@@ -370,7 +388,7 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
             {/* Action */}
             <div className="space-y-2">
               <Label className="text-sm font-medium">פעולה</Label>
-              <Select value={action} onValueChange={(v) => setAction(v as ActionType)}>
+              <Select value={action} onValueChange={(v) => handleActionChange(v as ActionType)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

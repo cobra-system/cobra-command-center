@@ -13,6 +13,7 @@ import {
   Plus,
   TrendingUp,
   Layers,
+  Receipt,
 } from "lucide-react";
 import {
   BarChart,
@@ -33,6 +34,8 @@ interface WasteItem {
   quantity: number;
   created_at: string;
   in_use: boolean;
+  unit_cost?: number | null;
+  sale_price?: number | null;
 }
 
 interface SupplierReturn {
@@ -71,6 +74,7 @@ function StatCard({
   color,
   subLabel,
   highlight,
+  currency,
 }: {
   label: string;
   value: number;
@@ -78,13 +82,17 @@ function StatCard({
   color: string;
   subLabel?: string;
   highlight?: boolean;
+  currency?: boolean;
 }) {
+  const display = currency
+    ? `₪${value.toLocaleString("he-IL", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+    : value.toString();
   return (
     <Card className={`transition-shadow hover:shadow-md ${highlight ? "border-amber-400 dark:border-amber-500" : ""}`}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <p className="text-3xl font-bold tracking-tight">{value}</p>
+            <p className="text-2xl font-bold tracking-tight">{display}</p>
             <p className="text-sm font-medium text-foreground">{label}</p>
             {subLabel && <p className="text-xs text-muted-foreground">{subLabel}</p>}
           </div>
@@ -111,7 +119,18 @@ export function WasteDashboardTab({ wasteItems, supplierReturns, onAddItem, hasE
     const handled = total - pending;
     const handledPct = total > 0 ? Math.round((handled / total) * 100) : 0;
 
-    return { total, pending, destroyed, returned, sold, other, totalQty, inUse, handled, handledPct };
+    // Financial values
+    const taxDeductibleValue = wasteItems
+      .filter((i) => i.disposition_type === "השמדה" && i.unit_cost != null)
+      .reduce((s, i) => s + (i.unit_cost ?? 0) * i.quantity, 0);
+    const salesIncome = wasteItems
+      .filter((i) => i.disposition_type === "מכירה" || i.disposition_type === "מכירה בערוץ שלישי")
+      .reduce((s, i) => s + (i.sale_price ?? 0), 0);
+    const totalWasteValue = wasteItems
+      .filter((i) => i.unit_cost != null)
+      .reduce((s, i) => s + (i.unit_cost ?? 0) * i.quantity, 0);
+
+    return { total, pending, destroyed, returned, sold, other, totalQty, inUse, handled, handledPct, taxDeductibleValue, salesIncome, totalWasteValue };
   }, [wasteItems]);
 
   const stuckReturns = useMemo(() => {
@@ -228,6 +247,40 @@ export function WasteDashboardTab({ wasteItems, supplierReturns, onAddItem, hasE
           subLabel={stuckReturns > 0 ? `${stuckReturns} החזרות תקועות!` : undefined}
         />
       </div>
+
+      {/* Financial summary */}
+      {(stats.totalWasteValue > 0 || stats.taxDeductibleValue > 0 || stats.salesIncome > 0) && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-muted-foreground">סיכום כספי</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <StatCard
+              label="שווי בלאי כולל"
+              value={stats.totalWasteValue}
+              icon={<Package className="h-5 w-5 text-slate-600" />}
+              color="bg-slate-100/70 dark:bg-slate-800/40"
+              subLabel="עלות מצטברת של כל פריטי הבלאי"
+              currency
+            />
+            <StatCard
+              label="ניכוי מס על השמדות"
+              value={stats.taxDeductibleValue}
+              icon={<Trash2 className="h-5 w-5 text-red-600" />}
+              color="bg-red-100/70 dark:bg-red-900/30"
+              subLabel="שווי פריטים שהושמדו — בסיס לדרישת החזר מס"
+              currency
+            />
+            <StatCard
+              label="הכנסות ממכירות צד שלישי"
+              value={stats.salesIncome}
+              icon={<DollarSign className="h-5 w-5 text-green-600" />}
+              color="bg-green-100/70 dark:bg-green-900/30"
+              subLabel="הכנסות ממכירות בלאי דרך ערוצים חיצוניים"
+              currency
+              highlight={stats.salesIncome > 0}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Alerts */}
       {(stuckReturns > 0 || stats.pending > 0) && (
