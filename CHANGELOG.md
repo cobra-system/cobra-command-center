@@ -5,6 +5,15 @@
 
 ---
 
+## [Unreleased]
+
+### Added
+- Waste management: disposition tracking — mark items as destroyed, returned to supplier, or sold to third party
+- Supplier returns: full status flow (draft → shipped → received by supplier → settled) with DHL tracking, resolution type (credit/replacement/other), and linked waste items
+- Waste statistics tab: KPI breakdown by disposition type and supplier return status
+- New `supplier_returns` database table with soft-delete, RLS, and status transitions
+- 6 new MCP tools for supplier returns and waste disposition (waste module: 5 → 11 tools)
+
 ## [2026-05-19]
 
 - remove supplier comparison (השוואת ספקים) feature (d61f750)

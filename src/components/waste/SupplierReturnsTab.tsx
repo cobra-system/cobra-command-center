@@ -1,0 +1,338 @@
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
+import { SupplierReturnStatusBadge } from "./DispositionBadge";
+import { SupplierReturnDialog } from "./SupplierReturnDialog";
+import { SupplierReturnDetailPanel } from "./SupplierReturnDetailPanel";
+import { Loader2, PackageX, TruckIcon, PackageCheck, CircleCheck, Plus } from "lucide-react";
+
+interface SupplierReturn {
+  id: string;
+  supplier_id: string;
+  status: string;
+  tracking_number: string | null;
+  return_reason: string | null;
+  resolution_type: string | null;
+  resolution_notes: string | null;
+  shipped_at: string | null;
+  received_at: string | null;
+  settled_at: string | null;
+  created_by_name: string | null;
+  notes: string | null;
+  created_at: string;
+  suppliers?: { name: string };
+  waste_items?: { id: string }[];
+}
+
+interface WasteItem {
+  id: string;
+  product_name: string;
+  sku: string;
+  quantity: number;
+  supplier_return_id: string | null;
+}
+
+const COLUMN_DEFS = [
+  { id: "created_at", label: "תאריך", sortField: "created_at" },
+  { id: "supplier", label: "ספק", sortField: "supplier_id" },
+  { id: "status", label: "סטטוס", sortField: "status" },
+  { id: "tracking_number", label: "מספר מעקב" },
+  { id: "items_count", label: "פריטים" },
+  { id: "return_reason", label: "סיבה" },
+  { id: "resolution_type", label: "פתרון" },
+  { id: "created_by_name", label: 'נוצר ע"י' },
+] as const;
+
+type SortField = "created_at" | "supplier_id" | "status";
+type SortDir = "asc" | "desc";
+
+interface Props {
+  canCreate: boolean;
+}
+
+export function SupplierReturnsTab({ canCreate }: Props) {
+  const [returns, setReturns] = useState<SupplierReturn[]>([]);
+  const [allWasteItems, setAllWasteItems] = useState<WasteItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filterSupplier, setFilterSupplier] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [sortField, setSortField] = useState<SortField>("created_at");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [selectedReturn, setSelectedReturn] = useState<SupplierReturn | null>(null);
+
+  const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility(
+    "supplier-returns:hidden-columns",
+    COLUMN_DEFS
+  );
+  const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
+
+  const saveSort = (field: string, dir: SortDir) => {
+    setSortField(field as SortField);
+    setSortDir(dir);
+  };
+
+  const toggleSort = (field: string) => {
+    if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortField(field as SortField); setSortDir("asc"); }
+  };
+
+  const SortIcon = ({ field }: { field: string }) => {
+    if (sortField !== field) return <span className="text-muted-foreground/30 text-xs">↕</span>;
+    return <span className="text-xs">{sortDir === "asc" ? "↑" : "↓"}</span>;
+  };
+
+  const fetchReturns = useCallback(async () => {
+    const [{ data: rets }, { data: items }] = await Promise.all([
+      supabase
+        .from("supplier_returns")
+        .select("*, suppliers(name), waste_items(id)")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("waste_items")
+        .select("id, product_name, sku, quantity, supplier_return_id")
+        .not("supplier_return_id", "is", null),
+    ]);
+    setReturns(rets ?? []);
+    setAllWasteItems(items ?? []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchReturns(); }, [fetchReturns]);
+
+  const suppliers = useMemo(() => {
+    const map = new Map<string, string>();
+    returns.forEach((r) => { if (r.suppliers?.name) map.set(r.supplier_id, r.suppliers.name); });
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [returns]);
+
+  const filtered = useMemo(() => {
+    let list = returns;
+    if (filterSupplier !== "all") list = list.filter((r) => r.supplier_id === filterSupplier);
+    if (filterStatus !== "all") list = list.filter((r) => r.status === filterStatus);
+    return [...list].sort((a, b) => {
+      let av = "", bv = "";
+      if (sortField === "created_at") { av = a.created_at; bv = b.created_at; }
+      else if (sortField === "supplier_id") { av = a.suppliers?.name ?? ""; bv = b.suppliers?.name ?? ""; }
+      else if (sortField === "status") { av = a.status; bv = b.status; }
+      return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+    });
+  }, [returns, filterSupplier, filterStatus, sortField, sortDir]);
+
+  const kpi = useMemo(() => ({
+    total: returns.length,
+    draft: returns.filter((r) => r.status === "טיוטה").length,
+    shipped: returns.filter((r) => r.status === "נשלח").length,
+    settled: returns.filter((r) => r.status === "הוסדר").length,
+  }), [returns]);
+
+  const getLinkedItems = (ret: SupplierReturn) =>
+    allWasteItems.filter((i) => i.supplier_return_id === ret.id);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 bg-blue-500/10 rounded-lg">
+              <PackageX className="h-5 w-5 text-blue-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{kpi.total}</p>
+              <p className="text-xs text-muted-foreground">סה"כ החזרות</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 bg-muted rounded-lg">
+              <PackageX className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{kpi.draft}</p>
+              <p className="text-xs text-muted-foreground">טיוטות</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 bg-blue-500/10 rounded-lg">
+              <TruckIcon className="h-5 w-5 text-blue-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{kpi.shipped}</p>
+              <p className="text-xs text-muted-foreground">בדרך</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 bg-green-500/10 rounded-lg">
+              <CircleCheck className="h-5 w-5 text-green-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{kpi.settled}</p>
+              <p className="text-xs text-muted-foreground">הוסדרו</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters & action */}
+      <div className="flex flex-wrap items-center gap-3">
+        <select
+          value={filterSupplier}
+          onChange={(e) => setFilterSupplier(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="all">כל הספקים</option>
+          {suppliers.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="all">כל הסטטוסים</option>
+          {["טיוטה", "נשלח", "התקבל אצל ספק", "הוסדר"].map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+        {canCreate && (
+          <Button size="sm" className="me-auto gap-1" onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4" />
+            החזרה חדשה
+          </Button>
+        )}
+      </div>
+
+      {/* Table */}
+      <div className="rounded-lg border bg-card overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
+              {COLUMN_DEFS.map((col) =>
+                isVisible(col.id) ? (
+                  <th
+                    key={col.id}
+                    className="text-right p-3 font-semibold text-foreground"
+                    onContextMenu={colThContextMenu(col, setColMenu)}
+                  >
+                    {col.sortField ? (
+                      <button
+                        onClick={() => toggleSort(col.sortField!)}
+                        className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors"
+                      >
+                        {col.label} <SortIcon field={col.sortField} />
+                      </button>
+                    ) : (
+                      col.label
+                    )}
+                  </th>
+                ) : null
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={visibleCount} className="text-center py-12 text-muted-foreground">
+                  <PackageCheck className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                  <p>אין החזרות לספקים</p>
+                </td>
+              </tr>
+            ) : (
+              filtered.map((ret) => (
+                <tr
+                  key={ret.id}
+                  className="border-b last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
+                  onClick={() => setSelectedReturn(ret)}
+                >
+                  {isVisible("created_at") && (
+                    <td className="p-3">{new Date(ret.created_at).toLocaleDateString("he-IL")}</td>
+                  )}
+                  {isVisible("supplier") && (
+                    <td className="p-3 font-medium">{ret.suppliers?.name ?? "—"}</td>
+                  )}
+                  {isVisible("status") && (
+                    <td className="p-3">
+                      <SupplierReturnStatusBadge status={ret.status} />
+                    </td>
+                  )}
+                  {isVisible("tracking_number") && (
+                    <td className="p-3 font-mono text-xs text-muted-foreground">
+                      {ret.tracking_number ?? "—"}
+                    </td>
+                  )}
+                  {isVisible("items_count") && (
+                    <td className="p-3 text-center">
+                      {(ret.waste_items ?? []).length}
+                    </td>
+                  )}
+                  {isVisible("return_reason") && (
+                    <td className="p-3 max-w-[200px] truncate text-muted-foreground">
+                      {ret.return_reason ?? "—"}
+                    </td>
+                  )}
+                  {isVisible("resolution_type") && (
+                    <td className="p-3">{ret.resolution_type ?? "—"}</td>
+                  )}
+                  {isVisible("created_by_name") && (
+                    <td className="p-3 text-muted-foreground">{ret.created_by_name ?? "—"}</td>
+                  )}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Dialogs */}
+      <SupplierReturnDialog
+        open={showCreateDialog}
+        onClose={() => setShowCreateDialog(false)}
+        onSaved={() => { setShowCreateDialog(false); fetchReturns(); }}
+      />
+
+      {selectedReturn && (
+        <SupplierReturnDetailPanel
+          open={!!selectedReturn}
+          onClose={() => setSelectedReturn(null)}
+          onUpdated={() => { fetchReturns(); setSelectedReturn(null); }}
+          supplierReturn={selectedReturn}
+          items={getLinkedItems(selectedReturn)}
+        />
+      )}
+
+      {colMenu && (
+        <ColContextMenu
+          menu={colMenu}
+          sortField={sortField}
+          sortDir={sortDir}
+          hiddenCols={hiddenCols}
+          onClose={closeMenu}
+          onHide={hide}
+          onShow={show}
+          onSortAsc={(field) => saveSort(field, "asc")}
+          onSortDesc={(field) => saveSort(field, "desc")}
+        />
+      )}
+    </div>
+  );
+}
