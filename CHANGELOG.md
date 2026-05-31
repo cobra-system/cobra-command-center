@@ -7,6 +7,11 @@
 
 ## [2026-05-31]
 
+- refactor: redesign waste management page — 2 tabs, unified form, bug fixes (510fdf0)
+
+<!-- last-commit: 9b087c512c386b9b835746ea7c0d0246af921c48 -->
+## [2026-05-31]
+
 - chore: resolve CHANGELOG merge conflict (4f163ba)
 - fix: address Copilot review — reuse shared updated_at trigger, merge photo migration, CSV escaping, fix colSpan for non-editors (2c4cfd3)
 - feat(waste): CSV export, photo support, deep linking, supplier returns section in supplier page (8fc8a1d)
@@ -15,7 +20,6 @@
 - feat(waste): mobile layout, search, stuck alerts, CSV export, unlink items, badge navigation (0b1653c)
 - feat: waste disposition tracking — supplier returns, destruction, and third-party sales (1e3795e)
 
-<!-- last-commit: b3653078a3e866a3cc097b559b142cb02623ef87 -->
 ## [Unreleased]
 
 ### Added
