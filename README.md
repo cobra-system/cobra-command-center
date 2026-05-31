@@ -142,7 +142,8 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 - `frisbee_product_mapping` — מיפוי מזהי ציוד Base44 למוצרים פנימיים
 
 ### ניהול פסולת
-- `waste_items` — פריטי פסולת/בלאי (מוצר, כמות, מקור, המלצות, `product_id → products`, `component_id → product_components`)
+- `waste_items` — פריטי פסולת/בלאי (מוצר, כמות, מקור, המלצות, `product_id → products`, `component_id → product_components`, `disposition_type`, `supplier_return_id`)
+- `supplier_returns` — החזרות לספקים (סטטוס, מספר מעקב, סיבה, פתרון, `supplier_id → suppliers`)
 
 ### מפת מחסן
 - `warehouse_zone_products` — שיוך מוצרים לאזורים במחסן (zone_id, product_id)

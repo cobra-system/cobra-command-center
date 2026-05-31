@@ -44,7 +44,7 @@
 | `user-preferences` | User preferences | 3 | user_preferences |
 | `warehouse` | Warehouse zones | 6 | warehouse_zones, warehouse_zone_products, warehouse_zone_log |
 | `warehouse-locks` | Lock control & scan log | 5 | warehouse_locks, warehouse_lock_scans |
-| `waste` | Waste tracking | 5 | waste_items |
+| `waste` | Waste tracking | 11 | waste_items, supplier_returns |
 
 ---
 
@@ -107,6 +107,7 @@ Use this to find which module(s) to update when a table's schema changes.
 | `warehouse_zone_products` | warehouse |
 | `warehouse_zones` | warehouse |
 | `waste_items` | waste, equipment |
+| `supplier_returns` | waste |
 
 ### Tables without MCP coverage (intentional)
 
