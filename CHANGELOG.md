@@ -7,9 +7,15 @@
 
 ## [2026-05-31]
 
+- Waste management: surface data, financial insights, bulk actions, returns tab (0d6e556)
+- Waste: auto-fill supplier, unit cost field, financial summary on dashboard (c666799)
+- Fix waste item dialog: add supplier field, fix disposition_type, auto-open create product (aca21b2)
+
+<!-- last-commit: dd5494e85b4775061a7f28d9cd46ccfafc0754b7 -->
+## [2026-05-31]
+
 - refactor: redesign waste management page — 2 tabs, unified form, bug fixes (510fdf0)
 
-<!-- last-commit: 9b087c512c386b9b835746ea7c0d0246af921c48 -->
 ## [2026-05-31]
 
 - chore: resolve CHANGELOG merge conflict (4f163ba)
