@@ -42,6 +42,7 @@ import { DispositionBadge } from "./DispositionBadge";
 import { DestroyDialog } from "./DestroyDialog";
 import { SaleDialog } from "./SaleDialog";
 import { SupplierReturnDialog } from "./SupplierReturnDialog";
+import { SupplierReturnDetailPanel } from "./SupplierReturnDetailPanel";
 import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 import {
   Recycle,
@@ -150,6 +151,7 @@ export function WasteItemsTab({ products }: Props) {
   const [destroyTarget, setDestroyTarget] = useState<WasteItem | null>(null);
   const [saleTarget, setSaleTarget] = useState<WasteItem | null>(null);
   const [returnTarget, setReturnTarget] = useState<WasteItem | null>(null);
+  const [linkedReturn, setLinkedReturn] = useState<{ id: string; supplierReturn: unknown; items: unknown[] } | null>(null);
 
   const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility(
     "waste-items:hidden-columns",
@@ -222,6 +224,16 @@ export function WasteItemsTab({ products }: Props) {
   useEffect(() => {
     (async () => { await refreshItems(); setLoading(false); })();
   }, [refreshItems]);
+
+  const handleBadgeClick = async (e: React.MouseEvent, item: WasteItem) => {
+    if (!item.supplier_return_id) return;
+    e.stopPropagation();
+    const [{ data: ret }, { data: retItems }] = await Promise.all([
+      supabase.from("supplier_returns").select("*, suppliers(name)").eq("id", item.supplier_return_id).single(),
+      supabase.from("waste_items").select("id, product_name, sku, quantity").eq("supplier_return_id", item.supplier_return_id),
+    ]);
+    if (ret) setLinkedReturn({ id: ret.id, supplierReturn: ret, items: retItems ?? [] });
+  };
 
   const employees = useMemo(() => {
     if (!isManager) return [];
@@ -454,7 +466,15 @@ export function WasteItemsTab({ products }: Props) {
                     </div>
                     {isManager && item.created_by_name && <p className="text-xs text-muted-foreground">{item.created_by_name}</p>}
                     {item.sku && <p className="text-xs text-muted-foreground font-mono flex items-center gap-1"><Hash className="h-3 w-3" />{item.sku}</p>}
-                    <div className="mt-1"><DispositionBadge disposition={item.disposition_type as never} /></div>
+                    <div className="mt-1">
+                      {item.disposition_type === "החזרה לספק" ? (
+                        <button className="cursor-pointer hover:opacity-80 transition-opacity" onClick={(e) => handleBadgeClick(e, item)}>
+                          <DispositionBadge disposition={item.disposition_type as never} />
+                        </button>
+                      ) : (
+                        <DispositionBadge disposition={item.disposition_type as never} />
+                      )}
+                    </div>
                   </div>
                   <Badge variant={item.in_use ? "default" : "secondary"} className={`flex-shrink-0 text-xs ${item.in_use ? "bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400" : "bg-orange-100 text-orange-700 hover:bg-orange-100 dark:bg-orange-900/30 dark:text-orange-400"}`}>
                     {item.in_use ? "בשימוש" : "לא בשימוש"}
@@ -549,6 +569,16 @@ export function WasteItemsTab({ products }: Props) {
         <DestroyDialog open={!!destroyTarget} onClose={() => setDestroyTarget(null)} onConfirm={handleDestroy} itemName={destroyTarget?.product_name ?? ""} />
         <SaleDialog open={!!saleTarget} onClose={() => setSaleTarget(null)} onConfirm={handleSale} itemName={saleTarget?.product_name ?? ""} />
         <SupplierReturnDialog open={!!returnTarget} onClose={() => setReturnTarget(null)} onSaved={() => { setReturnTarget(null); refreshItems(); }} preselectedItemId={returnTarget?.id} />
+
+        {linkedReturn && (
+          <SupplierReturnDetailPanel
+            open={!!linkedReturn}
+            onClose={() => setLinkedReturn(null)}
+            onUpdated={() => { setLinkedReturn(null); refreshItems(); }}
+            supplierReturn={linkedReturn.supplierReturn as Parameters<typeof SupplierReturnDetailPanel>[0]["supplierReturn"]}
+            items={linkedReturn.items as Parameters<typeof SupplierReturnDetailPanel>[0]["items"]}
+          />
+        )}
       </div>
     );
   }
@@ -720,7 +750,13 @@ export function WasteItemsTab({ products }: Props) {
                   {isVisible("recommendations") && <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">{item.recommendations || "—"}</TableCell>}
                   {isVisible("disposition") && (
                     <TableCell>
-                      <DispositionBadge disposition={item.disposition_type as never} />
+                      {item.disposition_type === "החזרה לספק" ? (
+                        <button className="cursor-pointer hover:opacity-80 transition-opacity" onClick={(e) => handleBadgeClick(e, item)}>
+                          <DispositionBadge disposition={item.disposition_type as never} />
+                        </button>
+                      ) : (
+                        <DispositionBadge disposition={item.disposition_type as never} />
+                      )}
                     </TableCell>
                   )}
                   {isVisible("photo") && (
@@ -786,6 +822,16 @@ export function WasteItemsTab({ products }: Props) {
       <DestroyDialog open={!!destroyTarget} onClose={() => setDestroyTarget(null)} onConfirm={handleDestroy} itemName={destroyTarget?.product_name ?? ""} />
       <SaleDialog open={!!saleTarget} onClose={() => setSaleTarget(null)} onConfirm={handleSale} itemName={saleTarget?.product_name ?? ""} />
       <SupplierReturnDialog open={!!returnTarget} onClose={() => setReturnTarget(null)} onSaved={() => { setReturnTarget(null); refreshItems(); }} preselectedItemId={returnTarget?.id} />
+
+      {linkedReturn && (
+        <SupplierReturnDetailPanel
+          open={!!linkedReturn}
+          onClose={() => setLinkedReturn(null)}
+          onUpdated={() => { setLinkedReturn(null); refreshItems(); }}
+          supplierReturn={linkedReturn.supplierReturn as Parameters<typeof SupplierReturnDetailPanel>[0]["supplierReturn"]}
+          items={linkedReturn.items as Parameters<typeof SupplierReturnDetailPanel>[0]["items"]}
+        />
+      )}
 
       {colMenu && (
         <ColContextMenu

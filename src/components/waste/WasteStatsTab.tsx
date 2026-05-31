@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Package, Trash2, PackageX, DollarSign, Box, BarChart2 } from "lucide-react";
+import { Loader2, Package, Trash2, PackageX, DollarSign, Box, BarChart2, AlertTriangle } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -21,6 +21,7 @@ interface WasteItem {
 interface SupplierReturn {
   id: string;
   status: string;
+  shipped_at: string | null;
 }
 
 const DISPOSITION_COLORS: Record<string, string> = {
@@ -45,7 +46,7 @@ export function WasteStatsTab() {
   useEffect(() => {
     Promise.all([
       supabase.from("waste_items").select("id, disposition_type, quantity"),
-      supabase.from("supplier_returns").select("id, status").is("deleted_at", null),
+      supabase.from("supplier_returns").select("id, status, shipped_at").is("deleted_at", null),
     ]).then(([{ data: items }, { data: rets }]) => {
       setWasteItems(items ?? []);
       setReturns(rets ?? []);
@@ -70,6 +71,14 @@ export function WasteStatsTab() {
     { name: "מכירה", value: stats.sold },
   ].filter((d) => d.value > 0), [stats]);
 
+  const stuckReturns = useMemo(() => {
+    return returns.filter((r) => {
+      if (r.status !== "נשלח" || !r.shipped_at) return false;
+      const daysDiff = (Date.now() - new Date(r.shipped_at).getTime()) / (1000 * 60 * 60 * 24);
+      return daysDiff > 14;
+    }).length;
+  }, [returns]);
+
   const returnStatusData = useMemo(() => {
     const counts: Record<string, number> = {};
     returns.forEach((r) => { counts[r.status] = (counts[r.status] ?? 0) + 1; });
@@ -87,7 +96,7 @@ export function WasteStatsTab() {
   return (
     <div className="space-y-6">
       {/* KPI grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 bg-blue-500/10 rounded-lg"><Package className="h-5 w-5 text-blue-500" /></div>
@@ -122,6 +131,16 @@ export function WasteStatsTab() {
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 bg-purple-500/10 rounded-lg"><BarChart2 className="h-5 w-5 text-purple-500" /></div>
             <div><p className="text-2xl font-bold">{stats.totalQty}</p><p className="text-xs text-muted-foreground">סה"כ כמות</p></div>
+          </CardContent>
+        </Card>
+        <Card className={stuckReturns > 0 ? "border-amber-400" : ""}>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 bg-amber-500/10 rounded-lg"><AlertTriangle className="h-5 w-5 text-amber-500" /></div>
+            <div>
+              <p className="text-2xl font-bold">{stuckReturns}</p>
+              <p className="text-xs text-muted-foreground">החזרות תקועות</p>
+              {stuckReturns > 0 && <p className="text-xs text-amber-600 font-medium">ממתין מעל 14 יום</p>}
+            </div>
           </CardContent>
         </Card>
       </div>

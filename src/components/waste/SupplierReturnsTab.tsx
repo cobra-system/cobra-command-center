@@ -3,12 +3,15 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { SupplierReturnStatusBadge } from "./DispositionBadge";
 import { SupplierReturnDialog } from "./SupplierReturnDialog";
 import { SupplierReturnDetailPanel } from "./SupplierReturnDetailPanel";
-import { Loader2, PackageX, TruckIcon, PackageCheck, CircleCheck, Plus } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { format } from "date-fns";
+import { Loader2, PackageX, TruckIcon, PackageCheck, CircleCheck, Plus, Search, AlertTriangle } from "lucide-react";
 
 interface SupplierReturn {
   id: string;
@@ -54,16 +57,25 @@ interface Props {
   canCreate: boolean;
 }
 
+function isStuck(ret: SupplierReturn): boolean {
+  if (ret.status !== "נשלח" || !ret.shipped_at) return false;
+  const daysDiff = (Date.now() - new Date(ret.shipped_at).getTime()) / (1000 * 60 * 60 * 24);
+  return daysDiff > 14;
+}
+
 export function SupplierReturnsTab({ canCreate }: Props) {
   const [returns, setReturns] = useState<SupplierReturn[]>([]);
   const [allWasteItems, setAllWasteItems] = useState<WasteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterSupplier, setFilterSupplier] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<SortField>("created_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedReturn, setSelectedReturn] = useState<SupplierReturn | null>(null);
+
+  const isMobile = useIsMobile();
 
   const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility(
     "supplier-returns:hidden-columns",
@@ -115,6 +127,14 @@ export function SupplierReturnsTab({ canCreate }: Props) {
     let list = returns;
     if (filterSupplier !== "all") list = list.filter((r) => r.supplier_id === filterSupplier);
     if (filterStatus !== "all") list = list.filter((r) => r.status === filterStatus);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(r =>
+        (r.suppliers?.name ?? "").toLowerCase().includes(q) ||
+        (r.tracking_number ?? "").toLowerCase().includes(q) ||
+        (r.return_reason ?? "").toLowerCase().includes(q)
+      );
+    }
     return [...list].sort((a, b) => {
       let av = "", bv = "";
       if (sortField === "created_at") { av = a.created_at; bv = b.created_at; }
@@ -122,7 +142,7 @@ export function SupplierReturnsTab({ canCreate }: Props) {
       else if (sortField === "status") { av = a.status; bv = b.status; }
       return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
     });
-  }, [returns, filterSupplier, filterStatus, sortField, sortDir]);
+  }, [returns, filterSupplier, filterStatus, search, sortField, sortDir]);
 
   const kpi = useMemo(() => ({
     total: returns.length,
@@ -194,6 +214,15 @@ export function SupplierReturnsTab({ canCreate }: Props) {
 
       {/* Filters & action */}
       <div className="flex flex-wrap items-center gap-3">
+        <div className="relative">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="חיפוש ספק, מעקב, סיבה..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-9 pr-9 w-48"
+          />
+        </div>
         <select
           value={filterSupplier}
           onChange={(e) => setFilterSupplier(e.target.value)}
@@ -222,86 +251,147 @@ export function SupplierReturnsTab({ canCreate }: Props) {
         )}
       </div>
 
-      {/* Table */}
-      <div className="rounded-lg border bg-card overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
-              {COLUMN_DEFS.map((col) =>
-                isVisible(col.id) ? (
-                  <th
-                    key={col.id}
-                    className="text-right p-3 font-semibold text-foreground"
-                    onContextMenu={colThContextMenu(col, setColMenu)}
-                  >
-                    {col.sortField ? (
-                      <button
-                        onClick={() => toggleSort(col.sortField!)}
-                        className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors"
-                      >
-                        {col.label} <SortIcon field={col.sortField} />
-                      </button>
-                    ) : (
-                      col.label
-                    )}
-                  </th>
-                ) : null
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={visibleCount} className="text-center py-12 text-muted-foreground">
-                  <PackageCheck className="h-10 w-10 mx-auto mb-3 opacity-20" />
-                  <p>אין החזרות לספקים</p>
-                </td>
-              </tr>
-            ) : (
-              filtered.map((ret) => (
-                <tr
-                  key={ret.id}
-                  className="border-b last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
-                  onClick={() => setSelectedReturn(ret)}
-                >
-                  {isVisible("created_at") && (
-                    <td className="p-3">{new Date(ret.created_at).toLocaleDateString("he-IL")}</td>
-                  )}
-                  {isVisible("supplier") && (
-                    <td className="p-3 font-medium">{ret.suppliers?.name ?? "—"}</td>
-                  )}
-                  {isVisible("status") && (
-                    <td className="p-3">
+      {/* Mobile card layout */}
+      {isMobile ? (
+        <div className="space-y-3">
+          {filtered.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <PackageCheck className="h-10 w-10 mx-auto mb-3 opacity-20" />
+              <p>אין החזרות לספקים</p>
+            </div>
+          ) : filtered.map((ret) => {
+            const stuck = isStuck(ret);
+            const linkedItems = getLinkedItems(ret);
+            return (
+              <Card
+                key={ret.id}
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => setSelectedReturn(ret)}
+              >
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold">{ret.suppliers?.name ?? "—"}</span>
+                    <div className="flex items-center gap-2">
+                      {stuck && (
+                        <span className="flex items-center gap-1 text-xs text-amber-600 font-medium">
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          תקוע
+                        </span>
+                      )}
                       <SupplierReturnStatusBadge status={ret.status} />
-                    </td>
+                    </div>
+                  </div>
+                  {ret.tracking_number && (
+                    <p className="text-xs font-mono text-muted-foreground flex items-center gap-1">
+                      <TruckIcon className="h-3 w-3" />
+                      {ret.tracking_number}
+                    </p>
                   )}
-                  {isVisible("tracking_number") && (
-                    <td className="p-3 font-mono text-xs text-muted-foreground">
-                      {ret.tracking_number ?? "—"}
-                    </td>
+                  {ret.return_reason && (
+                    <p className="text-xs text-muted-foreground">{ret.return_reason}</p>
                   )}
-                  {isVisible("items_count") && (
-                    <td className="p-3 text-center">
-                      {(ret.waste_items ?? []).length}
-                    </td>
-                  )}
-                  {isVisible("return_reason") && (
-                    <td className="p-3 max-w-[200px] truncate text-muted-foreground">
-                      {ret.return_reason ?? "—"}
-                    </td>
-                  )}
-                  {isVisible("resolution_type") && (
-                    <td className="p-3">{ret.resolution_type ?? "—"}</td>
-                  )}
-                  {isVisible("created_by_name") && (
-                    <td className="p-3 text-muted-foreground">{ret.created_by_name ?? "—"}</td>
-                  )}
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{linkedItems.length} פריטים</span>
+                    <span>{format(new Date(ret.created_at), "dd/MM/yyyy")}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        /* Desktop Table */
+        <div className="rounded-lg border bg-card overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
+                {COLUMN_DEFS.map((col) =>
+                  isVisible(col.id) ? (
+                    <th
+                      key={col.id}
+                      className="text-right p-3 font-semibold text-foreground"
+                      onContextMenu={colThContextMenu(col, setColMenu)}
+                    >
+                      {col.sortField ? (
+                        <button
+                          onClick={() => toggleSort(col.sortField!)}
+                          className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors"
+                        >
+                          {col.label} <SortIcon field={col.sortField} />
+                        </button>
+                      ) : (
+                        col.label
+                      )}
+                    </th>
+                  ) : null
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={visibleCount} className="text-center py-12 text-muted-foreground">
+                    <PackageCheck className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                    <p>אין החזרות לספקים</p>
+                  </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : (
+                filtered.map((ret) => {
+                  const stuck = isStuck(ret);
+                  return (
+                    <tr
+                      key={ret.id}
+                      className="border-b last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
+                      onClick={() => setSelectedReturn(ret)}
+                    >
+                      {isVisible("created_at") && (
+                        <td className="p-3">{new Date(ret.created_at).toLocaleDateString("he-IL")}</td>
+                      )}
+                      {isVisible("supplier") && (
+                        <td className="p-3 font-medium">{ret.suppliers?.name ?? "—"}</td>
+                      )}
+                      {isVisible("status") && (
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            <SupplierReturnStatusBadge status={ret.status} />
+                            {stuck && (
+                              <span className="flex items-center gap-1 text-xs text-amber-600 font-medium">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                תקוע
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                      {isVisible("tracking_number") && (
+                        <td className="p-3 font-mono text-xs text-muted-foreground">
+                          {ret.tracking_number ?? "—"}
+                        </td>
+                      )}
+                      {isVisible("items_count") && (
+                        <td className="p-3 text-center">
+                          {(ret.waste_items ?? []).length}
+                        </td>
+                      )}
+                      {isVisible("return_reason") && (
+                        <td className="p-3 max-w-[200px] truncate text-muted-foreground">
+                          {ret.return_reason ?? "—"}
+                        </td>
+                      )}
+                      {isVisible("resolution_type") && (
+                        <td className="p-3">{ret.resolution_type ?? "—"}</td>
+                      )}
+                      {isVisible("created_by_name") && (
+                        <td className="p-3 text-muted-foreground">{ret.created_by_name ?? "—"}</td>
+                      )}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Dialogs */}
       <SupplierReturnDialog
