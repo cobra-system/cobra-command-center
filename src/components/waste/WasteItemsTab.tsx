@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/contexts/AppContext";
 import { useProductScope } from "@/hooks/useProductScope";
@@ -33,6 +33,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -44,19 +45,26 @@ import {
   DrawerFooter,
 } from "@/components/ui/drawer";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
-import { DispositionBadge } from "./DispositionBadge";
-import { DestroyDialog } from "./DestroyDialog";
+import { DispositionBadge, type DispositionType } from "./DispositionBadge";
 import { SaleDialog } from "./SaleDialog";
 import { SupplierReturnDialog } from "./SupplierReturnDialog";
 import { SupplierReturnDetailPanel } from "./SupplierReturnDetailPanel";
 import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 import {
   Recycle,
-  Plus,
-  Trash2,
   Save,
   Pencil,
   X,
@@ -75,6 +83,7 @@ import {
   ArrowUp,
   ArrowDown,
   Download,
+  Trash2,
 } from "lucide-react";
 
 interface WasteItem {
@@ -128,29 +137,37 @@ const COLUMN_DEFS = [
   { id: "sku", label: 'מק"ט' },
   { id: "quantity", label: "כמות", sortField: "quantity" },
   { id: "in_use", label: "בשימוש" },
-  { id: "recommendations", label: "המלצות" },
-  { id: "disposition", label: "פינוי" },
+  { id: "notes", label: "הערות" },
+  { id: "action", label: "פעולה" },
   { id: "photo", label: "תמונה" },
 ] as const;
 
+const ACTION_FILTER_OPTIONS = [
+  { value: "all", label: "כל הפעולות" },
+  { value: "ממתין", label: "ממתין" },
+  { value: "השמדה", label: "השמדה" },
+  { value: "החזרה לספק", label: "החזרה לספק" },
+  { value: "מכירה בערוץ שלישי", label: "מכירה בערוץ שלישי" },
+  { value: "אחר", label: "אחר" },
+];
+
 interface Props {
+  items: WasteItem[];
+  onRefresh: () => void;
   products: Array<{ id: string; name: string; sku: string; components?: Array<{ id: string; name: string; sku: string }> }>;
 }
 
-export function WasteItemsTab({ products }: Props) {
+export function WasteItemsTab({ items, onRefresh, products }: Props) {
   const { currentUser } = useAuth();
   const { isScoped, scopedProductNames } = useProductScope();
   const { hasEdit, isManager } = usePermissions("waste");
   const isMobile = useIsMobile();
 
-  const [items, setItems] = useState<WasteItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [editingRow, setEditingRow] = useState<EditingRow | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [deleteTarget, setDeleteTarget] = useState<WasteItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Disposition dialogs
   const [destroyTarget, setDestroyTarget] = useState<WasteItem | null>(null);
@@ -161,14 +178,14 @@ export function WasteItemsTab({ products }: Props) {
   const prefs = useTablePreferences("WasteItemsTab", {
     sortField: "created_at",
     sortDir: "desc",
-    filters: { search: "", filterEmployee: "all", filterDisposition: "all" },
+    filters: { search: "", filterEmployee: "all", filterAction: "all" },
   });
   const sortField = prefs.sortField || "created_at";
   const sortDir = prefs.sortDir || "desc";
   const search = prefs.filters.search || "";
   const filterEmployee = prefs.filters.filterEmployee || "all";
-  const filterDisposition = prefs.filters.filterDisposition || "all";
-  const hasActiveFilters = search !== "" || filterEmployee !== "all" || filterDisposition !== "all";
+  const filterAction = prefs.filters.filterAction || "all";
+  const hasActiveFilters = search !== "" || filterEmployee !== "all" || filterAction !== "all";
 
   const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility(
     "waste-items:hidden-columns",
@@ -177,21 +194,14 @@ export function WasteItemsTab({ products }: Props) {
   );
   const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 
-  const saveSort = (field: string, dir: "asc" | "desc") => {
-    prefs.savePreferences({ sortField: field, sortDir: dir });
-  };
-  const toggleSort = (field: string) => {
-    prefs.toggleSort(field);
-  };
+  const saveSort = (field: string, dir: "asc" | "desc") => prefs.savePreferences({ sortField: field, sortDir: dir });
+  const toggleSort = (field: string) => prefs.toggleSort(field);
   const SortIcon = ({ field }: { field: string }) => {
     if (sortField !== field) return <ArrowUpDown className="h-3 w-3 opacity-30" />;
     return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   };
 
-  const productOptions = useMemo(
-    () => products.map((p) => ({ value: p.name, label: p.name })),
-    [products]
-  );
+  const productOptions = useMemo(() => products.map((p) => ({ value: p.name, label: p.name })), [products]);
   const productMap = useMemo(() => {
     const map = new Map<string, { id: string; sku: string }>();
     products.forEach((p) => map.set(p.name, { id: p.id, sku: p.sku }));
@@ -228,30 +238,7 @@ export function WasteItemsTab({ products }: Props) {
     setEditingRow({ ...editingRow, product_name: val, sku: hit?.sku ?? editingRow.sku, product_id: hit?.product_id ?? null, component_id: hit?.id ?? null });
   };
 
-  const fetchItems = useCallback(async () => {
-    let query = supabase.from("waste_items").select("*").order("created_at", { ascending: false });
-    if (!isManager && currentUser) query = query.eq("created_by", currentUser.id);
-    const { data, error } = await query;
-    if (error) { logger.error("Error fetching waste items", error); return; }
-    setItems((data as WasteItem[]) || []);
-  }, [isManager, currentUser]);
-
-  useEffect(() => {
-    (async () => { await fetchItems(); setLoading(false); })();
-  }, [fetchItems]);
-
-  // Realtime subscription
-  useEffect(() => {
-    const channel = supabase
-      .channel("waste-items-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "waste_items" }, () => {
-        fetchItems();
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [fetchItems]);
-
-  const handleBadgeClick = async (e: React.MouseEvent, item: WasteItem) => {
+  const handleBadgeClick = useCallback(async (e: React.MouseEvent, item: WasteItem) => {
     if (!item.supplier_return_id) return;
     e.stopPropagation();
     const [{ data: ret }, { data: retItems }] = await Promise.all([
@@ -259,7 +246,7 @@ export function WasteItemsTab({ products }: Props) {
       supabase.from("waste_items").select("id, product_name, sku, quantity").eq("supplier_return_id", item.supplier_return_id),
     ]);
     if (ret) setLinkedReturn({ id: ret.id, supplierReturn: ret, items: retItems ?? [] });
-  };
+  }, []);
 
   const employees = useMemo(() => {
     if (!isManager) return [];
@@ -276,35 +263,25 @@ export function WasteItemsTab({ products }: Props) {
       filtered = filtered.filter((item) =>
         item.product_name.toLowerCase().includes(q) ||
         item.sku.toLowerCase().includes(q) ||
-        item.recommendations.toLowerCase().includes(q)
+        (item.recommendations || "").toLowerCase().includes(q)
       );
     }
     if (isManager && filterEmployee !== "all") filtered = filtered.filter((item) => item.created_by === filterEmployee);
-    if (filterDisposition !== "all") {
-      if (filterDisposition === "ממתין") filtered = filtered.filter((i) => !i.disposition_type);
-      else filtered = filtered.filter((i) => i.disposition_type === filterDisposition);
+    if (filterAction !== "all") {
+      if (filterAction === "ממתין") filtered = filtered.filter((i) => !i.disposition_type);
+      else if (filterAction === "מכירה בערוץ שלישי")
+        filtered = filtered.filter((i) => i.disposition_type === "מכירה" || i.disposition_type === "מכירה בערוץ שלישי");
+      else filtered = filtered.filter((i) => i.disposition_type === filterAction);
     }
     return [...filtered].sort((a, b) => {
+      if (sortField === "quantity") return sortDir === "asc" ? a.quantity - b.quantity : b.quantity - a.quantity;
       let av = "", bv = "";
       if (sortField === "product_name") { av = a.product_name; bv = b.product_name; }
-      else if (sortField === "quantity") { return sortDir === "asc" ? a.quantity - b.quantity : b.quantity - a.quantity; }
       else if (sortField === "created_by_name") { av = a.created_by_name ?? ""; bv = b.created_by_name ?? ""; }
-      else if (sortField === "created_at") { av = a.created_at; bv = b.created_at; }
+      else { av = a.created_at; bv = b.created_at; }
       return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
     });
-  }, [items, search, filterEmployee, filterDisposition, isManager, isScoped, scopedProductNames, sortField, sortDir]);
-
-  const summaryStats = useMemo(() => {
-    const total = items.length;
-    const inUse = items.filter((i) => i.in_use).length;
-    const notInUse = total - inUse;
-    const totalQuantity = items.reduce((sum, i) => sum + i.quantity, 0);
-    const pending = items.filter((i) => !i.disposition_type).length;
-    const destroyed = items.filter((i) => i.disposition_type === "השמדה").length;
-    const returned = items.filter((i) => i.disposition_type === "החזרה לספק").length;
-    const sold = items.filter((i) => i.disposition_type === "מכירה").length;
-    return { total, inUse, notInUse, totalQuantity, pending, destroyed, returned, sold };
-  }, [items]);
+  }, [items, search, filterEmployee, filterAction, isManager, isScoped, scopedProductNames, sortField, sortDir]);
 
   const handleSave = async () => {
     if (!editingRow || !currentUser) return;
@@ -341,7 +318,7 @@ export function WasteItemsTab({ products }: Props) {
       }
       setEditingRow(null);
       setDrawerOpen(false);
-      await fetchItems();
+      onRefresh();
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "שגיאה בשמירת הפריט";
       logger.error("Waste item save error", error);
@@ -351,51 +328,21 @@ export function WasteItemsTab({ products }: Props) {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    setDeletingId(id);
-    const { error } = await supabase.from("waste_items").delete().eq("id", id);
-    if (error) { toast.error("שגיאה במחיקת הפריט"); setDeletingId(null); return; }
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { error } = await supabase.from("waste_items").delete().eq("id", deleteTarget.id);
+    if (error) { toast.error("שגיאה במחיקת הפריט"); setDeleting(false); return; }
     toast.success("הפריט נמחק");
-    setDeletingId(null);
-    await fetchItems();
+    setDeleting(false);
+    setDeleteTarget(null);
+    onRefresh();
   };
 
   const handleInlineToggle = async (item: WasteItem) => {
     const { error } = await supabase.from("waste_items").update({ in_use: !item.in_use, updated_at: new Date().toISOString() }).eq("id", item.id);
     if (error) { toast.error("שגיאה בעדכון"); return; }
-    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, in_use: !i.in_use } : i)));
-  };
-
-  const csvEscape = (val: string) => `"${val.replace(/"/g, '""')}"`;
-
-  const handleExportCSV = () => {
-    const rows = [
-      ["מוצר", 'מק"ט', "כמות", "סטטוס שימוש", "disposition", "תאריך disposition", "יוצר", "תאריך יצירה"],
-      ...filteredItems.map(i => [
-        i.product_name,
-        i.sku ?? "",
-        String(i.quantity),
-        i.in_use ? "בשימוש" : "לא בשימוש",
-        i.disposition_type ?? "ממתין",
-        i.disposition_date ? new Date(i.disposition_date).toLocaleDateString("he-IL") : "",
-        i.created_by_name ?? "",
-        new Date(i.created_at).toLocaleDateString("he-IL"),
-      ])
-    ];
-    const csv = rows.map(r => r.map(csvEscape).join(",")).join("\n");
-    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `בלאי-${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handlePhotoSave = async (itemId: string, url: string) => {
-    const { error } = await supabase.from("waste_items").update({ photo_url: url }).eq("id", itemId);
-    if (error) { toast.error("שגיאה בשמירת תמונה"); return; }
-    setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, photo_url: url } : i)));
+    onRefresh();
   };
 
   const handleDestroy = async () => {
@@ -407,13 +354,13 @@ export function WasteItemsTab({ products }: Props) {
     if (error) { toast.error("שגיאה בסימון כהושמד"); return; }
     toast.success("הפריט סומן כהושמד");
     setDestroyTarget(null);
-    await fetchItems();
+    onRefresh();
   };
 
   const handleSale = async (buyerName: string, price: number | null) => {
     if (!saleTarget) return;
     const { error } = await supabase.from("waste_items").update({
-      disposition_type: "מכירה",
+      disposition_type: "מכירה בערוץ שלישי",
       disposition_date: new Date().toISOString(),
       sale_buyer_name: buyerName,
       sale_price: price,
@@ -421,7 +368,13 @@ export function WasteItemsTab({ products }: Props) {
     if (error) { toast.error("שגיאה בסימון כמכירה"); return; }
     toast.success("הפריט סומן כנמכר");
     setSaleTarget(null);
-    await fetchItems();
+    onRefresh();
+  };
+
+  const handlePhotoSave = async (itemId: string, url: string) => {
+    const { error } = await supabase.from("waste_items").update({ photo_url: url }).eq("id", itemId);
+    if (error) { toast.error("שגיאה בשמירת תמונה"); return; }
+    onRefresh();
   };
 
   const startEdit = (item: WasteItem) => {
@@ -439,16 +392,36 @@ export function WasteItemsTab({ products }: Props) {
     if (isMobile) setDrawerOpen(true);
   };
 
-  const openNewItemDrawer = () => {
-    setEditingRow({ ...emptyRow });
-    if (isMobile) setDrawerOpen(true);
-  };
-
   const handleDrawerClose = (open: boolean) => {
     if (!open) { setDrawerOpen(false); setEditingRow(null); }
   };
 
-  // Source toggle component used in both new & edit rows
+  const csvEscape = (val: string) => `"${val.replace(/"/g, '""')}"`;
+
+  const handleExportCSV = () => {
+    const rows = [
+      ["מוצר", 'מק"ט', "כמות", "סטטוס שימוש", "פעולה", "תאריך פעולה", "יוצר", "תאריך יצירה"],
+      ...filteredItems.map(i => [
+        i.product_name,
+        i.sku ?? "",
+        String(i.quantity),
+        i.in_use ? "בשימוש" : "לא בשימוש",
+        i.disposition_type === "מכירה" ? "מכירה בערוץ שלישי" : (i.disposition_type ?? "ממתין"),
+        i.disposition_date ? new Date(i.disposition_date).toLocaleDateString("he-IL") : "",
+        i.created_by_name ?? "",
+        new Date(i.created_at).toLocaleDateString("he-IL"),
+      ])
+    ];
+    const csv = rows.map(r => r.map(csvEscape).join(",")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `בלאי-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const SourceToggle = ({ source, onChange }: { source: "product" | "component"; onChange: (s: "product" | "component") => void }) => (
     <div className="inline-flex rounded-md border bg-muted/40 p-0.5 gap-0.5">
       {(["product", "component"] as const).map((s) => (
@@ -460,47 +433,27 @@ export function WasteItemsTab({ products }: Props) {
     </div>
   );
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
   // ──── MOBILE ────
   if (isMobile) {
     return (
       <div className="flex flex-col min-h-[calc(100dvh-12rem)] pb-24">
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-4 pt-4 pb-3">
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1"><Package className="h-3 w-3" />{summaryStats.total} פריטים</span>
-              <span className="flex items-center gap-1 text-green-600"><PackageCheck className="h-3 w-3" />{summaryStats.inUse} בשימוש</span>
-              <span className="flex items-center gap-1 text-orange-500"><PackageX className="h-3 w-3" />{summaryStats.notInUse} לא בשימוש</span>
-            </div>
-            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => { setShowSearch(!showSearch); if (!showSearch) setTimeout(() => searchInputRef.current?.focus(), 100); else prefs.setFilter("search", ""); }}>
-              {showSearch ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
-            </Button>
+        {/* Filters */}
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-4 pt-4 pb-3 space-y-3">
+          <div className="relative">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="חיפוש מוצר, מק״ט..." value={search}
+              onChange={(e) => prefs.setFilter("search", e.target.value)} className="pr-10 h-10 rounded-xl" />
           </div>
-
+          <select value={filterAction} onChange={(e) => prefs.setFilter("filterAction", e.target.value)}
+            className="w-full h-10 rounded-xl border border-input bg-background px-3 text-sm">
+            {ACTION_FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
           {isManager && employees.length > 0 && (
             <select value={filterEmployee} onChange={(e) => prefs.setFilter("filterEmployee", e.target.value)}
-              className="mt-2 w-full h-10 rounded-xl border border-input bg-background px-3 text-sm">
+              className="w-full h-10 rounded-xl border border-input bg-background px-3 text-sm">
               <option value="all">כל העובדים</option>
               {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
             </select>
-          )}
-
-          {showSearch && (
-            <div className="mt-3 animate-in slide-in-from-top-2 duration-200">
-              <div className="relative">
-                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input ref={searchInputRef} placeholder="חיפוש מוצר, מק״ט, המלצה..." value={search} onChange={(e) => prefs.setFilter("search", e.target.value)} className="pr-10 h-10 rounded-xl bg-muted/50" />
-                {search && <button onClick={() => prefs.setFilter("search", "")} className="absolute left-3 top-1/2 -translate-y-1/2"><X className="h-4 w-4 text-muted-foreground" /></button>}
-              </div>
-            </div>
           )}
         </div>
 
@@ -509,10 +462,9 @@ export function WasteItemsTab({ products }: Props) {
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="p-4 bg-muted/30 rounded-full mb-4"><Recycle className="h-12 w-12 text-muted-foreground/30" /></div>
               <p className="text-base font-medium text-muted-foreground mb-1">{search ? "לא נמצאו תוצאות" : "אין פריטי בלאי"}</p>
-              <p className="text-sm text-muted-foreground/60">{search ? "נסו לחפש עם מילות מפתח אחרות" : hasEdit ? 'לחצו על "+" כדי להוסיף פריט ראשון' : "לא נוספו פריטים עדיין"}</p>
             </div>
           ) : filteredItems.map((item) => (
-            <Card key={item.id} className={`overflow-hidden transition-all duration-200 active:scale-[0.98] ${deletingId === item.id ? "opacity-50 scale-95" : ""}`}>
+            <Card key={item.id} className="overflow-hidden">
               <CardContent className="p-0">
                 <div className="flex items-start justify-between p-3.5 pb-2 cursor-pointer" onClick={() => hasEdit && startEdit(item)}>
                   <div className="flex-1 min-w-0">
@@ -525,34 +477,53 @@ export function WasteItemsTab({ products }: Props) {
                     <div className="mt-1">
                       {item.disposition_type === "החזרה לספק" ? (
                         <button className="cursor-pointer hover:opacity-80 transition-opacity" onClick={(e) => handleBadgeClick(e, item)}>
-                          <DispositionBadge disposition={item.disposition_type as never} />
+                          <DispositionBadge disposition={item.disposition_type as DispositionType} />
                         </button>
                       ) : (
-                        <DispositionBadge disposition={item.disposition_type as never} />
+                        <DispositionBadge disposition={item.disposition_type as DispositionType} />
                       )}
                     </div>
                   </div>
-                  <Badge variant={item.in_use ? "default" : "secondary"} className={`flex-shrink-0 text-xs ${item.in_use ? "bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400" : "bg-orange-100 text-orange-700 hover:bg-orange-100 dark:bg-orange-900/30 dark:text-orange-400"}`}>
+                  <Badge variant={item.in_use ? "default" : "secondary"} className={`flex-shrink-0 text-xs ${item.in_use ? "bg-green-100 text-green-700 hover:bg-green-100" : "bg-orange-100 text-orange-700 hover:bg-orange-100"}`}>
                     {item.in_use ? "בשימוש" : "לא בשימוש"}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between px-3.5 pb-3 gap-3">
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1.5"><Box className="h-3.5 w-3.5" /><span className="font-medium text-foreground">{item.quantity}</span> יח׳</span>
-                    {item.recommendations && <span className="flex items-center gap-1.5 truncate max-w-[160px]"><MessageSquare className="h-3.5 w-3.5 flex-shrink-0" /><span className="truncate">{item.recommendations}</span></span>}
-                  </div>
+                  <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Box className="h-3.5 w-3.5" /><span className="font-medium text-foreground">{item.quantity}</span> יח׳
+                  </span>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <PhotoCaptureButton imageUrl={item.photo_url} storagePath={`waste-items/${item.id}`} onSave={(url) => handlePhotoSave(item.id, url)} disabled={!hasEdit} />
+                    <PhotoCaptureButton imageUrl={item.photo_url} storagePath={`waste-items/${item.id}`}
+                      onSave={(url) => handlePhotoSave(item.id, url)} disabled={!hasEdit} />
                     {hasEdit && (
-                      <>
-                        <div className="flex items-center gap-1.5">
-                          <Checkbox checked={item.in_use} onCheckedChange={() => handleInlineToggle(item)} />
-                          <span className="text-xs text-muted-foreground">{item.in_use ? "כן" : "לא"}</span>
-                        </div>
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground/50 hover:text-destructive" onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="icon" variant="ghost" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" dir="rtl">
+                          <DropdownMenuItem onClick={() => startEdit(item)}>
+                            <Pencil className="h-4 w-4 me-2" /> עריכה
+                          </DropdownMenuItem>
+                          {!item.disposition_type && <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => setDestroyTarget(item)} className="text-destructive">
+                              <Trash2 className="h-4 w-4 me-2" /> סמן כהושמד
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setReturnTarget(item)}>
+                              <PackageX className="h-4 w-4 me-2" /> החזרה לספק
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setSaleTarget(item)}>
+                              <Box className="h-4 w-4 me-2" /> מכירה בערוץ שלישי
+                            </DropdownMenuItem>
+                          </>}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => setDeleteTarget(item)} className="text-destructive">
+                            <Trash2 className="h-4 w-4 me-2" /> מחיקת רשומה
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
                   </div>
                 </div>
@@ -561,191 +532,146 @@ export function WasteItemsTab({ products }: Props) {
           ))}
         </div>
 
-        {hasEdit && (
-          <button onClick={openNewItemDrawer} className="fixed bottom-[max(6rem,calc(env(safe-area-inset-bottom)+5rem))] left-5 z-40 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 flex items-center justify-center active:scale-90 transition-transform duration-150 hover:shadow-xl">
-            <Plus className="h-7 w-7" strokeWidth={2.5} />
-          </button>
-        )}
-
+        {/* Mobile edit drawer */}
         <Drawer open={drawerOpen} onOpenChange={handleDrawerClose}>
           <DrawerContent className="max-h-[92dvh]">
             <DrawerHeader className="text-right pb-2">
-              <DrawerTitle className="text-lg">{editingRow?.id ? "עריכת פריט" : "הוספת פריט חדש"}</DrawerTitle>
-              <DrawerDescription>{editingRow?.id ? "עדכנו את פרטי הפריט" : "מלאו את הפרטים להוספת פריט בלאי חדש"}</DrawerDescription>
+              <DrawerTitle className="text-lg">{editingRow?.id ? "עריכת פריט" : "הוספת פריט"}</DrawerTitle>
+              <DrawerDescription>{editingRow?.id ? "עדכון פרטי הפריט" : "הוספת פריט בלאי חדש"}</DrawerDescription>
             </DrawerHeader>
-
             {editingRow && (
               <div className="px-4 space-y-5 overflow-y-auto">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium flex items-center gap-2">
-                      {editingRow.itemSource === "component" ? <Layers className="h-4 w-4 text-primary" /> : <Package className="h-4 w-4 text-primary" />}
-                      {editingRow.itemSource === "component" ? "שם הפריט" : "שם המוצר"}
-                    </Label>
+                    <Label className="text-sm font-medium">{editingRow.itemSource === "component" ? "שם הפריט" : "שם המוצר"}</Label>
                     <SourceToggle source={editingRow.itemSource} onChange={(s) => setEditingRow({ ...editingRow, product_name: "", sku: "", product_id: null, component_id: null, itemSource: s })} />
                   </div>
                   {editingRow.itemSource === "component" ? (
-                    <Combobox value={editingRow.product_name} onValueChange={handleComponentSelect} options={componentOptions} placeholder="בחר פריט מוצר..." searchPlaceholder="חיפוש פריט..." emptyText="לא נמצא פריט" allowCustomValue className="h-12 rounded-xl text-base" />
+                    <Combobox value={editingRow.product_name} onValueChange={handleComponentSelect} options={componentOptions} placeholder="בחר פריט..." allowCustomValue className="h-12 rounded-xl text-base" />
                   ) : (
-                    <Combobox value={editingRow.product_name} onValueChange={handleProductSelect} options={productOptions} placeholder="בחר או הקלד שם מוצר..." searchPlaceholder="חיפוש מוצר..." emptyText="לא נמצא מוצר" allowCustomValue className="h-12 rounded-xl text-base" />
+                    <Combobox value={editingRow.product_name} onValueChange={handleProductSelect} options={productOptions} placeholder="בחר מוצר..." allowCustomValue className="h-12 rounded-xl text-base" />
                   )}
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <Label htmlFor="mobile-sku" className="text-sm font-medium flex items-center gap-2"><Hash className="h-4 w-4 text-primary" />מק״ט</Label>
-                    <Input id="mobile-sku" placeholder="XXX-000" value={editingRow.sku} onChange={(e) => setEditingRow({ ...editingRow, sku: e.target.value })} disabled={isProductFromSystem} className="h-12 rounded-xl text-base font-mono" />
+                    <Label>מק"ט</Label>
+                    <Input placeholder="XXX-000" value={editingRow.sku} onChange={(e) => setEditingRow({ ...editingRow, sku: e.target.value })} disabled={isProductFromSystem} className="h-12 rounded-xl font-mono" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="mobile-qty" className="text-sm font-medium flex items-center gap-2"><Box className="h-4 w-4 text-primary" />כמות</Label>
-                    <Input id="mobile-qty" type="number" inputMode="numeric" min={0} placeholder="0" value={editingRow.quantity || ""} onChange={(e) => setEditingRow({ ...editingRow, quantity: parseInt(e.target.value) || 0 })} className="h-12 rounded-xl text-base text-center" />
+                    <Label>כמות</Label>
+                    <Input type="number" min={0} value={editingRow.quantity || ""} onChange={(e) => setEditingRow({ ...editingRow, quantity: parseInt(e.target.value) || 0 })} className="h-12 rounded-xl text-center" />
                   </div>
                 </div>
                 <div className="flex items-center gap-3 p-4 bg-muted/30 rounded-xl">
-                  <Checkbox id="mobile-inuse" checked={editingRow.in_use} onCheckedChange={(checked) => setEditingRow({ ...editingRow, in_use: !!checked })} />
-                  <Label htmlFor="mobile-inuse" className="text-sm font-medium flex items-center gap-2 cursor-pointer"><ToggleRight className="h-4 w-4 text-primary" />בשימוש</Label>
+                  <Checkbox id="mobile-inuse" checked={editingRow.in_use} onCheckedChange={(c) => setEditingRow({ ...editingRow, in_use: !!c })} />
+                  <Label htmlFor="mobile-inuse" className="cursor-pointer flex items-center gap-2"><ToggleRight className="h-4 w-4 text-primary" />בשימוש</Label>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="mobile-rec" className="text-sm font-medium flex items-center gap-2"><MessageSquare className="h-4 w-4 text-primary" />המלצות</Label>
-                  <Textarea id="mobile-rec" placeholder="המלצה לגבי הפריט..." value={editingRow.recommendations} onChange={(e) => setEditingRow({ ...editingRow, recommendations: e.target.value })} rows={3} className="rounded-xl text-base resize-none" />
+                  <Label>הערות</Label>
+                  <Textarea placeholder="הערות..." value={editingRow.recommendations} onChange={(e) => setEditingRow({ ...editingRow, recommendations: e.target.value })} rows={3} className="rounded-xl resize-none" />
                 </div>
               </div>
             )}
-
             <DrawerFooter className="pt-4 pb-6 gap-2">
-              <Button onClick={handleSave} disabled={saving || !editingRow?.product_name.trim()} className="h-12 rounded-xl text-base font-medium gap-2">
+              <Button onClick={handleSave} disabled={saving || !editingRow?.product_name.trim()} className="h-12 rounded-xl gap-2">
                 {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
-                {editingRow?.id ? "עדכון פריט" : "הוספת פריט"}
+                {editingRow?.id ? "עדכון" : "הוספה"}
               </Button>
-              <Button variant="ghost" onClick={() => handleDrawerClose(false)} className="h-11 rounded-xl text-base text-muted-foreground">ביטול</Button>
+              <Button variant="ghost" onClick={() => handleDrawerClose(false)} className="h-11 rounded-xl text-muted-foreground">ביטול</Button>
             </DrawerFooter>
           </DrawerContent>
         </Drawer>
 
-        {/* Disposition dialogs */}
-        <DestroyDialog open={!!destroyTarget} onClose={() => setDestroyTarget(null)} onConfirm={handleDestroy} itemName={destroyTarget?.product_name ?? ""} />
+        {/* Dialogs */}
+        <AlertDialog open={!!destroyTarget} onOpenChange={(o) => !o && setDestroyTarget(null)}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2"><Trash2 className="h-5 w-5 text-destructive" />סימון כהושמד</AlertDialogTitle>
+              <AlertDialogDescription>האם לסמן את <strong>{destroyTarget?.product_name}</strong> כהושמד?</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row-reverse gap-2">
+              <AlertDialogCancel>ביטול</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDestroy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">סמן כהושמד</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <SaleDialog open={!!saleTarget} onClose={() => setSaleTarget(null)} onConfirm={handleSale} itemName={saleTarget?.product_name ?? ""} />
-        <SupplierReturnDialog open={!!returnTarget} onClose={() => setReturnTarget(null)} onSaved={() => { setReturnTarget(null); fetchItems(); }} preselectedItemId={returnTarget?.id} />
+        <SupplierReturnDialog open={!!returnTarget} onClose={() => setReturnTarget(null)} onSaved={() => { setReturnTarget(null); onRefresh(); }} preselectedItemId={returnTarget?.id} />
 
         {linkedReturn && (
           <SupplierReturnDetailPanel
             open={!!linkedReturn}
             onClose={() => setLinkedReturn(null)}
-            onUpdated={() => { setLinkedReturn(null); fetchItems(); }}
+            onUpdated={() => { setLinkedReturn(null); onRefresh(); }}
             supplierReturn={linkedReturn.supplierReturn as Parameters<typeof SupplierReturnDetailPanel>[0]["supplierReturn"]}
             items={linkedReturn.items as Parameters<typeof SupplierReturnDetailPanel>[0]["items"]}
           />
         )}
+
+        <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>מחיקת פריט</AlertDialogTitle>
+              <AlertDialogDescription>האם למחוק לצמיתות את <strong>{deleteTarget?.product_name}</strong>? לא ניתן לשחזר.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row-reverse gap-2">
+              <AlertDialogCancel>ביטול</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin me-1" /> : null}מחק
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }
 
   // ──── DESKTOP ────
-  const FIXED_COLS = 1; // actions column
+  const FIXED_COLS = 1;
   return (
     <TooltipProvider>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">
-              {isManager ? "תצוגת ניהול - כל הפריטים מכל העובדים" : "תיעוד וניהול פריטי בלאי"}
-            </p>
-          </div>
-          {hasEdit && (
-            <Button onClick={() => setEditingRow({ ...emptyRow })} disabled={editingRow !== null} className="gap-2">
-              <Plus className="h-4 w-4" />הוסף שורה
-            </Button>
-          )}
-        </div>
-
-        {/* Manager Summary Cards */}
-        {isManager && (
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            <Card
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => prefs.savePreferences({ filters: { search: "", filterEmployee: "all", filterDisposition: "all" } })}
-            >
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="p-2 bg-blue-500/10 rounded-lg"><Package className="h-5 w-5 text-blue-500" /></div>
-                <div><p className="text-2xl font-bold">{summaryStats.total}</p><p className="text-xs text-muted-foreground">סה"כ פריטים</p></div>
-              </CardContent>
-            </Card>
-            <Card
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => prefs.setFilter("filterDisposition", "ממתין")}
-            >
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="p-2 bg-orange-500/10 rounded-lg"><PackageX className="h-5 w-5 text-orange-500" /></div>
-                <div><p className="text-2xl font-bold">{summaryStats.pending}</p><p className="text-xs text-muted-foreground">ממתין</p></div>
-              </CardContent>
-            </Card>
-            <Card
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => prefs.setFilter("filterDisposition", "השמדה")}
-            >
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="p-2 bg-red-500/10 rounded-lg"><Trash2 className="h-5 w-5 text-red-500" /></div>
-                <div><p className="text-2xl font-bold">{summaryStats.destroyed}</p><p className="text-xs text-muted-foreground">הושמד</p></div>
-              </CardContent>
-            </Card>
-            <Card
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => prefs.setFilter("filterDisposition", "החזרה לספק")}
-            >
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="p-2 bg-green-500/10 rounded-lg"><PackageCheck className="h-5 w-5 text-green-500" /></div>
-                <div><p className="text-2xl font-bold">{summaryStats.returned}</p><p className="text-xs text-muted-foreground">הוחזר</p></div>
-              </CardContent>
-            </Card>
-            <Card
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => prefs.setFilter("filterDisposition", "מכירה")}
-            >
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="p-2 bg-purple-500/10 rounded-lg"><Recycle className="h-5 w-5 text-purple-500" /></div>
-                <div><p className="text-2xl font-bold">{summaryStats.sold}</p><p className="text-xs text-muted-foreground">נמכר</p></div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
+      <div className="space-y-4">
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="חיפוש לפי מוצר, מק״ט או המלצה..." value={search} onChange={(e) => prefs.setFilter("search", e.target.value)} className="pr-10" />
+            <Input placeholder="חיפוש לפי מוצר, מק״ט או הערות..." value={search}
+              onChange={(e) => prefs.setFilter("search", e.target.value)} className="pr-10" />
           </div>
+          <Select value={filterAction} onValueChange={(v) => prefs.setFilter("filterAction", v)}>
+            <SelectTrigger className="h-10 w-[200px]"><SelectValue placeholder="כל הפעולות" /></SelectTrigger>
+            <SelectContent>
+              {ACTION_FILTER_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
           {isManager && employees.length > 0 && (
             <Select value={filterEmployee} onValueChange={(v) => prefs.setFilter("filterEmployee", v)}>
-              <SelectTrigger className="h-10 w-[180px]">
-                <SelectValue placeholder="כל העובדים" />
-              </SelectTrigger>
+              <SelectTrigger className="h-10 w-[160px]"><SelectValue placeholder="כל העובדים" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">כל העובדים</SelectItem>
                 {employees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
               </SelectContent>
             </Select>
           )}
-          <Select value={filterDisposition} onValueChange={(v) => prefs.setFilter("filterDisposition", v)}>
-            <SelectTrigger className="h-10 w-[180px]">
-              <SelectValue placeholder="כל הסטטוסים" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">כל הסטטוסים</SelectItem>
-              <SelectItem value="ממתין">ממתין</SelectItem>
-              <SelectItem value="השמדה">השמדה</SelectItem>
-              <SelectItem value="החזרה לספק">החזרה לספק</SelectItem>
-              <SelectItem value="מכירה">מכירה</SelectItem>
-            </SelectContent>
-          </Select>
           {hasActiveFilters && (
-            <Button size="sm" variant="ghost" onClick={() => prefs.savePreferences({ filters: { search: "", filterEmployee: "all", filterDisposition: "all" } })}>
+            <Button size="sm" variant="ghost" onClick={() => prefs.savePreferences({ filters: { search: "", filterEmployee: "all", filterAction: "all" } })}>
               <X className="h-3 w-3 me-1" /> נקה סינון
             </Button>
           )}
           <Button size="sm" variant="outline" className="gap-1" onClick={handleExportCSV}>
             <Download className="h-3 w-3" /> ייצוא CSV
           </Button>
+        </div>
+
+        {/* Summary counts */}
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <span className="flex items-center gap-1"><Package className="h-3.5 w-3.5" />{items.length} פריטים</span>
+          <span className="flex items-center gap-1 text-green-600"><PackageCheck className="h-3.5 w-3.5" />{items.filter(i => i.in_use).length} בשימוש</span>
+          <span className="flex items-center gap-1 text-orange-500"><PackageX className="h-3.5 w-3.5" />{items.filter(i => !i.disposition_type).length} ממתינים</span>
+          {filteredItems.length !== items.length && (
+            <span className="text-primary font-medium">מציג {filteredItems.length} פריטים</span>
+          )}
         </div>
 
         {/* Table */}
@@ -768,7 +694,7 @@ export function WasteItemsTab({ products }: Props) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {/* New row */}
+              {/* Inline new row */}
               {editingRow && editingRow.id === null && (
                 <TableRow className="bg-primary/5">
                   {isVisible("employee") && isManager && <TableCell className="text-sm text-muted-foreground">{currentUser?.name}</TableCell>}
@@ -777,19 +703,19 @@ export function WasteItemsTab({ products }: Props) {
                       <div className="space-y-1">
                         <SourceToggle source={editingRow.itemSource} onChange={(s) => setEditingRow({ ...editingRow, product_name: "", sku: "", product_id: null, component_id: null, itemSource: s })} />
                         {editingRow.itemSource === "component" ? (
-                          <Combobox value={editingRow.product_name} onValueChange={handleComponentSelect} options={componentOptions} placeholder="בחר פריט מוצר..." searchPlaceholder="חיפוש פריט..." emptyText="לא נמצא פריט" allowCustomValue className="h-9" />
+                          <Combobox value={editingRow.product_name} onValueChange={handleComponentSelect} options={componentOptions} placeholder="בחר פריט..." allowCustomValue className="h-9" />
                         ) : (
-                          <Combobox value={editingRow.product_name} onValueChange={handleProductSelect} options={productOptions} placeholder="בחר או הקלד שם מוצר..." searchPlaceholder="חיפוש מוצר..." emptyText="לא נמצא מוצר" allowCustomValue className="h-9" />
+                          <Combobox value={editingRow.product_name} onValueChange={handleProductSelect} options={productOptions} placeholder="בחר מוצר..." allowCustomValue className="h-9" />
                         )}
                       </div>
                     </TableCell>
                   )}
                   {isVisible("sku") && <TableCell><Input placeholder="מק״ט" value={editingRow.sku} onChange={(e) => setEditingRow({ ...editingRow, sku: e.target.value })} disabled={isProductFromSystem} className="h-9" /></TableCell>}
                   {isVisible("quantity") && <TableCell><Input type="number" min={0} placeholder="0" value={editingRow.quantity || ""} onChange={(e) => setEditingRow({ ...editingRow, quantity: parseInt(e.target.value) || 0 })} className="h-9 w-20 text-center mx-auto" /></TableCell>}
-                  {isVisible("in_use") && <TableCell className="text-center"><div className="flex items-center justify-center gap-1.5"><Checkbox checked={editingRow.in_use} onCheckedChange={(checked) => setEditingRow({ ...editingRow, in_use: !!checked })} /><span className="text-sm">{editingRow.in_use ? "כן" : "לא"}</span></div></TableCell>}
-                  {isVisible("recommendations") && <TableCell><Input placeholder="המלצות..." value={editingRow.recommendations} onChange={(e) => setEditingRow({ ...editingRow, recommendations: e.target.value })} className="h-9" /></TableCell>}
-                  {isVisible("disposition") && <TableCell />}
-                  {isVisible("photo") && <TableCell className="text-center" />}
+                  {isVisible("in_use") && <TableCell className="text-center"><Checkbox checked={editingRow.in_use} onCheckedChange={(c) => setEditingRow({ ...editingRow, in_use: !!c })} /></TableCell>}
+                  {isVisible("notes") && <TableCell><Input placeholder="הערות..." value={editingRow.recommendations} onChange={(e) => setEditingRow({ ...editingRow, recommendations: e.target.value })} className="h-9" /></TableCell>}
+                  {isVisible("action") && <TableCell />}
+                  {isVisible("photo") && <TableCell />}
                   {hasEdit && (
                     <TableCell>
                       <div className="flex items-center justify-center gap-1">
@@ -815,18 +741,18 @@ export function WasteItemsTab({ products }: Props) {
                         <div className="space-y-1">
                           <SourceToggle source={editingRow.itemSource} onChange={(s) => setEditingRow({ ...editingRow, product_name: "", sku: "", product_id: null, component_id: null, itemSource: s })} />
                           {editingRow.itemSource === "component" ? (
-                            <Combobox value={editingRow.product_name} onValueChange={handleComponentSelect} options={componentOptions} placeholder="בחר פריט מוצר..." searchPlaceholder="חיפוש פריט..." emptyText="לא נמצא פריט" allowCustomValue className="h-9" />
+                            <Combobox value={editingRow.product_name} onValueChange={handleComponentSelect} options={componentOptions} placeholder="בחר פריט..." allowCustomValue className="h-9" />
                           ) : (
-                            <Combobox value={editingRow.product_name} onValueChange={handleProductSelect} options={productOptions} placeholder="בחר או הקלד שם מוצר..." searchPlaceholder="חיפוש מוצר..." emptyText="לא נמצא מוצר" allowCustomValue className="h-9" />
+                            <Combobox value={editingRow.product_name} onValueChange={handleProductSelect} options={productOptions} placeholder="בחר מוצר..." allowCustomValue className="h-9" />
                           )}
                         </div>
                       </TableCell>
                     )}
                     {isVisible("sku") && <TableCell><Input value={editingRow.sku} onChange={(e) => setEditingRow({ ...editingRow, sku: e.target.value })} disabled={isProductFromSystem} className="h-9" /></TableCell>}
                     {isVisible("quantity") && <TableCell><Input type="number" min={0} value={editingRow.quantity || ""} onChange={(e) => setEditingRow({ ...editingRow, quantity: parseInt(e.target.value) || 0 })} className="h-9 w-20 text-center mx-auto" /></TableCell>}
-                    {isVisible("in_use") && <TableCell className="text-center"><div className="flex items-center justify-center gap-1.5"><Checkbox checked={editingRow.in_use} onCheckedChange={(checked) => setEditingRow({ ...editingRow, in_use: !!checked })} /><span className="text-sm">{editingRow.in_use ? "כן" : "לא"}</span></div></TableCell>}
-                    {isVisible("recommendations") && <TableCell><Input value={editingRow.recommendations} onChange={(e) => setEditingRow({ ...editingRow, recommendations: e.target.value })} className="h-9" /></TableCell>}
-                    {isVisible("disposition") && <TableCell />}
+                    {isVisible("in_use") && <TableCell className="text-center"><Checkbox checked={editingRow.in_use} onCheckedChange={(c) => setEditingRow({ ...editingRow, in_use: !!c })} /></TableCell>}
+                    {isVisible("notes") && <TableCell><Input value={editingRow.recommendations} onChange={(e) => setEditingRow({ ...editingRow, recommendations: e.target.value })} className="h-9" /></TableCell>}
+                    {isVisible("action") && <TableCell />}
                     {isVisible("photo") && <TableCell className="text-center"><div className="flex justify-center"><PhotoCaptureButton imageUrl={item.photo_url} storagePath={`waste-items/${item.id}`} onSave={(url) => handlePhotoSave(item.id, url)} /></div></TableCell>}
                     {hasEdit && (
                       <TableCell>
@@ -850,18 +776,15 @@ export function WasteItemsTab({ products }: Props) {
                     {isVisible("in_use") && (
                       <TableCell className="text-center">
                         {hasEdit ? (
-                          <div className="flex items-center justify-center gap-1.5">
-                            <Checkbox checked={item.in_use} onCheckedChange={() => handleInlineToggle(item)} />
-                            <span className="text-sm">{item.in_use ? "כן" : "לא"}</span>
-                          </div>
+                          <Checkbox checked={item.in_use} onCheckedChange={() => handleInlineToggle(item)} />
                         ) : (
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.in_use ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"}`}>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${item.in_use ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
                             {item.in_use ? "כן" : "לא"}
                           </span>
                         )}
                       </TableCell>
                     )}
-                    {isVisible("recommendations") && (
+                    {isVisible("notes") && (
                       <TableCell className="max-w-[200px] text-sm text-muted-foreground">
                         {item.recommendations ? (
                           <Tooltip>
@@ -873,56 +796,58 @@ export function WasteItemsTab({ products }: Props) {
                         ) : "—"}
                       </TableCell>
                     )}
-                    {isVisible("disposition") && (
+                    {isVisible("action") && (
                       <TableCell>
                         {item.disposition_type === "החזרה לספק" ? (
                           <button className="cursor-pointer hover:opacity-80 transition-opacity" onClick={(e) => handleBadgeClick(e, item)}>
-                            <DispositionBadge disposition={item.disposition_type as never} />
+                            <DispositionBadge disposition={item.disposition_type as DispositionType} />
                           </button>
                         ) : (
-                          <DispositionBadge disposition={item.disposition_type as never} />
+                          <DispositionBadge disposition={item.disposition_type as DispositionType} />
                         )}
                       </TableCell>
                     )}
                     {isVisible("photo") && (
                       <TableCell className="text-center">
                         <div className="flex justify-center">
-                          <PhotoCaptureButton imageUrl={item.photo_url} storagePath={`waste-items/${item.id}`} onSave={(url) => handlePhotoSave(item.id, url)} disabled={!hasEdit} />
+                          <PhotoCaptureButton imageUrl={item.photo_url} storagePath={`waste-items/${item.id}`}
+                            onSave={(url) => handlePhotoSave(item.id, url)} disabled={!hasEdit} />
                         </div>
                       </TableCell>
                     )}
                     {hasEdit && (
                       <TableCell>
                         <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => startEdit(item)} disabled={editingRow !== null}>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            onClick={() => startEdit(item)} disabled={editingRow !== null}>
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          {!item.disposition_type && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button size="icon" variant="ghost" className="h-8 w-8" disabled={editingRow !== null}>
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" dir="rtl">
-                                <DropdownMenuItem onClick={() => setDestroyTarget(item)} className="text-destructive">
-                                  <Trash2 className="h-4 w-4 me-2" />
-                                  השמד
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setReturnTarget(item)}>
-                                  <PackageX className="h-4 w-4 me-2" />
-                                  הוסף להחזרה לספק
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setSaleTarget(item)}>
-                                  <Box className="h-4 w-4 me-2" />
-                                  סמן כמכירה
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(item.id)} disabled={editingRow !== null}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="icon" variant="ghost" className="h-8 w-8" disabled={editingRow !== null}>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" dir="rtl">
+                              {!item.disposition_type && (
+                                <>
+                                  <DropdownMenuItem onClick={() => setDestroyTarget(item)} className="text-destructive">
+                                    <Trash2 className="h-4 w-4 me-2" /> סמן כהושמד
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => setReturnTarget(item)}>
+                                    <PackageX className="h-4 w-4 me-2" /> החזרה לספק
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => setSaleTarget(item)}>
+                                    <Box className="h-4 w-4 me-2" /> מכירה בערוץ שלישי
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                </>
+                              )}
+                              <DropdownMenuItem onClick={() => setDeleteTarget(item)} className="text-destructive">
+                                <Trash2 className="h-4 w-4 me-2" /> מחיקת רשומה
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </TableCell>
                     )}
@@ -932,10 +857,10 @@ export function WasteItemsTab({ products }: Props) {
 
               {filteredItems.length === 0 && !editingRow && (
                 <TableRow>
-                  <TableCell colSpan={visibleCount + (hasEdit ? 1 : 0)} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={visibleCount + FIXED_COLS} className="text-center py-12 text-muted-foreground">
                     <Recycle className="h-12 w-12 mx-auto mb-3 opacity-20" />
                     <p className="text-lg font-medium mb-1">אין פריטי בלאי</p>
-                    <p className="text-sm">{search ? "לא נמצאו תוצאות לחיפוש" : hasEdit ? 'לחץ על "הוסף שורה" כדי להתחיל לתעד בלאי' : "לא נוספו פריטי בלאי עדיין"}</p>
+                    <p className="text-sm">{search || filterAction !== "all" ? "לא נמצאו תוצאות לפי הסינון הנוכחי" : "לא נוספו פריטי בלאי עדיין"}</p>
                   </TableCell>
                 </TableRow>
               )}
@@ -943,20 +868,47 @@ export function WasteItemsTab({ products }: Props) {
           </Table>
         </div>
 
-        {/* Disposition dialogs */}
-        <DestroyDialog open={!!destroyTarget} onClose={() => setDestroyTarget(null)} onConfirm={handleDestroy} itemName={destroyTarget?.product_name ?? ""} />
+        {/* Dialogs */}
+        <AlertDialog open={!!destroyTarget} onOpenChange={(o) => !o && setDestroyTarget(null)}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2"><Trash2 className="h-5 w-5 text-destructive" />סימון כהושמד</AlertDialogTitle>
+              <AlertDialogDescription>האם לסמן את <strong>{destroyTarget?.product_name}</strong> כהושמד? הפריט יישאר ברשימה עם סטטוס השמדה.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row-reverse gap-2">
+              <AlertDialogCancel>ביטול</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDestroy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">סמן כהושמד</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <SaleDialog open={!!saleTarget} onClose={() => setSaleTarget(null)} onConfirm={handleSale} itemName={saleTarget?.product_name ?? ""} />
-        <SupplierReturnDialog open={!!returnTarget} onClose={() => setReturnTarget(null)} onSaved={() => { setReturnTarget(null); fetchItems(); }} preselectedItemId={returnTarget?.id} />
+        <SupplierReturnDialog open={!!returnTarget} onClose={() => setReturnTarget(null)} onSaved={() => { setReturnTarget(null); onRefresh(); }} preselectedItemId={returnTarget?.id} />
 
         {linkedReturn && (
           <SupplierReturnDetailPanel
             open={!!linkedReturn}
             onClose={() => setLinkedReturn(null)}
-            onUpdated={() => { setLinkedReturn(null); fetchItems(); }}
+            onUpdated={() => { setLinkedReturn(null); onRefresh(); }}
             supplierReturn={linkedReturn.supplierReturn as Parameters<typeof SupplierReturnDetailPanel>[0]["supplierReturn"]}
             items={linkedReturn.items as Parameters<typeof SupplierReturnDetailPanel>[0]["items"]}
           />
         )}
+
+        <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>מחיקת פריט</AlertDialogTitle>
+              <AlertDialogDescription>האם למחוק לצמיתות את <strong>{deleteTarget?.product_name}</strong>? לא ניתן לשחזר.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row-reverse gap-2">
+              <AlertDialogCancel>ביטול</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin me-1" /> : null}מחק
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {colMenu && (
           <ColContextMenu

@@ -1,6 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 
-type DispositionType = "השמדה" | "החזרה לספק" | "מכירה" | null | undefined;
+export type DispositionType =
+  | "השמדה"
+  | "החזרה לספק"
+  | "מכירה"
+  | "מכירה בערוץ שלישי"
+  | "אחר"
+  | null
+  | undefined;
 
 interface Props {
   disposition: DispositionType;
@@ -32,10 +39,18 @@ export function DispositionBadge({ disposition, className }: Props) {
     );
   }
 
-  if (disposition === "מכירה") {
+  if (disposition === "מכירה" || disposition === "מכירה בערוץ שלישי") {
     return (
       <Badge className={`bg-amber-100 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300 border-0 ${className ?? ""}`}>
-        מכירה
+        מכירה בערוץ שלישי
+      </Badge>
+    );
+  }
+
+  if (disposition === "אחר") {
+    return (
+      <Badge className={`bg-purple-100 text-purple-700 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-300 border-0 ${className ?? ""}`}>
+        אחר
       </Badge>
     );
   }
