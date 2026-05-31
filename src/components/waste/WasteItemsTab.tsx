@@ -84,6 +84,9 @@ import {
   ArrowDown,
   Download,
   Trash2,
+  Truck,
+  DollarSign,
+  Clock,
 } from "lucide-react";
 
 interface WasteItem {
@@ -105,6 +108,8 @@ interface WasteItem {
   supplier_return_id: string | null;
   sale_buyer_name: string | null;
   sale_price: number | null;
+  unit_cost: number | null;
+  supplier_id: string | null;
 }
 
 interface EditingRow {
@@ -117,6 +122,8 @@ interface EditingRow {
   itemSource: "product" | "component";
   product_id: string | null;
   component_id: string | null;
+  unit_cost: number | null;
+  supplier_id: string | null;
 }
 
 const emptyRow: EditingRow = {
@@ -129,6 +136,8 @@ const emptyRow: EditingRow = {
   itemSource: "product",
   product_id: null,
   component_id: null,
+  unit_cost: null,
+  supplier_id: null,
 };
 
 const COLUMN_DEFS = [
@@ -140,6 +149,10 @@ const COLUMN_DEFS = [
   { id: "notes", label: "הערות" },
   { id: "action", label: "פעולה" },
   { id: "photo", label: "תמונה" },
+  { id: "supplier", label: "ספק", sortField: "supplier_id" },
+  { id: "unit_cost", label: "עלות יחידה", sortField: "unit_cost" },
+  { id: "days_waiting", label: "ימי המתנה", sortField: "created_at" },
+  { id: "sale_info", label: "פרטי מכירה" },
 ] as const;
 
 const ACTION_FILTER_OPTIONS = [
@@ -155,9 +168,14 @@ interface Props {
   items: WasteItem[];
   onRefresh: () => void;
   products: Array<{ id: string; name: string; sku: string; components?: Array<{ id: string; name: string; sku: string }> }>;
+  suppliers?: Array<{ id: string; name: string }>;
 }
 
-export function WasteItemsTab({ items, onRefresh, products }: Props) {
+function daysAgo(dateStr: string) {
+  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+}
+
+export function WasteItemsTab({ items, onRefresh, products, suppliers = [] }: Props) {
   const { currentUser } = useAuth();
   const { isScoped, scopedProductNames } = useProductScope();
   const { hasEdit, isManager } = usePermissions("waste");
@@ -175,6 +193,11 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
   const [returnTarget, setReturnTarget] = useState<WasteItem | null>(null);
   const [linkedReturn, setLinkedReturn] = useState<{ id: string; supplierReturn: unknown; items: unknown[] } | null>(null);
 
+  // Bulk selection (manager + desktop only)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkConfirmAction, setBulkConfirmAction] = useState<"destroy" | "delete" | null>(null);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+
   const prefs = useTablePreferences("WasteItemsTab", {
     sortField: "created_at",
     sortDir: "desc",
@@ -190,7 +213,13 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
   const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility(
     "waste-items:hidden-columns",
     COLUMN_DEFS,
-    isManager ? [] : ["employee"]
+    [
+      ...(isManager ? [] : ["employee" as const]),
+      "supplier" as const,
+      "unit_cost" as const,
+      "days_waiting" as const,
+      "sale_info" as const,
+    ]
   );
   const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 
@@ -220,6 +249,13 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
     });
     return map;
   }, [products]);
+
+  const supplierOptions = useMemo(() => suppliers.map((s) => ({ value: s.id, label: s.name })), [suppliers]);
+  const supplierMap = useMemo(() => {
+    const map = new Map<string, string>();
+    suppliers.forEach((s) => map.set(s.id, s.name));
+    return map;
+  }, [suppliers]);
 
   const isProductFromSystem = useMemo(() => {
     if (!editingRow) return false;
@@ -275,6 +311,7 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
     }
     return [...filtered].sort((a, b) => {
       if (sortField === "quantity") return sortDir === "asc" ? a.quantity - b.quantity : b.quantity - a.quantity;
+      if (sortField === "unit_cost") return sortDir === "asc" ? (a.unit_cost ?? 0) - (b.unit_cost ?? 0) : (b.unit_cost ?? 0) - (a.unit_cost ?? 0);
       let av = "", bv = "";
       if (sortField === "product_name") { av = a.product_name; bv = b.product_name; }
       else if (sortField === "created_by_name") { av = a.created_by_name ?? ""; bv = b.created_by_name ?? ""; }
@@ -297,6 +334,8 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
           recommendations: editingRow.recommendations.trim(),
           product_id: editingRow.product_id,
           component_id: editingRow.component_id,
+          unit_cost: editingRow.unit_cost,
+          supplier_id: editingRow.supplier_id,
           updated_at: new Date().toISOString(),
         }).eq("id", editingRow.id);
         if (error) throw error;
@@ -310,6 +349,8 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
           recommendations: editingRow.recommendations.trim(),
           product_id: editingRow.product_id,
           component_id: editingRow.component_id,
+          unit_cost: editingRow.unit_cost,
+          supplier_id: editingRow.supplier_id,
           created_by: currentUser.id,
           created_by_name: currentUser.name,
         });
@@ -377,6 +418,56 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
     onRefresh();
   };
 
+  const handleBulkDestroy = async () => {
+    setBulkProcessing(true);
+    try {
+      await Promise.all(
+        [...selectedIds].map((id) =>
+          supabase.from("waste_items").update({ disposition_type: "השמדה", disposition_date: new Date().toISOString() }).eq("id", id)
+        )
+      );
+      toast.success(`${selectedIds.size} פריטים סומנו כהושמדו`);
+      setSelectedIds(new Set());
+      onRefresh();
+    } catch {
+      toast.error("שגיאה בעדכון מרובה");
+    } finally {
+      setBulkProcessing(false);
+      setBulkConfirmAction(null);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkProcessing(true);
+    try {
+      await Promise.all([...selectedIds].map((id) => supabase.from("waste_items").delete().eq("id", id)));
+      toast.success(`${selectedIds.size} פריטים נמחקו`);
+      setSelectedIds(new Set());
+      onRefresh();
+    } catch {
+      toast.error("שגיאה במחיקה מרובה");
+    } finally {
+      setBulkProcessing(false);
+      setBulkConfirmAction(null);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredItems.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredItems.map((i) => i.id)));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); } else { next.add(id); }
+      return next;
+    });
+  };
+
   const startEdit = (item: WasteItem) => {
     setEditingRow({
       id: item.id,
@@ -388,6 +479,8 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
       itemSource: item.component_id ? "component" : "product",
       product_id: item.product_id,
       component_id: item.component_id,
+      unit_cost: item.unit_cost,
+      supplier_id: item.supplier_id,
     });
     if (isMobile) setDrawerOpen(true);
   };
@@ -400,19 +493,28 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
 
   const handleExportCSV = () => {
     const rows = [
-      ["מוצר", 'מק"ט', "כמות", "סטטוס שימוש", "פעולה", "תאריך פעולה", "יוצר", "תאריך יצירה"],
-      ...filteredItems.map(i => [
-        i.product_name,
-        i.sku ?? "",
-        String(i.quantity),
-        i.in_use ? "בשימוש" : "לא בשימוש",
-        i.disposition_type === "מכירה" ? "מכירה בערוץ שלישי" : (i.disposition_type ?? "ממתין"),
-        i.disposition_date ? new Date(i.disposition_date).toLocaleDateString("he-IL") : "",
-        i.created_by_name ?? "",
-        new Date(i.created_at).toLocaleDateString("he-IL"),
-      ])
+      ["מוצר", 'מק"ט', "כמות", "ספק", "עלות יחידה", "שווי כולל", "סטטוס שימוש", "פעולה", "קונה", "מחיר מכירה", "ימי המתנה", "תאריך פעולה", "יוצר", "תאריך יצירה"],
+      ...filteredItems.map((i) => {
+        const days = !i.disposition_type ? String(daysAgo(i.created_at)) : "";
+        return [
+          i.product_name,
+          i.sku ?? "",
+          String(i.quantity),
+          i.supplier_id ? (supplierMap.get(i.supplier_id) ?? i.supplier_id) : "",
+          i.unit_cost != null ? String(i.unit_cost) : "",
+          i.unit_cost != null ? String(i.unit_cost * i.quantity) : "",
+          i.in_use ? "בשימוש" : "לא בשימוש",
+          i.disposition_type === "מכירה" ? "מכירה בערוץ שלישי" : (i.disposition_type ?? "ממתין"),
+          i.sale_buyer_name ?? "",
+          i.sale_price != null ? String(i.sale_price) : "",
+          days,
+          i.disposition_date ? new Date(i.disposition_date).toLocaleDateString("he-IL") : "",
+          i.created_by_name ?? "",
+          new Date(i.created_at).toLocaleDateString("he-IL"),
+        ];
+      }),
     ];
-    const csv = rows.map(r => r.map(csvEscape).join(",")).join("\n");
+    const csv = rows.map((r) => r.map(csvEscape).join(",")).join("\n");
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -446,7 +548,7 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
           </div>
           <select value={filterAction} onChange={(e) => prefs.setFilter("filterAction", e.target.value)}
             className="w-full h-10 rounded-xl border border-input bg-background px-3 text-sm">
-            {ACTION_FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {ACTION_FILTER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           {isManager && employees.length > 0 && (
             <select value={filterEmployee} onChange={(e) => prefs.setFilter("filterEmployee", e.target.value)}
@@ -463,73 +565,96 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
               <div className="p-4 bg-muted/30 rounded-full mb-4"><Recycle className="h-12 w-12 text-muted-foreground/30" /></div>
               <p className="text-base font-medium text-muted-foreground mb-1">{search ? "לא נמצאו תוצאות" : "אין פריטי בלאי"}</p>
             </div>
-          ) : filteredItems.map((item) => (
-            <Card key={item.id} className="overflow-hidden">
-              <CardContent className="p-0">
-                <div className="flex items-start justify-between p-3.5 pb-2 cursor-pointer" onClick={() => hasEdit && startEdit(item)}>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-base truncate">{item.product_name}</h3>
-                      {hasEdit && <Pencil className="h-3.5 w-3.5 text-muted-foreground/40 flex-shrink-0" />}
-                    </div>
-                    {isManager && item.created_by_name && <p className="text-xs text-muted-foreground">{item.created_by_name}</p>}
-                    {item.sku && <p className="text-xs text-muted-foreground font-mono flex items-center gap-1"><Hash className="h-3 w-3" />{item.sku}</p>}
-                    <div className="mt-1">
-                      {item.disposition_type === "החזרה לספק" ? (
-                        <button className="cursor-pointer hover:opacity-80 transition-opacity" onClick={(e) => handleBadgeClick(e, item)}>
+          ) : filteredItems.map((item) => {
+            const days = !item.disposition_type ? daysAgo(item.created_at) : null;
+            return (
+              <Card key={item.id} className="overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="flex items-start justify-between p-3.5 pb-2 cursor-pointer" onClick={() => hasEdit && startEdit(item)}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-base truncate">{item.product_name}</h3>
+                        {hasEdit && <Pencil className="h-3.5 w-3.5 text-muted-foreground/40 flex-shrink-0" />}
+                      </div>
+                      {isManager && item.created_by_name && <p className="text-xs text-muted-foreground">{item.created_by_name}</p>}
+                      {item.sku && <p className="text-xs text-muted-foreground font-mono flex items-center gap-1"><Hash className="h-3 w-3" />{item.sku}</p>}
+                      {/* Supplier + cost micro-line */}
+                      {(item.supplier_id || item.unit_cost != null) && (
+                        <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
+                          {item.supplier_id && supplierMap.get(item.supplier_id) && (
+                            <span className="flex items-center gap-0.5"><Truck className="h-3 w-3" />{supplierMap.get(item.supplier_id)}</span>
+                          )}
+                          {item.unit_cost != null && (
+                            <span className="flex items-center gap-0.5"><DollarSign className="h-3 w-3" />₪{item.unit_cost}/יח׳</span>
+                          )}
+                        </p>
+                      )}
+                      {/* Sale info micro-line */}
+                      {(item.disposition_type === "מכירה" || item.disposition_type === "מכירה בערוץ שלישי") && item.sale_buyer_name && (
+                        <p className="text-xs text-green-600 mt-0.5">קונה: {item.sale_buyer_name}{item.sale_price != null ? ` · ₪${item.sale_price}` : ""}</p>
+                      )}
+                      <div className="mt-1 flex items-center gap-2">
+                        {item.disposition_type === "החזרה לספק" ? (
+                          <button className="cursor-pointer hover:opacity-80 transition-opacity" onClick={(e) => handleBadgeClick(e, item)}>
+                            <DispositionBadge disposition={item.disposition_type as DispositionType} />
+                          </button>
+                        ) : (
                           <DispositionBadge disposition={item.disposition_type as DispositionType} />
-                        </button>
-                      ) : (
-                        <DispositionBadge disposition={item.disposition_type as DispositionType} />
+                        )}
+                        {days !== null && days > 30 && (
+                          <span className="text-xs text-orange-600 font-medium flex items-center gap-0.5">
+                            <Clock className="h-3 w-3" />{days}d
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Badge variant={item.in_use ? "default" : "secondary"} className={`flex-shrink-0 text-xs ${item.in_use ? "bg-green-100 text-green-700 hover:bg-green-100" : "bg-orange-100 text-orange-700 hover:bg-orange-100"}`}>
+                      {item.in_use ? "בשימוש" : "לא בשימוש"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between px-3.5 pb-3 gap-3">
+                    <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <Box className="h-3.5 w-3.5" /><span className="font-medium text-foreground">{item.quantity}</span> יח׳
+                    </span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <PhotoCaptureButton imageUrl={item.photo_url} storagePath={`waste-items/${item.id}`}
+                        onSave={(url) => handlePhotoSave(item.id, url)} disabled={!hasEdit} />
+                      {hasEdit && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" dir="rtl">
+                            <DropdownMenuItem onClick={() => startEdit(item)}>
+                              <Pencil className="h-4 w-4 me-2" /> עריכה
+                            </DropdownMenuItem>
+                            {!item.disposition_type && <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => setDestroyTarget(item)} className="text-destructive">
+                                <Trash2 className="h-4 w-4 me-2" /> סמן כהושמד
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setReturnTarget(item)}>
+                                <PackageX className="h-4 w-4 me-2" /> החזרה לספק
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setSaleTarget(item)}>
+                                <Box className="h-4 w-4 me-2" /> מכירה בערוץ שלישי
+                              </DropdownMenuItem>
+                            </>}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => setDeleteTarget(item)} className="text-destructive">
+                              <Trash2 className="h-4 w-4 me-2" /> מחיקת רשומה
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
                     </div>
                   </div>
-                  <Badge variant={item.in_use ? "default" : "secondary"} className={`flex-shrink-0 text-xs ${item.in_use ? "bg-green-100 text-green-700 hover:bg-green-100" : "bg-orange-100 text-orange-700 hover:bg-orange-100"}`}>
-                    {item.in_use ? "בשימוש" : "לא בשימוש"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between px-3.5 pb-3 gap-3">
-                  <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <Box className="h-3.5 w-3.5" /><span className="font-medium text-foreground">{item.quantity}</span> יח׳
-                  </span>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <PhotoCaptureButton imageUrl={item.photo_url} storagePath={`waste-items/${item.id}`}
-                      onSave={(url) => handlePhotoSave(item.id, url)} disabled={!hasEdit} />
-                    {hasEdit && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button size="icon" variant="ghost" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" dir="rtl">
-                          <DropdownMenuItem onClick={() => startEdit(item)}>
-                            <Pencil className="h-4 w-4 me-2" /> עריכה
-                          </DropdownMenuItem>
-                          {!item.disposition_type && <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => setDestroyTarget(item)} className="text-destructive">
-                              <Trash2 className="h-4 w-4 me-2" /> סמן כהושמד
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setReturnTarget(item)}>
-                              <PackageX className="h-4 w-4 me-2" /> החזרה לספק
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setSaleTarget(item)}>
-                              <Box className="h-4 w-4 me-2" /> מכירה בערוץ שלישי
-                            </DropdownMenuItem>
-                          </>}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => setDeleteTarget(item)} className="text-destructive">
-                            <Trash2 className="h-4 w-4 me-2" /> מחיקת רשומה
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* Mobile edit drawer */}
@@ -562,12 +687,25 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
                     <Input type="number" min={0} value={editingRow.quantity || ""} onChange={(e) => setEditingRow({ ...editingRow, quantity: parseInt(e.target.value) || 0 })} className="h-12 rounded-xl text-center" />
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1"><Truck className="h-3.5 w-3.5" />ספק</Label>
+                    <Combobox value={editingRow.supplier_id ?? ""} onValueChange={(v) => setEditingRow({ ...editingRow, supplier_id: v || null })} options={[{ value: "", label: "ללא" }, ...supplierOptions]} placeholder="בחר ספק..." className="h-12 rounded-xl" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1"><DollarSign className="h-3.5 w-3.5" />עלות יחידה (₪)</Label>
+                    <Input type="number" min={0} step={0.01} placeholder="0.00"
+                      value={editingRow.unit_cost ?? ""}
+                      onChange={(e) => setEditingRow({ ...editingRow, unit_cost: e.target.value ? parseFloat(e.target.value) : null })}
+                      className="h-12 rounded-xl" />
+                  </div>
+                </div>
                 <div className="flex items-center gap-3 p-4 bg-muted/30 rounded-xl">
                   <Checkbox id="mobile-inuse" checked={editingRow.in_use} onCheckedChange={(c) => setEditingRow({ ...editingRow, in_use: !!c })} />
                   <Label htmlFor="mobile-inuse" className="cursor-pointer flex items-center gap-2"><ToggleRight className="h-4 w-4 text-primary" />בשימוש</Label>
                 </div>
                 <div className="space-y-2">
-                  <Label>הערות</Label>
+                  <Label className="flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5" />הערות</Label>
                   <Textarea placeholder="הערות..." value={editingRow.recommendations} onChange={(e) => setEditingRow({ ...editingRow, recommendations: e.target.value })} rows={3} className="rounded-xl resize-none" />
                 </div>
               </div>
@@ -628,7 +766,9 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
   }
 
   // ──── DESKTOP ────
-  const FIXED_COLS = 1;
+  // fixed cols: actions + bulk checkbox (manager only)
+  const FIXED_COLS = hasEdit ? (isManager ? 2 : 1) : 0;
+
   return (
     <TooltipProvider>
       <div className="space-y-4">
@@ -642,7 +782,7 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
           <Select value={filterAction} onValueChange={(v) => prefs.setFilter("filterAction", v)}>
             <SelectTrigger className="h-10 w-[200px]"><SelectValue placeholder="כל הפעולות" /></SelectTrigger>
             <SelectContent>
-              {ACTION_FILTER_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+              {ACTION_FILTER_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
             </SelectContent>
           </Select>
           {isManager && employees.length > 0 && (
@@ -667,18 +807,45 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
         {/* Summary counts */}
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
           <span className="flex items-center gap-1"><Package className="h-3.5 w-3.5" />{items.length} פריטים</span>
-          <span className="flex items-center gap-1 text-green-600"><PackageCheck className="h-3.5 w-3.5" />{items.filter(i => i.in_use).length} בשימוש</span>
-          <span className="flex items-center gap-1 text-orange-500"><PackageX className="h-3.5 w-3.5" />{items.filter(i => !i.disposition_type).length} ממתינים</span>
+          <span className="flex items-center gap-1 text-green-600"><PackageCheck className="h-3.5 w-3.5" />{items.filter((i) => i.in_use).length} בשימוש</span>
+          <span className="flex items-center gap-1 text-orange-500"><PackageX className="h-3.5 w-3.5" />{items.filter((i) => !i.disposition_type).length} ממתינים</span>
           {filteredItems.length !== items.length && (
             <span className="text-primary font-medium">מציג {filteredItems.length} פריטים</span>
           )}
         </div>
+
+        {/* Bulk action bar */}
+        {isManager && selectedIds.size > 0 && (
+          <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/5 border border-primary/20 rounded-lg">
+            <span className="text-sm font-medium">{selectedIds.size} פריטים נבחרו</span>
+            <div className="flex items-center gap-2 mr-auto">
+              <Button size="sm" variant="destructive" className="gap-1 h-8" onClick={() => setBulkConfirmAction("destroy")} disabled={bulkProcessing}>
+                <Trash2 className="h-3.5 w-3.5" /> סמן כהושמד
+              </Button>
+              <Button size="sm" variant="outline" className="gap-1 h-8 text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => setBulkConfirmAction("delete")} disabled={bulkProcessing}>
+                <Trash2 className="h-3.5 w-3.5" /> מחיקה
+              </Button>
+              <Button size="sm" variant="ghost" className="h-8" onClick={() => setSelectedIds(new Set())}>
+                <X className="h-3.5 w-3.5 me-1" /> נקה בחירה
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Table */}
         <div className="rounded-lg border bg-card overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
+                {/* Bulk select checkbox column — manager only, not in COLUMN_DEFS */}
+                {isManager && (
+                  <TableHead className="w-10 text-center">
+                    <Checkbox
+                      checked={filteredItems.length > 0 && selectedIds.size === filteredItems.length}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </TableHead>
+                )}
                 {COLUMN_DEFS.map((col) =>
                   isVisible(col.id) ? (
                     <TableHead key={col.id} className="font-semibold text-foreground" onContextMenu={colThContextMenu(col, setColMenu)}>
@@ -697,6 +864,7 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
               {/* Inline new row */}
               {editingRow && editingRow.id === null && (
                 <TableRow className="bg-primary/5">
+                  {isManager && <TableCell />}
                   {isVisible("employee") && isManager && <TableCell className="text-sm text-muted-foreground">{currentUser?.name}</TableCell>}
                   {isVisible("product") && (
                     <TableCell>
@@ -716,6 +884,10 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
                   {isVisible("notes") && <TableCell><Input placeholder="הערות..." value={editingRow.recommendations} onChange={(e) => setEditingRow({ ...editingRow, recommendations: e.target.value })} className="h-9" /></TableCell>}
                   {isVisible("action") && <TableCell />}
                   {isVisible("photo") && <TableCell />}
+                  {isVisible("supplier") && <TableCell><Combobox value={editingRow.supplier_id ?? ""} onValueChange={(v) => setEditingRow({ ...editingRow, supplier_id: v || null })} options={[{ value: "", label: "ללא" }, ...supplierOptions]} placeholder="ספק..." className="h-9" /></TableCell>}
+                  {isVisible("unit_cost") && <TableCell><Input type="number" min={0} step={0.01} placeholder="עלות" value={editingRow.unit_cost ?? ""} onChange={(e) => setEditingRow({ ...editingRow, unit_cost: e.target.value ? parseFloat(e.target.value) : null })} className="h-9 w-24" /></TableCell>}
+                  {isVisible("days_waiting") && <TableCell />}
+                  {isVisible("sale_info") && <TableCell />}
                   {hasEdit && (
                     <TableCell>
                       <div className="flex items-center justify-center gap-1">
@@ -732,9 +904,11 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
               )}
 
               {/* Existing rows */}
-              {filteredItems.map((item) =>
-                editingRow && editingRow.id === item.id ? (
+              {filteredItems.map((item) => {
+                const days = !item.disposition_type ? daysAgo(item.created_at) : null;
+                return editingRow && editingRow.id === item.id ? (
                   <TableRow key={item.id} className="bg-primary/5">
+                    {isManager && <TableCell />}
                     {isVisible("employee") && isManager && <TableCell className="text-sm">{item.created_by_name}</TableCell>}
                     {isVisible("product") && (
                       <TableCell>
@@ -754,6 +928,10 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
                     {isVisible("notes") && <TableCell><Input value={editingRow.recommendations} onChange={(e) => setEditingRow({ ...editingRow, recommendations: e.target.value })} className="h-9" /></TableCell>}
                     {isVisible("action") && <TableCell />}
                     {isVisible("photo") && <TableCell className="text-center"><div className="flex justify-center"><PhotoCaptureButton imageUrl={item.photo_url} storagePath={`waste-items/${item.id}`} onSave={(url) => handlePhotoSave(item.id, url)} /></div></TableCell>}
+                    {isVisible("supplier") && <TableCell><Combobox value={editingRow.supplier_id ?? ""} onValueChange={(v) => setEditingRow({ ...editingRow, supplier_id: v || null })} options={[{ value: "", label: "ללא" }, ...supplierOptions]} placeholder="ספק..." className="h-9" /></TableCell>}
+                    {isVisible("unit_cost") && <TableCell><Input type="number" min={0} step={0.01} value={editingRow.unit_cost ?? ""} onChange={(e) => setEditingRow({ ...editingRow, unit_cost: e.target.value ? parseFloat(e.target.value) : null })} className="h-9 w-24" /></TableCell>}
+                    {isVisible("days_waiting") && <TableCell />}
+                    {isVisible("sale_info") && <TableCell />}
                     {hasEdit && (
                       <TableCell>
                         <div className="flex items-center justify-center gap-1">
@@ -768,7 +946,12 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
                     )}
                   </TableRow>
                 ) : (
-                  <TableRow key={item.id} className="group">
+                  <TableRow key={item.id} className={`group ${selectedIds.has(item.id) ? "bg-primary/5" : ""}`}>
+                    {isManager && (
+                      <TableCell className="text-center w-10">
+                        <Checkbox checked={selectedIds.has(item.id)} onCheckedChange={() => toggleSelectOne(item.id)} />
+                      </TableCell>
+                    )}
                     {isVisible("employee") && isManager && <TableCell className="text-sm font-medium">{item.created_by_name || "—"}</TableCell>}
                     {isVisible("product") && <TableCell className="font-medium">{item.product_name}</TableCell>}
                     {isVisible("sku") && <TableCell className="text-muted-foreground font-mono text-sm">{item.sku || "—"}</TableCell>}
@@ -815,6 +998,37 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
                         </div>
                       </TableCell>
                     )}
+                    {isVisible("supplier") && (
+                      <TableCell className="text-sm text-muted-foreground">
+                        {item.supplier_id && supplierMap.get(item.supplier_id) ? (
+                          <span className="flex items-center gap-1"><Truck className="h-3.5 w-3.5" />{supplierMap.get(item.supplier_id)}</span>
+                        ) : "—"}
+                      </TableCell>
+                    )}
+                    {isVisible("unit_cost") && (
+                      <TableCell className="text-sm text-right">
+                        {item.unit_cost != null ? (
+                          <span className="font-mono">₪{item.unit_cost.toLocaleString("he-IL")}</span>
+                        ) : "—"}
+                      </TableCell>
+                    )}
+                    {isVisible("days_waiting") && (
+                      <TableCell className="text-center text-sm">
+                        {days !== null ? (
+                          <span className={days > 30 ? "text-orange-600 font-medium flex items-center gap-1 justify-center" : "text-muted-foreground"}>
+                            {days > 30 && <Clock className="h-3.5 w-3.5" />}
+                            {days}d
+                          </span>
+                        ) : "—"}
+                      </TableCell>
+                    )}
+                    {isVisible("sale_info") && (
+                      <TableCell className="text-sm text-muted-foreground">
+                        {(item.disposition_type === "מכירה" || item.disposition_type === "מכירה בערוץ שלישי") && item.sale_buyer_name ? (
+                          <span>{item.sale_buyer_name}{item.sale_price != null ? ` · ₪${item.sale_price}` : ""}</span>
+                        ) : "—"}
+                      </TableCell>
+                    )}
                     {hasEdit && (
                       <TableCell>
                         <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -852,8 +1066,8 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
                       </TableCell>
                     )}
                   </TableRow>
-                )
-              )}
+                );
+              })}
 
               {filteredItems.length === 0 && !editingRow && (
                 <TableRow>
@@ -878,6 +1092,37 @@ export function WasteItemsTab({ items, onRefresh, products }: Props) {
             <AlertDialogFooter className="flex-row-reverse gap-2">
               <AlertDialogCancel>ביטול</AlertDialogCancel>
               <AlertDialogAction onClick={handleDestroy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">סמן כהושמד</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Bulk confirm dialogs */}
+        <AlertDialog open={bulkConfirmAction === "destroy"} onOpenChange={(o) => !o && setBulkConfirmAction(null)}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2"><Trash2 className="h-5 w-5 text-destructive" />סימון {selectedIds.size} פריטים כהושמדו</AlertDialogTitle>
+              <AlertDialogDescription>פעולה זו תסמן את כל הפריטים הנבחרים כהושמדו. לא ניתן לשחזר.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row-reverse gap-2">
+              <AlertDialogCancel>ביטול</AlertDialogCancel>
+              <AlertDialogAction onClick={handleBulkDestroy} disabled={bulkProcessing} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {bulkProcessing ? <Loader2 className="h-4 w-4 animate-spin me-1" /> : null}אשר
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={bulkConfirmAction === "delete"} onOpenChange={(o) => !o && setBulkConfirmAction(null)}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>מחיקת {selectedIds.size} פריטים</AlertDialogTitle>
+              <AlertDialogDescription>פעולה זו תמחק לצמיתות את כל הפריטים הנבחרים. לא ניתן לשחזר.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row-reverse gap-2">
+              <AlertDialogCancel>ביטול</AlertDialogCancel>
+              <AlertDialogAction onClick={handleBulkDelete} disabled={bulkProcessing} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {bulkProcessing ? <Loader2 className="h-4 w-4 animate-spin me-1" /> : null}מחק הכל
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

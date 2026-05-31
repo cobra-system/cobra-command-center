@@ -13,7 +13,6 @@ import {
   Plus,
   TrendingUp,
   Layers,
-  Receipt,
 } from "lucide-react";
 import {
   BarChart,
@@ -26,6 +25,9 @@ import {
   PieChart,
   Pie,
   Legend,
+  AreaChart,
+  Area,
+  CartesianGrid,
 } from "recharts";
 
 interface WasteItem {
@@ -75,6 +77,7 @@ function StatCard({
   subLabel,
   highlight,
   currency,
+  suffix,
 }: {
   label: string;
   value: number;
@@ -83,10 +86,16 @@ function StatCard({
   subLabel?: string;
   highlight?: boolean;
   currency?: boolean;
+  suffix?: string;
 }) {
-  const display = currency
-    ? `₪${value.toLocaleString("he-IL", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
-    : value.toString();
+  let display: string;
+  if (currency) {
+    display = `₪${value.toLocaleString("he-IL", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  } else if (suffix) {
+    display = `${value}${suffix}`;
+  } else {
+    display = value.toString();
+  }
   return (
     <Card className={`transition-shadow hover:shadow-md ${highlight ? "border-amber-400 dark:border-amber-500" : ""}`}>
       <CardContent className="p-5">
@@ -129,8 +138,10 @@ export function WasteDashboardTab({ wasteItems, supplierReturns, onAddItem, hasE
     const totalWasteValue = wasteItems
       .filter((i) => i.unit_cost != null)
       .reduce((s, i) => s + (i.unit_cost ?? 0) * i.quantity, 0);
+    const recoveredValue = salesIncome + taxDeductibleValue;
+    const recoveryRate = totalWasteValue > 0 ? Math.round((recoveredValue / totalWasteValue) * 100) : 0;
 
-    return { total, pending, destroyed, returned, sold, other, totalQty, inUse, handled, handledPct, taxDeductibleValue, salesIncome, totalWasteValue };
+    return { total, pending, destroyed, returned, sold, other, totalQty, inUse, handled, handledPct, taxDeductibleValue, salesIncome, totalWasteValue, recoveredValue, recoveryRate };
   }, [wasteItems]);
 
   const stuckReturns = useMemo(() => {
@@ -140,6 +151,13 @@ export function WasteDashboardTab({ wasteItems, supplierReturns, onAddItem, hasE
       return days > 14;
     }).length;
   }, [supplierReturns]);
+
+  const longPendingItems = useMemo(() => {
+    return wasteItems.filter((i) => {
+      if (i.disposition_type) return false;
+      return (Date.now() - new Date(i.created_at).getTime()) / 86400000 > 30;
+    });
+  }, [wasteItems]);
 
   const dispositionChartData = useMemo(() => {
     const counts: Record<string, number> = { "ממתין": 0 };
@@ -157,6 +175,24 @@ export function WasteDashboardTab({ wasteItems, supplierReturns, onAddItem, hasE
     supplierReturns.forEach((r) => { counts[r.status] = (counts[r.status] ?? 0) + 1; });
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [supplierReturns]);
+
+  const monthlyTrend = useMemo(() => {
+    const map = new Map<string, { added: number; handled: number }>();
+    wasteItems.forEach((i) => {
+      const month = i.created_at.slice(0, 7);
+      const entry = map.get(month) ?? { added: 0, handled: 0 };
+      entry.added++;
+      if (i.disposition_type) entry.handled++;
+      map.set(month, entry);
+    });
+    return [...map.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-6)
+      .map(([month, v]) => ({
+        name: new Date(month + "-01").toLocaleDateString("he-IL", { month: "short", year: "2-digit" }),
+        ...v,
+      }));
+  }, [wasteItems]);
 
   const recentItems = useMemo(() => {
     return [...wasteItems]
@@ -249,10 +285,10 @@ export function WasteDashboardTab({ wasteItems, supplierReturns, onAddItem, hasE
       </div>
 
       {/* Financial summary */}
-      {(stats.totalWasteValue > 0 || stats.taxDeductibleValue > 0 || stats.salesIncome > 0) && (
+      {stats.totalWasteValue > 0 && (
         <div className="space-y-2">
           <h3 className="text-sm font-semibold text-muted-foreground">סיכום כספי</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <StatCard
               label="שווי בלאי כולל"
               value={stats.totalWasteValue}
@@ -266,11 +302,11 @@ export function WasteDashboardTab({ wasteItems, supplierReturns, onAddItem, hasE
               value={stats.taxDeductibleValue}
               icon={<Trash2 className="h-5 w-5 text-red-600" />}
               color="bg-red-100/70 dark:bg-red-900/30"
-              subLabel="שווי פריטים שהושמדו — בסיס לדרישת החזר מס"
+              subLabel="שווי פריטים שהושמדו — בסיס להחזר מס"
               currency
             />
             <StatCard
-              label="הכנסות ממכירות צד שלישי"
+              label="הכנסות ממכירות"
               value={stats.salesIncome}
               icon={<DollarSign className="h-5 w-5 text-green-600" />}
               color="bg-green-100/70 dark:bg-green-900/30"
@@ -278,12 +314,49 @@ export function WasteDashboardTab({ wasteItems, supplierReturns, onAddItem, hasE
               currency
               highlight={stats.salesIncome > 0}
             />
+            <StatCard
+              label="שיעור שחזור ערך"
+              value={stats.recoveryRate}
+              icon={<TrendingUp className="h-5 w-5 text-primary" />}
+              color="bg-primary/10"
+              subLabel={`₪${stats.recoveredValue.toLocaleString("he-IL", { maximumFractionDigits: 0 })} שוחזרו מתוך ₪${stats.totalWasteValue.toLocaleString("he-IL", { maximumFractionDigits: 0 })}`}
+              suffix="%"
+              highlight={stats.recoveryRate > 0}
+            />
           </div>
         </div>
       )}
 
+      {/* Monthly trend chart */}
+      {monthlyTrend.length >= 2 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              מגמה חודשית — פריטים שנוספו vs. טופלו
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={monthlyTrend} margin={{ right: 10, left: -20 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v, name) => [v, name === "added" ? "נוספו" : "טופלו"]} />
+                <Area type="monotone" dataKey="added" stackId="1" stroke="#94a3b8" fill="#94a3b8" fillOpacity={0.3} name="added" />
+                <Area type="monotone" dataKey="handled" stackId="2" stroke="#22c55e" fill="#22c55e" fillOpacity={0.4} name="handled" />
+              </AreaChart>
+            </ResponsiveContainer>
+            <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground justify-center">
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-slate-400 inline-block" /> נוספו</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-green-500 inline-block" /> טופלו</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Alerts */}
-      {(stuckReturns > 0 || stats.pending > 0) && (
+      {(stuckReturns > 0 || stats.pending > 0 || longPendingItems.length > 0) && (
         <div className="space-y-2">
           {stuckReturns > 0 && (
             <div className="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700 rounded-lg">
@@ -294,6 +367,20 @@ export function WasteDashboardTab({ wasteItems, supplierReturns, onAddItem, hasE
                 </p>
                 <p className="text-xs text-amber-600 dark:text-amber-400">
                   החזרות שנשלחו לפני 14+ יום ועדיין ללא אישור קבלה
+                </p>
+              </div>
+            </div>
+          )}
+          {longPendingItems.length > 0 && (
+            <div className="flex items-center gap-3 p-4 bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-700 rounded-lg">
+              <Clock className="h-5 w-5 text-orange-600 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-orange-800 dark:text-orange-300">
+                  {longPendingItems.length} פריטים ממתינים מעל 30 יום
+                </p>
+                <p className="text-xs text-orange-600 dark:text-orange-400">
+                  {longPendingItems.slice(0, 3).map((i) => (i as Record<string, unknown>).product_name as string ?? "").filter(Boolean).join(", ")}
+                  {longPendingItems.length > 3 ? ` ועוד ${longPendingItems.length - 3}` : ""}
                 </p>
               </div>
             </div>
