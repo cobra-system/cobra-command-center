@@ -75,7 +75,9 @@ ALTER TABLE waste_items
   ADD COLUMN IF NOT EXISTS disposition_date    TIMESTAMPTZ DEFAULT NULL,
   ADD COLUMN IF NOT EXISTS supplier_return_id  UUID REFERENCES supplier_returns(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS sale_buyer_name     TEXT DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS sale_price          NUMERIC(12,2) DEFAULT NULL;
+  ADD COLUMN IF NOT EXISTS sale_price          NUMERIC(12,2) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS supplier_id         UUID REFERENCES suppliers(id) ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS idx_waste_items_disposition_type   ON waste_items(disposition_type);
 CREATE INDEX IF NOT EXISTS idx_waste_items_supplier_return_id ON waste_items(supplier_return_id);
+CREATE INDEX IF NOT EXISTS idx_waste_items_supplier_id        ON waste_items(supplier_id);
