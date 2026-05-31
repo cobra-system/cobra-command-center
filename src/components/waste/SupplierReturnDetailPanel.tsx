@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SupplierReturnStatusBadge } from "./DispositionBadge";
+import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 import { Loader2, ChevronLeft, X, Download, Trash2 } from "lucide-react";
 
 interface SupplierReturn {
@@ -45,6 +46,7 @@ interface SupplierReturn {
   settled_at: string | null;
   created_by_name: string | null;
   notes: string | null;
+  photo_url: string | null;
   created_at: string;
   suppliers?: { name: string };
 }
@@ -54,6 +56,7 @@ interface WasteItem {
   product_name: string;
   sku: string;
   quantity: number;
+  photo_url: string | null;
 }
 
 interface Props {
@@ -309,6 +312,20 @@ export function SupplierReturnDetailPanel({ open, onClose, onUpdated, supplierRe
             )}
           </div>
 
+          {/* Return-level photo */}
+          <div className="space-y-2">
+            <Label>תמונה (אריזה / תווית משלוח)</Label>
+            <PhotoCaptureButton
+              imageUrl={supplierReturn.photo_url}
+              storagePath={`supplier-returns/${supplierReturn.id}`}
+              onSave={async (url) => {
+                await supabase.from("supplier_returns").update({ photo_url: url }).eq("id", supplierReturn.id);
+                onUpdated();
+              }}
+              disabled={isSettled}
+            />
+          </div>
+
           {/* Settlement fields — shown when about to advance to הוסדר */}
           {supplierReturn.status === "התקבל אצל ספק" && (
             <div className="space-y-3 p-3 bg-muted/30 rounded-lg border">
@@ -347,9 +364,19 @@ export function SupplierReturnDetailPanel({ open, onClose, onUpdated, supplierRe
               <div className="border rounded-md divide-y">
                 {items.map((item) => (
                   <div key={item.id} className="flex items-center justify-between px-3 py-2 text-sm">
-                    <div>
-                      <p className="font-medium">{item.product_name}</p>
-                      {item.sku && <p className="text-xs text-muted-foreground font-mono">{item.sku}</p>}
+                    <div className="flex items-center gap-2">
+                      {item.photo_url && (
+                        <img
+                          src={item.photo_url}
+                          alt={item.product_name}
+                          className="h-10 w-10 object-cover rounded border cursor-pointer"
+                          onClick={() => window.open(item.photo_url!, "_blank")}
+                        />
+                      )}
+                      <div>
+                        <p className="font-medium">{item.product_name}</p>
+                        {item.sku && <p className="text-xs text-muted-foreground font-mono">{item.sku}</p>}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-muted-foreground">{item.quantity} יח׳</span>

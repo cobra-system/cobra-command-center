@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,6 +35,7 @@ interface SupplierReturn {
   settled_at: string | null;
   created_by_name: string | null;
   notes: string | null;
+  photo_url: string | null;
   created_at: string;
   suppliers?: { name: string };
   waste_items?: { id: string }[];
@@ -45,6 +47,7 @@ interface WasteItem {
   sku: string;
   quantity: number;
   supplier_return_id: string | null;
+  photo_url: string | null;
 }
 
 const COLUMN_DEFS = [
@@ -60,6 +63,7 @@ const COLUMN_DEFS = [
 
 interface Props {
   canCreate: boolean;
+  openReturnId?: string | null;
 }
 
 function isStuck(ret: SupplierReturn): boolean {
@@ -77,12 +81,13 @@ function relativeDate(dateStr: string): string {
   return `לפני ${Math.floor(days / 30)} חודשים`;
 }
 
-export function SupplierReturnsTab({ canCreate }: Props) {
+export function SupplierReturnsTab({ canCreate, openReturnId }: Props) {
   const [returns, setReturns] = useState<SupplierReturn[]>([]);
   const [allWasteItems, setAllWasteItems] = useState<WasteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedReturn, setSelectedReturn] = useState<SupplierReturn | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const isMobile = useIsMobile();
 
@@ -126,7 +131,7 @@ export function SupplierReturnsTab({ canCreate }: Props) {
         .order("created_at", { ascending: false }),
       supabase
         .from("waste_items")
-        .select("id, product_name, sku, quantity, supplier_return_id")
+        .select("id, product_name, sku, quantity, supplier_return_id, photo_url")
         .not("supplier_return_id", "is", null),
     ]);
     setReturns(rets ?? []);
@@ -135,6 +140,14 @@ export function SupplierReturnsTab({ canCreate }: Props) {
   }, []);
 
   useEffect(() => { fetchReturns(); }, [fetchReturns]);
+
+  // Auto-open return from URL param
+  useEffect(() => {
+    if (openReturnId && returns.length > 0) {
+      const found = returns.find(r => r.id === openReturnId);
+      if (found) setSelectedReturn(found);
+    }
+  }, [openReturnId, returns]);
 
   // Realtime subscription
   useEffect(() => {
@@ -183,6 +196,13 @@ export function SupplierReturnsTab({ canCreate }: Props) {
 
   const getLinkedItems = (ret: SupplierReturn) =>
     allWasteItems.filter((i) => i.supplier_return_id === ret.id);
+
+  const handleCloseDetail = () => {
+    setSelectedReturn(null);
+    if (searchParams.get("returnId")) {
+      setSearchParams(prev => { prev.delete("returnId"); return prev; }, { replace: true });
+    }
+  };
 
   if (loading) {
     return (
@@ -469,8 +489,8 @@ export function SupplierReturnsTab({ canCreate }: Props) {
         {selectedReturn && (
           <SupplierReturnDetailPanel
             open={!!selectedReturn}
-            onClose={() => setSelectedReturn(null)}
-            onUpdated={() => { fetchReturns(); setSelectedReturn(null); }}
+            onClose={handleCloseDetail}
+            onUpdated={() => { fetchReturns(); handleCloseDetail(); }}
             supplierReturn={selectedReturn}
             items={getLinkedItems(selectedReturn)}
           />

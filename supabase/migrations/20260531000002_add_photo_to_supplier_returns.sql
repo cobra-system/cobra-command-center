@@ -1,0 +1,2 @@
+ALTER TABLE supplier_returns
+  ADD COLUMN IF NOT EXISTS photo_url TEXT DEFAULT NULL;

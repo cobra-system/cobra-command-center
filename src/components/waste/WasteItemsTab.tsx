@@ -74,6 +74,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Download,
 } from "lucide-react";
 
 interface WasteItem {
@@ -363,6 +364,30 @@ export function WasteItemsTab({ products }: Props) {
     const { error } = await supabase.from("waste_items").update({ in_use: !item.in_use, updated_at: new Date().toISOString() }).eq("id", item.id);
     if (error) { toast.error("שגיאה בעדכון"); return; }
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, in_use: !i.in_use } : i)));
+  };
+
+  const handleExportCSV = () => {
+    const rows = [
+      ["מוצר", 'מק"ט', "כמות", "סטטוס שימוש", "disposition", "תאריך disposition", "יוצר", "תאריך יצירה"],
+      ...filteredItems.map(i => [
+        i.product_name,
+        i.sku ?? "",
+        String(i.quantity),
+        i.in_use ? "בשימוש" : "לא בשימוש",
+        i.disposition_type ?? "ממתין",
+        i.disposition_date ? new Date(i.disposition_date).toLocaleDateString("he-IL") : "",
+        i.created_by_name ?? "",
+        new Date(i.created_at).toLocaleDateString("he-IL"),
+      ])
+    ];
+    const csv = rows.map(r => r.join(",")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `בלאי-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handlePhotoSave = async (itemId: string, url: string) => {
@@ -716,6 +741,9 @@ export function WasteItemsTab({ products }: Props) {
               <X className="h-3 w-3 me-1" /> נקה סינון
             </Button>
           )}
+          <Button size="sm" variant="outline" className="gap-1" onClick={handleExportCSV}>
+            <Download className="h-3 w-3" /> ייצוא CSV
+          </Button>
         </div>
 
         {/* Table */}

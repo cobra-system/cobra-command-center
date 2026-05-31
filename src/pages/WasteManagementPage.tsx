@@ -13,6 +13,7 @@ export default function WasteManagementPage() {
   const { hasEdit, isManager } = usePermissions("waste");
 
   const activeTab = searchParams.get("tab") ?? "items";
+  const returnId = searchParams.get("returnId");
   const setActiveTab = (tab: string) => setSearchParams({ tab }, { replace: true });
 
   return (
@@ -42,7 +43,7 @@ export default function WasteManagementPage() {
         </TabsContent>
 
         <TabsContent value="returns" className="mt-4">
-          <SupplierReturnsTab canCreate={hasEdit} />
+          <SupplierReturnsTab canCreate={hasEdit} openReturnId={returnId} />
         </TabsContent>
 
         <TabsContent value="stats" className="mt-4">

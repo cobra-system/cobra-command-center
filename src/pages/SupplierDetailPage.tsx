@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowRight, Pencil, Trash2, ExternalLink, Mail, Phone, Globe, TruckIcon, UserPlus, Users, X, Link2, Search, Plus } from "lucide-react";
 import DocumentsSection from "@/components/DocumentsSection";
+import { SupplierReturnsSection } from "@/components/waste/SupplierReturnsSection";
 import ProductFormDialog from "@/components/products/ProductFormDialog";
 import { InlineEditField } from "@/components/InlineEditField";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -467,6 +468,9 @@ export default function SupplierDetailPage() {
 
       {/* Documents */}
       <DocumentsSection supplierId={supplier.id} />
+
+      {/* Supplier Returns History */}
+      <SupplierReturnsSection supplierId={supplier.id} />
 
       {/* Link Product Dialog */}
       <Dialog open={linkProductOpen} onOpenChange={open => { setLinkProductOpen(open); if (!open) { setLinkProductSearch(""); setLinkProductId(""); } }}>
