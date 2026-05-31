@@ -5,6 +5,17 @@
 
 ---
 
+## [2026-05-31]
+
+- chore: resolve CHANGELOG merge conflict (4f163ba)
+- fix: address Copilot review — reuse shared updated_at trigger, merge photo migration, CSV escaping, fix colSpan for non-editors (2c4cfd3)
+- feat(waste): CSV export, photo support, deep linking, supplier returns section in supplier page (8fc8a1d)
+- feat(waste): useTablePreferences, realtime, KPI clicks, clear filters, tooltips, AlertDialog, sort icons (d07fcf9)
+- feat(waste): mobile layout, search, stuck alerts, CSV export, unlink items, badge navigation (b468ad2)
+- feat(waste): mobile layout, search, stuck alerts, CSV export, unlink items, badge navigation (0b1653c)
+- feat: waste disposition tracking — supplier returns, destruction, and third-party sales (1e3795e)
+
+<!-- last-commit: b3653078a3e866a3cc097b559b142cb02623ef87 -->
 ## [Unreleased]
 
 ### Added
@@ -18,7 +29,6 @@
 
 - Add column visibility to OrdersHistoryTable (#213) (e09f985)
 
-<!-- last-commit: e09f985b92d12230460a51ea28f19ae10d777cc1 -->
 ## [2026-05-19]
 
 - remove supplier comparison (השוואת ספקים) feature (d61f750)
