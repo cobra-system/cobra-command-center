@@ -7,6 +7,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,6 +69,7 @@ const STATUS_ORDER = ["טיוטה", "נשלח", "התקבל אצל ספק", "ה�
 export function SupplierReturnDetailPanel({ open, onClose, onUpdated, supplierReturn, items }: Props) {
   const [advancing, setAdvancing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [editingTracking, setEditingTracking] = useState(false);
   const [trackingInput, setTrackingInput] = useState(supplierReturn.tracking_number ?? "");
   const [resolutionType, setResolutionType] = useState(supplierReturn.resolution_type ?? "");
@@ -133,7 +145,6 @@ export function SupplierReturnDetailPanel({ open, onClose, onUpdated, supplierRe
   };
 
   const handleDeleteReturn = async () => {
-    if (!confirm("האם למחוק את ההחזרה? כל הפריטים המקושרים יוסרו ממנה.")) return;
     setDeleting(true);
     try {
       // Unlink all items
@@ -362,16 +373,28 @@ export function SupplierReturnDetailPanel({ open, onClose, onUpdated, supplierRe
           {/* Delete draft */}
           {isDraft && (
             <div className="pt-1">
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={handleDeleteReturn}
-                disabled={deleting}
-                className="gap-1"
-              >
-                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                מחק החזרה
-              </Button>
+              <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button size="sm" variant="destructive" disabled={deleting} className="gap-1">
+                    <Trash2 className="h-3 w-3" /> מחק החזרה
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent dir="rtl">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>מחיקת החזרה</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      האם למחוק את ההחזרה לספק {supplierReturn.suppliers?.name}? כל הפריטים המקושרים יוסרו ממנה ויחזרו לסטטוס "ממתין".
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>ביטול</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteReturn} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      {deleting ? <Loader2 className="h-4 w-4 animate-spin me-1" /> : null}
+                      מחק
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           )}
         </div>

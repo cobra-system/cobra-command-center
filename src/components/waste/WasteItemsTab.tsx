@@ -23,6 +23,13 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -36,8 +43,10 @@ import {
   DrawerDescription,
   DrawerFooter,
 } from "@/components/ui/drawer";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
+import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { DispositionBadge } from "./DispositionBadge";
 import { DestroyDialog } from "./DestroyDialog";
 import { SaleDialog } from "./SaleDialog";
@@ -62,6 +71,9 @@ import {
   ToggleRight,
   Layers,
   MoreHorizontal,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 
 interface WasteItem {
@@ -120,9 +132,6 @@ const COLUMN_DEFS = [
   { id: "photo", label: "תמונה" },
 ] as const;
 
-type SortField = "created_by_name" | "product_name" | "quantity";
-type SortDir = "asc" | "desc";
-
 interface Props {
   products: Array<{ id: string; name: string; sku: string; components?: Array<{ id: string; name: string; sku: string }> }>;
 }
@@ -137,12 +146,7 @@ export function WasteItemsTab({ products }: Props) {
   const [loading, setLoading] = useState(true);
   const [editingRow, setEditingRow] = useState<EditingRow | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
-  const [filterEmployee, setFilterEmployee] = useState("all");
-  const [filterDisposition, setFilterDisposition] = useState("all");
-  const [sortField, setSortField] = useState<SortField>("product_name");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -153,6 +157,18 @@ export function WasteItemsTab({ products }: Props) {
   const [returnTarget, setReturnTarget] = useState<WasteItem | null>(null);
   const [linkedReturn, setLinkedReturn] = useState<{ id: string; supplierReturn: unknown; items: unknown[] } | null>(null);
 
+  const prefs = useTablePreferences("WasteItemsTab", {
+    sortField: "created_at",
+    sortDir: "desc",
+    filters: { search: "", filterEmployee: "all", filterDisposition: "all" },
+  });
+  const sortField = prefs.sortField || "created_at";
+  const sortDir = prefs.sortDir || "desc";
+  const search = prefs.filters.search || "";
+  const filterEmployee = prefs.filters.filterEmployee || "all";
+  const filterDisposition = prefs.filters.filterDisposition || "all";
+  const hasActiveFilters = search !== "" || filterEmployee !== "all" || filterDisposition !== "all";
+
   const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility(
     "waste-items:hidden-columns",
     COLUMN_DEFS,
@@ -160,17 +176,15 @@ export function WasteItemsTab({ products }: Props) {
   );
   const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 
-  const saveSort = (field: string, dir: SortDir) => {
-    setSortField(field as SortField);
-    setSortDir(dir);
+  const saveSort = (field: string, dir: "asc" | "desc") => {
+    prefs.savePreferences({ sortField: field, sortDir: dir });
   };
   const toggleSort = (field: string) => {
-    if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortField(field as SortField); setSortDir("asc"); }
+    prefs.toggleSort(field);
   };
   const SortIcon = ({ field }: { field: string }) => {
-    if (sortField !== field) return <span className="text-muted-foreground/30 text-xs">↕</span>;
-    return <span className="text-xs">{sortDir === "asc" ? "↑" : "↓"}</span>;
+    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 opacity-30" />;
+    return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   };
 
   const productOptions = useMemo(
@@ -213,7 +227,7 @@ export function WasteItemsTab({ products }: Props) {
     setEditingRow({ ...editingRow, product_name: val, sku: hit?.sku ?? editingRow.sku, product_id: hit?.product_id ?? null, component_id: hit?.id ?? null });
   };
 
-  const refreshItems = useCallback(async () => {
+  const fetchItems = useCallback(async () => {
     let query = supabase.from("waste_items").select("*").order("created_at", { ascending: false });
     if (!isManager && currentUser) query = query.eq("created_by", currentUser.id);
     const { data, error } = await query;
@@ -222,8 +236,19 @@ export function WasteItemsTab({ products }: Props) {
   }, [isManager, currentUser]);
 
   useEffect(() => {
-    (async () => { await refreshItems(); setLoading(false); })();
-  }, [refreshItems]);
+    (async () => { await fetchItems(); setLoading(false); })();
+  }, [fetchItems]);
+
+  // Realtime subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel("waste-items-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "waste_items" }, () => {
+        fetchItems();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchItems]);
 
   const handleBadgeClick = async (e: React.MouseEvent, item: WasteItem) => {
     if (!item.supplier_return_id) return;
@@ -263,6 +288,7 @@ export function WasteItemsTab({ products }: Props) {
       if (sortField === "product_name") { av = a.product_name; bv = b.product_name; }
       else if (sortField === "quantity") { return sortDir === "asc" ? a.quantity - b.quantity : b.quantity - a.quantity; }
       else if (sortField === "created_by_name") { av = a.created_by_name ?? ""; bv = b.created_by_name ?? ""; }
+      else if (sortField === "created_at") { av = a.created_at; bv = b.created_at; }
       return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
     });
   }, [items, search, filterEmployee, filterDisposition, isManager, isScoped, scopedProductNames, sortField, sortDir]);
@@ -273,7 +299,10 @@ export function WasteItemsTab({ products }: Props) {
     const notInUse = total - inUse;
     const totalQuantity = items.reduce((sum, i) => sum + i.quantity, 0);
     const pending = items.filter((i) => !i.disposition_type).length;
-    return { total, inUse, notInUse, totalQuantity, pending };
+    const destroyed = items.filter((i) => i.disposition_type === "השמדה").length;
+    const returned = items.filter((i) => i.disposition_type === "החזרה לספק").length;
+    const sold = items.filter((i) => i.disposition_type === "מכירה").length;
+    return { total, inUse, notInUse, totalQuantity, pending, destroyed, returned, sold };
   }, [items]);
 
   const handleSave = async () => {
@@ -311,7 +340,7 @@ export function WasteItemsTab({ products }: Props) {
       }
       setEditingRow(null);
       setDrawerOpen(false);
-      await refreshItems();
+      await fetchItems();
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "שגיאה בשמירת הפריט";
       logger.error("Waste item save error", error);
@@ -327,7 +356,7 @@ export function WasteItemsTab({ products }: Props) {
     if (error) { toast.error("שגיאה במחיקת הפריט"); setDeletingId(null); return; }
     toast.success("הפריט נמחק");
     setDeletingId(null);
-    await refreshItems();
+    await fetchItems();
   };
 
   const handleInlineToggle = async (item: WasteItem) => {
@@ -351,7 +380,7 @@ export function WasteItemsTab({ products }: Props) {
     if (error) { toast.error("שגיאה בסימון כהושמד"); return; }
     toast.success("הפריט סומן כהושמד");
     setDestroyTarget(null);
-    await refreshItems();
+    await fetchItems();
   };
 
   const handleSale = async (buyerName: string, price: number | null) => {
@@ -365,7 +394,7 @@ export function WasteItemsTab({ products }: Props) {
     if (error) { toast.error("שגיאה בסימון כמכירה"); return; }
     toast.success("הפריט סומן כנמכר");
     setSaleTarget(null);
-    await refreshItems();
+    await fetchItems();
   };
 
   const startEdit = (item: WasteItem) => {
@@ -424,13 +453,13 @@ export function WasteItemsTab({ products }: Props) {
               <span className="flex items-center gap-1 text-green-600"><PackageCheck className="h-3 w-3" />{summaryStats.inUse} בשימוש</span>
               <span className="flex items-center gap-1 text-orange-500"><PackageX className="h-3 w-3" />{summaryStats.notInUse} לא בשימוש</span>
             </div>
-            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => { setShowSearch(!showSearch); if (!showSearch) setTimeout(() => searchInputRef.current?.focus(), 100); else setSearch(""); }}>
+            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => { setShowSearch(!showSearch); if (!showSearch) setTimeout(() => searchInputRef.current?.focus(), 100); else prefs.setFilter("search", ""); }}>
               {showSearch ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
             </Button>
           </div>
 
           {isManager && employees.length > 0 && (
-            <select value={filterEmployee} onChange={(e) => setFilterEmployee(e.target.value)}
+            <select value={filterEmployee} onChange={(e) => prefs.setFilter("filterEmployee", e.target.value)}
               className="mt-2 w-full h-10 rounded-xl border border-input bg-background px-3 text-sm">
               <option value="all">כל העובדים</option>
               {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
@@ -441,8 +470,8 @@ export function WasteItemsTab({ products }: Props) {
             <div className="mt-3 animate-in slide-in-from-top-2 duration-200">
               <div className="relative">
                 <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input ref={searchInputRef} placeholder="חיפוש מוצר, מק״ט, המלצה..." value={search} onChange={(e) => setSearch(e.target.value)} className="pr-10 h-10 rounded-xl bg-muted/50" />
-                {search && <button onClick={() => setSearch("")} className="absolute left-3 top-1/2 -translate-y-1/2"><X className="h-4 w-4 text-muted-foreground" /></button>}
+                <Input ref={searchInputRef} placeholder="חיפוש מוצר, מק״ט, המלצה..." value={search} onChange={(e) => prefs.setFilter("search", e.target.value)} className="pr-10 h-10 rounded-xl bg-muted/50" />
+                {search && <button onClick={() => prefs.setFilter("search", "")} className="absolute left-3 top-1/2 -translate-y-1/2"><X className="h-4 w-4 text-muted-foreground" /></button>}
               </div>
             </div>
           )}
@@ -568,13 +597,13 @@ export function WasteItemsTab({ products }: Props) {
         {/* Disposition dialogs */}
         <DestroyDialog open={!!destroyTarget} onClose={() => setDestroyTarget(null)} onConfirm={handleDestroy} itemName={destroyTarget?.product_name ?? ""} />
         <SaleDialog open={!!saleTarget} onClose={() => setSaleTarget(null)} onConfirm={handleSale} itemName={saleTarget?.product_name ?? ""} />
-        <SupplierReturnDialog open={!!returnTarget} onClose={() => setReturnTarget(null)} onSaved={() => { setReturnTarget(null); refreshItems(); }} preselectedItemId={returnTarget?.id} />
+        <SupplierReturnDialog open={!!returnTarget} onClose={() => setReturnTarget(null)} onSaved={() => { setReturnTarget(null); fetchItems(); }} preselectedItemId={returnTarget?.id} />
 
         {linkedReturn && (
           <SupplierReturnDetailPanel
             open={!!linkedReturn}
             onClose={() => setLinkedReturn(null)}
-            onUpdated={() => { setLinkedReturn(null); refreshItems(); }}
+            onUpdated={() => { setLinkedReturn(null); fetchItems(); }}
             supplierReturn={linkedReturn.supplierReturn as Parameters<typeof SupplierReturnDetailPanel>[0]["supplierReturn"]}
             items={linkedReturn.items as Parameters<typeof SupplierReturnDetailPanel>[0]["items"]}
           />
@@ -586,116 +615,133 @@ export function WasteItemsTab({ products }: Props) {
   // ──── DESKTOP ────
   const FIXED_COLS = 1; // actions column
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <p className="text-sm text-muted-foreground">
-            {isManager ? "תצוגת ניהול - כל הפריטים מכל העובדים" : "תיעוד וניהול פריטי בלאי"}
-          </p>
+    <TooltipProvider>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-muted-foreground">
+              {isManager ? "תצוגת ניהול - כל הפריטים מכל העובדים" : "תיעוד וניהול פריטי בלאי"}
+            </p>
+          </div>
+          {hasEdit && (
+            <Button onClick={() => setEditingRow({ ...emptyRow })} disabled={editingRow !== null} className="gap-2">
+              <Plus className="h-4 w-4" />הוסף שורה
+            </Button>
+          )}
         </div>
-        {hasEdit && (
-          <Button onClick={() => setEditingRow({ ...emptyRow })} disabled={editingRow !== null} className="gap-2">
-            <Plus className="h-4 w-4" />הוסף שורה
-          </Button>
+
+        {/* Manager Summary Cards */}
+        {isManager && (
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <Card
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => prefs.savePreferences({ filters: { search: "", filterEmployee: "all", filterDisposition: "all" } })}
+            >
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 bg-blue-500/10 rounded-lg"><Package className="h-5 w-5 text-blue-500" /></div>
+                <div><p className="text-2xl font-bold">{summaryStats.total}</p><p className="text-xs text-muted-foreground">סה"כ פריטים</p></div>
+              </CardContent>
+            </Card>
+            <Card
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => prefs.setFilter("filterDisposition", "ממתין")}
+            >
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 bg-orange-500/10 rounded-lg"><PackageX className="h-5 w-5 text-orange-500" /></div>
+                <div><p className="text-2xl font-bold">{summaryStats.pending}</p><p className="text-xs text-muted-foreground">ממתין</p></div>
+              </CardContent>
+            </Card>
+            <Card
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => prefs.setFilter("filterDisposition", "השמדה")}
+            >
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 bg-red-500/10 rounded-lg"><Trash2 className="h-5 w-5 text-red-500" /></div>
+                <div><p className="text-2xl font-bold">{summaryStats.destroyed}</p><p className="text-xs text-muted-foreground">הושמד</p></div>
+              </CardContent>
+            </Card>
+            <Card
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => prefs.setFilter("filterDisposition", "החזרה לספק")}
+            >
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 bg-green-500/10 rounded-lg"><PackageCheck className="h-5 w-5 text-green-500" /></div>
+                <div><p className="text-2xl font-bold">{summaryStats.returned}</p><p className="text-xs text-muted-foreground">הוחזר</p></div>
+              </CardContent>
+            </Card>
+            <Card
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => prefs.setFilter("filterDisposition", "מכירה")}
+            >
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 bg-purple-500/10 rounded-lg"><Recycle className="h-5 w-5 text-purple-500" /></div>
+                <div><p className="text-2xl font-bold">{summaryStats.sold}</p><p className="text-xs text-muted-foreground">נמכר</p></div>
+              </CardContent>
+            </Card>
+          </div>
         )}
-      </div>
 
-      {/* Manager Summary Cards */}
-      {isManager && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 bg-blue-500/10 rounded-lg"><Package className="h-5 w-5 text-blue-500" /></div><div><p className="text-2xl font-bold">{summaryStats.total}</p><p className="text-xs text-muted-foreground">סה"כ פריטים</p></div></CardContent></Card>
-          <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 bg-green-500/10 rounded-lg"><PackageCheck className="h-5 w-5 text-green-500" /></div><div><p className="text-2xl font-bold">{summaryStats.inUse}</p><p className="text-xs text-muted-foreground">בשימוש</p></div></CardContent></Card>
-          <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 bg-orange-500/10 rounded-lg"><PackageX className="h-5 w-5 text-orange-500" /></div><div><p className="text-2xl font-bold">{summaryStats.notInUse}</p><p className="text-xs text-muted-foreground">לא בשימוש</p></div></CardContent></Card>
-          <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 bg-purple-500/10 rounded-lg"><Recycle className="h-5 w-5 text-purple-500" /></div><div><p className="text-2xl font-bold">{summaryStats.totalQuantity}</p><p className="text-xs text-muted-foreground">סה"כ כמות</p></div></CardContent></Card>
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="חיפוש לפי מוצר, מק״ט או המלצה..." value={search} onChange={(e) => prefs.setFilter("search", e.target.value)} className="pr-10" />
+          </div>
+          {isManager && employees.length > 0 && (
+            <Select value={filterEmployee} onValueChange={(v) => prefs.setFilter("filterEmployee", v)}>
+              <SelectTrigger className="h-10 w-[180px]">
+                <SelectValue placeholder="כל העובדים" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">כל העובדים</SelectItem>
+                {employees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
+          <Select value={filterDisposition} onValueChange={(v) => prefs.setFilter("filterDisposition", v)}>
+            <SelectTrigger className="h-10 w-[180px]">
+              <SelectValue placeholder="כל הסטטוסים" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">כל הסטטוסים</SelectItem>
+              <SelectItem value="ממתין">ממתין</SelectItem>
+              <SelectItem value="השמדה">השמדה</SelectItem>
+              <SelectItem value="החזרה לספק">החזרה לספק</SelectItem>
+              <SelectItem value="מכירה">מכירה</SelectItem>
+            </SelectContent>
+          </Select>
+          {hasActiveFilters && (
+            <Button size="sm" variant="ghost" onClick={() => prefs.savePreferences({ filters: { search: "", filterEmployee: "all", filterDisposition: "all" } })}>
+              <X className="h-3 w-3 me-1" /> נקה סינון
+            </Button>
+          )}
         </div>
-      )}
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="חיפוש לפי מוצר, מק״ט או המלצה..." value={search} onChange={(e) => setSearch(e.target.value)} className="pr-10" />
-        </div>
-        {isManager && employees.length > 0 && (
-          <select value={filterEmployee} onChange={(e) => setFilterEmployee(e.target.value)}
-            className="h-10 rounded-md border border-input bg-background px-3 text-sm">
-            <option value="all">כל העובדים</option>
-            {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-          </select>
-        )}
-        <select value={filterDisposition} onChange={(e) => setFilterDisposition(e.target.value)}
-          className="h-10 rounded-md border border-input bg-background px-3 text-sm">
-          <option value="all">כל הסטטוסים</option>
-          <option value="ממתין">ממתין</option>
-          <option value="השמדה">השמדה</option>
-          <option value="החזרה לספק">החזרה לספק</option>
-          <option value="מכירה">מכירה</option>
-        </select>
-      </div>
-
-      {/* Table */}
-      <div className="rounded-lg border bg-card overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
-              {COLUMN_DEFS.map((col) =>
-                isVisible(col.id) ? (
-                  <TableHead key={col.id} className="font-semibold text-foreground" onContextMenu={colThContextMenu(col, setColMenu)}>
-                    {col.sortField ? (
-                      <button onClick={() => toggleSort(col.sortField!)} className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors">
-                        {col.label} <SortIcon field={col.sortField} />
-                      </button>
-                    ) : col.label}
-                  </TableHead>
-                ) : null
-              )}
-              {hasEdit && <TableHead className="font-semibold text-center w-24 text-foreground">פעולות</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {/* New row */}
-            {editingRow && editingRow.id === null && (
-              <TableRow className="bg-primary/5">
-                {isVisible("employee") && isManager && <TableCell className="text-sm text-muted-foreground">{currentUser?.name}</TableCell>}
-                {isVisible("product") && (
-                  <TableCell>
-                    <div className="space-y-1">
-                      <SourceToggle source={editingRow.itemSource} onChange={(s) => setEditingRow({ ...editingRow, product_name: "", sku: "", product_id: null, component_id: null, itemSource: s })} />
-                      {editingRow.itemSource === "component" ? (
-                        <Combobox value={editingRow.product_name} onValueChange={handleComponentSelect} options={componentOptions} placeholder="בחר פריט מוצר..." searchPlaceholder="חיפוש פריט..." emptyText="לא נמצא פריט" allowCustomValue className="h-9" />
-                      ) : (
-                        <Combobox value={editingRow.product_name} onValueChange={handleProductSelect} options={productOptions} placeholder="בחר או הקלד שם מוצר..." searchPlaceholder="חיפוש מוצר..." emptyText="לא נמצא מוצר" allowCustomValue className="h-9" />
-                      )}
-                    </div>
-                  </TableCell>
+        {/* Table */}
+        <div className="rounded-lg border bg-card overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
+                {COLUMN_DEFS.map((col) =>
+                  isVisible(col.id) ? (
+                    <TableHead key={col.id} className="font-semibold text-foreground" onContextMenu={colThContextMenu(col, setColMenu)}>
+                      {col.sortField ? (
+                        <button onClick={() => toggleSort(col.sortField!)} className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors">
+                          {col.label} <SortIcon field={col.sortField} />
+                        </button>
+                      ) : col.label}
+                    </TableHead>
+                  ) : null
                 )}
-                {isVisible("sku") && <TableCell><Input placeholder="מק״ט" value={editingRow.sku} onChange={(e) => setEditingRow({ ...editingRow, sku: e.target.value })} disabled={isProductFromSystem} className="h-9" /></TableCell>}
-                {isVisible("quantity") && <TableCell><Input type="number" min={0} placeholder="0" value={editingRow.quantity || ""} onChange={(e) => setEditingRow({ ...editingRow, quantity: parseInt(e.target.value) || 0 })} className="h-9 w-20 text-center mx-auto" /></TableCell>}
-                {isVisible("in_use") && <TableCell className="text-center"><div className="flex items-center justify-center gap-1.5"><Checkbox checked={editingRow.in_use} onCheckedChange={(checked) => setEditingRow({ ...editingRow, in_use: !!checked })} /><span className="text-sm">{editingRow.in_use ? "כן" : "לא"}</span></div></TableCell>}
-                {isVisible("recommendations") && <TableCell><Input placeholder="המלצות..." value={editingRow.recommendations} onChange={(e) => setEditingRow({ ...editingRow, recommendations: e.target.value })} className="h-9" /></TableCell>}
-                {isVisible("disposition") && <TableCell />}
-                {isVisible("photo") && <TableCell className="text-center" />}
-                {hasEdit && (
-                  <TableCell>
-                    <div className="flex items-center justify-center gap-1">
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={handleSave} disabled={saving}>
-                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setEditingRow(null)}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                )}
+                {hasEdit && <TableHead className="font-semibold text-center w-24 text-foreground">פעולות</TableHead>}
               </TableRow>
-            )}
-
-            {/* Existing rows */}
-            {filteredItems.map((item) =>
-              editingRow && editingRow.id === item.id ? (
-                <TableRow key={item.id} className="bg-primary/5">
-                  {isVisible("employee") && isManager && <TableCell className="text-sm">{item.created_by_name}</TableCell>}
+            </TableHeader>
+            <TableBody>
+              {/* New row */}
+              {editingRow && editingRow.id === null && (
+                <TableRow className="bg-primary/5">
+                  {isVisible("employee") && isManager && <TableCell className="text-sm text-muted-foreground">{currentUser?.name}</TableCell>}
                   {isVisible("product") && (
                     <TableCell>
                       <div className="space-y-1">
@@ -708,12 +754,12 @@ export function WasteItemsTab({ products }: Props) {
                       </div>
                     </TableCell>
                   )}
-                  {isVisible("sku") && <TableCell><Input value={editingRow.sku} onChange={(e) => setEditingRow({ ...editingRow, sku: e.target.value })} disabled={isProductFromSystem} className="h-9" /></TableCell>}
-                  {isVisible("quantity") && <TableCell><Input type="number" min={0} value={editingRow.quantity || ""} onChange={(e) => setEditingRow({ ...editingRow, quantity: parseInt(e.target.value) || 0 })} className="h-9 w-20 text-center mx-auto" /></TableCell>}
+                  {isVisible("sku") && <TableCell><Input placeholder="מק״ט" value={editingRow.sku} onChange={(e) => setEditingRow({ ...editingRow, sku: e.target.value })} disabled={isProductFromSystem} className="h-9" /></TableCell>}
+                  {isVisible("quantity") && <TableCell><Input type="number" min={0} placeholder="0" value={editingRow.quantity || ""} onChange={(e) => setEditingRow({ ...editingRow, quantity: parseInt(e.target.value) || 0 })} className="h-9 w-20 text-center mx-auto" /></TableCell>}
                   {isVisible("in_use") && <TableCell className="text-center"><div className="flex items-center justify-center gap-1.5"><Checkbox checked={editingRow.in_use} onCheckedChange={(checked) => setEditingRow({ ...editingRow, in_use: !!checked })} /><span className="text-sm">{editingRow.in_use ? "כן" : "לא"}</span></div></TableCell>}
-                  {isVisible("recommendations") && <TableCell><Input value={editingRow.recommendations} onChange={(e) => setEditingRow({ ...editingRow, recommendations: e.target.value })} className="h-9" /></TableCell>}
+                  {isVisible("recommendations") && <TableCell><Input placeholder="המלצות..." value={editingRow.recommendations} onChange={(e) => setEditingRow({ ...editingRow, recommendations: e.target.value })} className="h-9" /></TableCell>}
                   {isVisible("disposition") && <TableCell />}
-                  {isVisible("photo") && <TableCell className="text-center"><div className="flex justify-center"><PhotoCaptureButton imageUrl={item.photo_url} storagePath={`waste-items/${item.id}`} onSave={(url) => handlePhotoSave(item.id, url)} /></div></TableCell>}
+                  {isVisible("photo") && <TableCell className="text-center" />}
                   {hasEdit && (
                     <TableCell>
                       <div className="flex items-center justify-center gap-1">
@@ -727,125 +773,175 @@ export function WasteItemsTab({ products }: Props) {
                     </TableCell>
                   )}
                 </TableRow>
-              ) : (
-                <TableRow key={item.id} className="group">
-                  {isVisible("employee") && isManager && <TableCell className="text-sm font-medium">{item.created_by_name || "—"}</TableCell>}
-                  {isVisible("product") && <TableCell className="font-medium">{item.product_name}</TableCell>}
-                  {isVisible("sku") && <TableCell className="text-muted-foreground font-mono text-sm">{item.sku || "—"}</TableCell>}
-                  {isVisible("quantity") && <TableCell className="text-center font-semibold">{item.quantity}</TableCell>}
-                  {isVisible("in_use") && (
-                    <TableCell className="text-center">
-                      {hasEdit ? (
-                        <div className="flex items-center justify-center gap-1.5">
-                          <Checkbox checked={item.in_use} onCheckedChange={() => handleInlineToggle(item)} />
-                          <span className="text-sm">{item.in_use ? "כן" : "לא"}</span>
+              )}
+
+              {/* Existing rows */}
+              {filteredItems.map((item) =>
+                editingRow && editingRow.id === item.id ? (
+                  <TableRow key={item.id} className="bg-primary/5">
+                    {isVisible("employee") && isManager && <TableCell className="text-sm">{item.created_by_name}</TableCell>}
+                    {isVisible("product") && (
+                      <TableCell>
+                        <div className="space-y-1">
+                          <SourceToggle source={editingRow.itemSource} onChange={(s) => setEditingRow({ ...editingRow, product_name: "", sku: "", product_id: null, component_id: null, itemSource: s })} />
+                          {editingRow.itemSource === "component" ? (
+                            <Combobox value={editingRow.product_name} onValueChange={handleComponentSelect} options={componentOptions} placeholder="בחר פריט מוצר..." searchPlaceholder="חיפוש פריט..." emptyText="לא נמצא פריט" allowCustomValue className="h-9" />
+                          ) : (
+                            <Combobox value={editingRow.product_name} onValueChange={handleProductSelect} options={productOptions} placeholder="בחר או הקלד שם מוצר..." searchPlaceholder="חיפוש מוצר..." emptyText="לא נמצא מוצר" allowCustomValue className="h-9" />
+                          )}
                         </div>
-                      ) : (
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.in_use ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"}`}>
-                          {item.in_use ? "כן" : "לא"}
-                        </span>
-                      )}
-                    </TableCell>
-                  )}
-                  {isVisible("recommendations") && <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">{item.recommendations || "—"}</TableCell>}
-                  {isVisible("disposition") && (
-                    <TableCell>
-                      {item.disposition_type === "החזרה לספק" ? (
-                        <button className="cursor-pointer hover:opacity-80 transition-opacity" onClick={(e) => handleBadgeClick(e, item)}>
-                          <DispositionBadge disposition={item.disposition_type as never} />
-                        </button>
-                      ) : (
-                        <DispositionBadge disposition={item.disposition_type as never} />
-                      )}
-                    </TableCell>
-                  )}
-                  {isVisible("photo") && (
-                    <TableCell className="text-center">
-                      <div className="flex justify-center">
-                        <PhotoCaptureButton imageUrl={item.photo_url} storagePath={`waste-items/${item.id}`} onSave={(url) => handlePhotoSave(item.id, url)} disabled={!hasEdit} />
-                      </div>
-                    </TableCell>
-                  )}
-                  {hasEdit && (
-                    <TableCell>
-                      <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => startEdit(item)} disabled={editingRow !== null}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        {!item.disposition_type && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button size="icon" variant="ghost" className="h-8 w-8" disabled={editingRow !== null}>
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" dir="rtl">
-                              <DropdownMenuItem onClick={() => setDestroyTarget(item)} className="text-destructive">
-                                <Trash2 className="h-4 w-4 me-2" />
-                                השמד
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setReturnTarget(item)}>
-                                <PackageX className="h-4 w-4 me-2" />
-                                הוסף להחזרה לספק
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setSaleTarget(item)}>
-                                <Box className="h-4 w-4 me-2" />
-                                סמן כמכירה
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                      </TableCell>
+                    )}
+                    {isVisible("sku") && <TableCell><Input value={editingRow.sku} onChange={(e) => setEditingRow({ ...editingRow, sku: e.target.value })} disabled={isProductFromSystem} className="h-9" /></TableCell>}
+                    {isVisible("quantity") && <TableCell><Input type="number" min={0} value={editingRow.quantity || ""} onChange={(e) => setEditingRow({ ...editingRow, quantity: parseInt(e.target.value) || 0 })} className="h-9 w-20 text-center mx-auto" /></TableCell>}
+                    {isVisible("in_use") && <TableCell className="text-center"><div className="flex items-center justify-center gap-1.5"><Checkbox checked={editingRow.in_use} onCheckedChange={(checked) => setEditingRow({ ...editingRow, in_use: !!checked })} /><span className="text-sm">{editingRow.in_use ? "כן" : "לא"}</span></div></TableCell>}
+                    {isVisible("recommendations") && <TableCell><Input value={editingRow.recommendations} onChange={(e) => setEditingRow({ ...editingRow, recommendations: e.target.value })} className="h-9" /></TableCell>}
+                    {isVisible("disposition") && <TableCell />}
+                    {isVisible("photo") && <TableCell className="text-center"><div className="flex justify-center"><PhotoCaptureButton imageUrl={item.photo_url} storagePath={`waste-items/${item.id}`} onSave={(url) => handlePhotoSave(item.id, url)} /></div></TableCell>}
+                    {hasEdit && (
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={handleSave} disabled={saving}>
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setEditingRow(null)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ) : (
+                  <TableRow key={item.id} className="group">
+                    {isVisible("employee") && isManager && <TableCell className="text-sm font-medium">{item.created_by_name || "—"}</TableCell>}
+                    {isVisible("product") && <TableCell className="font-medium">{item.product_name}</TableCell>}
+                    {isVisible("sku") && <TableCell className="text-muted-foreground font-mono text-sm">{item.sku || "—"}</TableCell>}
+                    {isVisible("quantity") && <TableCell className="text-center font-semibold">{item.quantity}</TableCell>}
+                    {isVisible("in_use") && (
+                      <TableCell className="text-center">
+                        {hasEdit ? (
+                          <div className="flex items-center justify-center gap-1.5">
+                            <Checkbox checked={item.in_use} onCheckedChange={() => handleInlineToggle(item)} />
+                            <span className="text-sm">{item.in_use ? "כן" : "לא"}</span>
+                          </div>
+                        ) : (
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.in_use ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"}`}>
+                            {item.in_use ? "כן" : "לא"}
+                          </span>
                         )}
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(item.id)} disabled={editingRow !== null}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  )}
+                      </TableCell>
+                    )}
+                    {isVisible("recommendations") && (
+                      <TableCell className="max-w-[200px] text-sm text-muted-foreground">
+                        {item.recommendations ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="block max-w-[200px] truncate">{item.recommendations}</span>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-xs text-xs">{item.recommendations}</TooltipContent>
+                          </Tooltip>
+                        ) : "—"}
+                      </TableCell>
+                    )}
+                    {isVisible("disposition") && (
+                      <TableCell>
+                        {item.disposition_type === "החזרה לספק" ? (
+                          <button className="cursor-pointer hover:opacity-80 transition-opacity" onClick={(e) => handleBadgeClick(e, item)}>
+                            <DispositionBadge disposition={item.disposition_type as never} />
+                          </button>
+                        ) : (
+                          <DispositionBadge disposition={item.disposition_type as never} />
+                        )}
+                      </TableCell>
+                    )}
+                    {isVisible("photo") && (
+                      <TableCell className="text-center">
+                        <div className="flex justify-center">
+                          <PhotoCaptureButton imageUrl={item.photo_url} storagePath={`waste-items/${item.id}`} onSave={(url) => handlePhotoSave(item.id, url)} disabled={!hasEdit} />
+                        </div>
+                      </TableCell>
+                    )}
+                    {hasEdit && (
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => startEdit(item)} disabled={editingRow !== null}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          {!item.disposition_type && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="icon" variant="ghost" className="h-8 w-8" disabled={editingRow !== null}>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" dir="rtl">
+                                <DropdownMenuItem onClick={() => setDestroyTarget(item)} className="text-destructive">
+                                  <Trash2 className="h-4 w-4 me-2" />
+                                  השמד
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setReturnTarget(item)}>
+                                  <PackageX className="h-4 w-4 me-2" />
+                                  הוסף להחזרה לספק
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setSaleTarget(item)}>
+                                  <Box className="h-4 w-4 me-2" />
+                                  סמן כמכירה
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(item.id)} disabled={editingRow !== null}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                )
+              )}
+
+              {filteredItems.length === 0 && !editingRow && (
+                <TableRow>
+                  <TableCell colSpan={visibleCount + FIXED_COLS} className="text-center py-12 text-muted-foreground">
+                    <Recycle className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                    <p className="text-lg font-medium mb-1">אין פריטי בלאי</p>
+                    <p className="text-sm">{search ? "לא נמצאו תוצאות לחיפוש" : hasEdit ? 'לחץ על "הוסף שורה" כדי להתחיל לתעד בלאי' : "לא נוספו פריטי בלאי עדיין"}</p>
+                  </TableCell>
                 </TableRow>
-              )
-            )}
+              )}
+            </TableBody>
+          </Table>
+        </div>
 
-            {filteredItems.length === 0 && !editingRow && (
-              <TableRow>
-                <TableCell colSpan={visibleCount + FIXED_COLS} className="text-center py-12 text-muted-foreground">
-                  <Recycle className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                  <p className="text-lg font-medium mb-1">אין פריטי בלאי</p>
-                  <p className="text-sm">{search ? "לא נמצאו תוצאות לחיפוש" : hasEdit ? 'לחץ על "הוסף שורה" כדי להתחיל לתעד בלאי' : "לא נוספו פריטי בלאי עדיין"}</p>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+        {/* Disposition dialogs */}
+        <DestroyDialog open={!!destroyTarget} onClose={() => setDestroyTarget(null)} onConfirm={handleDestroy} itemName={destroyTarget?.product_name ?? ""} />
+        <SaleDialog open={!!saleTarget} onClose={() => setSaleTarget(null)} onConfirm={handleSale} itemName={saleTarget?.product_name ?? ""} />
+        <SupplierReturnDialog open={!!returnTarget} onClose={() => setReturnTarget(null)} onSaved={() => { setReturnTarget(null); fetchItems(); }} preselectedItemId={returnTarget?.id} />
+
+        {linkedReturn && (
+          <SupplierReturnDetailPanel
+            open={!!linkedReturn}
+            onClose={() => setLinkedReturn(null)}
+            onUpdated={() => { setLinkedReturn(null); fetchItems(); }}
+            supplierReturn={linkedReturn.supplierReturn as Parameters<typeof SupplierReturnDetailPanel>[0]["supplierReturn"]}
+            items={linkedReturn.items as Parameters<typeof SupplierReturnDetailPanel>[0]["items"]}
+          />
+        )}
+
+        {colMenu && (
+          <ColContextMenu
+            menu={colMenu}
+            sortField={sortField}
+            sortDir={sortDir}
+            hiddenCols={hiddenCols}
+            onClose={closeMenu}
+            onHide={hide}
+            onShow={show}
+            onSortAsc={(field) => saveSort(field, "asc")}
+            onSortDesc={(field) => saveSort(field, "desc")}
+          />
+        )}
       </div>
-
-      {/* Disposition dialogs */}
-      <DestroyDialog open={!!destroyTarget} onClose={() => setDestroyTarget(null)} onConfirm={handleDestroy} itemName={destroyTarget?.product_name ?? ""} />
-      <SaleDialog open={!!saleTarget} onClose={() => setSaleTarget(null)} onConfirm={handleSale} itemName={saleTarget?.product_name ?? ""} />
-      <SupplierReturnDialog open={!!returnTarget} onClose={() => setReturnTarget(null)} onSaved={() => { setReturnTarget(null); refreshItems(); }} preselectedItemId={returnTarget?.id} />
-
-      {linkedReturn && (
-        <SupplierReturnDetailPanel
-          open={!!linkedReturn}
-          onClose={() => setLinkedReturn(null)}
-          onUpdated={() => { setLinkedReturn(null); refreshItems(); }}
-          supplierReturn={linkedReturn.supplierReturn as Parameters<typeof SupplierReturnDetailPanel>[0]["supplierReturn"]}
-          items={linkedReturn.items as Parameters<typeof SupplierReturnDetailPanel>[0]["items"]}
-        />
-      )}
-
-      {colMenu && (
-        <ColContextMenu
-          menu={colMenu}
-          sortField={sortField}
-          sortDir={sortDir}
-          hiddenCols={hiddenCols}
-          onClose={closeMenu}
-          onHide={hide}
-          onShow={show}
-          onSortAsc={(field) => saveSort(field, "asc")}
-          onSortDesc={(field) => saveSort(field, "desc")}
-        />
-      )}
-    </div>
+    </TooltipProvider>
   );
 }
