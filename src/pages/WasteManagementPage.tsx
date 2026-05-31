@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Recycle, Plus, Loader2 } from "lucide-react";
 import { WasteItemsTab } from "@/components/waste/WasteItemsTab";
 import { WasteDashboardTab } from "@/components/waste/WasteDashboardTab";
+import { SupplierReturnsTab } from "@/components/waste/SupplierReturnsTab";
 import { AddWasteItemDialog } from "@/components/waste/AddWasteItemDialog";
 import { logger } from "@/lib/logger";
 
@@ -30,12 +31,19 @@ interface WasteItem {
   supplier_return_id: string | null;
   sale_buyer_name: string | null;
   sale_price: number | null;
+  unit_cost: number | null;
+  supplier_id: string | null;
 }
 
 interface SupplierReturn {
   id: string;
   status: string;
   shipped_at: string | null;
+}
+
+interface Supplier {
+  id: string;
+  name: string;
 }
 
 export default function WasteManagementPage() {
@@ -45,20 +53,23 @@ export default function WasteManagementPage() {
 
   const [wasteItems, setWasteItems] = useState<WasteItem[]>([]);
   const [supplierReturns, setSupplierReturns] = useState<SupplierReturn[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
-      const [{ data: items }, { data: returns }] = await Promise.all([
+      const [{ data: items }, { data: returns }, { data: sups }] = await Promise.all([
         isManager
           ? supabase.from("waste_items").select("*").order("created_at", { ascending: false })
           : supabase.from("waste_items").select("*").eq("created_by", currentUser?.id ?? "").order("created_at", { ascending: false }),
         supabase.from("supplier_returns").select("id, status, shipped_at").is("deleted_at", null),
+        supabase.from("suppliers").select("id, name").order("name"),
       ]);
       setWasteItems((items as WasteItem[]) ?? []);
       setSupplierReturns((returns as SupplierReturn[]) ?? []);
+      setSuppliers((sups as Supplier[]) ?? []);
     } catch (err) {
       logger.error("WasteManagementPage fetchData error", err);
     }
@@ -118,6 +129,7 @@ export default function WasteManagementPage() {
         <TabsList>
           <TabsTrigger value="dashboard">דשבורד</TabsTrigger>
           <TabsTrigger value="items">פריטי בלאי</TabsTrigger>
+          <TabsTrigger value="returns">החזרות לספק</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-4">
@@ -134,7 +146,12 @@ export default function WasteManagementPage() {
             items={wasteItems}
             onRefresh={fetchData}
             products={products}
+            suppliers={suppliers}
           />
+        </TabsContent>
+
+        <TabsContent value="returns" className="mt-4">
+          <SupplierReturnsTab canCreate={hasEdit} />
         </TabsContent>
       </Tabs>
 

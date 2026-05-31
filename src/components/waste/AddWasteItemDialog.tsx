@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Combobox } from "@/components/ui/combobox";
 import { Separator } from "@/components/ui/separator";
+import ProductFormDialog from "@/components/products/ProductFormDialog";
 import {
   Loader2,
   Package,
@@ -37,12 +38,15 @@ import {
   Trash2,
   DollarSign,
   HelpCircle,
+  PlusCircle,
 } from "lucide-react";
 
 interface Product {
   id: string;
   name: string;
   sku: string;
+  purchase_price?: number | null;
+  supplier_id?: string | null;
   components?: Array<{ id: string; name: string; sku: string }>;
 }
 
@@ -72,6 +76,7 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
   const { currentUser } = useAuth();
   const [saving, setSaving] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [createProductOpen, setCreateProductOpen] = useState(false);
 
   // Core fields
   const [itemSource, setItemSource] = useState<"product" | "component">("product");
@@ -83,12 +88,20 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
   const [inUse, setInUse] = useState(false);
   const [notes, setNotes] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [generalSupplierId, setGeneralSupplierId] = useState("");
+  const [unitCost, setUnitCost] = useState("");
 
-  // Action
+  // Action — auto-fill return supplier from general supplier when switching to return
   const [action, setAction] = useState<ActionType>("ממתין");
+  const handleActionChange = (v: ActionType) => {
+    setAction(v);
+    if (v === "החזרה לספק" && generalSupplierId && !returnSupplierId) {
+      setReturnSupplierId(generalSupplierId);
+    }
+  };
 
   // Action-specific fields
-  const [supplierId, setSupplierId] = useState("");
+  const [returnSupplierId, setReturnSupplierId] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [returnReason, setReturnReason] = useState("");
   const [buyerName, setBuyerName] = useState("");
@@ -107,8 +120,10 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
     setInUse(false);
     setNotes("");
     setDate(new Date().toISOString().slice(0, 10));
+    setGeneralSupplierId("");
+    setUnitCost("");
     setAction("ממתין");
-    setSupplierId("");
+    setReturnSupplierId("");
     setTrackingNumber("");
     setReturnReason("");
     setBuyerName("");
@@ -125,8 +140,8 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
     [products]
   );
   const productMap = useMemo(() => {
-    const map = new Map<string, { id: string; sku: string }>();
-    products.forEach((p) => map.set(p.name, { id: p.id, sku: p.sku }));
+    const map = new Map<string, { id: string; sku: string; purchase_price?: number | null; supplier_id?: string | null }>();
+    products.forEach((p) => map.set(p.name, { id: p.id, sku: p.sku, purchase_price: p.purchase_price, supplier_id: p.supplier_id }));
     return map;
   }, [products]);
   const componentOptions = useMemo(
@@ -155,12 +170,20 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
     return productMap.has(productName);
   }, [itemSource, productName, productMap, componentMap]);
 
+  // Show "create product" prompt when name is typed but not in system (product mode only)
+  const showCreateProductPrompt = useMemo(
+    () => itemSource === "product" && productName.trim().length > 0 && !productMap.has(productName),
+    [itemSource, productName, productMap]
+  );
+
   const handleProductSelect = (val: string) => {
     const hit = productMap.get(val);
     setProductName(val);
     setSku(hit?.sku ?? "");
     setProductId(hit?.id ?? null);
     setComponentId(null);
+    if (hit?.purchase_price != null) setUnitCost(String(hit.purchase_price));
+    if (hit?.supplier_id) setGeneralSupplierId(hit.supplier_id);
   };
 
   const handleComponentSelect = (val: string) => {
@@ -182,7 +205,7 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
   const isValid = () => {
     if (!productName.trim()) return false;
     if (quantity < 1) return false;
-    if (action === "החזרה לספק" && !supplierId) return false;
+    if (action === "החזרה לספק" && !returnSupplierId) return false;
     if (action === "מכירה בערוץ שלישי" && !buyerName.trim()) return false;
     if (action === "אחר" && !otherDetail.trim()) return false;
     return true;
@@ -192,7 +215,9 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
     if (!currentUser || !isValid()) return;
     setSaving(true);
     try {
-      const dispositionType = action === "ממתין" ? null : action;
+      const dispositionType = action === "ממתין" ? null
+        : action === "מכירה בערוץ שלישי" ? "מכירה"
+        : action;
       const dispositionDate = dispositionType ? new Date().toISOString() : null;
 
       const itemPayload: Record<string, unknown> = {
@@ -207,6 +232,8 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
         created_by_name: currentUser.name,
         disposition_type: dispositionType,
         disposition_date: dispositionDate,
+        supplier_id: generalSupplierId || null,
+        unit_cost: unitCost ? parseFloat(unitCost) : null,
         created_at: new Date(date).toISOString(),
       };
 
@@ -227,7 +254,7 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
         const { data: ret, error: retErr } = await supabase
           .from("supplier_returns")
           .insert({
-            supplier_id: supplierId,
+            supplier_id: returnSupplierId,
             return_reason: returnReason || null,
             tracking_number: trackingNumber || null,
             created_by: currentUser.id,
@@ -258,166 +285,207 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent dir="rtl" className="max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-lg">
-            <Package className="h-5 w-5 text-primary" />
-            הוספת פריט בלאי
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+        <DialogContent dir="rtl" className="max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Package className="h-5 w-5 text-primary" />
+              הוספת פריט בלאי
+            </DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-5 py-1">
-          {/* Reported by */}
-          <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 bg-muted/40 rounded-lg">
-            <User className="h-4 w-4" />
-            <span>מדווח ע"י: <strong className="text-foreground">{currentUser?.name ?? "—"}</strong></span>
-          </div>
+          <div className="space-y-5 py-1">
+            {/* Reported by */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 bg-muted/40 rounded-lg">
+              <User className="h-4 w-4" />
+              <span>מדווח ע"י: <strong className="text-foreground">{currentUser?.name ?? "—"}</strong></span>
+            </div>
 
-          {/* Product / Component */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            {/* Product / Component */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  {itemSource === "component" ? <Layers className="h-4 w-4 text-primary" /> : <Package className="h-4 w-4 text-primary" />}
+                  {itemSource === "component" ? "שם הפריט" : "שם המוצר"} *
+                </Label>
+                <div className="inline-flex rounded-md border bg-muted/40 p-0.5 gap-0.5">
+                  {(["product", "component"] as const).map((s) => (
+                    <button key={s} type="button" onClick={() => handleSwitchSource(s)}
+                      className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${itemSource === s ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                      {s === "product" ? "מוצר" : "פריט"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {itemSource === "component" ? (
+                <Combobox value={productName} onValueChange={handleComponentSelect} options={componentOptions}
+                  placeholder="בחר פריט מוצר..." searchPlaceholder="חיפוש פריט..." emptyText="לא נמצא פריט" allowCustomValue />
+              ) : (
+                <Combobox value={productName} onValueChange={handleProductSelect} options={productOptions}
+                  placeholder="בחר או הקלד שם מוצר..." searchPlaceholder="חיפוש מוצר..." emptyText="לא נמצא מוצר" allowCustomValue />
+              )}
+              {showCreateProductPrompt && (
+                <button
+                  type="button"
+                  onClick={() => setCreateProductOpen(true)}
+                  className="flex items-center gap-1.5 text-xs text-primary hover:underline mt-1"
+                >
+                  <PlusCircle className="h-3.5 w-3.5" />
+                  המוצר לא קיים במערכת — לחץ ליצירתו
+                </button>
+              )}
+            </div>
+
+            {/* Supplier */}
+            <div className="space-y-2">
               <Label className="text-sm font-medium flex items-center gap-2">
-                {itemSource === "component" ? <Layers className="h-4 w-4 text-primary" /> : <Package className="h-4 w-4 text-primary" />}
-                {itemSource === "component" ? "שם הפריט" : "שם המוצר"} *
+                <Truck className="h-4 w-4 text-primary" />
+                ספק
               </Label>
-              <div className="inline-flex rounded-md border bg-muted/40 p-0.5 gap-0.5">
-                {(["product", "component"] as const).map((s) => (
-                  <button key={s} type="button" onClick={() => handleSwitchSource(s)}
-                    className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${itemSource === s ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-                    {s === "product" ? "מוצר" : "פריט"}
-                  </button>
-                ))}
+              <Combobox
+                value={generalSupplierId}
+                onValueChange={setGeneralSupplierId}
+                options={supplierOptions}
+                placeholder="בחר ספק (אופציונלי)..."
+                searchPlaceholder="חיפוש ספק..."
+                emptyText="לא נמצא ספק"
+              />
+            </div>
+
+            {/* SKU + Quantity + Cost + Date row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium flex items-center gap-1"><Hash className="h-3.5 w-3.5 text-primary" />מק"ט</Label>
+                <Input placeholder="XXX-000" value={sku} onChange={(e) => setSku(e.target.value)}
+                  disabled={isProductFromSystem} className="font-mono" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium flex items-center gap-1"><Box className="h-3.5 w-3.5 text-primary" />כמות *</Label>
+                <Input type="number" min={1} value={quantity}
+                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="text-center" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium flex items-center gap-1"><DollarSign className="h-3.5 w-3.5 text-primary" />עלות ליח׳ (₪)</Label>
+                <Input type="number" min={0} step={0.01} placeholder="0.00" value={unitCost}
+                  onChange={(e) => setUnitCost(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium flex items-center gap-1"><CalendarIcon className="h-3.5 w-3.5 text-primary" />תאריך</Label>
+                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
               </div>
             </div>
-            {itemSource === "component" ? (
-              <Combobox value={productName} onValueChange={handleComponentSelect} options={componentOptions}
-                placeholder="בחר פריט מוצר..." searchPlaceholder="חיפוש פריט..." emptyText="לא נמצא פריט" allowCustomValue />
-            ) : (
-              <Combobox value={productName} onValueChange={handleProductSelect} options={productOptions}
-                placeholder="בחר או הקלד שם מוצר..." searchPlaceholder="חיפוש מוצר..." emptyText="לא נמצא מוצר" allowCustomValue />
+
+            {/* In use */}
+            <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+              <Checkbox id="in-use" checked={inUse} onCheckedChange={(c) => setInUse(!!c)} />
+              <Label htmlFor="in-use" className="cursor-pointer text-sm">הפריט עדיין בשימוש</Label>
+            </div>
+
+            <Separator />
+
+            {/* Action */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">פעולה</Label>
+              <Select value={action} onValueChange={(v) => handleActionChange(v as ActionType)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ACTION_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      <span className={`flex items-center gap-2 ${opt.color}`}>
+                        {opt.icon}
+                        {opt.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Action-specific fields */}
+            {action === "החזרה לספק" && (
+              <div className="space-y-4 p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded-lg border border-blue-200/60 dark:border-blue-800/40">
+                <p className="text-xs font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                  <Truck className="h-3.5 w-3.5" /> פרטי החזרה לספק
+                </p>
+                <div className="space-y-2">
+                  <Label className="text-sm">ספק *</Label>
+                  <Combobox value={returnSupplierId} onValueChange={setReturnSupplierId} options={supplierOptions}
+                    placeholder="בחר ספק..." searchPlaceholder="חיפוש ספק..." emptyText="לא נמצא ספק" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">סיבת החזרה</Label>
+                  <Input placeholder="מוצר פגום, אי-התאמה..." value={returnReason}
+                    onChange={(e) => setReturnReason(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">מספר מעקב (DHL / משלוח)</Label>
+                  <Input placeholder="JD1234567890..." value={trackingNumber}
+                    onChange={(e) => setTrackingNumber(e.target.value)} className="font-mono" />
+                </div>
+              </div>
+            )}
+
+            {action === "מכירה בערוץ שלישי" && (
+              <div className="space-y-4 p-4 bg-amber-50/50 dark:bg-amber-950/20 rounded-lg border border-amber-200/60 dark:border-amber-800/40">
+                <p className="text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                  <DollarSign className="h-3.5 w-3.5" /> פרטי המכירה
+                </p>
+                <div className="space-y-2">
+                  <Label className="text-sm">שם הקונה *</Label>
+                  <Input placeholder="שם הקונה..." value={buyerName}
+                    onChange={(e) => setBuyerName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">מחיר (₪, אופציונלי)</Label>
+                  <Input type="number" min={0} step={0.01} placeholder="0.00" value={salePrice}
+                    onChange={(e) => setSalePrice(e.target.value)} />
+                </div>
+              </div>
+            )}
+
+            {action === "אחר" && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium flex items-center gap-1">
+                  <HelpCircle className="h-3.5 w-3.5 text-purple-500" /> פירוט הפעולה *
+                </Label>
+                <Textarea placeholder="תאר את הפעולה שתבוצע..." value={otherDetail}
+                  onChange={(e) => setOtherDetail(e.target.value)} rows={3} />
+              </div>
+            )}
+
+            {action !== "אחר" && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium flex items-center gap-1">
+                  <MessageSquare className="h-3.5 w-3.5 text-primary" /> הערות (אופציונלי)
+                </Label>
+                <Textarea placeholder="הערות נוספות..." value={notes}
+                  onChange={(e) => setNotes(e.target.value)} rows={2} />
+              </div>
             )}
           </div>
 
-          {/* SKU + Quantity + Date row */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium flex items-center gap-1"><Hash className="h-3.5 w-3.5 text-primary" />מק"ט</Label>
-              <Input placeholder="XXX-000" value={sku} onChange={(e) => setSku(e.target.value)}
-                disabled={isProductFromSystem} className="font-mono" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium flex items-center gap-1"><Box className="h-3.5 w-3.5 text-primary" />כמות *</Label>
-              <Input type="number" min={1} value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                className="text-center" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium flex items-center gap-1"><CalendarIcon className="h-3.5 w-3.5 text-primary" />תאריך</Label>
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-            </div>
-          </div>
+          <DialogFooter className="gap-2 pt-2">
+            <Button variant="ghost" onClick={onClose} disabled={saving}>ביטול</Button>
+            <Button onClick={handleSave} disabled={saving || !isValid()} className="gap-2">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Package className="h-4 w-4" />}
+              הוסף פריט בלאי
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          {/* In use */}
-          <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
-            <Checkbox id="in-use" checked={inUse} onCheckedChange={(c) => setInUse(!!c)} />
-            <Label htmlFor="in-use" className="cursor-pointer text-sm">הפריט עדיין בשימוש</Label>
-          </div>
-
-          <Separator />
-
-          {/* Action */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">פעולה</Label>
-            <Select value={action} onValueChange={(v) => setAction(v as ActionType)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ACTION_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    <span className={`flex items-center gap-2 ${opt.color}`}>
-                      {opt.icon}
-                      {opt.label}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Action-specific fields */}
-          {action === "החזרה לספק" && (
-            <div className="space-y-4 p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded-lg border border-blue-200/60 dark:border-blue-800/40">
-              <p className="text-xs font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                <Truck className="h-3.5 w-3.5" /> פרטי החזרה לספק
-              </p>
-              <div className="space-y-2">
-                <Label className="text-sm">ספק *</Label>
-                <Combobox value={supplierId} onValueChange={setSupplierId} options={supplierOptions}
-                  placeholder="בחר ספק..." searchPlaceholder="חיפוש ספק..." emptyText="לא נמצא ספק" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm">סיבת החזרה</Label>
-                <Input placeholder="מוצר פגום, אי-התאמה..." value={returnReason}
-                  onChange={(e) => setReturnReason(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm">מספר מעקב (DHL / משלוח)</Label>
-                <Input placeholder="JD1234567890..." value={trackingNumber}
-                  onChange={(e) => setTrackingNumber(e.target.value)} className="font-mono" />
-              </div>
-            </div>
-          )}
-
-          {action === "מכירה בערוץ שלישי" && (
-            <div className="space-y-4 p-4 bg-amber-50/50 dark:bg-amber-950/20 rounded-lg border border-amber-200/60 dark:border-amber-800/40">
-              <p className="text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                <DollarSign className="h-3.5 w-3.5" /> פרטי המכירה
-              </p>
-              <div className="space-y-2">
-                <Label className="text-sm">שם הקונה *</Label>
-                <Input placeholder="שם הקונה..." value={buyerName}
-                  onChange={(e) => setBuyerName(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm">מחיר (₪, אופציונלי)</Label>
-                <Input type="number" min={0} step={0.01} placeholder="0.00" value={salePrice}
-                  onChange={(e) => setSalePrice(e.target.value)} />
-              </div>
-            </div>
-          )}
-
-          {action === "אחר" && (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium flex items-center gap-1">
-                <HelpCircle className="h-3.5 w-3.5 text-purple-500" /> פירוט הפעולה *
-              </Label>
-              <Textarea placeholder="תאר את הפעולה שתבוצע..." value={otherDetail}
-                onChange={(e) => setOtherDetail(e.target.value)} rows={3} />
-            </div>
-          )}
-
-          {/* Notes (not shown when action=אחר since detail replaces it) */}
-          {action !== "אחר" && (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium flex items-center gap-1">
-                <MessageSquare className="h-3.5 w-3.5 text-primary" /> הערות (אופציונלי)
-              </Label>
-              <Textarea placeholder="הערות נוספות..." value={notes}
-                onChange={(e) => setNotes(e.target.value)} rows={2} />
-            </div>
-          )}
-        </div>
-
-        <DialogFooter className="gap-2 pt-2">
-          <Button variant="ghost" onClick={onClose} disabled={saving}>ביטול</Button>
-          <Button onClick={handleSave} disabled={saving || !isValid()} className="gap-2">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Package className="h-4 w-4" />}
-            הוסף פריט בלאי
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <ProductFormDialog
+        open={createProductOpen}
+        onOpenChange={setCreateProductOpen}
+        presetProductName={productName}
+        onCreated={() => {
+          setCreateProductOpen(false);
+        }}
+      />
+    </>
   );
 }
