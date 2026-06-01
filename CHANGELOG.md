@@ -5,13 +5,17 @@
 
 ---
 
+## [2026-06-01]
+
+- waste: show supplier name in product search combobox (5ea5bc9)
+
+<!-- last-commit: 7eccf68c754b429ef363b08952e4a41743b84c38 -->
 ## [2026-05-31]
 
 - Waste management: surface data, financial insights, bulk actions, returns tab (0d6e556)
 - Waste: auto-fill supplier, unit cost field, financial summary on dashboard (c666799)
 - Fix waste item dialog: add supplier field, fix disposition_type, auto-open create product (aca21b2)
 
-<!-- last-commit: dd5494e85b4775061a7f28d9cd46ccfafc0754b7 -->
 ## [2026-05-31]
 
 - refactor: redesign waste management page — 2 tabs, unified form, bug fixes (510fdf0)
