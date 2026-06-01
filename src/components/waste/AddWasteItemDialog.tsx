@@ -135,9 +135,23 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
     });
   }, [open]);
 
+  const supplierMap = useMemo(() => {
+    const map = new Map<string, string>();
+    suppliers.forEach((s) => map.set(s.id, s.name));
+    return map;
+  }, [suppliers]);
+
   const productOptions = useMemo(
-    () => products.map((p) => ({ value: p.name, label: p.name })),
-    [products]
+    () => products.map((p) => {
+      const supplierName = p.supplier_id ? supplierMap.get(p.supplier_id) : undefined;
+      return {
+        value: p.name,
+        label: p.name,
+        hint: supplierName,
+        keywords: supplierName ? [supplierName] : undefined,
+      };
+    }),
+    [products, supplierMap]
   );
   const productMap = useMemo(() => {
     const map = new Map<string, { id: string; sku: string; purchase_price?: number | null; supplier_id?: string | null }>();
