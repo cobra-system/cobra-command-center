@@ -5,11 +5,15 @@
 
 ---
 
+## [2026-06-02]
+
+- sidebar: display role definition name instead of raw role enum (0000f0c)
+
+<!-- last-commit: 29cabf6b8a4bf5a719d6715b4dbdb060fab42f58 -->
 ## [2026-06-01]
 
 - waste: show supplier name in product search combobox (5ea5bc9)
 
-<!-- last-commit: 7eccf68c754b429ef363b08952e4a41743b84c38 -->
 ## [2026-05-31]
 
 - Waste management: surface data, financial insights, bulk actions, returns tab (0d6e556)
