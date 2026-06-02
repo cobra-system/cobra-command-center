@@ -85,7 +85,8 @@ function getStoredOrder(): typeof defaultNavItems {
 
 export default function ManagerLayout() {
   const { currentUser, logout } = useAuth();
-  const { tasks, currentUserPermissions } = useData();
+  const { tasks, currentUserPermissions, roleDefinitions } = useData();
+  const roleLabel = roleDefinitions.find((rd) => rd.id === currentUser?.role_definition_id)?.name ?? currentUser?.role;
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -274,7 +275,7 @@ export default function ManagerLayout() {
             {!collapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate">{currentUser?.name}</p>
-                <p className="text-[11px] text-muted-foreground">{currentUser?.role}</p>
+                <p className="text-[11px] text-muted-foreground">{roleLabel}</p>
               </div>
             )}
             {!collapsed && (
