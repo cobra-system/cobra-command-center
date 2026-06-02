@@ -7,9 +7,14 @@
 
 ## [2026-06-02]
 
+- fix: pass presetDivision to ProductFormDialog from DivisionProductsPage (4f8e9f9)
+- fix: allow division managers to create/edit products & suppliers (3cad00d)
+
+<!-- last-commit: 870a5b408e16cf373f6921cacc1d879235451a44 -->
+## [2026-06-02]
+
 - sidebar: display role definition name instead of raw role enum (0000f0c)
 
-<!-- last-commit: 29cabf6b8a4bf5a719d6715b4dbdb060fab42f58 -->
 ## [2026-06-01]
 
 - waste: show supplier name in product search combobox (5ea5bc9)
