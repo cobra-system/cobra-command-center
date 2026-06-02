@@ -668,8 +668,9 @@ export default function DivisionProductsPage() {
       {showNewProduct && (
         <ProductFormDialog
           open={showNewProduct}
-          onClose={() => setShowNewProduct(false)}
-          onSaved={() => { setShowNewProduct(false); fetchProducts(); }}
+          onOpenChange={(open) => { if (!open) setShowNewProduct(false); }}
+          presetDivision={division}
+          onCreated={() => { setShowNewProduct(false); fetchProducts(); }}
         />
       )}
     </div>
