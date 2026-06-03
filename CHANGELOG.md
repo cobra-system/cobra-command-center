@@ -7,12 +7,17 @@
 
 ## [2026-06-03]
 
+- Merge pull request #223 from cobra-system/claude/great-hamilton-OQK7b (1ff1789)
+- fix: InlineSelectCell crash — pass correct options format and display prop (c201773)
+
+<!-- last-commit: 1ff17891cc2ca6aedba2a175b10dc92b28005f29 -->
+## [2026-06-03]
+
 - merge: resolve CHANGELOG.md conflict with main (00a0a32)
 - feat: redesign division consumption page with health analytics and monthly charts (648b028)
 - chore: gitignore vite timestamp temp files (8a6d354)
 - feat: add interactive product treemap heatmap view (7c555cc)
 
-<!-- last-commit: f1f179f51d988377c697e1745c86d91475d1d7fa -->
 ## [2026-06-03]
 
 - feat: interactive product treemap heatmap view on Products page
