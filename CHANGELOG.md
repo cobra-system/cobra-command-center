@@ -7,10 +7,15 @@
 
 ## [2026-06-03]
 
+- Merge pull request #224 from cobra-system/claude/trusting-ritchie-N7Ir4 (ffcc8f9)
+- feat: treemap overhaul, no-categories filter, unified products page (e5f7444)
+
+<!-- last-commit: ffcc8f9fd3e552eb7672cd79c22f61241dd89bff -->
+## [2026-06-03]
+
 - Merge pull request #223 from cobra-system/claude/great-hamilton-OQK7b (1ff1789)
 - fix: InlineSelectCell crash — pass correct options format and display prop (c201773)
 
-<!-- last-commit: 1ff17891cc2ca6aedba2a175b10dc92b28005f29 -->
 ## [2026-06-03]
 
 - merge: resolve CHANGELOG.md conflict with main (00a0a32)
