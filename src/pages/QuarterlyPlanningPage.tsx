@@ -950,9 +950,10 @@ export default function QuarterlyPlanningPage() {
                           <td className="p-3">
                             <InlineSelectCell
                               value={plan.payment_status}
-                              options={["ממתין", "מקדמה", "שולם", "יתרה"]}
+                              options={["ממתין", "מקדמה", "שולם", "יתרה"].map(v => ({ value: v, label: v }))}
                               disabled={!canEdit}
                               onCommit={v => patchPlan(plan.id, { payment_status: v })}
+                              display={v => v ?? "—"}
                             />
                           </td>
                         )}
@@ -965,9 +966,10 @@ export default function QuarterlyPlanningPage() {
                           <td className="p-3">
                             <InlineSelectCell
                               value={plan.shipping_type}
-                              options={["ימי", "אווירי רגיל", "אווירי דחוף", "DHL"]}
+                              options={["ימי", "אווירי רגיל", "אווירי דחוף", "DHL"].map(v => ({ value: v, label: v }))}
                               disabled={!canEdit}
                               onCommit={v => patchPlan(plan.id, { shipping_type: v })}
+                              display={v => v ?? "—"}
                             />
                           </td>
                         )}
