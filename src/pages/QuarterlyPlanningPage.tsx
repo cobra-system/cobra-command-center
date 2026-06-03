@@ -10,6 +10,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
+  AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
@@ -26,7 +31,7 @@ import type {
   QuarterlyPlanSnapshot,
 } from "@/contexts/types";
 import {
-  Calendar, Package, TrendingUp, ShoppingCart, Upload,
+  Calendar, Package, TrendingUp, ShoppingCart, Upload, Info,
   Plus, RefreshCw, Download, Search, X, ChevronDown, ChevronUp, Trash2, Camera, RotateCcw,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -102,6 +107,15 @@ const PLAN_COLS: ColDef[] = [
   { id: "estimated_arrival_date", label: "תאריך הגעה" },
   { id: "notes", label: "הערות" },
 ];
+
+const PLAN_COL_TIPS: Record<string, string> = {
+  computed_forecast: "צפי מחושב מתחזיות דגמים × מיפוי מוצרים. ניתן לעריכה ידנית",
+  cross_div_forecast: "ביקוש מצטבר מכל החטיבות הקשורות",
+  utilization_pct: "אחוז השימוש במוצר לכל רכב (ממוצע מיפויים)",
+  smoothed_required: "צפי × מימוש × מקדם ביטחון (×1.2)",
+  required_to_order: "נדרש משוכלל − מלאי נוכחי",
+  incoming_orders: 'הזמנות עתידות לב"מ — עדכן ידנית',
+};
 
 // ── Sort Icon ──────────────────────────────────────────────────────────────
 
@@ -765,15 +779,21 @@ export default function QuarterlyPlanningPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "דגמי רכב", value: kpis.modelCount, icon: Calendar, color: "text-blue-500" },
-          { label: "צפי רבעוני", value: fmtNum(kpis.totalForecast), icon: TrendingUp, color: "text-green-500" },
-          { label: "מוצרים לרכישה", value: kpis.productsToOrder, icon: ShoppingCart, color: "text-amber-500" },
-          { label: "כיסוי מלאי", value: `${kpis.coverage}%`, icon: Package, color: kpis.coverage >= 70 ? "text-green-500" : kpis.coverage >= 30 ? "text-amber-500" : "text-red-500" },
+          { label: "דגמי רכב", value: kpis.modelCount, icon: Calendar, color: "text-blue-500", tip: "מספר דגמי רכב פעילים שהוגדרו עבור חטיבה זו" },
+          { label: "צפי רבעוני", value: fmtNum(kpis.totalForecast), icon: TrendingUp, color: "text-green-500", tip: "סך כל יחידות הרכב הצפויות ברבעון הנוכחי" },
+          { label: "מוצרים לרכישה", value: kpis.productsToOrder, icon: ShoppingCart, color: "text-amber-500", tip: "מוצרים שהכמות הנדרשת להזמנה שלהם גבוהה מ-0" },
+          { label: "כיסוי מלאי", value: `${kpis.coverage}%`, icon: Package, color: kpis.coverage >= 70 ? "text-green-500" : kpis.coverage >= 30 ? "text-amber-500" : "text-red-500", tip: "יחס המלאי הנוכחי מול הביקוש המשוכלל — מעל 70% = תקין" },
         ].map(k => (
-          <div key={k.label} className="bg-card rounded-xl border p-3 sm:p-4 shadow-sm">
+          <div key={k.label} className="bg-card rounded-xl border p-3 sm:p-4 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center gap-1.5 mb-1">
               <k.icon className={`h-3.5 w-3.5 ${k.color}`} />
               <span className="text-[10px] sm:text-xs text-muted-foreground">{k.label}</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3 w-3 text-muted-foreground/50 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[200px] text-xs">{k.tip}</TooltipContent>
+              </Tooltip>
             </div>
             <p className="text-xl sm:text-2xl font-bold text-foreground">{k.value}</p>
           </div>
@@ -798,10 +818,27 @@ export default function QuarterlyPlanningPage() {
             </div>
             <div className="flex items-center gap-1.5">
               {canEdit && (
-                <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={recalculate} disabled={recalculating}>
-                  <RefreshCw className={`h-3 w-3 ${recalculating ? "animate-spin" : ""}`} />
-                  חישוב מחדש
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="sm" className="h-8 text-xs gap-1.5" disabled={recalculating}>
+                      <RefreshCw className={`h-3 w-3 ${recalculating ? "animate-spin" : ""}`} />
+                      חישוב מחדש
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>חישוב מחדש של תכנון הרכש?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        פעולה זו תחשב מחדש את כל כמויות הרכש על בסיס תחזיות הדגמים ומיפויי המוצרים.
+                        {plans.length > 0 && " צילום של המצב הנוכחי יישמר אוטומטית."}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>ביטול</AlertDialogCancel>
+                      <AlertDialogAction onClick={recalculate}>חשב מחדש</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
               <Button size="sm" variant="ghost" className="h-8 text-xs gap-1.5" onClick={() => { setShowSnapshots(true); void fetchSnapshots(); }}>
                 <Camera className="h-3 w-3" />
@@ -822,19 +859,40 @@ export default function QuarterlyPlanningPage() {
                     <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(planColVis.hiddenCols, planColMenu.setMenu)}>
                       {PLAN_COLS.map(col => planColVis.isVisible(col.id) ? (
                         <th key={col.id} className="text-right p-3 font-semibold text-foreground whitespace-nowrap" onContextMenu={colThContextMenu(col, planColMenu.setMenu)}>
-                          {col.sortField ? (
-                            <button onClick={() => setPlanSort(toggleSort(planSort, col.sortField!))} className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors">
-                              {col.label} <SortIcon field={col.sortField} currentField={planSort.field} currentDir={planSort.dir} />
-                            </button>
-                          ) : col.label}
+                          <span className="flex items-center gap-1">
+                            {col.sortField ? (
+                              <button onClick={() => setPlanSort(toggleSort(planSort, col.sortField!))} className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors">
+                                {col.label} <SortIcon field={col.sortField} currentField={planSort.field} currentDir={planSort.dir} />
+                              </button>
+                            ) : col.label}
+                            {PLAN_COL_TIPS[col.id] && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Info className="h-3 w-3 text-muted-foreground/50 cursor-help shrink-0" />
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-[220px] text-xs">{PLAN_COL_TIPS[col.id]}</TooltipContent>
+                              </Tooltip>
+                            )}
+                          </span>
                         </th>
                       ) : null)}
                     </tr>
                   </thead>
                   <tbody>
                     {filteredPlans.length === 0 ? (
-                      <tr><td colSpan={planColVis.visibleCount} className="p-8 text-center text-muted-foreground">
-                        {plans.length === 0 ? 'אין תוכניות רכש. לחץ "חישוב מחדש" ליצירת תוכנית מתחזיות הדגמים' : "אין תוצאות לחיפוש"}
+                      <tr><td colSpan={planColVis.visibleCount} className="p-12 text-center">
+                        {plans.length === 0 ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <ShoppingCart className="h-8 w-8 text-muted-foreground/40" />
+                            <p className="text-sm text-muted-foreground">אין תוכניות רכש לרבעון זה</p>
+                            <p className="text-xs text-muted-foreground/70">הוסף תחזיות דגמים ומיפויי מוצרים, ולחץ &ldquo;חישוב מחדש&rdquo;</p>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-2">
+                            <Search className="h-8 w-8 text-muted-foreground/40" />
+                            <p className="text-sm text-muted-foreground">אין תוצאות לחיפוש</p>
+                          </div>
+                        )}
                       </td></tr>
                     ) : filteredPlans.map(plan => (
                       <tr key={plan.id} className="border-b hover:bg-muted/30 transition-colors">
@@ -860,7 +918,15 @@ export default function QuarterlyPlanningPage() {
                             {fmtNum(crossDivForecasts.get(plan.product_id) ?? null)}
                           </td>
                         )}
-                        {planColVis.isVisible("utilization_pct") && <td className="p-3 tabular-nums">{fmtPct(plan.utilization_pct)}</td>}
+                        {planColVis.isVisible("utilization_pct") && (
+                          <td className="p-3 tabular-nums">
+                            <span className={
+                              (plan.utilization_pct ?? 0) >= 0.8 ? "text-green-600" :
+                              (plan.utilization_pct ?? 0) >= 0.5 ? "text-amber-600" :
+                              "text-muted-foreground"
+                            }>{fmtPct(plan.utilization_pct)}</span>
+                          </td>
+                        )}
                         {planColVis.isVisible("incoming_orders") && (
                           <td className="p-3">
                             <InlineEditCell value={plan.incoming_orders} type="number" disabled={!canEdit} onCommit={v => patchPlan(plan.id, { incoming_orders: v as number })} display={v => fmtNum(v as number)} />
@@ -980,8 +1046,12 @@ export default function QuarterlyPlanningPage() {
                   </thead>
                   <tbody>
                     {filteredModels.length === 0 ? (
-                      <tr><td colSpan={modelColVis.visibleCount} className="p-8 text-center text-muted-foreground">
-                        אין דגמי רכב. לחץ "ייבוא מאקסל" להוספת דגמים
+                      <tr><td colSpan={modelColVis.visibleCount} className="p-12 text-center">
+                        <div className="flex flex-col items-center gap-2">
+                          <Calendar className="h-8 w-8 text-muted-foreground/40" />
+                          <p className="text-sm text-muted-foreground">{modelSearch ? "אין תוצאות לחיפוש" : "אין דגמי רכב"}</p>
+                          {!modelSearch && <p className="text-xs text-muted-foreground/70">לחץ &ldquo;ייבוא מאקסל&rdquo; להוספת דגמים מגיליון עבודה</p>}
+                        </div>
                       </td></tr>
                     ) : filteredModels.map(model => {
                       const fc = forecastMap.get(model.id);
@@ -1100,8 +1170,12 @@ export default function QuarterlyPlanningPage() {
                   </thead>
                   <tbody>
                     {enrichedMappings.length === 0 ? (
-                      <tr><td colSpan={mappingColVis.visibleCount + 1} className="p-8 text-center text-muted-foreground">
-                        אין מיפויים. לחץ "מיפוי חדש" להוספה
+                      <tr><td colSpan={mappingColVis.visibleCount + 1} className="p-12 text-center">
+                        <div className="flex flex-col items-center gap-2">
+                          <Package className="h-8 w-8 text-muted-foreground/40" />
+                          <p className="text-sm text-muted-foreground">אין מיפויי מוצרים</p>
+                          <p className="text-xs text-muted-foreground/70">לחץ &ldquo;מיפוי חדש&rdquo; לקשר מוצרים למשפחות דגמים</p>
+                        </div>
                       </td></tr>
                     ) : enrichedMappings.map(em => {
                       const productMappings = mappings.filter(m => m.product_id === em.product_id);
@@ -1124,19 +1198,38 @@ export default function QuarterlyPlanningPage() {
                             </td>
                           )}
                           {mappingColVis.isVisible("utilization") && (
-                            <td className="p-3 tabular-nums">{fmtPct(em.utilization_pct)}</td>
+                            <td className="p-3 tabular-nums">
+                              <span className={
+                                em.utilization_pct >= 0.8 ? "text-green-600" :
+                                em.utilization_pct >= 0.5 ? "text-amber-600" :
+                                "text-muted-foreground"
+                              }>{fmtPct(em.utilization_pct)}</span>
+                            </td>
                           )}
                           {mappingColVis.isVisible("computed_forecast") && (
                             <td className="p-3 tabular-nums font-bold">{fmtNum(em.computedForecast)}</td>
                           )}
                           <td className="p-3">
                             {canEdit && (
-                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => {
-                                // Delete all mappings for this product
-                                for (const m of productMappings) void deleteMapping(m.id);
-                              }}>
-                                <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button size="icon" variant="ghost" className="h-6 w-6 hover:bg-destructive/10">
+                                    <Trash2 className="h-3 w-3 text-muted-foreground" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>מחיקת כל המיפויים של {em.products?.name ?? "מוצר זה"}?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      ימחקו {productMappings.length} מיפויים למשפחות דגמים. פעולה זו אינה הפיכה.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>ביטול</AlertDialogCancel>
+                                    <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { for (const m of productMappings) void deleteMapping(m.id); }}>מחק</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             )}
                           </td>
                         </tr>
@@ -1286,6 +1379,7 @@ export default function QuarterlyPlanningPage() {
             <div>
               <label className="text-sm font-medium">% מימוש (0-1)</label>
               <Input type="number" step="0.01" min="0" max="1" value={newMappingUtil} onChange={e => setNewMappingUtil(e.target.value)} className="mt-1" />
+              <p className="text-[11px] text-muted-foreground mt-1">כמה יחידות מוצר נדרשות לכל רכב. למשל 1.0 = יחידה אחת לרכב, 0.5 = יחידה לכל 2 רכבים</p>
             </div>
           </div>
           <DialogFooter>
@@ -1307,9 +1401,11 @@ export default function QuarterlyPlanningPage() {
               {snapshotsLoading ? (
                 <div className="flex justify-center py-8"><RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" /></div>
               ) : snapshots.length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground py-8">
-                  אין צילומים. צילום נוצר אוטומטית לפני כל חישוב מחדש
-                </p>
+                <div className="flex flex-col items-center gap-2 py-8">
+                  <Camera className="h-8 w-8 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">אין צילומים</p>
+                  <p className="text-xs text-muted-foreground/70">צילום נוצר אוטומטית לפני כל חישוב מחדש</p>
+                </div>
               ) : (
                 <div className="space-y-2">
                   {snapshots.map(snap => (
@@ -1322,9 +1418,23 @@ export default function QuarterlyPlanningPage() {
                           {snap.total_products != null && ` · ${snap.total_products} מוצרים`}
                         </p>
                       </button>
-                      <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => deleteSnapshot(snap.id)}>
-                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0 hover:bg-destructive/10">
+                            <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>מחיקת צילום?</AlertDialogTitle>
+                            <AlertDialogDescription>הצילום "{snap.label}" יימחק לצמיתות.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>ביטול</AlertDialogCancel>
+                            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleteSnapshot(snap.id)}>מחק</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   ))}
                 </div>
@@ -1364,10 +1474,26 @@ export default function QuarterlyPlanningPage() {
               <DialogFooter>
                 <Button variant="outline" size="sm" onClick={() => setActiveSnapshot(null)}>חזרה</Button>
                 {canEdit && (
-                  <Button size="sm" className="gap-1.5" onClick={() => restoreSnapshot(activeSnapshot)}>
-                    <RotateCcw className="h-3 w-3" />
-                    שחזר צילום
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="sm" className="gap-1.5">
+                        <RotateCcw className="h-3 w-3" />
+                        שחזר צילום
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>שחזור צילום?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          נתוני תכנון הרכש הנוכחיים יוחלפו בנתונים מצילום זה ({activeSnapshot.payload.length} מוצרים).
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>ביטול</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => restoreSnapshot(activeSnapshot)}>שחזר</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 )}
               </DialogFooter>
             </div>

@@ -9,11 +9,12 @@
 
 - feat: interactive product treemap heatmap view on Products page
 - feat: division consumption analytics with inventory health tracking
+- improve: UI/UX enhancements for quarterly planning page (b23fe2c)
 - feat: excel import preview, cross-division forecast, snapshots/undo (b6ac02b)
 - fix: replace UUID input with product search combobox in mapping dialog (c95726f)
 - feat: add quarterly procurement planning page for bonded divisions (c603b48)
 
-<!-- last-commit: 5b89fd455d4bee008a8254798481e33354248fc7 -->
+<!-- last-commit: 14e5d88439e292bdbf09c3e25c9096fb73f225c4 -->
 ## [Unreleased]
 
 ### Added
