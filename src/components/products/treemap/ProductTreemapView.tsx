@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { Boxes, Maximize, Minimize } from "lucide-react";
+import { Boxes, Maximize, Minimize, Keyboard } from "lucide-react";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { layoutTreemap, type TreemapItem } from "./treemapLayout";
 import { useTreemapData, DEFAULT_FILTERS, NO_CATEGORY_GROUP, type TreemapFilters } from "./useTreemapData";
@@ -44,14 +44,26 @@ export default function ProductTreemapView() {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
       if (e.key === "Escape") {
         if (selectedItem) { setSelectedItem(null); e.preventDefault(); }
         else if (isFullscreen) { setIsFullscreen(false); e.preventDefault(); }
       }
+      if (e.key === "f" || e.key === "F") {
+        setIsFullscreen(f => !f);
+        e.preventDefault();
+      }
+      if (e.key === "r" || e.key === "R") {
+        setFilters(DEFAULT_FILTERS);
+        setSearch("");
+        e.preventDefault();
+      }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedItem, isFullscreen]);
+  }, [selectedItem, isFullscreen, setFilters]);
 
   const isFlat = safeFilters.category === NO_CATEGORY_GROUP;
   const effectiveHeaderHeight = isFlat ? 0 : HEADER_HEIGHT;
@@ -161,7 +173,13 @@ export default function ProductTreemapView() {
         />
       )}
 
-      <TreemapLegend />
+      <div className="flex items-center justify-between">
+        <TreemapLegend />
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+          <Keyboard className="h-3 w-3" />
+          <span className="hidden sm:inline">F מסך מלא · R איפוס · Esc סגירה</span>
+        </div>
+      </div>
     </div>
   );
 

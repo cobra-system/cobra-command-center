@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import type { CategoryRect, TreemapItem } from "./treemapLayout";
 import { NO_CATEGORY_GROUP } from "./useTreemapData";
 import TreemapCell from "./TreemapCell";
@@ -14,6 +15,16 @@ const HEADER_HEIGHT = 24;
 
 export default function TreemapCategoryGroup({ category: cat, isHighlighted, onSelect, onHoverCategory, searchMatches }: Props) {
   const isFlat = cat.category === NO_CATEGORY_GROUP;
+
+  const headerStats = useMemo(() => {
+    if (isFlat) return null;
+    const items = cat.children.map(c => c.item);
+    const count = items.length;
+    const critical = items.filter(i => i.consumption > 0 && i.stockQty / i.consumption < 1).length;
+    const healthy = items.filter(i => i.consumption > 0 && i.stockQty / i.consumption >= 3).length;
+    const issues = items.reduce((s, i) => s + (i.openIssues ?? 0), 0);
+    return { count, critical, healthy, issues };
+  }, [cat.children, isFlat]);
 
   return (
     <div
@@ -32,12 +43,28 @@ export default function TreemapCategoryGroup({ category: cat, isHighlighted, onS
         zIndex: isHighlighted ? 10 : undefined,
       }}
     >
-      {!isFlat && (
+      {!isFlat && headerStats && (
         <div
-          className="flex items-center px-2 bg-black/60 border-b border-border/30 text-[11px] font-bold text-white uppercase tracking-wide truncate"
+          className="flex items-center justify-between px-2 bg-black/60 border-b border-border/30 text-[11px] font-bold text-white tracking-wide"
           style={{ height: HEADER_HEIGHT }}
         >
-          {cat.category}
+          <span className="flex items-center gap-1.5 truncate min-w-0">
+            <span className="uppercase truncate">{cat.category}</span>
+            <span className="shrink-0 text-[9px] font-normal text-white/60 bg-white/10 rounded px-1">{headerStats.count}</span>
+          </span>
+          {cat.width > 120 && (
+            <span className="flex items-center gap-1.5 shrink-0 text-[9px] font-normal">
+              {headerStats.critical > 0 && (
+                <span className="text-red-400">{headerStats.critical} קריטי</span>
+              )}
+              {headerStats.healthy > 0 && (
+                <span className="text-green-400">{headerStats.healthy} תקין</span>
+              )}
+              {headerStats.issues > 0 && (
+                <span className="text-amber-400">⚠{headerStats.issues}</span>
+              )}
+            </span>
+          )}
         </div>
       )}
       {cat.children.map(rect => (

@@ -35,8 +35,11 @@ export default function TreemapCell({ rect, offsetX, offsetY, onSelect, onHoverC
     28,
   );
   const showSku = scaledW > 25 && scaledH > 16 && sku.length > 0;
+  const showName = scaledW > 100 && scaledH > 50;
+  const showMonths = scaledW > 60 && scaledH > 40 && item.consumption > 0;
   const showIncoming = scaledW > 30 && scaledH > 30 && (item.incomingQty ?? 0) > 0;
   const showIssues = scaledW > 24 && scaledH > 24 && (item.openIssues ?? 0) > 0;
+  const months = item.consumption > 0 ? (item.stockQty / item.consumption).toFixed(1) : null;
 
   const dimmed = isSearchMatch === false;
   const highlighted = isSearchMatch === true;
@@ -95,15 +98,33 @@ export default function TreemapCell({ rect, offsetX, offsetY, onSelect, onHoverC
         onMouseMove={onMouseMove}
         onMouseLeave={onMouseLeave}
       >
-        {showSku && (
-          <span
-            className="text-white font-bold drop-shadow-sm truncate px-1 font-mono select-none"
-            style={{ fontSize: fontSize / scale, lineHeight: 1.1 }}
-            dir="ltr"
-          >
-            {sku}
-          </span>
-        )}
+        <div className="flex flex-col items-center justify-center gap-0 overflow-hidden px-1">
+          {showSku && (
+            <span
+              className="text-white font-bold drop-shadow-sm truncate font-mono select-none"
+              style={{ fontSize: fontSize / scale, lineHeight: 1.1 }}
+              dir="ltr"
+            >
+              {sku}
+            </span>
+          )}
+          {showName && (
+            <span
+              className="text-white/70 truncate select-none max-w-full text-center"
+              style={{ fontSize: Math.max(8, fontSize * 0.6) / scale, lineHeight: 1.2 }}
+            >
+              {item.name}
+            </span>
+          )}
+          {showMonths && !showName && (
+            <span
+              className="text-white/50 select-none font-mono"
+              style={{ fontSize: Math.max(7, fontSize * 0.55) / scale, lineHeight: 1.1 }}
+            >
+              {months}m
+            </span>
+          )}
+        </div>
         {showIncoming && (
           <div
             className="absolute top-0.5 left-0.5 flex items-center gap-0.5 bg-blue-600/80 text-white rounded-sm px-1"

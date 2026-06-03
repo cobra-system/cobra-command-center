@@ -18,7 +18,7 @@ export default function TreemapInfoPanel({ item, onClose }: Props) {
 
   return (
     <div
-      className="flex items-center gap-3 px-4 py-2 bg-card border border-border rounded-lg shadow-lg text-sm"
+      className="flex items-center gap-3 px-4 py-2 bg-card border border-border rounded-lg shadow-lg text-sm animate-in slide-in-from-bottom-2 duration-200"
       dir="rtl"
     >
       <div
