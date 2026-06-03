@@ -7,18 +7,22 @@
 
 ## [2026-06-03]
 
+- feat: interactive product treemap heatmap view on Products page
+- feat: division consumption analytics with inventory health tracking
 - improve: UI/UX enhancements for quarterly planning page (b23fe2c)
-
-<!-- last-commit: 14e5d88439e292bdbf09c3e25c9096fb73f225c4 -->
-## [2026-06-03]
-
 - feat: excel import preview, cross-division forecast, snapshots/undo (b6ac02b)
 - fix: replace UUID input with product search combobox in mapping dialog (c95726f)
 - feat: add quarterly procurement planning page for bonded divisions (c603b48)
 
+<!-- last-commit: 14e5d88439e292bdbf09c3e25c9096fb73f225c4 -->
 ## [Unreleased]
 
 ### Added
+- Interactive product treemap/heatmap view on Products page — finviz-style visualization where cell size reflects consumption and color reflects inventory health, with zoom/pan, category grouping, and filters
+- Division consumption analytics redesign — monthly consumption bar chart, inventory health indicators (color-coded 7-level scale), mini sparklines, sortable/searchable table with column visibility
+- `division_product_consumption` table for storing 13-month historical consumption data per division/product
+- `monthly_avg` and `monthly_avg_updated_at` columns on `division_products` table
+- `useDivisionConsumption` hook for fetching and computing consumption summaries with health ratios
 - Quarterly procurement planning page (`/division/:divisionName/quarterly-planning`) for bonded division managers — 3 tabs: vehicle model forecast, product-model mapping, procurement plan with recalculation
 - 5 new DB tables: `vehicle_models`, `quarterly_vehicle_forecasts`, `product_model_mappings`, `quarterly_procurement_plans`, `quarterly_plan_snapshots`
 - MCP module `quarterly-planning` with 13 tools for vehicle models, forecasts, mappings, procurement plans, and snapshots
