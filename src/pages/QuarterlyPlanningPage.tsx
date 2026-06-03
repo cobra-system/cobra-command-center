@@ -16,6 +16,7 @@ import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { InlineEditCell } from "@/components/orders/InlineEditCell";
 import { InlineSelectCell } from "@/components/orders/InlineSelectCell";
+import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
 import { BONDED_DIVISIONS } from "@/components/equipment/constants";
 import type {
   VehicleModel,
@@ -178,16 +179,20 @@ export default function QuarterlyPlanningPage() {
   const [newMappingFamily, setNewMappingFamily] = useState("");
   const [newMappingUtil, setNewMappingUtil] = useState("1.0");
 
+  // ── Division products (for product combobox) ──
+  const [divisionProducts, setDivisionProducts] = useState<{ id: string; name: string; sku: string; supplier?: string }[]>([]);
+
   // ── Fetch data ──
   const fetchData = useCallback(async () => {
     if (!division) return;
     setLoading(true);
 
-    const [modelsRes, forecastsRes, mappingsRes, plansRes] = await Promise.all([
+    const [modelsRes, forecastsRes, mappingsRes, plansRes, divProdsRes] = await Promise.all([
       supabase.from("vehicle_models").select("*").eq("division", division).eq("is_active", true).order("brand").order("model_family").order("model_name"),
       supabase.from("quarterly_vehicle_forecasts").select("*, vehicle_models(*)").eq("year", selectedYear).eq("quarter", selectedQuarter),
       supabase.from("product_model_mappings").select("*, products(id, name, sku)").eq("division", division),
       supabase.from("quarterly_procurement_plans").select("*, products(id, name, sku, supplier)").eq("division", division).eq("year", selectedYear).eq("quarter", selectedQuarter),
+      supabase.from("division_products").select("product_id, products(id, name, sku, supplier)").eq("division", division),
     ]);
 
     if (modelsRes.data) setModels(modelsRes.data as VehicleModel[]);
@@ -196,6 +201,13 @@ export default function QuarterlyPlanningPage() {
         f => f.vehicle_models && (f.vehicle_models as VehicleModel).division === division
       );
       setForecasts(divForecasts);
+    }
+    if (divProdsRes.data) {
+      setDivisionProducts(
+        (divProdsRes.data as { product_id: string; products: { id: string; name: string; sku: string; supplier?: string } }[])
+          .filter(dp => dp.products)
+          .map(dp => dp.products)
+      );
     }
     if (mappingsRes.data) setMappings(mappingsRes.data as ProductModelMapping[]);
     if (plansRes.data) setPlans(plansRes.data as QuarterlyProcurementPlan[]);
@@ -505,6 +517,16 @@ export default function QuarterlyPlanningPage() {
     }
     return result;
   }, [plans, planSearch, planSort]);
+
+  // ── Product combobox options ──
+  const productOptions: ComboboxOption[] = useMemo(() => {
+    return divisionProducts.map(p => ({
+      value: p.id,
+      label: p.name,
+      hint: p.sku || undefined,
+      keywords: [p.sku, p.supplier].filter(Boolean) as string[],
+    }));
+  }, [divisionProducts]);
 
   // ── Mapping enrichment ──
   type EnrichedMapping = ProductModelMapping & { computedForecast: number };
@@ -1004,8 +1026,17 @@ export default function QuarterlyPlanningPage() {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="text-sm font-medium">מוצר (UUID)</label>
-              <Input value={newMappingProductId} onChange={e => setNewMappingProductId(e.target.value)} placeholder="הדבק UUID מוצר..." className="mt-1" />
+              <label className="text-sm font-medium">מוצר</label>
+              <div className="mt-1">
+                <Combobox
+                  value={newMappingProductId}
+                  onValueChange={setNewMappingProductId}
+                  options={productOptions}
+                  placeholder="חפש מוצר..."
+                  searchPlaceholder='חיפוש לפי שם / מק"ט / ספק...'
+                  emptyText="לא נמצאו מוצרים"
+                />
+              </div>
             </div>
             <div>
               <label className="text-sm font-medium">משפחת דגמים</label>
