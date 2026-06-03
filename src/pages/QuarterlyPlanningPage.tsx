@@ -71,7 +71,6 @@ const MODEL_COLS: ColDef[] = [
   { id: "brand", label: "מותג", sortField: "brand" },
   { id: "model_family", label: "משפחה", sortField: "model_family" },
   { id: "model_name", label: "דגם", sortField: "model_name" },
-  { id: "segment", label: "סגמנט", sortField: "segment" },
   { id: "month1", label: "חודש 1", sortField: "month1_qty" },
   { id: "month2", label: "חודש 2", sortField: "month2_qty" },
   { id: "month3", label: "חודש 3", sortField: "month3_qty" },
@@ -114,7 +113,7 @@ const PLAN_COL_TIPS: Record<string, string> = {
   utilization_pct: "אחוז השימוש במוצר לכל רכב (ממוצע מיפויים)",
   smoothed_required: "צפי × מימוש × מקדם ביטחון (×1.2)",
   required_to_order: "נדרש משוכלל − מלאי נוכחי",
-  incoming_orders: 'הזמנות עתידות לב"מ — עדכן ידנית',
+  incoming_orders: 'הזמנות עתידות בסטטוס: נשלח / הגיע לנמל / מכס. ניתן לעדכון ידני',
 };
 
 // ── Sort Icon ──────────────────────────────────────────────────────────────
@@ -314,6 +313,23 @@ export default function QuarterlyPlanningPage() {
     return Array.from(set).sort((a, b) => a.localeCompare(b, "he"));
   }, [models]);
 
+  // ── Family → Products reverse map ──
+  const familyProductsMap = useMemo(() => {
+    const map = new Map<string, { product_id: string; name: string; sku: string; utilization_pct: number }[]>();
+    for (const m of mappings) {
+      if (!m.model_family) continue;
+      const arr = map.get(m.model_family) ?? [];
+      arr.push({
+        product_id: m.product_id,
+        name: m.products?.name ?? "—",
+        sku: m.products?.sku ?? "",
+        utilization_pct: m.utilization_pct,
+      });
+      map.set(m.model_family, arr);
+    }
+    return map;
+  }, [mappings]);
+
   // ── KPIs ──
   const kpis = useMemo(() => {
     const totalForecast = Array.from(familyTotals.values()).reduce((s, v) => s + v, 0);
@@ -371,13 +387,20 @@ export default function QuarterlyPlanningPage() {
       productForecasts.set(m.product_id, entry);
     }
 
-    // Fetch division stock
-    const { data: divProds } = await supabase
-      .from("division_products")
-      .select("product_id, division_stock")
-      .eq("division", division);
+    // Fetch division stock + incoming orders in parallel
+    const productIds = [...productForecasts.keys()];
+    const [divProdsRes, incomingRes] = await Promise.all([
+      supabase.from("division_products").select("product_id, division_stock").eq("division", division),
+      supabase.from("order_items").select("product_id, qty, orders!inner(status)")
+        .in("product_id", productIds.length > 0 ? productIds : ["__none__"])
+        .in("orders.status" as string, ["SHIPPED", "ARRIVED_PORT", "CUSTOMS_CLEARANCE"]),
+    ]);
     const stockMap = new Map<string, number>();
-    for (const dp of divProds ?? []) stockMap.set(dp.product_id, dp.division_stock ?? 0);
+    for (const dp of divProdsRes.data ?? []) stockMap.set(dp.product_id, dp.division_stock ?? 0);
+    const incomingMap = new Map<string, number>();
+    for (const item of (incomingRes.data ?? []) as { product_id: string; qty: number }[]) {
+      incomingMap.set(item.product_id, (incomingMap.get(item.product_id) ?? 0) + (item.qty ?? 0));
+    }
 
     const upserts: Record<string, unknown>[] = [];
     for (const [productId, entry] of productForecasts) {
@@ -386,7 +409,8 @@ export default function QuarterlyPlanningPage() {
       const safetyBuffer = 1.2;
       const smoothed = Math.ceil(forecast * avgUtil * safetyBuffer);
       const stock = stockMap.get(productId) ?? 0;
-      const toOrder = Math.max(0, smoothed - stock);
+      const incoming = incomingMap.get(productId) ?? 0;
+      const toOrder = Math.max(0, smoothed - stock - incoming);
 
       upserts.push({
         division,
@@ -398,6 +422,7 @@ export default function QuarterlyPlanningPage() {
         safety_buffer: safetyBuffer,
         smoothed_required: smoothed,
         current_stock: stock,
+        incoming_orders: incoming,
         required_to_order: toOrder,
         month1_demand: Math.ceil(toOrder * 0.5),
         month2_demand: Math.ceil(toOrder * 0.25),
@@ -570,6 +595,139 @@ export default function QuarterlyPlanningPage() {
     const { error } = await supabase.from("product_model_mappings").delete().eq("id", id);
     if (error) toast({ title: "שגיאה", description: error.message, variant: "destructive" });
     else void fetchData();
+  }
+
+  // ── Frisbee mapping suggestions ──
+  const FRISBEE_BRANCHES: Record<string, string> = {
+    "פריזבי קרסו": "68fa0cbd274acbfa7b159523",
+    "לובינסקי": "lubinski",
+  };
+
+  type SuggestedMapping = {
+    product_id: string;
+    product_name: string;
+    sku: string;
+    model_family: string;
+    utilization_pct: number;
+    source: string;
+    existing: boolean;
+    selected: boolean;
+  };
+
+  const [showSuggestDialog, setShowSuggestDialog] = useState(false);
+  const [suggestions, setSuggestions] = useState<SuggestedMapping[]>([]);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+
+  async function suggestMappingsFromFrisbee() {
+    const branchId = FRISBEE_BRANCHES[division];
+    if (!branchId) {
+      toast({ title: "לא זמין", description: "אין נתוני צריכה לחטיבה זו", variant: "destructive" });
+      return;
+    }
+    setSuggestLoading(true);
+    setShowSuggestDialog(true);
+
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const startDate = sixMonthsAgo.toISOString().split("T")[0];
+    const endDate = new Date().toISOString().split("T")[0];
+
+    const [modelStatsRes, productMappingRes] = await Promise.all([
+      supabase.rpc("get_frisbee_model_stats", {
+        p_branch_id: branchId,
+        p_start_date: startDate,
+        p_end_date: endDate,
+      }),
+      supabase.from("frisbee_product_mapping").select("base44_equipment_name, product_id, products(id, name, sku)"),
+    ]);
+
+    const modelStats = (modelStatsRes.data ?? []) as {
+      manufacturer: string;
+      model: string;
+      inspection_count: number;
+      total_accessories: number;
+      top_accessories: { name: string; count: number }[] | null;
+    }[];
+    const equipToProduct = new Map<string, { product_id: string; name: string; sku: string }>();
+    for (const pm of (productMappingRes.data ?? []) as { base44_equipment_name: string; product_id: string; products: { id: string; name: string; sku: string } | null }[]) {
+      if (pm.products) equipToProduct.set(pm.base44_equipment_name, { product_id: pm.products.id, name: pm.products.name, sku: pm.products.sku });
+    }
+
+    // Build model → family mapping (normalize for fuzzy match)
+    const normalize = (s: string) => s.replace(/[-_\s]+/g, " ").trim().toLowerCase();
+    const familyLookup = new Map<string, string>();
+    for (const fam of modelFamilies) {
+      familyLookup.set(normalize(fam), fam);
+    }
+
+    const existingSet = new Set(mappings.map(m => `${m.product_id}::${m.model_family}`));
+    const suggested: SuggestedMapping[] = [];
+    const seen = new Set<string>();
+
+    for (const stat of modelStats) {
+      if (!stat.top_accessories || stat.inspection_count < 5) continue;
+
+      // Try to match frisbee model to a vehicle family
+      const normalModel = normalize(stat.model);
+      let matchedFamily: string | null = null;
+      for (const [normFam, fam] of familyLookup) {
+        if (normalModel.includes(normFam) || normFam.includes(normalModel)) {
+          matchedFamily = fam;
+          break;
+        }
+      }
+      if (!matchedFamily) continue;
+
+      for (const acc of stat.top_accessories) {
+        const product = equipToProduct.get(acc.name);
+        if (!product) continue;
+        const key = `${product.product_id}::${matchedFamily}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        const util = Math.min(1, acc.count / stat.inspection_count);
+        suggested.push({
+          product_id: product.product_id,
+          product_name: product.name,
+          sku: product.sku,
+          model_family: matchedFamily,
+          utilization_pct: Math.round(util * 100) / 100,
+          source: `${stat.manufacturer} ${stat.model}`,
+          existing: existingSet.has(key),
+          selected: !existingSet.has(key),
+        });
+      }
+    }
+
+    suggested.sort((a, b) => a.product_name.localeCompare(b.product_name, "he"));
+    setSuggestions(suggested);
+    setSuggestLoading(false);
+  }
+
+  async function confirmSuggestions() {
+    const toInsert = suggestions.filter(s => s.selected && !s.existing);
+    if (toInsert.length === 0) return;
+    setSuggestLoading(true);
+
+    const upserts = toInsert.map(s => ({
+      division,
+      product_id: s.product_id,
+      model_family: s.model_family,
+      utilization_pct: s.utilization_pct,
+      updated_at: new Date().toISOString(),
+    }));
+
+    const { error } = await supabase
+      .from("product_model_mappings")
+      .upsert(upserts, { onConflict: "division,product_id,model_family" });
+
+    if (error) toast({ title: "שגיאה", description: error.message, variant: "destructive" });
+    else toast({ title: "מיפויים נוספו", description: `${toInsert.length} מיפויים חדשים` });
+
+    setShowSuggestDialog(false);
+    setSuggestions([]);
+    setSuggestLoading(false);
+    void fetchData();
   }
 
   // ── Export CSV ──
@@ -1062,7 +1220,6 @@ export default function QuarterlyPlanningPage() {
                           {modelColVis.isVisible("brand") && <td className="p-3 font-medium">{model.brand}</td>}
                           {modelColVis.isVisible("model_family") && <td className="p-3"><Badge variant="outline" className="text-xs">{model.model_family ?? "—"}</Badge></td>}
                           {modelColVis.isVisible("model_name") && <td className="p-3">{model.model_name}</td>}
-                          {modelColVis.isVisible("segment") && <td className="p-3 text-xs text-muted-foreground">{model.segment ?? "—"}</td>}
                           {modelColVis.isVisible("month1") && (
                             <td className="p-3">
                               <InlineEditCell
@@ -1108,16 +1265,53 @@ export default function QuarterlyPlanningPage() {
             </CardContent>
           </Card>
 
-          {/* Family summary */}
+          {/* Family summary — clickable badges filter the table */}
           {modelFamilies.length > 0 && (
             <Card>
               <CardContent className="p-3">
-                <h3 className="text-sm font-semibold mb-2">סיכום לפי משפחה</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold">סיכום לפי משפחה</h3>
+                  {modelSearch && modelFamilies.includes(modelSearch) && (
+                    <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={() => setModelSearch("")}>
+                      <X className="h-3 w-3" /> נקה סינון
+                    </Button>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                  {modelFamilies.map(family => (
-                    <div key={family} className="flex items-center justify-between bg-muted/50 rounded-lg px-3 py-2">
-                      <span className="text-sm">{family}</span>
-                      <span className="text-sm font-bold tabular-nums">{fmtNum(familyTotals.get(family) ?? 0)}</span>
+                  {modelFamilies.map(family => {
+                    const isActive = modelSearch === family;
+                    const mappedCount = familyProductsMap.get(family)?.length ?? 0;
+                    return (
+                      <button
+                        key={family}
+                        onClick={() => setModelSearch(isActive ? "" : family)}
+                        className={`flex items-center justify-between rounded-lg px-3 py-2 transition-colors cursor-pointer text-start ${
+                          isActive ? "bg-primary/10 ring-1 ring-primary" : "bg-muted/50 hover:bg-muted"
+                        }`}
+                      >
+                        <span className="text-sm">
+                          {family}
+                          {mappedCount > 0 && <Badge variant="secondary" className="ms-1.5 text-[10px] px-1 py-0">{mappedCount} מוצרים</Badge>}
+                        </span>
+                        <span className="text-sm font-bold tabular-nums" dir="ltr">{fmtNum(familyTotals.get(family) ?? 0)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Mapped products for selected family */}
+          {modelSearch && familyProductsMap.has(modelSearch) && (
+            <Card>
+              <CardContent className="p-3">
+                <h4 className="text-sm font-semibold mb-2">מוצרים ממופים למשפחה: {modelSearch}</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                  {familyProductsMap.get(modelSearch)!.map(p => (
+                    <div key={p.product_id} className="flex items-center justify-between bg-muted/30 rounded px-3 py-1.5 text-sm">
+                      <span>{p.name} <span className="text-muted-foreground text-xs">({p.sku})</span></span>
+                      <Badge variant="outline" className="text-xs">{fmtPct(p.utilization_pct)}</Badge>
                     </div>
                   ))}
                 </div>
@@ -1145,10 +1339,18 @@ export default function QuarterlyPlanningPage() {
           <div className="flex items-center justify-between flex-wrap gap-2">
             <p className="text-sm text-muted-foreground">מיפוי מוצרים למשפחות דגמים — לכל מוצר, אילו דגמי רכב צורכים אותו</p>
             {canEdit && (
-              <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => setShowAddMapping(true)}>
-                <Plus className="h-3 w-3" />
-                מיפוי חדש
-              </Button>
+              <div className="flex gap-2">
+                {FRISBEE_BRANCHES[division] && (
+                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={suggestMappingsFromFrisbee}>
+                    <TrendingUp className="h-3 w-3" />
+                    הצע מיפויים מנתוני צריכה
+                  </Button>
+                )}
+                <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => setShowAddMapping(true)}>
+                  <Plus className="h-3 w-3" />
+                  מיפוי חדש
+                </Button>
+              </div>
             )}
           </div>
 
@@ -1500,6 +1702,71 @@ export default function QuarterlyPlanningPage() {
               </DialogFooter>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+      {/* ═══ Frisbee Suggest Mappings Dialog ═══ */}
+      <Dialog open={showSuggestDialog} onOpenChange={v => { if (!v) { setShowSuggestDialog(false); setSuggestions([]); } }}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>הצעת מיפויים מנתוני צריכה</DialogTitle>
+          </DialogHeader>
+          {suggestLoading && suggestions.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 py-8">
+              <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">מנתח נתוני צריכה...</p>
+            </div>
+          ) : suggestions.length === 0 ? (
+            <div className="text-center py-8 text-sm text-muted-foreground">לא נמצאו הצעות — בדוק שיש נתוני צריכה ומיפוי פריזבי מעודכנים</div>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground mb-2">
+                נמצאו {suggestions.length} הצעות ({suggestions.filter(s => !s.existing).length} חדשות, {suggestions.filter(s => s.existing).length} קיימות)
+              </p>
+              <div className="overflow-x-auto border rounded">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="p-2 w-8"></th>
+                      <th className="p-2 text-right font-semibold">מוצר</th>
+                      <th className="p-2 text-right font-semibold">מק&quot;ט</th>
+                      <th className="p-2 text-right font-semibold">משפחת דגם</th>
+                      <th className="p-2 text-right font-semibold">% מימוש</th>
+                      <th className="p-2 text-right font-semibold">מקור</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {suggestions.map((s, i) => (
+                      <tr key={`${s.product_id}-${s.model_family}`} className={`border-b ${s.existing ? "opacity-50" : ""}`}>
+                        <td className="p-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={s.selected}
+                            disabled={s.existing}
+                            onChange={() => setSuggestions(prev => prev.map((ss, j) => j === i ? { ...ss, selected: !ss.selected } : ss))}
+                            className="h-4 w-4"
+                          />
+                        </td>
+                        <td className="p-2">{s.product_name}</td>
+                        <td className="p-2 text-muted-foreground text-xs">{s.sku}</td>
+                        <td className="p-2"><Badge variant="outline" className="text-xs">{s.model_family}</Badge></td>
+                        <td className="p-2 tabular-nums" dir="ltr">{fmtPct(s.utilization_pct)}</td>
+                        <td className="p-2 text-xs text-muted-foreground">{s.existing ? "קיים" : s.source}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowSuggestDialog(false); setSuggestions([]); }}>ביטול</Button>
+            <Button
+              onClick={confirmSuggestions}
+              disabled={suggestLoading || suggestions.filter(s => s.selected && !s.existing).length === 0}
+            >
+              אשר {suggestions.filter(s => s.selected && !s.existing).length} מיפויים
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
