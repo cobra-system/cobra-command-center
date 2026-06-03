@@ -5,6 +5,13 @@
 
 ---
 
+## [2026-06-03]
+
+- feat: excel import preview, cross-division forecast, snapshots/undo (b6ac02b)
+- fix: replace UUID input with product search combobox in mapping dialog (c95726f)
+- feat: add quarterly procurement planning page for bonded divisions (c603b48)
+
+<!-- last-commit: 5b89fd455d4bee008a8254798481e33354248fc7 -->
 ## [Unreleased]
 
 ### Added
@@ -21,7 +28,6 @@
 - fix: pass presetDivision to ProductFormDialog from DivisionProductsPage (4f8e9f9)
 - fix: allow division managers to create/edit products & suppliers (3cad00d)
 
-<!-- last-commit: 870a5b408e16cf373f6921cacc1d879235451a44 -->
 ## [2026-06-02]
 
 - sidebar: display role definition name instead of raw role enum (0000f0c)
