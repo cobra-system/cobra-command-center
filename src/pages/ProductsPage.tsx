@@ -1,11 +1,14 @@
-import { useState, useMemo, Fragment } from "react";
+import { useState, useMemo, Fragment, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth, categories, type Product } from "@/contexts/AppContext";
 import { canSeePrices } from "@/lib/permissions";
 import { useProductScope } from "@/hooks/useProductScope";
 import { useLiveProductMetrics, type ProductMetrics } from "@/hooks/useLiveProductMetrics";
 import { usePickupMonthlyAvg } from "@/hooks/usePickupMonthlyAvg";
-import { Search, ChevronDown, ChevronUp, Boxes, Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye, Pencil, Truck, ShoppingCart, ClipboardList, Copy, Hash } from "lucide-react";
+import { usePersistedState } from "@/hooks/usePersistedState";
+import { Search, ChevronDown, ChevronUp, Boxes, Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye, Pencil, Truck, ShoppingCart, ClipboardList, Copy, Hash, Table2, LayoutGrid } from "lucide-react";
+
+const ProductTreemapView = lazy(() => import("@/components/products/treemap/ProductTreemapView"));
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -66,6 +69,7 @@ export default function ProductsPage() {
   const { suppliers, deleteProduct, updateProduct } = useData();
   const { scopedProducts: products } = useProductScope();
   const navigate = useNavigate();
+  const [viewMode, setViewMode] = usePersistedState<"table" | "treemap">("products-view-mode", "table");
   const [category, setCategory] = useState("הכל");
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -161,10 +165,34 @@ export default function ProductsPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold text-foreground">מוצרים</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-foreground">מוצרים</h1>
+          <div className="flex bg-secondary rounded-lg p-1">
+            <button
+              onClick={() => setViewMode("table")}
+              className={`p-1.5 rounded-md transition-colors ${viewMode === "table" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              title="תצוגת טבלה"
+            >
+              <Table2 className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setViewMode("treemap")}
+              className={`p-1.5 rounded-md transition-colors ${viewMode === "treemap" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              title="מפת מוצרים"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
         {hasEdit && <Button onClick={openAdd}><Plus className="h-4 w-4 ml-2" />מוצר חדש</Button>}
       </div>
 
+      {viewMode === "treemap" ? (
+        <Suspense fallback={<div className="h-96 flex items-center justify-center text-muted-foreground">טוען מפת מוצרים...</div>}>
+          <ProductTreemapView />
+        </Suspense>
+      ) : (
+      <>
       <div className="overflow-x-auto pb-1 -mx-1 px-1">
         <div className="flex gap-1.5 min-w-max">
           {categories.map(cat => (
@@ -556,6 +584,8 @@ export default function ProductsPage() {
           onSortAsc={field => prefs.savePreferences({ sortField: field, sortDir: "asc" })}
           onSortDesc={field => prefs.savePreferences({ sortField: field, sortDir: "desc" })}
         />
+      )}
+      </>
       )}
 
       <ProductFormDialog open={formOpen} onOpenChange={setFormOpen} editProduct={editProduct} />
