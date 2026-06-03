@@ -88,6 +88,7 @@ const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 - `qp-models:hidden-columns` — QuarterlyPlanningPage (vehicle models tab)
 - `qp-mappings:hidden-columns` — QuarterlyPlanningPage (product-model mappings tab)
 - `qp-procurement:hidden-columns` — QuarterlyPlanningPage (procurement plan tab)
+- `division-consumption:hidden-columns` — DivisionConsumptionPage (consumption & health table)
 
 Use a new unique key for each new table (e.g. `"invoices:hidden-columns"`).
 
