@@ -61,6 +61,12 @@ export default function TreemapInfoPanel({ item, onClose }: Props) {
               {item.supplier}
             </button>
           )}
+          {item.reorderPoint != null && item.reorderPoint > 0 && item.stockQty <= item.reorderPoint && (
+            <span className="flex items-center gap-0.5 text-red-500 font-medium">
+              <AlertTriangle className="h-3 w-3" />
+              מתחת לנקודת הזמנה ({item.reorderPoint})
+            </span>
+          )}
           {(item.openIssues ?? 0) > 0 && (
             <span className="flex items-center gap-0.5 text-amber-500 font-medium">
               <AlertTriangle className="h-3 w-3" />

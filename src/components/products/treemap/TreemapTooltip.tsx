@@ -1,3 +1,4 @@
+import { useRef, useLayoutEffect, useState } from "react";
 import type { TreemapItem } from "./treemapLayout";
 import { getHealthInfo } from "./treemapColors";
 
@@ -10,11 +11,26 @@ interface Props {
 export default function TreemapTooltip({ item, x, y }: Props) {
   const health = getHealthInfo(item.stockQty, item.consumption);
   const months = item.consumption > 0 ? (item.stockQty / item.consumption).toFixed(1) : "—";
+  const ref = useRef<HTMLDivElement>(null);
+  const [offset, setOffset] = useState({ dx: 12, dy: 12 });
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    let dx = 12, dy = 12;
+    if (x + 12 + rect.width > window.innerWidth - 8) dx = -rect.width - 12;
+    if (y + 12 + rect.height > window.innerHeight - 8) dy = -rect.height - 12;
+    setOffset({ dx, dy });
+  }, [x, y]);
+
+  const stockValue = item.purchasePrice ? item.stockQty * item.purchasePrice : null;
 
   return (
     <div
+      ref={ref}
       className="fixed z-[9999] pointer-events-none bg-popover border border-border rounded-lg shadow-xl p-3 min-w-[220px] text-sm"
-      style={{ left: x + 12, top: y + 12 }}
+      style={{ left: x + offset.dx, top: y + offset.dy }}
       dir="rtl"
     >
       <div className="flex items-center gap-2 mb-1">
@@ -31,9 +47,19 @@ export default function TreemapTooltip({ item, x, y }: Props) {
           <Row label='עול"ב' value={`+${item.incomingQty!.toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
         )}
         <Row label="צריכה חודשית" value={item.consumption.toLocaleString()} />
+        {item.reorderPoint != null && item.reorderPoint > 0 && (
+          <Row
+            label="נקודת הזמנה"
+            value={item.reorderPoint.toLocaleString()}
+            className={item.stockQty <= item.reorderPoint ? "text-red-500" : undefined}
+          />
+        )}
         <Row label="חודשי מלאי" value={months} />
         {item.purchasePrice != null && (
           <Row label="מחיר" value={`$${item.purchasePrice.toLocaleString()}`} />
+        )}
+        {stockValue != null && stockValue > 0 && (
+          <Row label="שווי מלאי" value={`$${stockValue.toLocaleString()}`} />
         )}
         {item.supplier && <Row label="ספק" value={item.supplier} />}
         {(item.openIssues ?? 0) > 0 && (

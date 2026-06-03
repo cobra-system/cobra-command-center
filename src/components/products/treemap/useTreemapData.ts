@@ -220,6 +220,7 @@ export function useTreemapData(filters: TreemapFilters) {
         productType: p.product_type ?? undefined,
         openIssues: issuesByProduct.get(p.id) ?? 0,
         lastOrderDate: lastOrderByProduct.get(p.id),
+        reorderPoint: p.reorder_point ?? undefined,
       };
     });
 

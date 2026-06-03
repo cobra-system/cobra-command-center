@@ -15,6 +15,7 @@ export interface TreemapItem {
   productType?: string;
   openIssues?: number;
   lastOrderDate?: string;
+  reorderPoint?: number;
 }
 
 export interface TreemapRect {

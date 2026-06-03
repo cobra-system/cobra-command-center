@@ -39,6 +39,8 @@ export default function TreemapCell({ rect, offsetX, offsetY, onSelect, onHoverC
   const showMonths = scaledW > 60 && scaledH > 40 && item.consumption > 0;
   const showIncoming = scaledW > 30 && scaledH > 30 && (item.incomingQty ?? 0) > 0;
   const showIssues = scaledW > 24 && scaledH > 24 && (item.openIssues ?? 0) > 0;
+  const needsReorder = item.reorderPoint != null && item.reorderPoint > 0 && item.stockQty <= item.reorderPoint;
+  const showReorder = scaledW > 20 && scaledH > 20 && needsReorder;
   const months = item.consumption > 0 ? (item.stockQty / item.consumption).toFixed(1) : null;
 
   const dimmed = isSearchMatch === false;
@@ -140,6 +142,20 @@ export default function TreemapCell({ rect, offsetX, offsetY, onSelect, onHoverC
             title={`${item.openIssues} תקלות פתוחות`}
           >
             <span className="font-medium">⚠ {item.openIssues}</span>
+          </div>
+        )}
+        {showReorder && (
+          <div
+            className="absolute top-0 right-0"
+            title="מתחת לנקודת הזמנה"
+            style={{ width: Math.max(8, 14 / scale), height: Math.max(8, 14 / scale) }}
+          >
+            <div
+              className="w-full h-full"
+              style={{
+                background: "linear-gradient(135deg, transparent 50%, #ef4444 50%)",
+              }}
+            />
           </div>
         )}
       </div>

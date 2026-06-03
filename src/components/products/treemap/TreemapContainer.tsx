@@ -130,6 +130,23 @@ export default function TreemapContainer({ children, contentWidth, contentHeight
     setPan({ x: newPanX, y: newPanY });
   }, []);
 
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    setScale(prev => {
+      const next = clampScale(prev * 2);
+      const ratio = next / prev;
+      setPan(p => ({
+        x: mx - ratio * (mx - p.x),
+        y: my - ratio * (my - p.y),
+      }));
+      return next;
+    });
+  }, []);
+
   const viewportRect = containerRef.current?.getBoundingClientRect();
   const viewportWidth = viewportRect?.width ?? contentWidth;
   const viewportHeight = viewportRect?.height ?? contentHeight;
@@ -174,6 +191,7 @@ export default function TreemapContainer({ children, contentWidth, contentHeight
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onDoubleClick={handleDoubleClick}
         onMouseLeave={(e) => { isDragging.current = false; e.currentTarget.style.cursor = "grab"; }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
