@@ -7,6 +7,14 @@
 
 ## [2026-06-03]
 
+- merge: resolve CHANGELOG.md conflict with main (00a0a32)
+- feat: redesign division consumption page with health analytics and monthly charts (648b028)
+- chore: gitignore vite timestamp temp files (8a6d354)
+- feat: add interactive product treemap heatmap view (7c555cc)
+
+<!-- last-commit: f1f179f51d988377c697e1745c86d91475d1d7fa -->
+## [2026-06-03]
+
 - feat: interactive product treemap heatmap view on Products page
 - feat: division consumption analytics with inventory health tracking
 - improve: UI/UX enhancements for quarterly planning page (b23fe2c)
@@ -14,7 +22,6 @@
 - fix: replace UUID input with product search combobox in mapping dialog (c95726f)
 - feat: add quarterly procurement planning page for bonded divisions (c603b48)
 
-<!-- last-commit: 14e5d88439e292bdbf09c3e25c9096fb73f225c4 -->
 ## [Unreleased]
 
 ### Added
