@@ -4,15 +4,15 @@ export interface HealthInfo {
 }
 
 const THRESHOLDS: { min: number; color: string; label: string }[] = [
-  { min: 4, color: "#16a34a", label: "מצוין" },
-  { min: 3, color: "#4ade80", label: "תקין" },
-  { min: 2, color: "#eab308", label: "סביר" },
-  { min: 1, color: "#f97316", label: "נמוך" },
-  { min: 0.01, color: "#ef4444", label: "קריטי" },
+  { min: 4, color: "#14532d", label: "מצוין" },
+  { min: 3, color: "#3f7d4f", label: "תקין" },
+  { min: 2, color: "#6b7280", label: "סביר" },
+  { min: 1, color: "#b45454", label: "נמוך" },
+  { min: 0.01, color: "#9b2d2d", label: "קריטי" },
 ];
 
-const NO_STOCK: HealthInfo = { color: "#dc2626", label: "אזל" };
-const NO_DATA: HealthInfo = { color: "#6b7280", label: "אין נתונים" };
+const NO_STOCK: HealthInfo = { color: "#7f1d1d", label: "אזל" };
+const NO_DATA: HealthInfo = { color: "#374151", label: "אין נתונים" };
 
 export function getHealthInfo(stockQty: number, consumption: number): HealthInfo {
   if (consumption <= 0) return NO_DATA;
@@ -35,9 +35,9 @@ export function getHealthLabel(stockQty: number, consumption: number): string {
 
 export const LEGEND_ITEMS: { color: string; label: string }[] = [
   NO_STOCK,
-  { color: "#ef4444", label: "קריטי" },
-  { color: "#f97316", label: "נמוך" },
-  { color: "#eab308", label: "סביר" },
-  { color: "#4ade80", label: "תקין" },
-  { color: "#16a34a", label: "מצוין" },
+  { color: "#9b2d2d", label: "קריטי" },
+  { color: "#b45454", label: "נמוך" },
+  { color: "#6b7280", label: "סביר" },
+  { color: "#3f7d4f", label: "תקין" },
+  { color: "#14532d", label: "מצוין" },
 ];

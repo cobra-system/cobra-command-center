@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { Boxes } from "lucide-react";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { layoutTreemap } from "./treemapLayout";
-import { useTreemapData, DEFAULT_FILTERS, type TreemapFilters } from "./useTreemapData";
+import { useTreemapData, DEFAULT_FILTERS, NO_CATEGORY_GROUP, type TreemapFilters } from "./useTreemapData";
 import TreemapFilterBar from "./TreemapFilterBar";
 import TreemapContainer from "./TreemapContainer";
 import TreemapCategoryGroup from "./TreemapCategoryGroup";
@@ -32,9 +32,12 @@ export default function ProductTreemapView() {
     return () => observer.disconnect();
   }, []);
 
+  const isFlat = filters.category === NO_CATEGORY_GROUP;
+  const effectiveHeaderHeight = isFlat ? 0 : HEADER_HEIGHT;
+
   const layout = useMemo(
-    () => layoutTreemap(items, dimensions.width, dimensions.height, HEADER_HEIGHT),
-    [items, dimensions.width, dimensions.height],
+    () => layoutTreemap(items, dimensions.width, dimensions.height, effectiveHeaderHeight),
+    [items, dimensions.width, dimensions.height, effectiveHeaderHeight],
   );
 
   if (items.length === 0) {

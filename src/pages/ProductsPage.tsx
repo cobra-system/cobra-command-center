@@ -1,12 +1,17 @@
-import { useState, useMemo, Fragment, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, Fragment, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth, categories, type Product } from "@/contexts/AppContext";
-import { canSeePrices } from "@/lib/permissions";
+import { canSeePrices, isDivisionManager } from "@/lib/permissions";
 import { useProductScope } from "@/hooks/useProductScope";
 import { useLiveProductMetrics, type ProductMetrics } from "@/hooks/useLiveProductMetrics";
 import { usePickupMonthlyAvg } from "@/hooks/usePickupMonthlyAvg";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { supabase } from "@/lib/supabase";
 import { Search, ChevronDown, ChevronUp, Boxes, Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye, Pencil, Truck, ShoppingCart, ClipboardList, Copy, Hash, Table2, LayoutGrid } from "lucide-react";
+import { InlineEditCell } from "@/components/orders/InlineEditCell";
+import { updateDivisionStock } from "@/components/orders/divisionStockHelpers";
+import { BONDED_DIVISIONS, DIVISION_COLORS } from "@/components/equipment/constants";
+import { toast } from "sonner";
 
 const ProductTreemapView = lazy(() => import("@/components/products/treemap/ProductTreemapView"));
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
@@ -20,7 +25,6 @@ import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { usePermissions } from "@/hooks/usePermissions";
 import { QuantityBar } from "@/components/ui/QuantityBar";
-import { toast } from "sonner";
 
 type SortKey = "name" | "sku" | "product_type" | "supplier" | "stock_qty" | "incoming_qty" | "purchase_price" | "monthly_order" | "sale_price" | "monthly_sales" | "category" | "lead_time_days" | "monthly_sales_avg" | "division" | "shipping";
 
@@ -77,11 +81,34 @@ export default function ProductsPage() {
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
+  // Division stock state
+  interface DivStockEntry { division: string; stock: number; dpId: string }
+  const [divStockByProduct, setDivStockByProduct] = useState<Map<string, DivStockEntry[]>>(new Map());
+  const [expandedStockId, setExpandedStockId] = useState<string | null>(null);
+
   const prefs = useTablePreferences("ProductsPage", {
     sortField: "name",
     filters: { category: "הכל", typeFilter: "all", supplierFilter: "all" },
   });
   const { currentUser } = useAuth();
+  const divManager = isDivisionManager(currentUser);
+  const userDivision = currentUser?.division ?? "";
+  const isBondedDivMgr = divManager && BONDED_DIVISIONS.has(userDivision);
+
+  const fetchDivisionStock = useCallback(async () => {
+    let q = supabase.from("division_products").select("id, division, product_id, division_stock");
+    if (divManager && userDivision) q = q.eq("division", userDivision);
+    const { data } = await q;
+    const map = new Map<string, DivStockEntry[]>();
+    for (const r of (data ?? []) as { id: string; division: string; product_id: string; division_stock: number }[]) {
+      const list = map.get(r.product_id) ?? [];
+      list.push({ division: r.division, stock: r.division_stock ?? 0, dpId: r.id });
+      map.set(r.product_id, list);
+    }
+    setDivStockByProduct(map);
+  }, [divManager, userDivision]);
+
+  useEffect(() => { fetchDivisionStock(); }, [fetchDivisionStock]);
   const showPrices = canSeePrices(currentUser);
   const colVis = useColumnVisibility(
     "products:hidden-columns",
@@ -284,13 +311,29 @@ export default function ProductsPage() {
                       )}
                     </div>
                     <div className="w-20" onClick={e => e.stopPropagation()}>
-                      <QuantityBar
-                        value={p.stock_qty}
-                        min={p.reorder_point ?? 0}
-                        max={p.monthly_order ?? 0}
-                        onMinChange={v => updateProduct(p.id, { reorder_point: v })}
-                        onMaxChange={v => updateProduct(p.id, { monthly_order: v })}
-                      />
+                      {divManager ? (
+                        <InlineEditCell
+                          value={divStockByProduct.get(p.id)?.find(d => d.division === userDivision)?.stock ?? 0}
+                          type="number"
+                          onCommit={async (val) => {
+                            const res = await updateDivisionStock(userDivision, p.id, val as number | null);
+                            if (res.ok) { toast.success("מלאי עודכן"); fetchDivisionStock(); }
+                            else toast.error(res.error ?? "שגיאה בעדכון");
+                          }}
+                        />
+                      ) : (
+                        <QuantityBar
+                          value={(() => {
+                            const divEntries = divStockByProduct.get(p.id);
+                            const divTotal = divEntries ? divEntries.reduce((s, d) => s + d.stock, 0) : 0;
+                            return p.stock_qty + divTotal;
+                          })()}
+                          min={p.reorder_point ?? 0}
+                          max={p.monthly_order ?? 0}
+                          onMinChange={v => updateProduct(p.id, { reorder_point: v })}
+                          onMaxChange={v => updateProduct(p.id, { monthly_order: v })}
+                        />
+                      )}
                       {(metrics[p.id]?.incomingQty ?? 0) > 0 && (
                         <span className="text-xs text-muted-foreground">+{metrics[p.id]?.incomingQty} עול"ב</span>
                       )}
@@ -439,14 +482,66 @@ export default function ProductsPage() {
                     )}
                     {isVisible("stock_qty") && (
                       <td className="p-2 sm:p-3" onClick={e => e.stopPropagation()}>
-                        <QuantityBar
-                          value={p.stock_qty}
-                          min={p.reorder_point ?? 0}
-                          max={p.monthly_order ?? 0}
-                          onMinChange={v => updateProduct(p.id, { reorder_point: v })}
-                          onMaxChange={v => updateProduct(p.id, { monthly_order: v })}
-                          className="min-w-[80px]"
-                        />
+                        {divManager ? (
+                          <InlineEditCell
+                            value={divStockByProduct.get(p.id)?.find(d => d.division === userDivision)?.stock ?? 0}
+                            type="number"
+                            onCommit={async (val) => {
+                              const res = await updateDivisionStock(userDivision, p.id, val as number | null);
+                              if (res.ok) { toast.success("מלאי עודכן"); fetchDivisionStock(); }
+                              else toast.error(res.error ?? "שגיאה בעדכון");
+                            }}
+                          />
+                        ) : (
+                          <div>
+                            <QuantityBar
+                              value={(() => {
+                                const divEntries = divStockByProduct.get(p.id);
+                                const divTotal = divEntries ? divEntries.reduce((s, d) => s + d.stock, 0) : 0;
+                                return p.stock_qty + divTotal;
+                              })()}
+                              min={p.reorder_point ?? 0}
+                              max={p.monthly_order ?? 0}
+                              onMinChange={v => updateProduct(p.id, { reorder_point: v })}
+                              onMaxChange={v => updateProduct(p.id, { monthly_order: v })}
+                              className="min-w-[80px]"
+                            />
+                            {(divStockByProduct.get(p.id)?.length ?? 0) > 0 && (
+                              <>
+                                <button
+                                  onClick={() => setExpandedStockId(prev => prev === p.id ? null : p.id)}
+                                  className="text-[10px] text-muted-foreground hover:text-foreground mt-0.5 flex items-center gap-0.5"
+                                >
+                                  {expandedStockId === p.id ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                                  פירוט ({p.stock_qty} מרכזי)
+                                </button>
+                                {expandedStockId === p.id && (
+                                  <div className="mt-1 space-y-0.5">
+                                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                                      <span>מרכז לוגיסטי</span>
+                                      <span className="font-medium text-foreground">{p.stock_qty}</span>
+                                    </div>
+                                    {divStockByProduct.get(p.id)!.map(d => (
+                                      <div key={d.division} className="flex justify-between items-center text-[10px]">
+                                        <span className="text-muted-foreground">{d.division}</span>
+                                        <InlineEditCell
+                                          value={d.stock}
+                                          type="number"
+                                          className="!text-[10px] !min-h-[20px] !py-0 max-w-[60px]"
+                                          onCommit={async (val) => {
+                                            const res = await updateDivisionStock(d.division, p.id, val as number | null);
+                                            if (res.ok) fetchDivisionStock();
+                                            else toast.error(res.error ?? "שגיאה");
+                                          }}
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        )}
                       </td>
                     )}
                     {isVisible("incoming_qty") && (

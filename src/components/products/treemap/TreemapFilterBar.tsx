@@ -1,5 +1,6 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { TreemapFilters } from "./useTreemapData";
+import { NO_CATEGORY_GROUP } from "./useTreemapData";
 
 interface Props {
   filters: TreemapFilters;
@@ -44,6 +45,7 @@ export default function TreemapFilterBar({ filters, onChange, categories, suppli
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="הכל">כל הקטגוריות</SelectItem>
+          <SelectItem value={NO_CATEGORY_GROUP}>ללא קטגוריות</SelectItem>
           {categories.map(c => (
             <SelectItem key={c} value={c}>{c}</SelectItem>
           ))}
