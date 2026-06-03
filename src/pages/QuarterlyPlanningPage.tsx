@@ -23,11 +23,13 @@ import type {
   QuarterlyVehicleForecast,
   ProductModelMapping,
   QuarterlyProcurementPlan,
+  QuarterlyPlanSnapshot,
 } from "@/contexts/types";
 import {
   Calendar, Package, TrendingUp, ShoppingCart, Upload,
-  Plus, RefreshCw, Download, Search, X, ChevronDown, ChevronUp, Trash2,
+  Plus, RefreshCw, Download, Search, X, ChevronDown, ChevronUp, Trash2, Camera, RotateCcw,
 } from "lucide-react";
+import { format } from "date-fns";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -85,6 +87,7 @@ const PLAN_COLS: ColDef[] = [
   { id: "sku", label: 'מק"ט', sortField: "sku" },
   { id: "current_stock", label: "מלאי", sortField: "current_stock" },
   { id: "computed_forecast", label: "צפי רבעון", sortField: "computed_forecast" },
+  { id: "cross_div_forecast", label: "צפי כולל", sortField: "cross_div_forecast" },
   { id: "utilization_pct", label: "% מימוש", sortField: "utilization_pct" },
   { id: "incoming_orders", label: 'עול"ב', sortField: "incoming_orders" },
   { id: "smoothed_required", label: "נדרש משוכלל", sortField: "smoothed_required" },
@@ -141,6 +144,13 @@ export default function QuarterlyPlanningPage() {
   const [mappings, setMappings] = useState<ProductModelMapping[]>([]);
   const [plans, setPlans] = useState<QuarterlyProcurementPlan[]>([]);
   const [recalculating, setRecalculating] = useState(false);
+  const [crossDivForecasts, setCrossDivForecasts] = useState<Map<string, number>>(new Map());
+
+  // ── Snapshots ──
+  const [showSnapshots, setShowSnapshots] = useState(false);
+  const [snapshots, setSnapshots] = useState<Omit<QuarterlyPlanSnapshot, "payload">[]>([]);
+  const [activeSnapshot, setActiveSnapshot] = useState<QuarterlyPlanSnapshot | null>(null);
+  const [snapshotsLoading, setSnapshotsLoading] = useState(false);
 
   // ── Tab state ──
   const [activeTab, setActiveTab] = useState("procurement");
@@ -172,6 +182,8 @@ export default function QuarterlyPlanningPage() {
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState("");
   const [importing, setImporting] = useState(false);
+  type ImportRow = { brand: string; model_name: string; model_family?: string; segment?: string; m1: number; m2: number; m3: number; status: "new" | "update" | "error" };
+  const [importPreview, setImportPreview] = useState<ImportRow[] | null>(null);
 
   // ── Add mapping dialog ──
   const [showAddMapping, setShowAddMapping] = useState(false);
@@ -228,6 +240,39 @@ export default function QuarterlyPlanningPage() {
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [division, selectedYear, selectedQuarter, fetchData]);
+
+  // ── Cross-division forecast (all bonded divisions) ──
+  useEffect(() => {
+    if (!division) return;
+    (async () => {
+      const allDivs = [...BONDED_DIVISIONS];
+      const [allMappingsRes, allForecastsRes] = await Promise.all([
+        supabase.from("product_model_mappings").select("product_id, model_family, utilization_pct, division").in("division", allDivs),
+        supabase.from("quarterly_vehicle_forecasts")
+          .select("vehicle_model_id, total_qty, vehicle_models(division, model_family)")
+          .eq("year", selectedYear).eq("quarter", selectedQuarter),
+      ]);
+      if (!allMappingsRes.data || !allForecastsRes.data) return;
+
+      const globalFamilyTotals = new Map<string, Map<string, number>>();
+      for (const fc of allForecastsRes.data as { vehicle_model_id: string; total_qty: number; vehicle_models: { division: string; model_family: string } | null }[]) {
+        if (!fc.vehicle_models?.model_family) continue;
+        const div = fc.vehicle_models.division;
+        const fam = fc.vehicle_models.model_family;
+        if (!globalFamilyTotals.has(div)) globalFamilyTotals.set(div, new Map());
+        const divMap = globalFamilyTotals.get(div)!;
+        divMap.set(fam, (divMap.get(fam) ?? 0) + (fc.total_qty ?? 0));
+      }
+
+      const productTotals = new Map<string, number>();
+      for (const m of allMappingsRes.data as { product_id: string; model_family: string; utilization_pct: number; division: string }[]) {
+        const divFamilies = globalFamilyTotals.get(m.division);
+        const familyQty = divFamilies?.get(m.model_family) ?? 0;
+        productTotals.set(m.product_id, (productTotals.get(m.product_id) ?? 0) + Math.ceil(familyQty * m.utilization_pct));
+      }
+      setCrossDivForecasts(productTotals);
+    })();
+  }, [division, selectedYear, selectedQuarter, plans]);
 
   // ── Forecast map (model_id → forecast) ──
   const forecastMap = useMemo(() => {
@@ -347,6 +392,20 @@ export default function QuarterlyPlanningPage() {
       });
     }
 
+    // Auto-capture snapshot before overwriting
+    if (plans.length > 0) {
+      await supabase.from("quarterly_plan_snapshots").insert({
+        division,
+        year: selectedYear,
+        quarter: selectedQuarter,
+        label: `לפני חישוב מחדש — ${format(new Date(), "dd/MM/yyyy HH:mm")}`,
+        payload: plans,
+        total_products: plans.length,
+        total_required: plans.reduce((s, p) => s + (p.required_to_order ?? 0), 0),
+        captured_by_name: currentUser?.name,
+      });
+    }
+
     if (upserts.length > 0) {
       const { error } = await supabase
         .from("quarterly_procurement_plans")
@@ -361,29 +420,76 @@ export default function QuarterlyPlanningPage() {
     setRecalculating(false);
   }
 
-  // ── Excel import handler ──
-  async function handleImport() {
-    if (!importText.trim()) return;
-    setImporting(true);
-    const lines = importText.trim().split("\n").filter(l => l.trim());
-    const rows: { brand: string; model_name: string; model_family?: string; segment?: string; m1: number; m2: number; m3: number }[] = [];
+  // ── Excel import: header label → field mapping ──
+  const HEADER_MAP: Record<string, string> = {
+    "מותג": "brand", "brand": "brand",
+    "משפחה": "model_family", "family": "model_family", "model_family": "model_family",
+    "דגם": "model_name", "model": "model_name", "model_name": "model_name",
+    "סגמנט": "segment", "segment": "segment",
+    "קוד דגם": "model_code", "model_code": "model_code",
+    "חודש 1": "m1", "חודש1": "m1", "month1": "m1", "m1": "m1",
+    "חודש 2": "m2", "חודש2": "m2", "month2": "m2", "m2": "m2",
+    "חודש 3": "m3", "חודש3": "m3", "month3": "m3", "m3": "m3",
+  };
 
-    for (const line of lines.slice(1)) { // skip header
-      const cols = line.split("\t");
-      if (cols.length < 4) continue;
-      const hasExtras = cols.length >= 6;
-      rows.push({
-        brand: hasExtras ? cols[0].trim() : "",
-        model_family: hasExtras ? cols[1].trim() : undefined,
-        model_name: hasExtras ? cols[2].trim() : cols[0].trim(),
-        m1: parseInt(cols[hasExtras ? 3 : 1]) || 0,
-        m2: parseInt(cols[hasExtras ? 4 : 2]) || 0,
-        m3: parseInt(cols[hasExtras ? 5 : 3]) || 0,
-      });
+  function parseImportText(text: string): ImportRow[] {
+    const lines = text.trim().split("\n").filter(l => l.trim());
+    if (lines.length < 2) return [];
+    const headerCells = lines[0].split("\t").map(h => h.trim().toLowerCase());
+    const colMap: Record<string, number> = {};
+    headerCells.forEach((h, i) => {
+      const field = HEADER_MAP[h];
+      if (field) colMap[field] = i;
+    });
+
+    const hasHeaderMatch = Object.keys(colMap).length >= 2;
+    const existingNames = new Set(models.map(m => m.model_name.toLowerCase()));
+
+    const rows: ImportRow[] = [];
+    for (const line of lines.slice(1)) {
+      const cols = line.split("\t").map(c => c.trim());
+      if (cols.length < 2) continue;
+
+      let brand: string, model_name: string, model_family: string | undefined, segment: string | undefined;
+      let m1: number, m2: number, m3: number;
+
+      if (hasHeaderMatch) {
+        brand = cols[colMap["brand"]] ?? "";
+        model_name = cols[colMap["model_name"]] ?? "";
+        model_family = cols[colMap["model_family"]] ?? undefined;
+        segment = cols[colMap["segment"]] ?? undefined;
+        m1 = parseInt(cols[colMap["m1"]]) || 0;
+        m2 = parseInt(cols[colMap["m2"]]) || 0;
+        m3 = parseInt(cols[colMap["m3"]]) || 0;
+      } else {
+        const hasExtras = cols.length >= 6;
+        brand = hasExtras ? cols[0] : "";
+        model_family = hasExtras ? cols[1] || undefined : undefined;
+        model_name = hasExtras ? cols[2] : cols[0];
+        m1 = parseInt(cols[hasExtras ? 3 : 1]) || 0;
+        m2 = parseInt(cols[hasExtras ? 4 : 2]) || 0;
+        m3 = parseInt(cols[hasExtras ? 5 : 3]) || 0;
+      }
+
+      if (!model_name) { rows.push({ brand, model_name, model_family, segment, m1, m2, m3, status: "error" }); continue; }
+      const status = existingNames.has(model_name.toLowerCase()) ? "update" : "new";
+      rows.push({ brand, model_name, model_family, segment, m1, m2, m3, status });
     }
+    return rows;
+  }
+
+  function handleParsePreview() {
+    setImportPreview(parseImportText(importText));
+  }
+
+  async function handleImport() {
+    const rows = importPreview ?? parseImportText(importText);
+    const validRows = rows.filter(r => r.status !== "error");
+    if (validRows.length === 0) return;
+    setImporting(true);
 
     let ok = 0;
-    for (const row of rows) {
+    for (const row of validRows) {
       const { data: model, error: modelErr } = await supabase
         .from("vehicle_models")
         .upsert({
@@ -391,7 +497,7 @@ export default function QuarterlyPlanningPage() {
           brand: row.brand || "Unknown",
           model_name: row.model_name,
           model_family: row.model_family || null,
-          segment: null,
+          segment: row.segment || null,
           updated_at: new Date().toISOString(),
         }, { onConflict: "division,model_name,segment" })
         .select("id")
@@ -414,9 +520,10 @@ export default function QuarterlyPlanningPage() {
       if (!fErr) ok++;
     }
 
-    toast({ title: "ייבוא הושלם", description: `${ok} מתוך ${rows.length} שורות יובאו בהצלחה` });
+    toast({ title: "ייבוא הושלם", description: `${ok} מתוך ${validRows.length} שורות יובאו בהצלחה` });
     setShowImport(false);
     setImportText("");
+    setImportPreview(null);
     setImporting(false);
     void fetchData();
   }
@@ -473,6 +580,69 @@ export default function QuarterlyPlanningPage() {
     URL.revokeObjectURL(url);
   }
 
+  // ── Snapshot functions ──
+  async function fetchSnapshots() {
+    setSnapshotsLoading(true);
+    const { data } = await supabase
+      .from("quarterly_plan_snapshots")
+      .select("id,division,year,quarter,label,notes,total_products,total_required,captured_at,captured_by,captured_by_name")
+      .eq("division", division)
+      .eq("year", selectedYear)
+      .eq("quarter", selectedQuarter)
+      .order("captured_at", { ascending: false });
+    setSnapshots((data ?? []) as Omit<QuarterlyPlanSnapshot, "payload">[]);
+    setSnapshotsLoading(false);
+  }
+
+  async function openSnapshot(id: string) {
+    const { data, error } = await supabase
+      .from("quarterly_plan_snapshots")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (error || !data) { toast({ title: "שגיאה", variant: "destructive" }); return; }
+    setActiveSnapshot(data as QuarterlyPlanSnapshot);
+  }
+
+  async function restoreSnapshot(snapshot: QuarterlyPlanSnapshot) {
+    const rows = snapshot.payload.map(p => ({
+      division: p.division,
+      product_id: p.product_id,
+      year: p.year,
+      quarter: p.quarter,
+      computed_forecast: p.computed_forecast,
+      manual_forecast_override: p.manual_forecast_override,
+      utilization_pct: p.utilization_pct,
+      safety_buffer: p.safety_buffer,
+      smoothed_required: p.smoothed_required,
+      current_stock: p.current_stock,
+      incoming_orders: p.incoming_orders,
+      required_to_order: p.required_to_order,
+      month1_demand: p.month1_demand,
+      month2_demand: p.month2_demand,
+      month3_demand: p.month3_demand,
+      order_execution_date: p.order_execution_date,
+      payment_status: p.payment_status,
+      actual_ordered_qty: p.actual_ordered_qty,
+      shipping_type: p.shipping_type,
+      estimated_arrival_date: p.estimated_arrival_date,
+      incoming_arrival_date: p.incoming_arrival_date,
+      notes: p.notes,
+      updated_at: new Date().toISOString(),
+    }));
+    const { error } = await supabase
+      .from("quarterly_procurement_plans")
+      .upsert(rows, { onConflict: "division,product_id,year,quarter" });
+    if (error) toast({ title: "שגיאה בשחזור", description: error.message, variant: "destructive" });
+    else { toast({ title: "שוחזר בהצלחה", description: `${rows.length} שורות שוחזרו` }); setShowSnapshots(false); setActiveSnapshot(null); void fetchData(); }
+  }
+
+  async function deleteSnapshot(id: string) {
+    await supabase.from("quarterly_plan_snapshots").delete().eq("id", id);
+    setSnapshots(prev => prev.filter(s => s.id !== id));
+    if (activeSnapshot?.id === id) setActiveSnapshot(null);
+  }
+
   // ── Filtered & sorted data ──
   const filteredModels = useMemo(() => {
     let result = models.filter(m => {
@@ -509,14 +679,14 @@ export default function QuarterlyPlanningPage() {
     if (planSort.field && planSort.dir) {
       const { field, dir } = planSort;
       result = [...result].sort((a, b) => {
-        const av = field === "product_name" ? a.products?.name : field === "supplier" ? a.products?.supplier : field === "sku" ? a.products?.sku : (a as Record<string, unknown>)[field];
-        const bv = field === "product_name" ? b.products?.name : field === "supplier" ? b.products?.supplier : field === "sku" ? b.products?.sku : (b as Record<string, unknown>)[field];
+        const av = field === "product_name" ? a.products?.name : field === "supplier" ? a.products?.supplier : field === "sku" ? a.products?.sku : field === "cross_div_forecast" ? (crossDivForecasts.get(a.product_id) ?? 0) : (a as Record<string, unknown>)[field];
+        const bv = field === "product_name" ? b.products?.name : field === "supplier" ? b.products?.supplier : field === "sku" ? b.products?.sku : field === "cross_div_forecast" ? (crossDivForecasts.get(b.product_id) ?? 0) : (b as Record<string, unknown>)[field];
         if (typeof av === "number" && typeof bv === "number") return dir === "asc" ? av - bv : bv - av;
         return dir === "asc" ? String(av ?? "").localeCompare(String(bv ?? ""), "he") : String(bv ?? "").localeCompare(String(av ?? ""), "he");
       });
     }
     return result;
-  }, [plans, planSearch, planSort]);
+  }, [plans, planSearch, planSort, crossDivForecasts]);
 
   // ── Product combobox options ──
   const productOptions: ComboboxOption[] = useMemo(() => {
@@ -612,7 +782,7 @@ export default function QuarterlyPlanningPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-3 w-full max-w-md">
+        <TabsList className="grid grid-cols-3 w-full max-w-md text-xs sm:text-sm">
           <TabsTrigger value="procurement">תכנון רכש</TabsTrigger>
           <TabsTrigger value="models">תחזית דגמים</TabsTrigger>
           <TabsTrigger value="mappings">מיפוי מוצרים</TabsTrigger>
@@ -633,6 +803,10 @@ export default function QuarterlyPlanningPage() {
                   חישוב מחדש
                 </Button>
               )}
+              <Button size="sm" variant="ghost" className="h-8 text-xs gap-1.5" onClick={() => { setShowSnapshots(true); void fetchSnapshots(); }}>
+                <Camera className="h-3 w-3" />
+                צילומים
+              </Button>
               <Button size="sm" variant="ghost" className="h-8 text-xs gap-1.5" onClick={exportCsv}>
                 <Download className="h-3 w-3" />
                 ייצוא
@@ -679,6 +853,11 @@ export default function QuarterlyPlanningPage() {
                               onCommit={v => patchPlan(plan.id, { manual_forecast_override: v as number })}
                               display={v => <span>{fmtNum(v as number)}{plan.manual_forecast_override != null && <Badge variant="outline" className="text-[9px] ms-1">ידני</Badge>}</span>}
                             />
+                          </td>
+                        )}
+                        {planColVis.isVisible("cross_div_forecast") && (
+                          <td className="p-3 tabular-nums text-muted-foreground">
+                            {fmtNum(crossDivForecasts.get(plan.product_id) ?? null)}
                           </td>
                         )}
                         {planColVis.isVisible("utilization_pct") && <td className="p-3 tabular-nums">{fmtPct(plan.utilization_pct)}</td>}
@@ -986,34 +1165,91 @@ export default function QuarterlyPlanningPage() {
       </Tabs>
 
       {/* ── Import Dialog ── */}
-      <Dialog open={showImport} onOpenChange={setShowImport}>
-        <DialogContent className="max-w-2xl">
+      <Dialog open={showImport} onOpenChange={v => { setShowImport(v); if (!v) { setImportPreview(null); setImportText(""); } }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>ייבוא תחזית דגמים מאקסל</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              הדבק נתונים מאקסל. פורמט: <strong>מותג → משפחה → דגם → חודש1 → חודש2 → חודש3</strong>
-              <br />או: <strong>דגם → חודש1 → חודש2 → חודש3</strong>
+              הדבק נתונים מאקסל. כותרות מזוהות: <strong>מותג, משפחה, דגם, סגמנט, חודש 1, חודש 2, חודש 3</strong>
+              <br />או פורמט פשוט: <strong>מותג → משפחה → דגם → חודש1 → חודש2 → חודש3</strong>
             </p>
             <Textarea
               value={importText}
-              onChange={e => setImportText(e.target.value)}
-              placeholder={"מותג\tמשפחה\tדגם\tחודש1\tחודש2\tחודש3\nRenault\tקשקאי\tQashqai III CVT 2X4\t40\t35\t25"}
-              rows={12}
+              onChange={e => { setImportText(e.target.value); setImportPreview(null); }}
+              placeholder={"מותג\tמשפחה\tדגם\tחודש 1\tחודש 2\tחודש 3\nRenault\tקשקאי\tQashqai III CVT 2X4\t40\t35\t25"}
+              rows={8}
               className="font-mono text-xs"
               dir="ltr"
             />
-            <p className="text-xs text-muted-foreground">
-              {importText.trim().split("\n").length - 1} שורות זוהו (לא כולל כותרת)
-            </p>
+            {!importPreview && (
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {Math.max(0, importText.trim().split("\n").length - 1)} שורות זוהו (לא כולל כותרת)
+                </p>
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleParsePreview} disabled={!importText.trim()}>
+                  תצוגה מקדימה
+                </Button>
+              </div>
+            )}
+            {importPreview && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <span>סה״כ: <strong>{importPreview.length}</strong></span>
+                  <span className="text-green-600">חדשים: {importPreview.filter(r => r.status === "new").length}</span>
+                  <span className="text-blue-600">עדכונים: {importPreview.filter(r => r.status === "update").length}</span>
+                  {importPreview.some(r => r.status === "error") && (
+                    <span className="text-red-600">שגיאות: {importPreview.filter(r => r.status === "error").length}</span>
+                  )}
+                </div>
+                <div className="max-h-[40vh] overflow-y-auto border rounded-md">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-muted/50 sticky top-0">
+                        <th className="text-right p-2">סטטוס</th>
+                        <th className="text-right p-2">מותג</th>
+                        <th className="text-right p-2">דגם</th>
+                        <th className="text-right p-2">משפחה</th>
+                        <th className="text-right p-2">{monthNames[0]}</th>
+                        <th className="text-right p-2">{monthNames[1]}</th>
+                        <th className="text-right p-2">{monthNames[2]}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importPreview.map((row, i) => (
+                        <tr key={i} className={`border-b ${row.status === "error" ? "bg-red-50 dark:bg-red-950/20" : ""}`}>
+                          <td className="p-2">
+                            <Badge variant={row.status === "new" ? "default" : row.status === "update" ? "secondary" : "destructive"} className="text-[9px]">
+                              {row.status === "new" ? "חדש" : row.status === "update" ? "עדכון" : "שגיאה"}
+                            </Badge>
+                          </td>
+                          <td className="p-2">{row.brand || "—"}</td>
+                          <td className="p-2">{row.model_name || "—"}</td>
+                          <td className="p-2">{row.model_family || "—"}</td>
+                          <td className="p-2 tabular-nums">{row.m1}</td>
+                          <td className="p-2 tabular-nums">{row.m2}</td>
+                          <td className="p-2 tabular-nums">{row.m3}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowImport(false)} disabled={importing}>ביטול</Button>
-            <Button onClick={handleImport} disabled={importing || !importText.trim()}>
-              {importing ? <RefreshCw className="h-3 w-3 animate-spin me-1" /> : <Upload className="h-3 w-3 me-1" />}
-              ייבוא
-            </Button>
+            <Button variant="outline" onClick={() => { setShowImport(false); setImportPreview(null); setImportText(""); }} disabled={importing}>ביטול</Button>
+            {importPreview ? (
+              <Button onClick={handleImport} disabled={importing || importPreview.filter(r => r.status !== "error").length === 0}>
+                {importing ? <RefreshCw className="h-3 w-3 animate-spin me-1" /> : <Upload className="h-3 w-3 me-1" />}
+                ייבוא {importPreview.filter(r => r.status !== "error").length} שורות
+              </Button>
+            ) : (
+              <Button onClick={handleParsePreview} disabled={!importText.trim()}>
+                תצוגה מקדימה
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1056,6 +1292,86 @@ export default function QuarterlyPlanningPage() {
             <Button variant="outline" onClick={() => setShowAddMapping(false)}>ביטול</Button>
             <Button onClick={handleAddMapping} disabled={!newMappingProductId || !newMappingFamily}>הוסף מיפוי</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Snapshots Dialog ── */}
+      <Dialog open={showSnapshots} onOpenChange={v => { setShowSnapshots(v); if (!v) setActiveSnapshot(null); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{activeSnapshot ? activeSnapshot.label : "צילומי תכנון רכש"}</DialogTitle>
+          </DialogHeader>
+
+          {!activeSnapshot ? (
+            <div className="space-y-3">
+              {snapshotsLoading ? (
+                <div className="flex justify-center py-8"><RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+              ) : snapshots.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground py-8">
+                  אין צילומים. צילום נוצר אוטומטית לפני כל חישוב מחדש
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {snapshots.map(snap => (
+                    <div key={snap.id} className="flex items-center justify-between border rounded-lg p-3 hover:bg-muted/30 transition-colors">
+                      <button className="flex-1 text-start space-y-0.5" onClick={() => openSnapshot(snap.id)}>
+                        <p className="text-sm font-medium">{snap.label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(snap.captured_at), "dd/MM/yyyy HH:mm")}
+                          {snap.captured_by_name && ` · ${snap.captured_by_name}`}
+                          {snap.total_products != null && ` · ${snap.total_products} מוצרים`}
+                        </p>
+                      </button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => deleteSnapshot(snap.id)}>
+                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>{format(new Date(activeSnapshot.captured_at), "dd/MM/yyyy HH:mm")}</span>
+                {activeSnapshot.captured_by_name && <span>· {activeSnapshot.captured_by_name}</span>}
+                <span>· {activeSnapshot.payload.length} מוצרים</span>
+              </div>
+              <div className="max-h-[50vh] overflow-y-auto border rounded-md">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b bg-muted/50 sticky top-0">
+                      <th className="text-right p-2">מוצר</th>
+                      <th className="text-right p-2">מלאי</th>
+                      <th className="text-right p-2">צפי</th>
+                      <th className="text-right p-2">נדרש להזמין</th>
+                      <th className="text-right p-2">סטטוס תשלום</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activeSnapshot.payload.map((row, i) => (
+                      <tr key={i} className="border-b">
+                        <td className="p-2">{row.products?.name ?? row.product_id}</td>
+                        <td className="p-2 tabular-nums">{fmtNum(row.current_stock)}</td>
+                        <td className="p-2 tabular-nums">{fmtNum(row.computed_forecast)}</td>
+                        <td className="p-2 tabular-nums font-medium">{fmtNum(row.required_to_order)}</td>
+                        <td className="p-2">{row.payment_status ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" size="sm" onClick={() => setActiveSnapshot(null)}>חזרה</Button>
+                {canEdit && (
+                  <Button size="sm" className="gap-1.5" onClick={() => restoreSnapshot(activeSnapshot)}>
+                    <RotateCcw className="h-3 w-3" />
+                    שחזר צילום
+                  </Button>
+                )}
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

@@ -3,7 +3,7 @@
 ## Overview
 This project uses PostgreSQL migrations managed through Supabase. All migration files are stored in `supabase/migrations/`.
 
-**Total migrations: 135** (last: `20260603000001_create_quarterly_planning_tables.sql`)
+**Total migrations: 136** (last: `20260603000002_create_quarterly_plan_snapshots.sql`)
 
 ## How to Apply Migrations
 

@@ -9,9 +9,11 @@
 
 ### Added
 - Quarterly procurement planning page (`/division/:divisionName/quarterly-planning`) for bonded division managers — 3 tabs: vehicle model forecast, product-model mapping, procurement plan with recalculation
-- 4 new DB tables: `vehicle_models`, `quarterly_vehicle_forecasts`, `product_model_mappings`, `quarterly_procurement_plans`
-- MCP module `quarterly-planning` with 11 tools for vehicle models, forecasts, mappings, and procurement plans
-- Excel import for bulk vehicle model + forecast data entry
+- 5 new DB tables: `vehicle_models`, `quarterly_vehicle_forecasts`, `product_model_mappings`, `quarterly_procurement_plans`, `quarterly_plan_snapshots`
+- MCP module `quarterly-planning` with 13 tools for vehicle models, forecasts, mappings, procurement plans, and snapshots
+- Excel import with header matching and preview table before committing
+- Cross-division demand aggregation column ("צפי כולל") showing total forecast across all bonded divisions
+- Snapshot/undo: auto-captures plan state before each recalculation, with restore capability
 - CSV export for procurement plans
 
 ## [2026-06-02]

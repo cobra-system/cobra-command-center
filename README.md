@@ -142,6 +142,7 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 - `quarterly_vehicle_forecasts` — תחזית כמויות חודשית לדגם ברבעון (month1/2/3 + total מחושב)
 - `product_model_mappings` — מיפוי מוצרים למשפחות דגמים עם אחוז מימוש
 - `quarterly_procurement_plans` — תכנון רכש מחושב לפי מוצר/רבעון (תחזית, מלאי, חוסר, מעקב ביצוע)
+- `quarterly_plan_snapshots` — צילומי מצב תכנון רכש (JSONB payload) לשחזור לפני חישוב מחדש
 
 ### בדיקות QA פריזבי (Base44 Sync)
 - `frisbee_inspections` — בדיקות QA לאחר התקנה, מסונכרן מ-Base44 (רכב, מתקין, בודק, סטטוס, ליקויים)
@@ -188,7 +189,7 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 | Toasts | Sonner |
 | טפסים | React Hook Form + Zod |
 | PDF | PDF.js + pdf-lib + mammoth |
-| אוטומציה | MCP Server — 260 כלים ב-34 מודולים לאינטגרציה עם Claude Code |
+| אוטומציה | MCP Server — 274 כלים ב-34 מודולים לאינטגרציה עם Claude Code |
 | בדיקות E2E | Playwright |
 
 ---

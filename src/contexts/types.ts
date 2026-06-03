@@ -390,6 +390,21 @@ export interface QuarterlyProcurementPlan {
   products?: { id: string; name: string; sku: string; supplier?: string | null };
 }
 
+export interface QuarterlyPlanSnapshot {
+  id: string;
+  division: string;
+  year: number;
+  quarter: number;
+  label: string;
+  notes: string | null;
+  payload: QuarterlyProcurementPlan[];
+  total_products: number | null;
+  total_required: number | null;
+  captured_at: string;
+  captured_by: string | null;
+  captured_by_name: string | null;
+}
+
 export interface AuthState {
   currentUser: Profile | null;
   session: Session | null;

@@ -462,4 +462,77 @@ export function registerQuarterlyPlanningTools(server: McpServer) {
       return ok({ recalculated: results.length, results });
     }
   );
+
+  // ═══════════════════════════════════════════════════════════════
+  // Quarterly Plan Snapshots — צילומי תכנון רכש
+  // ═══════════════════════════════════════════════════════════════
+
+  server.tool(
+    "list_quarterly_plan_snapshots",
+    "צילומי תכנון רכש — List quarterly plan snapshots. Filter by division, year, quarter.",
+    {
+      division: DIVISION_ENUM.optional().describe("Filter by division"),
+      year: z.number().int().optional().describe("Filter by year"),
+      quarter: z.number().int().min(1).max(4).optional().describe("Filter by quarter (1-4)"),
+    },
+    async ({ division, year, quarter }) => {
+      let query = supabase
+        .from("quarterly_plan_snapshots")
+        .select("id,division,year,quarter,label,notes,total_products,total_required,captured_at,captured_by_name")
+        .order("captured_at", { ascending: false });
+      if (division) query = query.eq("division", division);
+      if (year) query = query.eq("year", year);
+      if (quarter) query = query.eq("quarter", quarter);
+      const { data, error } = await query;
+      return error ? err(error) : ok(data);
+    }
+  );
+
+  server.tool(
+    "restore_quarterly_plan_snapshot",
+    "שחזור צילום — Restore a quarterly plan snapshot, overwriting current plans with snapshot payload.",
+    {
+      snapshot_id: z.string().uuid().describe("ID of the snapshot to restore"),
+    },
+    async ({ snapshot_id }) => {
+      const { data: snap, error: fetchErr } = await supabase
+        .from("quarterly_plan_snapshots")
+        .select("*")
+        .eq("id", snapshot_id)
+        .single();
+      if (fetchErr || !snap) return err(fetchErr ?? { message: "Snapshot not found" });
+
+      const payload = snap.payload as Record<string, unknown>[];
+      const rows = payload.map((p: Record<string, unknown>) => ({
+        division: p.division,
+        product_id: p.product_id,
+        year: p.year,
+        quarter: p.quarter,
+        computed_forecast: p.computed_forecast,
+        manual_forecast_override: p.manual_forecast_override,
+        utilization_pct: p.utilization_pct,
+        safety_buffer: p.safety_buffer,
+        smoothed_required: p.smoothed_required,
+        current_stock: p.current_stock,
+        incoming_orders: p.incoming_orders,
+        required_to_order: p.required_to_order,
+        month1_demand: p.month1_demand,
+        month2_demand: p.month2_demand,
+        month3_demand: p.month3_demand,
+        order_execution_date: p.order_execution_date,
+        payment_status: p.payment_status,
+        actual_ordered_qty: p.actual_ordered_qty,
+        shipping_type: p.shipping_type,
+        estimated_arrival_date: p.estimated_arrival_date,
+        incoming_arrival_date: p.incoming_arrival_date,
+        notes: p.notes,
+        updated_at: new Date().toISOString(),
+      }));
+
+      const { error } = await supabase
+        .from("quarterly_procurement_plans")
+        .upsert(rows, { onConflict: "division,product_id,year,quarter" });
+      return error ? err(error) : ok({ restored: rows.length, snapshot_label: snap.label });
+    }
+  );
 }
