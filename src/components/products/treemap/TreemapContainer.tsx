@@ -1,20 +1,23 @@
 import { useState, useRef, useCallback, useEffect, createContext, useContext, type ReactNode } from "react";
 import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import type { CategoryRect } from "./treemapLayout";
+import TreemapMinimap from "./TreemapMinimap";
 
 interface Props {
   children: ReactNode;
   contentWidth: number;
   contentHeight: number;
+  layout: CategoryRect[];
 }
 
 const MIN_SCALE = 1;
-const MAX_SCALE = 4;
+const MAX_SCALE = 6;
 const ZOOM_SENSITIVITY = 0.001;
 
 const ScaleContext = createContext(1);
 export function useTreemapScale() { return useContext(ScaleContext); }
 
-export default function TreemapContainer({ children, contentWidth, contentHeight }: Props) {
+export default function TreemapContainer({ children, contentWidth, contentHeight, layout }: Props) {
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
@@ -123,27 +126,45 @@ export default function TreemapContainer({ children, contentWidth, contentHeight
     setPan({ x: 0, y: 0 });
   }, []);
 
+  const handleMinimapNavigate = useCallback((newPanX: number, newPanY: number) => {
+    setPan({ x: newPanX, y: newPanY });
+  }, []);
+
+  const viewportRect = containerRef.current?.getBoundingClientRect();
+  const viewportWidth = viewportRect?.width ?? contentWidth;
+  const viewportHeight = viewportRect?.height ?? contentHeight;
+
+  const zoomPercent = Math.round(scale * 100);
+
   return (
     <div className="relative">
       <div className="absolute top-2 left-2 z-20 flex flex-col gap-1">
         <button
           onClick={() => zoomBy(1.3)}
           className="p-1.5 rounded bg-background/80 border border-border shadow-sm hover:bg-background transition-colors"
+          title="זום אין"
         >
           <ZoomIn className="h-4 w-4 text-foreground" />
         </button>
         <button
           onClick={() => zoomBy(0.7)}
           className="p-1.5 rounded bg-background/80 border border-border shadow-sm hover:bg-background transition-colors"
+          title="זום אוט"
         >
           <ZoomOut className="h-4 w-4 text-foreground" />
         </button>
         <button
           onClick={resetView}
           className="p-1.5 rounded bg-background/80 border border-border shadow-sm hover:bg-background transition-colors"
+          title="איפוס תצוגה"
         >
           <Maximize2 className="h-4 w-4 text-foreground" />
         </button>
+        {scale > 1 && (
+          <div className="text-[10px] font-mono text-center text-muted-foreground bg-background/80 border border-border rounded px-1 py-0.5">
+            {zoomPercent}%
+          </div>
+        )}
       </div>
 
       <div
@@ -172,6 +193,20 @@ export default function TreemapContainer({ children, contentWidth, contentHeight
           </div>
         </ScaleContext.Provider>
       </div>
+
+      {scale > 1.1 && (
+        <TreemapMinimap
+          layout={layout}
+          contentWidth={contentWidth}
+          contentHeight={contentHeight}
+          scale={scale}
+          panX={pan.x}
+          panY={pan.y}
+          viewportWidth={viewportWidth}
+          viewportHeight={viewportHeight}
+          onNavigate={handleMinimapNavigate}
+        />
+      )}
     </div>
   );
 }

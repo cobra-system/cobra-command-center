@@ -36,6 +36,12 @@ export default function TreemapTooltip({ item, x, y }: Props) {
           <Row label="מחיר" value={`$${item.purchasePrice.toLocaleString()}`} />
         )}
         {item.supplier && <Row label="ספק" value={item.supplier} />}
+        {(item.openIssues ?? 0) > 0 && (
+          <Row label="תקלות פתוחות" value={String(item.openIssues)} className="text-amber-500" />
+        )}
+        {item.lastOrderDate && (
+          <Row label="הזמנה אחרונה" value={item.lastOrderDate} />
+        )}
         <Row label="סטטוס" value={health.label} style={{ color: health.color }} />
       </div>
       <div className="mt-2 pt-1.5 border-t border-border/50 text-[10px] text-muted-foreground text-center">

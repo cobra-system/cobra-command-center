@@ -36,6 +36,7 @@ export default function TreemapCell({ rect, offsetX, offsetY, onSelect, onHoverC
   );
   const showSku = scaledW > 25 && scaledH > 16 && sku.length > 0;
   const showIncoming = scaledW > 30 && scaledH > 30 && (item.incomingQty ?? 0) > 0;
+  const showIssues = scaledW > 24 && scaledH > 24 && (item.openIssues ?? 0) > 0;
 
   const dimmed = isSearchMatch === false;
   const highlighted = isSearchMatch === true;
@@ -109,6 +110,15 @@ export default function TreemapCell({ rect, offsetX, offsetY, onSelect, onHoverC
             style={{ fontSize: Math.max(8, 10 / scale), lineHeight: 1.2 }}
           >
             <span className="font-medium">+{item.incomingQty}</span>
+          </div>
+        )}
+        {showIssues && (
+          <div
+            className="absolute bottom-0.5 left-0.5 flex items-center gap-0.5 bg-amber-500/90 text-white rounded-sm px-1"
+            style={{ fontSize: Math.max(8, 10 / scale), lineHeight: 1.2 }}
+            title={`${item.openIssues} תקלות פתוחות`}
+          >
+            <span className="font-medium">⚠ {item.openIssues}</span>
           </div>
         )}
       </div>

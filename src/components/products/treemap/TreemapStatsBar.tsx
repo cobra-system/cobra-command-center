@@ -1,4 +1,4 @@
-import { Package, AlertTriangle, TrendingUp, DollarSign } from "lucide-react";
+import { Package, AlertTriangle, TrendingUp, DollarSign, Bug } from "lucide-react";
 import type { TreemapItem } from "./treemapLayout";
 
 interface Props {
@@ -10,6 +10,8 @@ export default function TreemapStatsBar({ items }: Props) {
   const critical = items.filter(i => i.consumption > 0 && i.stockQty / i.consumption < 1).length;
   const outOfStock = items.filter(i => i.stockQty <= 0 && i.consumption > 0).length;
   const healthy = items.filter(i => i.consumption > 0 && i.stockQty / i.consumption >= 3).length;
+
+  const withIssues = items.filter(i => (i.openIssues ?? 0) > 0).length;
 
   const totalStockValue = items.reduce((s, i) => {
     if (i.purchasePrice && i.purchasePrice > 0) return s + i.stockQty * i.purchasePrice;
@@ -53,6 +55,14 @@ export default function TreemapStatsBar({ items }: Props) {
         label="ממוצע חודשי מלאי"
         value={avgMonths.toFixed(1)}
       />
+      {withIssues > 0 && (
+        <Stat
+          icon={<Bug className="h-3.5 w-3.5" />}
+          label="עם תקלות"
+          value={withIssues.toString()}
+          className="text-amber-600 dark:text-amber-400"
+        />
+      )}
       {totalStockValue > 0 && (
         <Stat
           icon={<DollarSign className="h-3.5 w-3.5" />}

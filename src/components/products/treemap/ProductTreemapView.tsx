@@ -138,6 +138,7 @@ export default function ProductTreemapView() {
           <TreemapContainer
             contentWidth={dimensions.width}
             contentHeight={dimensions.height}
+            layout={layout}
           >
             {layout.map(cat => (
               <TreemapCategoryGroup

@@ -13,6 +13,8 @@ export interface TreemapItem {
   purchasePrice?: number;
   leadTimeDays?: number;
   productType?: string;
+  openIssues?: number;
+  lastOrderDate?: string;
 }
 
 export interface TreemapRect {

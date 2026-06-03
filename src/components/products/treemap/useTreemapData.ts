@@ -8,6 +8,7 @@ import type { TreemapItem } from "./treemapLayout";
 export const NO_CATEGORY_GROUP = "__none__";
 
 export type SizeMetric = "consumption" | "stockValue";
+export type HealthFilter = "all" | "outOfStock" | "critical" | "low" | "ok" | "healthy";
 
 export interface TreemapFilters {
   topN: number | null;
@@ -15,6 +16,7 @@ export interface TreemapFilters {
   supplier: string;
   sizeBy: SizeMetric;
   division: string;
+  health: HealthFilter;
 }
 
 export const DEFAULT_FILTERS: TreemapFilters = {
@@ -23,6 +25,7 @@ export const DEFAULT_FILTERS: TreemapFilters = {
   supplier: "all",
   sizeBy: "consumption",
   division: "all",
+  health: "all",
 };
 
 interface DivStockRow {
@@ -30,6 +33,16 @@ interface DivStockRow {
   product_id: string;
   division_stock: number;
   monthly_avg: number | null;
+}
+
+interface IssueCountRow {
+  product_id: string;
+  count: number;
+}
+
+interface LastOrderRow {
+  product_id: string;
+  max_date: string;
 }
 
 function getConsumption(product: Product, avgByProduct: Map<string, number>): number {
@@ -51,15 +64,57 @@ export function useTreemapData(filters: TreemapFilters) {
   const isDivMgr = !!currentUser && !isManager && !!userDivision;
 
   const [divStockData, setDivStockData] = useState<DivStockRow[]>([]);
+  const [issueCountData, setIssueCountData] = useState<IssueCountRow[]>([]);
+  const [lastOrderData, setLastOrderData] = useState<LastOrderRow[]>([]);
 
   useEffect(() => {
-    async function fetch() {
-      let q = supabase.from("division_products").select("division, product_id, division_stock, monthly_avg");
-      if (isDivMgr) q = q.eq("division", userDivision);
-      const { data } = await q;
-      setDivStockData((data ?? []) as DivStockRow[]);
+    async function fetchAll() {
+      const divPromise = (async () => {
+        let q = supabase.from("division_products").select("division, product_id, division_stock, monthly_avg");
+        if (isDivMgr) q = q.eq("division", userDivision);
+        const { data } = await q;
+        setDivStockData((data ?? []) as DivStockRow[]);
+      })();
+
+      const issuePromise = (async () => {
+        const { data } = await supabase.rpc("get_open_issue_counts");
+        if (data) setIssueCountData(data as IssueCountRow[]);
+      })().catch(() => {
+        // RPC may not exist — fall back to direct query
+        supabase
+          .from("product_issues")
+          .select("product_id")
+          .neq("status", "נסגר")
+          .then(({ data }) => {
+            if (!data) return;
+            const counts = new Map<string, number>();
+            for (const row of data) {
+              counts.set(row.product_id, (counts.get(row.product_id) ?? 0) + 1);
+            }
+            setIssueCountData([...counts.entries()].map(([product_id, count]) => ({ product_id, count })));
+          });
+      });
+
+      const orderPromise = (async () => {
+        const { data } = await supabase
+          .from("order_items")
+          .select("product_id, orders!inner(order_date)")
+          .not("product_id", "is", null);
+        if (data) {
+          const latest = new Map<string, string>();
+          for (const row of data as Array<{ product_id: string; orders: { order_date: string } }>) {
+            const d = row.orders?.order_date;
+            if (!d || !row.product_id) continue;
+            const prev = latest.get(row.product_id);
+            if (!prev || d > prev) latest.set(row.product_id, d);
+          }
+          setLastOrderData([...latest.entries()].map(([product_id, max_date]) => ({ product_id, max_date })));
+        }
+      })().catch(() => {});
+
+      await Promise.all([divPromise, issuePromise, orderPromise]);
     }
-    fetch();
+    fetchAll();
   }, [isDivMgr, userDivision]);
 
   const divStockByProduct = useMemo(() => {
@@ -71,6 +126,18 @@ export function useTreemapData(filters: TreemapFilters) {
     }
     return map;
   }, [divStockData]);
+
+  const issuesByProduct = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of issueCountData) map.set(r.product_id, r.count);
+    return map;
+  }, [issueCountData]);
+
+  const lastOrderByProduct = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const r of lastOrderData) map.set(r.product_id, r.max_date);
+    return map;
+  }, [lastOrderData]);
 
   const activeCats = useMemo(
     () => allCategories.filter(c => c !== "הכל"),
@@ -151,11 +218,28 @@ export function useTreemapData(filters: TreemapFilters) {
         purchasePrice,
         leadTimeDays: p.lead_time_days ?? undefined,
         productType: p.product_type ?? undefined,
+        openIssues: issuesByProduct.get(p.id) ?? 0,
+        lastOrderDate: lastOrderByProduct.get(p.id),
       };
     });
 
     if (viewingSpecificDiv) {
       mapped = mapped.filter(m => m.stockQty > 0 || m.consumption > 0);
+    }
+
+    if (filters.health !== "all") {
+      mapped = mapped.filter(m => {
+        if (m.consumption <= 0) return filters.health === "ok";
+        const months = m.stockQty / m.consumption;
+        switch (filters.health) {
+          case "outOfStock": return m.stockQty <= 0;
+          case "critical": return months < 1 && m.stockQty > 0;
+          case "low": return months >= 1 && months < 2;
+          case "ok": return months >= 2 && months < 3;
+          case "healthy": return months >= 3;
+          default: return true;
+        }
+      });
     }
 
     mapped.sort((a, b) => b.value - a.value);
@@ -165,7 +249,7 @@ export function useTreemapData(filters: TreemapFilters) {
     }
 
     return mapped;
-  }, [scopedProducts, avgByProduct, filters, divStockByProduct, isDivMgr, userDivision, isManager, suppliers]);
+  }, [scopedProducts, avgByProduct, filters, divStockByProduct, isDivMgr, userDivision, isManager, suppliers, issuesByProduct, lastOrderByProduct]);
 
   return { items, categories: activeCats, suppliers: uniqueSuppliers, divisions: uniqueDivisions, isManager };
 }

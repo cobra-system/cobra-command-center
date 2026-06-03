@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ExternalLink, X, ShoppingCart, Truck, Clock } from "lucide-react";
+import { ExternalLink, X, ShoppingCart, Truck, Clock, AlertTriangle, Calendar } from "lucide-react";
 import type { TreemapItem } from "./treemapLayout";
 import { getHealthInfo } from "./treemapColors";
 
@@ -60,6 +60,18 @@ export default function TreemapInfoPanel({ item, onClose }: Props) {
               <Truck className="h-3 w-3" />
               {item.supplier}
             </button>
+          )}
+          {(item.openIssues ?? 0) > 0 && (
+            <span className="flex items-center gap-0.5 text-amber-500 font-medium">
+              <AlertTriangle className="h-3 w-3" />
+              {item.openIssues} תקלות
+            </span>
+          )}
+          {item.lastOrderDate && (
+            <span className="flex items-center gap-0.5 text-muted-foreground">
+              <Calendar className="h-3 w-3" />
+              {item.lastOrderDate}
+            </span>
           )}
           <span className="font-semibold" style={{ color: health.color }}>{health.label}</span>
         </div>

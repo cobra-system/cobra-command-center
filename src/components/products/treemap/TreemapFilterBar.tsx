@@ -1,7 +1,7 @@
 import { Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import type { TreemapFilters, SizeMetric } from "./useTreemapData";
+import type { TreemapFilters, SizeMetric, HealthFilter } from "./useTreemapData";
 import { NO_CATEGORY_GROUP } from "./useTreemapData";
 
 interface Props {
@@ -26,6 +26,15 @@ const TOP_N_OPTIONS = [
 const SIZE_OPTIONS: { value: SizeMetric; label: string }[] = [
   { value: "consumption", label: "צריכה" },
   { value: "stockValue", label: "שווי מלאי" },
+];
+
+const HEALTH_OPTIONS: { value: HealthFilter; label: string; color?: string }[] = [
+  { value: "all", label: "הכל" },
+  { value: "outOfStock", label: "אזל", color: "#7f1d1d" },
+  { value: "critical", label: "קריטי", color: "#9b2d2d" },
+  { value: "low", label: "נמוך", color: "#b45454" },
+  { value: "ok", label: "סביר", color: "#6b7280" },
+  { value: "healthy", label: "תקין", color: "#3f7d4f" },
 ];
 
 export default function TreemapFilterBar({ filters, onChange, categories, suppliers, divisions, isManager, search, onSearchChange }: Props) {
@@ -94,6 +103,25 @@ export default function TreemapFilterBar({ filters, onChange, categories, suppli
           </SelectContent>
         </Select>
       )}
+
+      <Select
+        value={filters.health ?? "all"}
+        onValueChange={v => onChange({ ...filters, health: v as HealthFilter })}
+      >
+        <SelectTrigger className="w-[130px]">
+          <SelectValue placeholder="מצב מלאי" />
+        </SelectTrigger>
+        <SelectContent>
+          {HEALTH_OPTIONS.map(opt => (
+            <SelectItem key={opt.value} value={opt.value}>
+              <span className="flex items-center gap-2">
+                {opt.color && <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: opt.color }} />}
+                {opt.label}
+              </span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
       <div className="flex bg-secondary rounded-lg p-1">
         {SIZE_OPTIONS.map(opt => (
