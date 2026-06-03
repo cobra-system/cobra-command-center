@@ -5,6 +5,15 @@
 
 ---
 
+## [Unreleased]
+
+### Added
+- Quarterly procurement planning page (`/division/:divisionName/quarterly-planning`) for bonded division managers — 3 tabs: vehicle model forecast, product-model mapping, procurement plan with recalculation
+- 4 new DB tables: `vehicle_models`, `quarterly_vehicle_forecasts`, `product_model_mappings`, `quarterly_procurement_plans`
+- MCP module `quarterly-planning` with 11 tools for vehicle models, forecasts, mappings, and procurement plans
+- Excel import for bulk vehicle model + forecast data entry
+- CSV export for procurement plans
+
 ## [2026-06-02]
 
 - fix: pass presetDivision to ProductFormDialog from DivisionProductsPage (4f8e9f9)

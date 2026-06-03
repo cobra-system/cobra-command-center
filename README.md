@@ -61,6 +61,7 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 | פרטי חטיבה | `/equipment/division/:divisionName` | טכנאים, הצטיידויות, מלאי, אנשי קשר לפי חטיבה (חטיבות ציוד) |
 | צריכה — חטיבה בונדד | `/division/:divisionName/consumption` | ניתוח צריכה, FrisbeeDashboard, KPIs לחטיבות בונדד |
 | מוצרי חטיבה בונדד | `/division/:divisionName/products` | מלאי שטח, דרישה רבעונית, פריטי מוצר (רכיבים) לחטיבות בונדד |
+| תכנון רכש רבעוני | `/division/:divisionName/quarterly-planning` | תחזית דגמי רכב, מיפוי מוצר-דגם, תכנון רכש מחושב לחטיבות בונדד |
 | דוחות | `/reports` | גרפי מגמות, ביצועי ספקים, ניתוח הזמנות |
 | הגדרות | `/settings` | ניהול צוות, תפקידים, הרשאות גרנולריות, נתונים |
 | התראות | `/alerts` | מרכז התראות מערכת ותזכורות |
@@ -136,6 +137,12 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 - `division_product_items` — פריטי מוצר לחטיבה (רכיב, מלאי שטח לפי חטיבה)
 - `order_requests` — בקשות הזמנה ממנהלי חטיבות בונדד (מוצר, כמות, דחיפות, סוג הזמנה, סטטוס, קישור להזמנה)
 
+### תכנון רכש רבעוני
+- `vehicle_models` — דגמי רכב לפי חטיבה (מותג, שם, משפחת דגם, סגמנט)
+- `quarterly_vehicle_forecasts` — תחזית כמויות חודשית לדגם ברבעון (month1/2/3 + total מחושב)
+- `product_model_mappings` — מיפוי מוצרים למשפחות דגמים עם אחוז מימוש
+- `quarterly_procurement_plans` — תכנון רכש מחושב לפי מוצר/רבעון (תחזית, מלאי, חוסר, מעקב ביצוע)
+
 ### בדיקות QA פריזבי (Base44 Sync)
 - `frisbee_inspections` — בדיקות QA לאחר התקנה, מסונכרן מ-Base44 (רכב, מתקין, בודק, סטטוס, ליקויים)
 - `frisbee_inspection_equipment` — רשימת ציוד מנורמלת לכל בדיקה (base44_equipment_id, checked)
@@ -181,7 +188,7 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 | Toasts | Sonner |
 | טפסים | React Hook Form + Zod |
 | PDF | PDF.js + pdf-lib + mammoth |
-| אוטומציה | MCP Server — 245 כלים ב-32 מודולים לאינטגרציה עם Claude Code |
+| אוטומציה | MCP Server — 260 כלים ב-34 מודולים לאינטגרציה עם Claude Code |
 | בדיקות E2E | Playwright |
 
 ---

@@ -327,6 +327,69 @@ export interface OrderRequestSnapshot {
   payload: OrderRequest[];
 }
 
+// ── Quarterly Planning ──────────────────────────────────────────────────────
+
+export interface VehicleModel {
+  id: string;
+  division: string;
+  brand: string;
+  model_name: string;
+  model_family: string | null;
+  segment: string | null;
+  model_code: string | null;
+  is_active: boolean;
+}
+
+export interface QuarterlyVehicleForecast {
+  id: string;
+  vehicle_model_id: string;
+  year: number;
+  quarter: number;
+  month1_qty: number;
+  month2_qty: number;
+  month3_qty: number;
+  total_qty: number;
+  notes: string | null;
+  vehicle_models?: VehicleModel;
+}
+
+export interface ProductModelMapping {
+  id: string;
+  division: string;
+  product_id: string;
+  model_family: string;
+  utilization_pct: number;
+  notes: string | null;
+  products?: { id: string; name: string; sku: string };
+}
+
+export interface QuarterlyProcurementPlan {
+  id: string;
+  division: string;
+  product_id: string;
+  year: number;
+  quarter: number;
+  computed_forecast: number | null;
+  manual_forecast_override: number | null;
+  utilization_pct: number;
+  safety_buffer: number;
+  smoothed_required: number | null;
+  current_stock: number | null;
+  incoming_orders: number | null;
+  required_to_order: number | null;
+  month1_demand: number | null;
+  month2_demand: number | null;
+  month3_demand: number | null;
+  order_execution_date: string | null;
+  payment_status: string | null;
+  actual_ordered_qty: number | null;
+  shipping_type: string | null;
+  estimated_arrival_date: string | null;
+  incoming_arrival_date: string | null;
+  notes: string | null;
+  products?: { id: string; name: string; sku: string; supplier?: string | null };
+}
+
 export interface AuthState {
   currentUser: Profile | null;
   session: Session | null;

@@ -15,6 +15,7 @@ import {
   Search,
   Settings,
   FileText,
+  Calendar,
   CalendarClock,
   BarChart3,
   GripVertical,
@@ -62,7 +63,7 @@ const defaultNavItems = [
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard, Package, ShoppingCart, Truck, ListTodo,
-  Settings, FileText, CalendarClock, BarChart3, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Recycle, Boxes, Map, Lock, Trash2,
+  Settings, FileText, Calendar, CalendarClock, BarChart3, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Recycle, Boxes, Map, Lock, Trash2,
 };
 
 const NAV_ORDER_KEY = "cobra-nav-order";
@@ -109,6 +110,7 @@ export default function ManagerLayout() {
       ? [
           { to: `/division/${divEnc}/consumption`, icon: "BarChart3", label: "צריכה" },
           { to: `/division/${divEnc}/products`, icon: "Package", label: "מוצרים" },
+          { to: `/division/${divEnc}/quarterly-planning`, icon: "Calendar", label: "תכנון רבעוני" },
           { to: "/orders", icon: "ShoppingCart", label: "רכש" },
           { to: "/suppliers", icon: "Truck", label: "ספקים" },
           { to: "/waste-management", icon: "Recycle", label: "בלאי" },
