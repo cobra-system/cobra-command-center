@@ -7,10 +7,15 @@
 
 ## [2026-06-03]
 
+- Merge pull request #225 from cobra-system/claude/great-hamilton-OQK7b (50e33c2)
+- feat: quarterly planning improvements — Frisbee mappings, incoming orders, family drill-down (e534bc1)
+
+<!-- last-commit: 50e33c25665b97890c6ce0d98832d47de82924bc -->
+## [2026-06-03]
+
 - Merge pull request #224 from cobra-system/claude/trusting-ritchie-N7Ir4 (ffcc8f9)
 - feat: treemap overhaul, no-categories filter, unified products page (e5f7444)
 
-<!-- last-commit: ffcc8f9fd3e552eb7672cd79c22f61241dd89bff -->
 ## [2026-06-03]
 
 - Merge pull request #223 from cobra-system/claude/great-hamilton-OQK7b (1ff1789)
