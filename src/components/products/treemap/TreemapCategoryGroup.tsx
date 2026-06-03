@@ -1,32 +1,40 @@
-import type { CategoryRect } from "./treemapLayout";
+import type { CategoryRect, TreemapItem } from "./treemapLayout";
 import { NO_CATEGORY_GROUP } from "./useTreemapData";
 import TreemapCell from "./TreemapCell";
 
 interface Props {
   category: CategoryRect;
+  isHighlighted: boolean;
+  onSelect: (item: TreemapItem) => void;
+  onHoverCategory: (category: string | null) => void;
 }
 
 const HEADER_HEIGHT = 24;
 
-export default function TreemapCategoryGroup({ category: cat }: Props) {
+export default function TreemapCategoryGroup({ category: cat, isHighlighted, onSelect, onHoverCategory }: Props) {
   const isFlat = cat.category === NO_CATEGORY_GROUP;
-  const headerH = isFlat ? 0 : HEADER_HEIGHT;
 
   return (
     <div
-      className="absolute"
+      className="absolute transition-[box-shadow] duration-150"
       style={{
         left: cat.x,
         top: cat.y,
         width: cat.width,
         height: cat.height,
-        border: isFlat ? undefined : "1px solid var(--border, rgba(255,255,255,0.1))",
+        border: isFlat
+          ? undefined
+          : isHighlighted
+            ? "2px solid #3b82f6"
+            : "1px solid var(--border, rgba(255,255,255,0.1))",
+        boxShadow: isHighlighted ? "0 0 0 1px #3b82f6, inset 0 0 0 1px rgba(59,130,246,0.3)" : undefined,
+        zIndex: isHighlighted ? 10 : undefined,
       }}
     >
       {!isFlat && (
         <div
           className="flex items-center px-2 bg-black/60 border-b border-border/30 text-[11px] font-bold text-white uppercase tracking-wide truncate"
-          style={{ height: headerH }}
+          style={{ height: HEADER_HEIGHT }}
         >
           {cat.category}
         </div>
@@ -34,12 +42,11 @@ export default function TreemapCategoryGroup({ category: cat }: Props) {
       {cat.children.map(rect => (
         <TreemapCell
           key={rect.item.id}
-          rect={{
-            ...rect,
-            y: isFlat ? rect.y : rect.y,
-          }}
+          rect={rect}
           offsetX={cat.x}
           offsetY={cat.y}
+          onSelect={onSelect}
+          onHoverCategory={onHoverCategory}
         />
       ))}
     </div>

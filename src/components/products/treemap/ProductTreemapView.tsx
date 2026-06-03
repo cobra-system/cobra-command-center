@@ -1,11 +1,12 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Boxes } from "lucide-react";
 import { usePersistedState } from "@/hooks/usePersistedState";
-import { layoutTreemap } from "./treemapLayout";
+import { layoutTreemap, type TreemapItem } from "./treemapLayout";
 import { useTreemapData, DEFAULT_FILTERS, NO_CATEGORY_GROUP, type TreemapFilters } from "./useTreemapData";
 import TreemapFilterBar from "./TreemapFilterBar";
 import TreemapContainer from "./TreemapContainer";
 import TreemapCategoryGroup from "./TreemapCategoryGroup";
+import TreemapInfoPanel from "./TreemapInfoPanel";
 import TreemapLegend from "./TreemapLegend";
 
 const HEADER_HEIGHT = 24;
@@ -15,6 +16,8 @@ export default function ProductTreemapView() {
   const { items, categories, suppliers } = useTreemapData(filters);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<TreemapItem | null>(null);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -39,6 +42,14 @@ export default function ProductTreemapView() {
     () => layoutTreemap(items, dimensions.width, dimensions.height, effectiveHeaderHeight),
     [items, dimensions.width, dimensions.height, effectiveHeaderHeight],
   );
+
+  const handleSelect = useCallback((item: TreemapItem) => {
+    setSelectedItem(prev => prev?.id === item.id ? null : item);
+  }, []);
+
+  const handleHoverCategory = useCallback((cat: string | null) => {
+    setHoveredCategory(cat);
+  }, []);
 
   if (items.length === 0) {
     return (
@@ -75,11 +86,23 @@ export default function ProductTreemapView() {
             contentHeight={dimensions.height}
           >
             {layout.map(cat => (
-              <TreemapCategoryGroup key={cat.category} category={cat} />
+              <TreemapCategoryGroup
+                key={cat.category}
+                category={cat}
+                isHighlighted={hoveredCategory === cat.category && !isFlat}
+                onSelect={handleSelect}
+                onHoverCategory={handleHoverCategory}
+              />
             ))}
           </TreemapContainer>
         )}
       </div>
+      {selectedItem && (
+        <TreemapInfoPanel
+          item={selectedItem}
+          onClose={() => setSelectedItem(null)}
+        />
+      )}
       <TreemapLegend />
     </div>
   );

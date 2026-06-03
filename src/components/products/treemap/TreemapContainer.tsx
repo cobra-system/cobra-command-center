@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, type ReactNode } from "react";
+import { useState, useRef, useCallback, useEffect, createContext, useContext, type ReactNode } from "react";
 import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 
 interface Props {
@@ -7,9 +7,12 @@ interface Props {
   contentHeight: number;
 }
 
-const MIN_SCALE = 0.5;
+const MIN_SCALE = 1;
 const MAX_SCALE = 4;
 const ZOOM_SENSITIVITY = 0.001;
+
+const ScaleContext = createContext(1);
+export function useTreemapScale() { return useContext(ScaleContext); }
 
 export default function TreemapContainer({ children, contentWidth, contentHeight }: Props) {
   const [scale, setScale] = useState(1);
@@ -155,17 +158,19 @@ export default function TreemapContainer({ children, contentWidth, contentHeight
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <div
-          style={{
-            width: contentWidth,
-            height: contentHeight,
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
-            transformOrigin: "0 0",
-            position: "relative",
-          }}
-        >
-          {children}
-        </div>
+        <ScaleContext.Provider value={scale}>
+          <div
+            style={{
+              width: contentWidth,
+              height: contentHeight,
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
+              transformOrigin: "0 0",
+              position: "relative",
+            }}
+          >
+            {children}
+          </div>
+        </ScaleContext.Provider>
       </div>
     </div>
   );
