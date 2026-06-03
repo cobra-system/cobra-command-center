@@ -9,28 +9,38 @@ interface Props {
 
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 4;
-const STEP = 0.15;
+const ZOOM_SENSITIVITY = 0.001;
 
 export default function TreemapContainer({ children, contentWidth, contentHeight }: Props) {
   const [scale, setScale] = useState(1);
-  const [origin, setOrigin] = useState({ x: 0, y: 0 });
+  const [pan, setPan] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const panStart = useRef({ x: 0, y: 0 });
   const lastPinchDist = useRef<number | null>(null);
 
   const clampScale = (s: number) => Math.max(MIN_SCALE, Math.min(MAX_SCALE, s));
 
   const handleWheel = useCallback((e: WheelEvent) => {
-    if (!e.ctrlKey && !e.metaKey) return;
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -STEP : STEP;
+    const el = containerRef.current;
+    if (!el) return;
+
+    const rect = el.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
     setScale(prev => {
-      const next = clampScale(prev + delta);
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        const mx = e.clientX - rect.left;
-        const my = e.clientY - rect.top;
-        setOrigin({ x: mx, y: my });
-      }
+      const delta = -e.deltaY * ZOOM_SENSITIVITY;
+      const next = clampScale(prev * (1 + delta));
+      const ratio = next / prev;
+
+      setPan(p => ({
+        x: mx - ratio * (mx - p.x),
+        y: my - ratio * (my - p.y),
+      }));
+
       return next;
     });
   }, []);
@@ -41,6 +51,29 @@ export default function TreemapContainer({ children, contentWidth, contentHeight
     el.addEventListener("wheel", handleWheel, { passive: false });
     return () => el.removeEventListener("wheel", handleWheel);
   }, [handleWheel]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    isDragging.current = true;
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    panStart.current = { ...pan };
+    e.currentTarget.style.cursor = "grabbing";
+  }, [pan]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging.current) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    setPan({
+      x: panStart.current.x + dx,
+      y: panStart.current.y + dy,
+    });
+  }, []);
+
+  const handleMouseUp = useCallback((e: React.MouseEvent) => {
+    isDragging.current = false;
+    e.currentTarget.style.cursor = "grab";
+  }, []);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2) {
@@ -64,23 +97,46 @@ export default function TreemapContainer({ children, contentWidth, contentHeight
     lastPinchDist.current = null;
   }, []);
 
+  const zoomBy = useCallback((factor: number) => {
+    setScale(prev => {
+      const next = clampScale(prev * factor);
+      const el = containerRef.current;
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        const cx = rect.width / 2;
+        const cy = rect.height / 2;
+        const ratio = next / prev;
+        setPan(p => ({
+          x: cx - ratio * (cx - p.x),
+          y: cy - ratio * (cy - p.y),
+        }));
+      }
+      return next;
+    });
+  }, []);
+
+  const resetView = useCallback(() => {
+    setScale(1);
+    setPan({ x: 0, y: 0 });
+  }, []);
+
   return (
     <div className="relative">
       <div className="absolute top-2 left-2 z-20 flex flex-col gap-1">
         <button
-          onClick={() => setScale(prev => clampScale(prev + STEP * 2))}
+          onClick={() => zoomBy(1.3)}
           className="p-1.5 rounded bg-background/80 border border-border shadow-sm hover:bg-background transition-colors"
         >
           <ZoomIn className="h-4 w-4 text-foreground" />
         </button>
         <button
-          onClick={() => setScale(prev => clampScale(prev - STEP * 2))}
+          onClick={() => zoomBy(0.7)}
           className="p-1.5 rounded bg-background/80 border border-border shadow-sm hover:bg-background transition-colors"
         >
           <ZoomOut className="h-4 w-4 text-foreground" />
         </button>
         <button
-          onClick={() => { setScale(1); setOrigin({ x: 0, y: 0 }); }}
+          onClick={resetView}
           className="p-1.5 rounded bg-background/80 border border-border shadow-sm hover:bg-background transition-colors"
         >
           <Maximize2 className="h-4 w-4 text-foreground" />
@@ -89,8 +145,12 @@ export default function TreemapContainer({ children, contentWidth, contentHeight
 
       <div
         ref={containerRef}
-        className="overflow-auto rounded-lg border border-border bg-muted/30"
-        style={{ height: "calc(100vh - 310px)", minHeight: 400 }}
+        className="overflow-hidden rounded-lg border border-border bg-muted/30"
+        style={{ height: "calc(100vh - 310px)", minHeight: 400, cursor: "grab" }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={(e) => { isDragging.current = false; e.currentTarget.style.cursor = "grab"; }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -99,8 +159,8 @@ export default function TreemapContainer({ children, contentWidth, contentHeight
           style={{
             width: contentWidth,
             height: contentHeight,
-            transform: `scale(${scale})`,
-            transformOrigin: `${origin.x}px ${origin.y}px`,
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
+            transformOrigin: "0 0",
             position: "relative",
           }}
         >

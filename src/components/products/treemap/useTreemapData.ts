@@ -4,6 +4,8 @@ import { useProductScope } from "@/hooks/useProductScope";
 import { usePickupMonthlyAvg } from "@/hooks/usePickupMonthlyAvg";
 import type { TreemapItem } from "./treemapLayout";
 
+export const NO_CATEGORY_GROUP = "__none__";
+
 export interface TreemapFilters {
   topN: number | null;
   category: string;
@@ -42,7 +44,7 @@ export function useTreemapData(filters: TreemapFilters) {
   const items = useMemo(() => {
     let products = scopedProducts;
 
-    if (filters.category !== "הכל") {
+    if (filters.category !== "הכל" && filters.category !== NO_CATEGORY_GROUP) {
       products = products.filter(p => p.category === filters.category);
     }
     if (filters.supplier !== "all") {
@@ -57,7 +59,7 @@ export function useTreemapData(filters: TreemapFilters) {
         sku: p.sku,
         value: consumption,
         ratio: consumption > 0 ? p.stock_qty / consumption : 0,
-        category: p.category || "ללא קטגוריה",
+        category: filters.category === NO_CATEGORY_GROUP ? NO_CATEGORY_GROUP : (p.category || "ללא קטגוריה"),
         supplier: p.supplier ?? undefined,
         stockQty: p.stock_qty,
         consumption,

@@ -109,7 +109,7 @@ export default function ManagerLayout() {
     ? isBondedDivMgr
       ? [
           { to: `/division/${divEnc}/consumption`, icon: "BarChart3", label: "צריכה" },
-          { to: `/division/${divEnc}/products`, icon: "Package", label: "מוצרים" },
+          { to: "/products", icon: "Package", label: "מוצרים" },
           { to: `/division/${divEnc}/quarterly-planning`, icon: "Calendar", label: "תכנון רבעוני" },
           { to: "/orders", icon: "ShoppingCart", label: "רכש" },
           { to: "/suppliers", icon: "Truck", label: "ספקים" },

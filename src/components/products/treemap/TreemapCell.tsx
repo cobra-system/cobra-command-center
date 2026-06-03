@@ -20,9 +20,12 @@ export default function TreemapCell({ rect, offsetX, offsetY }: Props) {
   const h = rect.height;
   const bg = getHealthColor(item.stockQty, item.consumption);
 
-  const showSku = w > 30 && h > 20;
-  const showName = w > 70 && h > 44;
-  const showPercent = w > 50 && h > 32;
+  const sku = item.sku || "";
+  const fontSize = Math.min(
+    Math.max(8, Math.min((w - 8) / (sku.length * 0.62), h * 0.38)),
+    28,
+  );
+  const showSku = w > 25 && h > 16 && sku.length > 0;
 
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     setTooltip({ x: e.clientX, y: e.clientY });
@@ -30,38 +33,29 @@ export default function TreemapCell({ rect, offsetX, offsetY }: Props) {
 
   const onMouseLeave = useCallback(() => setTooltip(null), []);
 
-  const percentText = item.consumption > 0
-    ? `${item.stockQty > 0 ? ((item.stockQty / item.consumption)).toFixed(1) : "0"}m`
-    : "";
-
   return (
     <>
       <div
-        className="absolute cursor-pointer border border-white/15 flex flex-col items-center justify-center text-center overflow-hidden transition-shadow duration-150 hover:shadow-lg hover:z-10 hover:border-white/40"
+        className="absolute cursor-pointer flex items-center justify-center overflow-hidden transition-shadow duration-150 hover:shadow-lg hover:z-10 hover:brightness-125"
         style={{
           left: rect.x - offsetX,
           top: rect.y - offsetY,
           width: w,
           height: h,
           backgroundColor: bg,
+          border: "1px solid rgba(0,0,0,0.3)",
         }}
         onClick={() => navigate(`/products/${item.id}`)}
         onMouseMove={onMouseMove}
         onMouseLeave={onMouseLeave}
       >
         {showSku && (
-          <span className="text-white text-[11px] font-bold drop-shadow-sm truncate px-1 leading-tight font-mono" dir="ltr">
-            {item.sku}
-          </span>
-        )}
-        {showPercent && (
-          <span className="text-white/90 text-[11px] font-semibold drop-shadow-sm leading-tight">
-            {percentText}
-          </span>
-        )}
-        {showName && (
-          <span className="text-white/75 text-[9px] truncate px-1 max-w-full leading-tight mt-0.5">
-            {item.name}
+          <span
+            className="text-white font-bold drop-shadow-sm truncate px-1 font-mono select-none"
+            style={{ fontSize, lineHeight: 1.1 }}
+            dir="ltr"
+          >
+            {sku}
           </span>
         )}
       </div>

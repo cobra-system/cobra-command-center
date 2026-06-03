@@ -41,7 +41,6 @@ const EquipmentPage = lazy(() => import("@/pages/EquipmentPage"));
 const InstallerDetailPage = lazy(() => import("@/pages/InstallerDetailPage"));
 const DivisionDetailPage = lazy(() => import("@/pages/DivisionDetailPage"));
 const DivisionConsumptionPage = lazy(() => import("@/pages/DivisionConsumptionPage"));
-const DivisionProductsPage = lazy(() => import("@/pages/DivisionProductsPage"));
 const QuarterlyPlanningPage = lazy(() => import("@/pages/QuarterlyPlanningPage"));
 const LogisticsMapPage = lazy(() => import("@/pages/LogisticsMapPage"));
 const IssueDetailPage = lazy(() => import("@/pages/IssueDetailPage"));
@@ -163,7 +162,7 @@ function AppRoutes() {
         <Route path="/equipment/installer/:id" element={<InstallerDetailPage />} />
         <Route path="/equipment/division/:divisionName" element={<DivisionDetailPage />} />
         <Route path="/division/:divisionName/consumption" element={<DivisionConsumptionPage />} />
-        <Route path="/division/:divisionName/products" element={<DivisionProductsPage />} />
+        <Route path="/division/:divisionName/products" element={<Navigate to="/products" replace />} />
         <Route path="/division/:divisionName/quarterly-planning" element={<QuarterlyPlanningPage />} />
         <Route path="/compliance" element={<Navigate to="/documents" replace />} />
         <Route path="/shipment-groups" element={<Navigate to="/orders" replace />} />

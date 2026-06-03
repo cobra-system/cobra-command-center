@@ -30,7 +30,12 @@
 ## [Unreleased]
 
 ### Added
+- Unified products page — consolidated `/products` and `/division/:divisionName/products` into a single page; admin sees total stock with expandable per-division breakdown (editable), division managers see their own division stock
 - Interactive product treemap/heatmap view on Products page — finviz-style visualization where cell size reflects consumption and color reflects inventory health, with zoom/pan, category grouping, and filters
+
+### Changed
+- Treemap quality overhaul — dark Finviz-style color palette, SKU-only cells with dynamic font sizing, plain mouse-wheel zoom, click-drag panning
+- Added "ללא קטגוריות" filter option to treemap for flat layout by consumption size without category grouping
 - Division consumption analytics redesign — monthly consumption bar chart, inventory health indicators (color-coded 7-level scale), mini sparklines, sortable/searchable table with column visibility
 - `division_product_consumption` table for storing 13-month historical consumption data per division/product
 - `monthly_avg` and `monthly_avg_updated_at` columns on `division_products` table
