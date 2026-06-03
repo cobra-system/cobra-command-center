@@ -29,12 +29,15 @@ import type {
   ProductModelMapping,
   QuarterlyProcurementPlan,
   QuarterlyPlanSnapshot,
+  OrderRequest,
 } from "@/contexts/types";
 import {
   Calendar, Package, TrendingUp, ShoppingCart, Upload, Info,
   Plus, RefreshCw, Download, Search, X, ChevronDown, ChevronUp, Trash2, Camera, RotateCcw,
+  AlertTriangle, CheckCircle2, Clock, Send, ExternalLink, SquareCheck,
 } from "lucide-react";
 import { format } from "date-fns";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -86,6 +89,7 @@ const MAPPING_COLS: ColDef[] = [
 ];
 
 const PLAN_COLS: ColDef[] = [
+  { id: "request_status", label: "סטטוס בקשה" },
   { id: "product", label: "תיאור פריט", sortField: "product_name" },
   { id: "supplier", label: "ספק", sortField: "supplier" },
   { id: "sku", label: 'מק"ט', sortField: "sku" },
@@ -96,6 +100,7 @@ const PLAN_COLS: ColDef[] = [
   { id: "incoming_orders", label: 'עול"ב', sortField: "incoming_orders" },
   { id: "smoothed_required", label: "נדרש משוכלל", sortField: "smoothed_required" },
   { id: "required_to_order", label: "נדרש להזמין", sortField: "required_to_order" },
+  { id: "coverage_bar", label: "כיסוי" },
   { id: "month1_demand", label: "חודש 1" },
   { id: "month2_demand", label: "חודש 2" },
   { id: "month3_demand", label: "חודש 3" },
@@ -188,8 +193,13 @@ export default function QuarterlyPlanningPage() {
   const modelColMenu = useColMenu();
   const mappingColVis = useColumnVisibility("qp-mappings:hidden-columns", MAPPING_COLS, []);
   const mappingColMenu = useColMenu();
-  const planColVis = useColumnVisibility("qp-procurement:hidden-columns", PLAN_COLS, ["month1_demand", "month2_demand", "month3_demand", "estimated_arrival_date"]);
+  const planColVis = useColumnVisibility("qp-procurement:hidden-columns", PLAN_COLS, ["month1_demand", "month2_demand", "month3_demand", "estimated_arrival_date", "coverage_bar"]);
   const planColMenu = useColMenu();
+
+  // ── Order request integration ──
+  const [orderRequestMap, setOrderRequestMap] = useState<Map<string, OrderRequest>>(new Map());
+  const [selectedPlanIds, setSelectedPlanIds] = useState<Set<string>>(new Set());
+  const [creatingRequests, setCreatingRequests] = useState(false);
 
   // ── Import dialog ──
   const [showImport, setShowImport] = useState(false);
@@ -212,12 +222,13 @@ export default function QuarterlyPlanningPage() {
     if (!division) return;
     setLoading(true);
 
-    const [modelsRes, forecastsRes, mappingsRes, plansRes, divProdsRes] = await Promise.all([
+    const [modelsRes, forecastsRes, mappingsRes, plansRes, divProdsRes, orderReqRes] = await Promise.all([
       supabase.from("vehicle_models").select("*").eq("division", division).eq("is_active", true).order("brand").order("model_family").order("model_name"),
       supabase.from("quarterly_vehicle_forecasts").select("*, vehicle_models(*)").eq("year", selectedYear).eq("quarter", selectedQuarter),
       supabase.from("product_model_mappings").select("*, products(id, name, sku)").eq("division", division),
       supabase.from("quarterly_procurement_plans").select("*, products(id, name, sku, supplier)").eq("division", division).eq("year", selectedYear).eq("quarter", selectedQuarter),
       supabase.from("division_products").select("product_id, products(id, name, sku, supplier)").eq("division", division),
+      supabase.from("order_requests").select("id, product_id, status, quantity, created_at, order_type").eq("division", division).in("status", ["pending", "ordered"]),
     ]);
 
     if (modelsRes.data) setModels(modelsRes.data as VehicleModel[]);
@@ -236,6 +247,15 @@ export default function QuarterlyPlanningPage() {
     }
     if (mappingsRes.data) setMappings(mappingsRes.data as ProductModelMapping[]);
     if (plansRes.data) setPlans(plansRes.data as QuarterlyProcurementPlan[]);
+    if (orderReqRes.data) {
+      const reqMap = new Map<string, OrderRequest>();
+      for (const req of orderReqRes.data as OrderRequest[]) {
+        if (req.product_id && (!reqMap.has(req.product_id) || req.status === "ordered")) {
+          reqMap.set(req.product_id, req);
+        }
+      }
+      setOrderRequestMap(reqMap);
+    }
     setLoading(false);
   }, [division, selectedYear, selectedQuarter]);
 
@@ -250,6 +270,7 @@ export default function QuarterlyPlanningPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "quarterly_vehicle_forecasts" }, () => void fetchData())
       .on("postgres_changes", { event: "*", schema: "public", table: "product_model_mappings" }, () => void fetchData())
       .on("postgres_changes", { event: "*", schema: "public", table: "quarterly_procurement_plans" }, () => void fetchData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_requests", filter: `division=eq.${division}` }, () => void fetchData())
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [division, selectedYear, selectedQuarter, fetchData]);
@@ -338,8 +359,10 @@ export default function QuarterlyPlanningPage() {
     const totalStock = plans.reduce((s, p) => s + (p.current_stock ?? 0), 0);
     const totalSmoothed = plans.reduce((s, p) => s + (p.smoothed_required ?? 0), 0);
     const coverage = totalSmoothed > 0 ? Math.round((totalStock / totalSmoothed) * 100) : 0;
-    return { totalForecast, productsToOrder, totalRequired, coverage, modelCount: models.length };
-  }, [familyTotals, plans, models]);
+    const stockoutRisk = plans.filter(p => (p.current_stock ?? 0) === 0 && (p.required_to_order ?? 0) > 0).length;
+    const pendingRequests = plans.filter(p => orderRequestMap.get(p.product_id)?.status === "pending").length;
+    return { totalForecast, productsToOrder, totalRequired, coverage, modelCount: models.length, stockoutRisk, pendingRequests };
+  }, [familyTotals, plans, models, orderRequestMap]);
 
   // ── Upsert forecast (inline edit) ──
   async function upsertForecast(modelId: string, field: "month1_qty" | "month2_qty" | "month3_qty", value: number) {
@@ -752,6 +775,43 @@ export default function QuarterlyPlanningPage() {
     URL.revokeObjectURL(url);
   }
 
+  // ── Order request creation from procurement plan ──
+  async function createOrderRequests(planRows: QuarterlyProcurementPlan[]) {
+    if (planRows.length === 0) return;
+    setCreatingRequests(true);
+
+    const inserts = planRows.map(plan => ({
+      division,
+      product_id: plan.product_id,
+      product_name: plan.products?.name ?? "",
+      product_sku: plan.products?.sku ?? null,
+      supplier: plan.products?.supplier ?? null,
+      quantity: plan.required_to_order ?? 0,
+      urgency: (plan.current_stock ?? 0) === 0 ? "דחוף" as const : "רגיל" as const,
+      order_type: "רבעונית" as const,
+      status: "pending" as const,
+      quarterly_forecast: plan.computed_forecast,
+      utilization_pct: plan.utilization_pct,
+      incoming_orders: plan.incoming_orders,
+      smoothed_required: plan.smoothed_required,
+      required_to_order: plan.required_to_order,
+      current_consumption: `Q${selectedQuarter} ${selectedYear}`,
+      notes: plan.notes ? `תכנון רבעוני: ${plan.notes}` : `בקשה מתכנון רבעוני Q${selectedQuarter}/${selectedYear}`,
+      created_by: currentUser?.id,
+      created_by_name: currentUser?.name,
+    }));
+
+    const { error, data } = await supabase.from("order_requests").insert(inserts).select("id, product_id");
+    if (error) {
+      toast({ title: "שגיאה ביצירת בקשות", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "בקשות רכש נוצרו", description: `${data?.length ?? 0} בקשות נשלחו לאישור` });
+      setSelectedPlanIds(new Set());
+      void fetchData();
+    }
+    setCreatingRequests(false);
+  }
+
   // ── Snapshot functions ──
   async function fetchSnapshots() {
     setSnapshotsLoading(true);
@@ -935,12 +995,14 @@ export default function QuarterlyPlanningPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
           { label: "דגמי רכב", value: kpis.modelCount, icon: Calendar, color: "text-blue-500", tip: "מספר דגמי רכב פעילים שהוגדרו עבור חטיבה זו" },
           { label: "צפי רבעוני", value: fmtNum(kpis.totalForecast), icon: TrendingUp, color: "text-green-500", tip: "סך כל יחידות הרכב הצפויות ברבעון הנוכחי" },
           { label: "מוצרים לרכישה", value: kpis.productsToOrder, icon: ShoppingCart, color: "text-amber-500", tip: "מוצרים שהכמות הנדרשת להזמנה שלהם גבוהה מ-0" },
           { label: "כיסוי מלאי", value: `${kpis.coverage}%`, icon: Package, color: kpis.coverage >= 70 ? "text-green-500" : kpis.coverage >= 30 ? "text-amber-500" : "text-red-500", tip: "יחס המלאי הנוכחי מול הביקוש המשוכלל — מעל 70% = תקין" },
+          { label: "סיכון חוסר", value: kpis.stockoutRisk, icon: AlertTriangle, color: kpis.stockoutRisk > 0 ? "text-red-500" : "text-green-500", tip: "מוצרים ללא מלאי כלל שדורשים הזמנה" },
+          { label: "בקשות ממתינות", value: kpis.pendingRequests, icon: Clock, color: kpis.pendingRequests > 0 ? "text-orange-500" : "text-muted-foreground", tip: "בקשות רכש שנשלחו ומחכות לאישור מנהל" },
         ].map(k => (
           <div key={k.label} className="bg-card rounded-xl border p-3 sm:p-4 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center gap-1.5 mb-1">
@@ -998,6 +1060,20 @@ export default function QuarterlyPlanningPage() {
                   </AlertDialogContent>
                 </AlertDialog>
               )}
+              {canEdit && plans.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs gap-1.5"
+                  onClick={() => {
+                    const actionable = plans.filter(p => (p.required_to_order ?? 0) > 0 && !orderRequestMap.has(p.product_id));
+                    setSelectedPlanIds(new Set(actionable.map(p => p.id)));
+                  }}
+                >
+                  <SquareCheck className="h-3 w-3" />
+                  בחר הכל לרכש ({plans.filter(p => (p.required_to_order ?? 0) > 0 && !orderRequestMap.has(p.product_id)).length})
+                </Button>
+              )}
               <Button size="sm" variant="ghost" className="h-8 text-xs gap-1.5" onClick={() => { setShowSnapshots(true); void fetchSnapshots(); }}>
                 <Camera className="h-3 w-3" />
                 צילומים
@@ -1009,12 +1085,70 @@ export default function QuarterlyPlanningPage() {
             </div>
           </div>
 
+          {/* Batch actions toolbar */}
+          {selectedPlanIds.size > 0 && (
+            <div className="flex items-center justify-between bg-primary/5 border border-primary/20 rounded-lg px-4 py-2.5">
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  checked={true}
+                  onCheckedChange={() => setSelectedPlanIds(new Set())}
+                  className="h-4 w-4"
+                />
+                <span className="text-sm font-medium">{selectedPlanIds.size} מוצרים נבחרו</span>
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedPlanIds(new Set())}>
+                  <X className="h-3 w-3 me-1" /> נקה בחירה
+                </Button>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button size="sm" className="h-8 text-xs gap-1.5" disabled={creatingRequests}>
+                    <Send className={`h-3 w-3 ${creatingRequests ? "animate-spin" : ""}`} />
+                    צור {selectedPlanIds.size} בקשות רכש
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>יצירת בקשות רכש?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      ייווצרו {selectedPlanIds.size} בקשות רכש חדשות על בסיס תכנון הרבעון.
+                      הבקשות ישלחו לאישור מנהל הרכש.
+                      מוצרים ללא מלאי יסומנו כ&quot;דחוף&quot;.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>ביטול</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => {
+                      const rows = plans.filter(p => selectedPlanIds.has(p.id));
+                      void createOrderRequests(rows);
+                    }}>צור בקשות</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          )}
+
           <Card>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(planColVis.hiddenCols, planColMenu.setMenu)}>
+                      {canEdit && (
+                        <th className="p-3 w-10">
+                          <Checkbox
+                            checked={filteredPlans.length > 0 && filteredPlans.every(p => selectedPlanIds.has(p.id))}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                const withoutRequest = filteredPlans.filter(p => !orderRequestMap.has(p.product_id));
+                                setSelectedPlanIds(new Set(withoutRequest.map(p => p.id)));
+                              } else {
+                                setSelectedPlanIds(new Set());
+                              }
+                            }}
+                            className="h-4 w-4"
+                          />
+                        </th>
+                      )}
                       {PLAN_COLS.map(col => planColVis.isVisible(col.id) ? (
                         <th key={col.id} className="text-right p-3 font-semibold text-foreground whitespace-nowrap" onContextMenu={colThContextMenu(col, planColMenu.setMenu)}>
                           <span className="flex items-center gap-1">
@@ -1034,11 +1168,12 @@ export default function QuarterlyPlanningPage() {
                           </span>
                         </th>
                       ) : null)}
+                      {canEdit && <th className="p-3 w-10"></th>}
                     </tr>
                   </thead>
                   <tbody>
                     {filteredPlans.length === 0 ? (
-                      <tr><td colSpan={planColVis.visibleCount} className="p-12 text-center">
+                      <tr><td colSpan={planColVis.visibleCount + (canEdit ? 2 : 0)} className="p-12 text-center">
                         {plans.length === 0 ? (
                           <div className="flex flex-col items-center gap-2">
                             <ShoppingCart className="h-8 w-8 text-muted-foreground/40" />
@@ -1052,13 +1187,52 @@ export default function QuarterlyPlanningPage() {
                           </div>
                         )}
                       </td></tr>
-                    ) : filteredPlans.map(plan => (
-                      <tr key={plan.id} className="border-b hover:bg-muted/30 transition-colors">
+                    ) : filteredPlans.map(plan => {
+                      const req = orderRequestMap.get(plan.product_id);
+                      const isStockout = (plan.current_stock ?? 0) === 0 && (plan.required_to_order ?? 0) > 0;
+                      const coverageRatio = (plan.smoothed_required ?? 0) > 0 ? Math.min(1, ((plan.current_stock ?? 0) + (plan.incoming_orders ?? 0)) / (plan.smoothed_required ?? 1)) : 1;
+                      return (
+                      <tr key={plan.id} className={`border-b transition-colors ${isStockout ? "bg-red-50/50 dark:bg-red-950/10 hover:bg-red-50/80 dark:hover:bg-red-950/20" : "hover:bg-muted/30"}`}>
+                        {canEdit && (
+                          <td className="p-3">
+                            <Checkbox
+                              checked={selectedPlanIds.has(plan.id)}
+                              disabled={!!req}
+                              onCheckedChange={(checked) => {
+                                setSelectedPlanIds(prev => {
+                                  const next = new Set(prev);
+                                  if (checked) next.add(plan.id); else next.delete(plan.id);
+                                  return next;
+                                });
+                              }}
+                              className="h-4 w-4"
+                            />
+                          </td>
+                        )}
+                        {planColVis.isVisible("request_status") && (
+                          <td className="p-3">
+                            {req ? (
+                              <Badge
+                                variant={req.status === "ordered" ? "default" : "secondary"}
+                                className={`text-[10px] gap-1 ${req.status === "ordered" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"}`}
+                              >
+                                {req.status === "ordered" ? <CheckCircle2 className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                                {req.status === "ordered" ? "הוזמן" : "ממתין"}
+                              </Badge>
+                            ) : isStockout ? (
+                              <Badge variant="destructive" className="text-[10px] gap-1">
+                                <AlertTriangle className="h-3 w-3" /> חסר
+                              </Badge>
+                            ) : null}
+                          </td>
+                        )}
                         {planColVis.isVisible("product") && <td className="p-3 font-medium">{plan.products?.name ?? "—"}</td>}
                         {planColVis.isVisible("supplier") && <td className="p-3 text-muted-foreground">{plan.products?.supplier ?? "—"}</td>}
                         {planColVis.isVisible("sku") && <td className="p-3 text-muted-foreground font-mono text-xs">{plan.products?.sku ?? "—"}</td>}
                         {planColVis.isVisible("current_stock") && (
-                          <td className="p-3 tabular-nums">{fmtNum(plan.current_stock)}</td>
+                          <td className="p-3 tabular-nums">
+                            <span className={(plan.current_stock ?? 0) === 0 ? "text-red-600 font-medium" : ""}>{fmtNum(plan.current_stock)}</span>
+                          </td>
                         )}
                         {planColVis.isVisible("computed_forecast") && (
                           <td className="p-3 tabular-nums">
@@ -1094,6 +1268,19 @@ export default function QuarterlyPlanningPage() {
                         {planColVis.isVisible("required_to_order") && (
                           <td className="p-3 tabular-nums font-bold">
                             <span className={(plan.required_to_order ?? 0) > 0 ? "text-amber-600" : "text-green-600"}>{fmtNum(plan.required_to_order)}</span>
+                          </td>
+                        )}
+                        {planColVis.isVisible("coverage_bar") && (
+                          <td className="p-3 min-w-[100px]">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all ${coverageRatio >= 0.7 ? "bg-green-500" : coverageRatio >= 0.3 ? "bg-amber-500" : "bg-red-500"}`}
+                                  style={{ width: `${Math.round(coverageRatio * 100)}%` }}
+                                />
+                              </div>
+                              <span className="text-[10px] tabular-nums text-muted-foreground w-8">{Math.round(coverageRatio * 100)}%</span>
+                            </div>
                           </td>
                         )}
                         {planColVis.isVisible("month1_demand") && <td className="p-3 tabular-nums">{fmtNum(plan.month1_demand)}</td>}
@@ -1141,8 +1328,28 @@ export default function QuarterlyPlanningPage() {
                             <InlineEditCell value={plan.notes} disabled={!canEdit} onCommit={v => patchPlan(plan.id, { notes: v })} placeholder="הערות..." />
                           </td>
                         )}
+                        {canEdit && (
+                          <td className="p-3">
+                            {!req && (plan.required_to_order ?? 0) > 0 && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7 hover:bg-primary/10"
+                                    onClick={() => void createOrderRequests([plan])}
+                                    disabled={creatingRequests}
+                                  >
+                                    <Send className="h-3.5 w-3.5 text-primary" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>צור בקשת רכש</TooltipContent>
+                              </Tooltip>
+                            )}
+                          </td>
+                        )}
                       </tr>
-                    ))}
+                    );})}
                   </tbody>
                 </table>
               </div>
