@@ -1,7 +1,9 @@
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useState } from "react";
+import { createPortal } from "react-dom";
 import type { TreemapRect } from "./treemapLayout";
 import { getHealthColor } from "./treemapColors";
 import { useTreemapScale } from "./TreemapContainer";
+import TreemapTooltip from "./TreemapTooltip";
 
 interface Props {
   rect: TreemapRect;
@@ -9,13 +11,15 @@ interface Props {
   offsetY: number;
   onSelect: (item: TreemapRect["item"]) => void;
   onHoverCategory: (category: string | null) => void;
+  isSearchMatch: boolean | null;
 }
 
 const DRAG_THRESHOLD = 5;
 
-export default function TreemapCell({ rect, offsetX, offsetY, onSelect, onHoverCategory }: Props) {
+export default function TreemapCell({ rect, offsetX, offsetY, onSelect, onHoverCategory, isSearchMatch }: Props) {
   const scale = useTreemapScale();
   const mouseDownPos = useRef<{ x: number; y: number } | null>(null);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number } | null>(null);
 
   const { item } = rect;
   const w = rect.width;
@@ -31,6 +35,10 @@ export default function TreemapCell({ rect, offsetX, offsetY, onSelect, onHoverC
     28,
   );
   const showSku = scaledW > 25 && scaledH > 16 && sku.length > 0;
+  const showIncoming = scaledW > 30 && scaledH > 30 && (item.incomingQty ?? 0) > 0;
+
+  const dimmed = isSearchMatch === false;
+  const highlighted = isSearchMatch === true;
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     mouseDownPos.current = { x: e.clientX, y: e.clientY };
@@ -54,36 +62,60 @@ export default function TreemapCell({ rect, offsetX, offsetY, onSelect, onHoverC
     onHoverCategory(item.category);
   }, [item.category, onHoverCategory]);
 
+  const onMouseMove = useCallback((e: React.MouseEvent) => {
+    setTooltip({ x: e.clientX, y: e.clientY });
+  }, []);
+
   const onMouseLeave = useCallback(() => {
     onHoverCategory(null);
+    setTooltip(null);
   }, [onHoverCategory]);
 
   return (
-    <div
-      className="absolute flex items-center justify-center overflow-hidden transition-[filter] duration-150 hover:brightness-125 hover:z-10"
-      style={{
-        left: rect.x - offsetX,
-        top: rect.y - offsetY,
-        width: w,
-        height: h,
-        backgroundColor: bg,
-        border: "1px solid rgba(0,0,0,0.3)",
-        cursor: "pointer",
-      }}
-      onMouseDown={onMouseDown}
-      onClick={onClick}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-    >
-      {showSku && (
-        <span
-          className="text-white font-bold drop-shadow-sm truncate px-1 font-mono select-none"
-          style={{ fontSize: fontSize / scale, lineHeight: 1.1 }}
-          dir="ltr"
-        >
-          {sku}
-        </span>
+    <>
+      <div
+        className="absolute flex items-center justify-center overflow-hidden transition-[filter,opacity] duration-150 hover:brightness-125 hover:z-10"
+        style={{
+          left: rect.x - offsetX,
+          top: rect.y - offsetY,
+          width: w,
+          height: h,
+          backgroundColor: bg,
+          border: highlighted
+            ? "2px solid #f59e0b"
+            : "1px solid rgba(0,0,0,0.3)",
+          boxShadow: highlighted ? "0 0 8px rgba(245,158,11,0.5)" : undefined,
+          opacity: dimmed ? 0.3 : 1,
+          cursor: "pointer",
+        }}
+        onMouseDown={onMouseDown}
+        onClick={onClick}
+        onMouseEnter={onMouseEnter}
+        onMouseMove={onMouseMove}
+        onMouseLeave={onMouseLeave}
+      >
+        {showSku && (
+          <span
+            className="text-white font-bold drop-shadow-sm truncate px-1 font-mono select-none"
+            style={{ fontSize: fontSize / scale, lineHeight: 1.1 }}
+            dir="ltr"
+          >
+            {sku}
+          </span>
+        )}
+        {showIncoming && (
+          <div
+            className="absolute top-0.5 left-0.5 flex items-center gap-0.5 bg-blue-600/80 text-white rounded-sm px-1"
+            style={{ fontSize: Math.max(8, 10 / scale), lineHeight: 1.2 }}
+          >
+            <span className="font-medium">+{item.incomingQty}</span>
+          </div>
+        )}
+      </div>
+      {tooltip && !dimmed && createPortal(
+        <TreemapTooltip item={item} x={tooltip.x} y={tooltip.y} />,
+        document.body,
       )}
-    </div>
+    </>
   );
 }

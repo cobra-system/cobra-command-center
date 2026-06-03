@@ -7,16 +7,22 @@ import type { TreemapItem } from "./treemapLayout";
 
 export const NO_CATEGORY_GROUP = "__none__";
 
+export type SizeMetric = "consumption" | "stockValue";
+
 export interface TreemapFilters {
   topN: number | null;
   category: string;
   supplier: string;
+  sizeBy: SizeMetric;
+  division: string;
 }
 
 export const DEFAULT_FILTERS: TreemapFilters = {
   topN: null,
   category: "הכל",
   supplier: "all",
+  sizeBy: "consumption",
+  division: "all",
 };
 
 interface DivStockRow {
@@ -76,6 +82,14 @@ export function useTreemapData(filters: TreemapFilters) {
     return Array.from(set).sort((a, b) => a.localeCompare(b, "he"));
   }, [scopedProducts]);
 
+  const uniqueDivisions = useMemo(() => {
+    const set = new Set<string>();
+    for (const rows of divStockByProduct.values()) {
+      for (const r of rows) set.add(r.division);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "he"));
+  }, [divStockByProduct]);
+
   const items = useMemo(() => {
     let products = scopedProducts;
 
@@ -86,8 +100,11 @@ export function useTreemapData(filters: TreemapFilters) {
       products = products.filter(p => p.supplier === filters.supplier);
     }
 
+    const viewingSpecificDiv = filters.division !== "all" && isManager;
+
     let mapped: TreemapItem[] = products.map(p => {
       const divEntries = divStockByProduct.get(p.id) ?? [];
+      const supplierObj = suppliers.find(s => s.company === p.supplier);
 
       let stockQty: number;
       let consumption: number;
@@ -98,25 +115,48 @@ export function useTreemapData(filters: TreemapFilters) {
         consumption = (myEntry?.monthly_avg && myEntry.monthly_avg > 0)
           ? myEntry.monthly_avg
           : getConsumption(p, avgByProduct);
+      } else if (viewingSpecificDiv) {
+        const divEntry = divEntries.find(d => d.division === filters.division);
+        stockQty = divEntry?.division_stock ?? 0;
+        consumption = (divEntry?.monthly_avg && divEntry.monthly_avg > 0)
+          ? divEntry.monthly_avg
+          : getConsumption(p, avgByProduct);
       } else {
         const divTotal = divEntries.reduce((s, d) => s + (d.division_stock ?? 0), 0);
         stockQty = p.stock_qty + divTotal;
         consumption = getConsumption(p, avgByProduct);
       }
 
+      const purchasePrice = p.purchase_price ?? undefined;
+
+      let value: number;
+      if (filters.sizeBy === "stockValue" && purchasePrice && purchasePrice > 0) {
+        value = stockQty * purchasePrice;
+      } else {
+        value = consumption;
+      }
+
       return {
         id: p.id,
         name: p.name,
         sku: p.sku,
-        value: consumption,
+        value: Math.max(value, 0.01),
         ratio: consumption > 0 ? stockQty / consumption : 0,
         category: filters.category === NO_CATEGORY_GROUP ? NO_CATEGORY_GROUP : (p.category || "ללא קטגוריה"),
         supplier: p.supplier ?? undefined,
+        supplierId: supplierObj?.id,
         stockQty,
         consumption,
         incomingQty: p.incoming_qty,
+        purchasePrice,
+        leadTimeDays: p.lead_time_days ?? undefined,
+        productType: p.product_type ?? undefined,
       };
     });
+
+    if (viewingSpecificDiv) {
+      mapped = mapped.filter(m => m.stockQty > 0 || m.consumption > 0);
+    }
 
     mapped.sort((a, b) => b.value - a.value);
 
@@ -125,7 +165,7 @@ export function useTreemapData(filters: TreemapFilters) {
     }
 
     return mapped;
-  }, [scopedProducts, avgByProduct, filters, divStockByProduct, isDivMgr, userDivision]);
+  }, [scopedProducts, avgByProduct, filters, divStockByProduct, isDivMgr, userDivision, isManager, suppliers]);
 
-  return { items, categories: activeCats, suppliers: uniqueSuppliers };
+  return { items, categories: activeCats, suppliers: uniqueSuppliers, divisions: uniqueDivisions, isManager };
 }

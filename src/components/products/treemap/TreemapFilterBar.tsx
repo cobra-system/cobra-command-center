@@ -1,5 +1,7 @@
+import { Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { TreemapFilters } from "./useTreemapData";
+import { Input } from "@/components/ui/input";
+import type { TreemapFilters, SizeMetric } from "./useTreemapData";
 import { NO_CATEGORY_GROUP } from "./useTreemapData";
 
 interface Props {
@@ -7,6 +9,10 @@ interface Props {
   onChange: (filters: TreemapFilters) => void;
   categories: string[];
   suppliers: string[];
+  divisions: string[];
+  isManager: boolean;
+  search: string;
+  onSearchChange: (s: string) => void;
 }
 
 const TOP_N_OPTIONS = [
@@ -17,7 +23,12 @@ const TOP_N_OPTIONS = [
   { value: "50", label: "Top 50" },
 ];
 
-export default function TreemapFilterBar({ filters, onChange, categories, suppliers }: Props) {
+const SIZE_OPTIONS: { value: SizeMetric; label: string }[] = [
+  { value: "consumption", label: "צריכה" },
+  { value: "stockValue", label: "שווי מלאי" },
+];
+
+export default function TreemapFilterBar({ filters, onChange, categories, suppliers, divisions, isManager, search, onSearchChange }: Props) {
   return (
     <div className="flex flex-wrap gap-2 items-center">
       <div className="flex bg-secondary rounded-lg p-1">
@@ -40,7 +51,7 @@ export default function TreemapFilterBar({ filters, onChange, categories, suppli
         value={filters.category}
         onValueChange={v => onChange({ ...filters, category: v })}
       >
-        <SelectTrigger className="w-[160px]">
+        <SelectTrigger className="w-[150px]">
           <SelectValue placeholder="קטגוריה" />
         </SelectTrigger>
         <SelectContent>
@@ -56,7 +67,7 @@ export default function TreemapFilterBar({ filters, onChange, categories, suppli
         value={filters.supplier}
         onValueChange={v => onChange({ ...filters, supplier: v })}
       >
-        <SelectTrigger className="w-[160px]">
+        <SelectTrigger className="w-[150px]">
           <SelectValue placeholder="ספק" />
         </SelectTrigger>
         <SelectContent>
@@ -66,6 +77,49 @@ export default function TreemapFilterBar({ filters, onChange, categories, suppli
           ))}
         </SelectContent>
       </Select>
+
+      {isManager && divisions.length > 0 && (
+        <Select
+          value={filters.division}
+          onValueChange={v => onChange({ ...filters, division: v })}
+        >
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="חטיבה" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">כל החטיבות</SelectItem>
+            {divisions.map(d => (
+              <SelectItem key={d} value={d}>{d}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
+      <div className="flex bg-secondary rounded-lg p-1">
+        {SIZE_OPTIONS.map(opt => (
+          <button
+            key={opt.value}
+            onClick={() => onChange({ ...filters, sizeBy: opt.value })}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              filters.sizeBy === opt.value
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="relative flex-1 min-w-[140px] max-w-[220px]">
+        <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <Input
+          placeholder="חיפוש מק״ט..."
+          value={search}
+          onChange={e => onSearchChange(e.target.value)}
+          className="pr-8 h-9 text-sm"
+        />
+      </div>
     </div>
   );
 }

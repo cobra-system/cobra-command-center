@@ -7,11 +7,12 @@ interface Props {
   isHighlighted: boolean;
   onSelect: (item: TreemapItem) => void;
   onHoverCategory: (category: string | null) => void;
+  searchMatches: Set<string> | null;
 }
 
 const HEADER_HEIGHT = 24;
 
-export default function TreemapCategoryGroup({ category: cat, isHighlighted, onSelect, onHoverCategory }: Props) {
+export default function TreemapCategoryGroup({ category: cat, isHighlighted, onSelect, onHoverCategory, searchMatches }: Props) {
   const isFlat = cat.category === NO_CATEGORY_GROUP;
 
   return (
@@ -47,6 +48,7 @@ export default function TreemapCategoryGroup({ category: cat, isHighlighted, onS
           offsetY={cat.y}
           onSelect={onSelect}
           onHoverCategory={onHoverCategory}
+          isSearchMatch={searchMatches === null ? null : searchMatches.has(rect.item.id) ? true : false}
         />
       ))}
     </div>
