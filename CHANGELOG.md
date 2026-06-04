@@ -5,12 +5,31 @@
 
 ---
 
+## [2026-06-04]
+
+- Merge pull request #228 from cobra-system/claude/trusting-ritchie-N7Ir4 (449c659)
+- fix: treemap zoom-out centers map, lock pan at 1x, dynamic viewport height (154d8d4)
+
+<!-- last-commit: 449c65976f92d5008b77e6ae887f50b93f642af5 -->
+## [2026-06-04]
+
+- Merge pull request #226 from cobra-system/claude/trusting-ritchie-N7Ir4 (b4acbaa)
+- feat: treemap — reorder alerts, double-click zoom, tooltip clamping (c2cda2f)
+- feat: treemap UX polish — rich cells, category stats, gradient legend (dd60f19)
+- feat: treemap enterprise features — minimap, issues integration, health filter (545edc2)
+- feat: treemap pro — search, stats, division filter, full-screen, quick actions (3a8923a)
+- feat: treemap polish — 8-point improvement pass (996753f)
+
+## [2026-06-04]
+
+- Merge pull request #227 from cobra-system/claude/great-hamilton-OQK7b (6edcbf2)
+- feat: order request integration in quarterly planning (23d5c23)
+
 ## [2026-06-03]
 
 - Merge pull request #225 from cobra-system/claude/great-hamilton-OQK7b (50e33c2)
 - feat: quarterly planning improvements — Frisbee mappings, incoming orders, family drill-down (e534bc1)
 
-<!-- last-commit: 50e33c25665b97890c6ce0d98832d47de82924bc -->
 ## [2026-06-03]
 
 - Merge pull request #224 from cobra-system/claude/trusting-ritchie-N7Ir4 (ffcc8f9)
@@ -62,10 +81,20 @@
 ### Added
 - Unified products page — consolidated `/products` and `/division/:divisionName/products` into a single page; admin sees total stock with expandable per-division breakdown (editable), division managers see their own division stock
 - Interactive product treemap/heatmap view on Products page — finviz-style visualization where cell size reflects consumption and color reflects inventory health, with zoom/pan, category grouping, and filters
+- Treemap minimap navigator — appears when zoomed in, shows full layout with viewport rectangle, click to navigate
+- Product issues integration in treemap — warning badges on cells with open issues, issue count in tooltips and info panel
+- Health status filter in treemap — filter by stock health (אזל/קריטי/נמוך/סביר/תקין)
+- Zoom level indicator (percentage display) on treemap controls
+- Last order date and issue count in treemap tooltip and info panel
+- Stats bar shows products with open issues count
+- Max zoom increased to 6x for detailed inspection
 
 ### Changed
 - Treemap quality overhaul — dark Finviz-style color palette, SKU-only cells with dynamic font sizing, plain mouse-wheel zoom, click-drag panning
 - Added "ללא קטגוריות" filter option to treemap for flat layout by consumption size without category grouping
+
+### Removed
+- Deleted unused DivisionProductsPage (route already redirects to unified /products)
 - Division consumption analytics redesign — monthly consumption bar chart, inventory health indicators (color-coded 7-level scale), mini sparklines, sortable/searchable table with column visibility
 - `division_product_consumption` table for storing 13-month historical consumption data per division/product
 - `monthly_avg` and `monthly_avg_updated_at` columns on `division_products` table
