@@ -7,6 +7,12 @@
 
 ## [2026-06-04]
 
+- Merge pull request #228 from cobra-system/claude/trusting-ritchie-N7Ir4 (449c659)
+- fix: treemap zoom-out centers map, lock pan at 1x, dynamic viewport height (154d8d4)
+
+<!-- last-commit: 449c65976f92d5008b77e6ae887f50b93f642af5 -->
+## [2026-06-04]
+
 - Merge pull request #226 from cobra-system/claude/trusting-ritchie-N7Ir4 (b4acbaa)
 - feat: treemap — reorder alerts, double-click zoom, tooltip clamping (c2cda2f)
 - feat: treemap UX polish — rich cells, category stats, gradient legend (dd60f19)
@@ -14,7 +20,6 @@
 - feat: treemap pro — search, stats, division filter, full-screen, quick actions (3a8923a)
 - feat: treemap polish — 8-point improvement pass (996753f)
 
-<!-- last-commit: b4acbaa82d48025ce5fb8a1f21d04d8741c365fb -->
 ## [2026-06-04]
 
 - Merge pull request #227 from cobra-system/claude/great-hamilton-OQK7b (6edcbf2)
