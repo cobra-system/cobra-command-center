@@ -189,7 +189,7 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 | Toasts | Sonner |
 | טפסים | React Hook Form + Zod |
 | PDF | PDF.js + pdf-lib + mammoth |
-| אוטומציה | MCP Server — 274 כלים ב-34 מודולים לאינטגרציה עם Claude Code |
+| אוטומציה | MCP Server — 278 כלים ב-34 מודולים לאינטגרציה עם Claude Code |
 | בדיקות E2E | Playwright |
 
 ---
