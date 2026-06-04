@@ -7,10 +7,19 @@
 
 ## [2026-06-04]
 
+- Merge pull request #226 from cobra-system/claude/trusting-ritchie-N7Ir4 (b4acbaa)
+- feat: treemap — reorder alerts, double-click zoom, tooltip clamping (c2cda2f)
+- feat: treemap UX polish — rich cells, category stats, gradient legend (dd60f19)
+- feat: treemap enterprise features — minimap, issues integration, health filter (545edc2)
+- feat: treemap pro — search, stats, division filter, full-screen, quick actions (3a8923a)
+- feat: treemap polish — 8-point improvement pass (996753f)
+
+<!-- last-commit: b4acbaa82d48025ce5fb8a1f21d04d8741c365fb -->
+## [2026-06-04]
+
 - Merge pull request #227 from cobra-system/claude/great-hamilton-OQK7b (6edcbf2)
 - feat: order request integration in quarterly planning (23d5c23)
 
-<!-- last-commit: 6edcbf28496c38699482fe22148b9c57317b3ab0 -->
 ## [2026-06-03]
 
 - Merge pull request #225 from cobra-system/claude/great-hamilton-OQK7b (50e33c2)
