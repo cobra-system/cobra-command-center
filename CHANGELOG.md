@@ -7,10 +7,17 @@
 
 ## [2026-06-04]
 
+- Merge pull request #230 from cobra-system/claude/trusting-ritchie-N7Ir4 (99c5c09)
+- feat: per-product consumption chart with annual/half-year/quarterly averages (8278cac)
+- chore: remove non-bonded division_products data (5882665)
+- fix: merge duplicate distribution centers, set SAP codes, recompute monthly_avg (385810b)
+
+<!-- last-commit: 99c5c090241e09cf5f300da838fd84c9f658c3d7 -->
+## [2026-06-04]
+
 - Merge pull request #228 from cobra-system/claude/trusting-ritchie-N7Ir4 (449c659)
 - fix: treemap zoom-out centers map, lock pan at 1x, dynamic viewport height (154d8d4)
 
-<!-- last-commit: 449c65976f92d5008b77e6ae887f50b93f642af5 -->
 ## [2026-06-04]
 
 - Merge pull request #226 from cobra-system/claude/trusting-ritchie-N7Ir4 (b4acbaa)
