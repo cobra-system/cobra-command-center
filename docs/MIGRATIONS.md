@@ -3,7 +3,7 @@
 ## Overview
 This project uses PostgreSQL migrations managed through Supabase. All migration files are stored in `supabase/migrations/`.
 
-**Total migrations: 138** (last: `20260604000001_cleanup_distribution_centers_and_sap_codes.sql`)
+**Total migrations: 139** (last: `20260604000002_add_lubinsky_manager_cleanup_divisions.sql`)
 
 ## How to Apply Migrations
 
