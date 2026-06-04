@@ -146,10 +146,11 @@ export default function ProductTreemapView() {
       <TreemapStatsBar items={items} />
 
       <div ref={containerRef} className="w-full">
-        {dimensions.width > 0 && (
+        {dimensions.width > 0 && dimensions.height > 0 && (
           <TreemapContainer
             contentWidth={dimensions.width}
             contentHeight={dimensions.height}
+            viewportHeight={dimensions.height}
             layout={layout}
           >
             {layout.map(cat => (
