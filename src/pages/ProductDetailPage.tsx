@@ -220,6 +220,15 @@ export default function ProductDetailPage() {
         onInlineSave={handleInlineSave}
       />
 
+      {!consumption.loading && consumption.monthlyData.length > 0 && (
+        <ProductConsumptionChart
+          monthlyData={consumption.monthlyData}
+          avgAnnual={consumption.avgAnnual}
+          avgHalfYear={consumption.avgHalfYear}
+          avgQuarter={consumption.avgQuarter}
+        />
+      )}
+
       <TooltipProvider delayDuration={200}>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {[
@@ -273,15 +282,6 @@ export default function ProductDetailPage() {
         product={product}
         hasEdit={hasEdit}
       />
-
-      {!consumption.loading && consumption.monthlyData.length > 0 && (
-        <ProductConsumptionChart
-          monthlyData={consumption.monthlyData}
-          avgAnnual={consumption.avgAnnual}
-          avgHalfYear={consumption.avgHalfYear}
-          avgQuarter={consumption.avgQuarter}
-        />
-      )}
 
       <WasteItemsSection product={product} />
 
