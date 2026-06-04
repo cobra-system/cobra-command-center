@@ -32,6 +32,8 @@ export const productSchema = z.object({
   notes: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   end_product_url: z.string().nullable().optional(),
+  sap_code: z.string().nullable().optional(),
+  supplier_origin: z.string().nullable().optional(),
 });
 
 export const productComponentSchema = z.object({

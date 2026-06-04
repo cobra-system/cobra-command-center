@@ -66,6 +66,7 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
       division: p?.division || (!p && preDiv) || "",
       product_type: p?.product_type || "מוגמר",
       supplier: p?.supplier || (!p && presetSupplierName) || "",
+      supplier_origin: p?.supplier_origin || "",
       shipping: p?.shipping || "",
       purchase_price: String(p?.purchase_price ?? ""),
       sale_price: String(p?.sale_price ?? ""),
@@ -75,6 +76,7 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
       notes: p?.notes || "",
       description: p?.description || "",
       end_product_url: p?.end_product_url || "",
+      sap_code: p?.sap_code || "",
     };
   }
 
@@ -164,6 +166,8 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
       notes: form.notes || null,
       description: form.description || null,
       end_product_url: form.end_product_url || null,
+      sap_code: form.sap_code || null,
+      supplier_origin: form.supplier_origin || null,
     };
 
     const productResult = productSchema.safeParse(rawProduct);
@@ -277,6 +281,17 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
                 searchPlaceholder="חיפוש ספק..."
               />
             </div>
+            <div className="space-y-1">
+              <Label>מדינת מקור</Label>
+              <Input value={form.supplier_origin} onChange={e => setField("supplier_origin", e.target.value)} placeholder="לדוג' סין, ישראל..." />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>קוד SAP</Label>
+              <Input value={form.sap_code} onChange={e => setField("sap_code", e.target.value)} dir="ltr" placeholder="SAP-XXXXX" />
+            </div>
           </div>
 
           <div className={showPrices ? "grid grid-cols-2 sm:grid-cols-3 gap-3" : "grid grid-cols-1 gap-3"}>
@@ -354,6 +369,10 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
                         searchPlaceholder="חיפוש..."
                         className="h-8 text-xs"
                       />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">מדינת מקור</Label>
+                      <Input value={comp.origin} onChange={e => { const nc = [...comps]; nc[i].origin = e.target.value; setComps(nc); }} className="h-8 text-xs" placeholder="לדוג' סין" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">מלאי</Label>
