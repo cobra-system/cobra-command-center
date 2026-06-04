@@ -74,7 +74,7 @@ export default function DailyReportWidget() {
   }, []);
 
   const normalize = (data: Record<string, unknown>): DailyReport => ({
-    ...(data as DailyReport),
+    ...(data as unknown as DailyReport),
     action_items: Array.isArray(data.action_items) ? data.action_items as ActionItem[] : [],
     cobra_updates: Array.isArray(data.cobra_updates) ? data.cobra_updates as CobraUpdate[] : [],
     pending_clarifications: Array.isArray(data.pending_clarifications) ? data.pending_clarifications as PendingClarification[] : [],
@@ -85,14 +85,14 @@ export default function DailyReportWidget() {
   const handleCheckActionItem = async (idx: number, currentDone: boolean) => {
     if (!report) return;
     const updated = report.action_items.map((x, i) => i === idx ? { ...x, done: !currentDone } : x);
-    const { error: err } = await supabase.from("daily_reports").update({ action_items: updated }).eq("id", report.id);
+    const { error: err } = await supabase.from("daily_reports").update({ action_items: updated as unknown as import("@/integrations/supabase/types").Json }).eq("id", report.id);
     if (!err) setReport({ ...report, action_items: updated });
   };
 
   const handleApproveDraft = async (idx: number) => {
     if (!report) return;
     const updated = report.mail_drafts.map((x, i) => i === idx ? { ...x, status: "approved" as const } : x);
-    const { error: err } = await supabase.from("daily_reports").update({ mail_drafts: updated }).eq("id", report.id);
+    const { error: err } = await supabase.from("daily_reports").update({ mail_drafts: updated as unknown as import("@/integrations/supabase/types").Json }).eq("id", report.id);
     if (!err) setReport({ ...report, mail_drafts: updated });
   };
 

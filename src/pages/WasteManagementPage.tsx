@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useData } from "@/contexts/AppContext";
+import { useProducts } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -47,7 +47,7 @@ interface Supplier {
 }
 
 export default function WasteManagementPage() {
-  const { products } = useData();
+  const { products } = useProducts();
   const { currentUser } = useAuth();
   const { hasEdit, isManager } = usePermissions("waste");
 

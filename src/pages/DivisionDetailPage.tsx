@@ -869,7 +869,7 @@ export default function DivisionDetailPage() {
     else { setReturnSortField(field); setReturnSortDir("desc"); }
   }
 
-  const colorClass = DIVISION_COLORS[division] ?? "bg-gray-100 text-gray-700 border-gray-200";
+  const colorClass = DIVISION_COLORS[division] ?? "bg-muted text-muted-foreground border-border";
   const bondedInstaller = isBonded ? installers[0] ?? null : null;
   // System-wide users (no division assignment) get column-visibility controls;
   // division managers see the default fixed view.
@@ -1072,7 +1072,7 @@ export default function DivisionDetailPage() {
                       className={`text-xs ${
                         bondedInstaller.status === "פעיל"
                           ? "bg-green-100 text-green-700 hover:bg-green-100"
-                          : "bg-gray-100 text-gray-500 hover:bg-gray-100"
+                          : "bg-muted text-muted-foreground hover:bg-muted"
                       }`}
                     >
                       {bondedInstaller.status}
@@ -1180,7 +1180,7 @@ export default function DivisionDetailPage() {
                                 className={`text-xs ${
                                   inst.status === "פעיל"
                                     ? "bg-green-100 text-green-700 hover:bg-green-100"
-                                    : "bg-gray-100 text-gray-500 hover:bg-gray-100"
+                                    : "bg-muted text-muted-foreground hover:bg-muted"
                                 }`}
                               >
                                 {inst.status}
@@ -2426,7 +2426,7 @@ export default function DivisionDetailPage() {
                                             <MoreHorizontal className="h-3 w-3" />
                                           </Button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" dir="rtl">
+                                        <DropdownMenuContent align="end" {...{dir:"rtl"} as any}>
                                           <DropdownMenuItem onClick={() => setCloneTemplate(req)}>
                                             <Copy className="h-3.5 w-3.5 me-2" /> שכפל
                                           </DropdownMenuItem>

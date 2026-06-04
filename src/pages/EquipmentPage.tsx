@@ -1,7 +1,7 @@
 import { Fragment, useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { useData, useAuth } from "@/contexts/AppContext";
+import { useProducts, useAuth } from "@/contexts/AppContext";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -197,7 +197,7 @@ function SortIcon({
 export default function EquipmentPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { products } = useData();
+  const { products } = useProducts();
   const { currentUser } = useAuth();
 
   // Division managers bypass the overview and go directly to their division
@@ -611,7 +611,7 @@ export default function EquipmentPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {divisionStats.filter((s) => SALES_DIVISIONS.has(s.division)).map((stat) => {
                 const colorClass =
-                  DIVISION_COLORS[stat.division] ?? "bg-gray-100 text-gray-700 border-gray-200";
+                  DIVISION_COLORS[stat.division] ?? "bg-muted text-muted-foreground border-border";
                 return (
                   <Card
                     key={stat.division}
@@ -667,7 +667,7 @@ export default function EquipmentPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {divisionStats.filter((s) => BONDED_DIVISIONS.has(s.division)).map((stat) => {
                 const colorClass =
-                  DIVISION_COLORS[stat.division] ?? "bg-gray-100 text-gray-700 border-gray-200";
+                  DIVISION_COLORS[stat.division] ?? "bg-muted text-muted-foreground border-border";
                 return (
                   <Card
                     key={stat.division}
@@ -796,7 +796,7 @@ export default function EquipmentPage() {
                             (s, p) => s + p.equipment_pickup_items.reduce((ss, i) => ss + i.quantity, 0),
                             0
                           );
-                          const colorClass = DIVISION_COLORS[div] ?? "bg-gray-100 text-gray-700 border-gray-200";
+                          const colorClass = DIVISION_COLORS[div] ?? "bg-muted text-muted-foreground border-border";
 
                           return (
                             <div key={divKey}>
@@ -918,7 +918,7 @@ export default function EquipmentPage() {
               const items = inventoryByDivision.get(div) ?? [];
               if (items.length === 0) return null;
               const colorClass =
-                DIVISION_COLORS[div] ?? "bg-gray-100 text-gray-700 border-gray-200";
+                DIVISION_COLORS[div] ?? "bg-muted text-muted-foreground border-border";
               const totalInDiv = items.reduce((s, i) => s + i.balance, 0);
               const techCount = new Set(items.map((i) => i.installerId)).size;
               return (
@@ -1125,7 +1125,7 @@ export default function EquipmentPage() {
                     onClick={() => navigate(`/equipment/division/${encodeURIComponent(stat.division)}`)}
                   >
                     <div>
-                      <Badge className={`border ${DIVISION_COLORS[stat.division] ?? "bg-gray-100 text-gray-700 border-gray-200"}`}>
+                      <Badge className={`border ${DIVISION_COLORS[stat.division] ?? "bg-muted text-muted-foreground border-border"}`}>
                         {stat.division}
                       </Badge>
                       <p className="text-xs text-muted-foreground mt-1">
@@ -1174,7 +1174,7 @@ export default function EquipmentPage() {
                       >
                         {dashColVis.isVisible("division") && (
                           <td className="p-3">
-                            <Badge className={`border ${DIVISION_COLORS[stat.division] ?? "bg-gray-100 text-gray-700 border-gray-200"}`}>
+                            <Badge className={`border ${DIVISION_COLORS[stat.division] ?? "bg-muted text-muted-foreground border-border"}`}>
                               {stat.division}
                             </Badge>
                           </td>
@@ -1217,7 +1217,7 @@ export default function EquipmentPage() {
                     const inv = center ? centerInventory.filter(i => i.center_id === center.id) : [];
                     const totalQty = inv.reduce((s, i) => s + i.quantity, 0);
                     const lowCount = inv.filter(i => i.min_stock > 0 && i.quantity < i.min_stock).length;
-                    const colorClass = DIVISION_COLORS[div] ?? "bg-gray-100 text-gray-700 border-gray-200";
+                    const colorClass = DIVISION_COLORS[div] ?? "bg-muted text-muted-foreground border-border";
                     return (
                       <Card
                         key={div}

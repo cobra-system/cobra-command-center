@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { useAuth, useData } from "@/contexts/AppContext";
+import { useAuth, useRoles } from "@/contexts/AppContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { BarcodeScanner } from "@/components/lock-control/BarcodeScanner";
@@ -59,7 +59,7 @@ const AUTO_REFRESH_MS = 30_000;
 
 export default function LockControlPage() {
   const { currentUser } = useAuth();
-  const { profiles } = useData();
+  const { profiles } = useRoles();
 
   const [locks, setLocks] = useState<WarehouseLock[]>([]);
   const [recentScans, setRecentScans] = useState<RecentScan[]>([]);

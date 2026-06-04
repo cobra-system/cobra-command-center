@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useData } from "@/contexts/AppContext";
+import { useProducts } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
 import { logger } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,7 @@ export default function DocumentProductSelector({
   linkedProductIds,
   onProductsUpdated,
 }: Props) {
-  const { products } = useData();
+  const { products } = useProducts();
   const [selectedProductId, setSelectedProductId] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [isRemoving, setIsRemoving] = useState<string | null>(null);

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import { useData } from "@/contexts/AppContext";
+import { useRoles } from "@/contexts/AppContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +32,7 @@ const DAY_LABELS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
 const DAY_NAMES  = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 
 export default function NotificationSettings() {
-  const { profiles } = useData();
+  const { profiles } = useRoles();
 
   const [config, setConfig]         = useState<DigestConfig | null>(null);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
@@ -47,14 +47,14 @@ export default function NotificationSettings() {
     setLoading(true);
     try {
       const [{ data: cfgData }, { data: recData }] = await Promise.all([
-        supabase.from("notification_digest_config").select("*").limit(1).single(),
-        supabase.from("notification_recipients").select("*").order("created_at"),
+        supabase.from("notification_digest_config" as any).select("*").limit(1).single(),
+        supabase.from("notification_recipients" as any).select("*").order("created_at"),
       ]);
       if (cfgData) setConfig(cfgData as DigestConfig);
 
       // Enrich recipients with profile email via auth admin lookup is not available
       // on the frontend — we use profiles table for name, and rely on display only
-      const enriched: Recipient[] = (recData ?? []).map(r => {
+      const enriched: Recipient[] = ((recData ?? []) as any[]).map(r => {
         const profile = r.profile_id ? profiles.find(p => p.id === r.profile_id) : null;
         return {
           ...r,
@@ -74,8 +74,8 @@ export default function NotificationSettings() {
     if (!config) return;
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from("notification_digest_config")
+      const { error } = await (supabase
+        .from("notification_digest_config" as any)
         .update({
           digest_enabled: config.digest_enabled,
           days_of_week: config.days_of_week,
@@ -83,8 +83,8 @@ export default function NotificationSettings() {
           include_upcoming_payments: config.include_upcoming_payments,
           payment_days_ahead: config.payment_days_ahead,
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", config.id);
+        } as any)
+        .eq("id", config.id));
       if (error) throw error;
       toast.success("הגדרות ההתראות נשמרו");
     } catch {
@@ -103,10 +103,10 @@ export default function NotificationSettings() {
   };
 
   const handleToggleRecipient = async (id: string, enabled: boolean) => {
-    const { error } = await supabase
-      .from("notification_recipients")
-      .update({ is_enabled: enabled })
-      .eq("id", id);
+    const { error } = await (supabase
+      .from("notification_recipients" as any)
+      .update({ is_enabled: enabled } as any)
+      .eq("id", id));
     if (error) { toast.error("שגיאה בעדכון"); return; }
     setRecipients(prev => prev.map(r => r.id === id ? { ...r, is_enabled: enabled } : r));
   };
@@ -114,11 +114,11 @@ export default function NotificationSettings() {
   const handleAddProfileRecipient = async (profileId: string) => {
     const already = recipients.find(r => r.profile_id === profileId);
     if (already) { toast.error("משתמש זה כבר ברשימה"); return; }
-    const { data, error } = await supabase
-      .from("notification_recipients")
-      .insert({ profile_id: profileId, is_enabled: true })
+    const { data, error } = await (supabase
+      .from("notification_recipients" as any)
+      .insert({ profile_id: profileId, is_enabled: true } as any)
       .select()
-      .single();
+      .single()) as { data: any; error: any };
     if (error) { toast.error("שגיאה בהוספה"); return; }
     const profile = profiles.find(p => p.id === profileId);
     setRecipients(prev => [...prev, { ...data, profile_name: profile?.name }]);
@@ -129,11 +129,11 @@ export default function NotificationSettings() {
     if (!newEmail.trim() || !newEmail.includes("@")) { toast.error("כתובת מייל לא תקינה"); return; }
     setAddingExternal(true);
     try {
-      const { data, error } = await supabase
-        .from("notification_recipients")
-        .insert({ external_email: newEmail.trim(), external_name: newName.trim() || null, is_enabled: true })
+      const { data, error } = await (supabase
+        .from("notification_recipients" as any)
+        .insert({ external_email: newEmail.trim(), external_name: newName.trim() || null, is_enabled: true } as any)
         .select()
-        .single();
+        .single()) as { data: any; error: any };
       if (error) throw error;
       setRecipients(prev => [...prev, data]);
       setNewEmail(""); setNewName("");
@@ -146,7 +146,7 @@ export default function NotificationSettings() {
   };
 
   const handleRemoveRecipient = async (id: string) => {
-    const { error } = await supabase.from("notification_recipients").delete().eq("id", id);
+    const { error } = await supabase.from("notification_recipients" as any).delete().eq("id", id);
     if (error) { toast.error("שגיאה במחיקה"); return; }
     setRecipients(prev => prev.filter(r => r.id !== id));
     toast.success("נמען הוסר");
@@ -179,7 +179,7 @@ export default function NotificationSettings() {
             onClick={() => setConfig({ ...config, digest_enabled: !config.digest_enabled })}
             className={cn(
               "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
-              config.digest_enabled ? "bg-primary" : "bg-gray-200"
+              config.digest_enabled ? "bg-primary" : "bg-input"
             )}
           >
             <span className={cn(
@@ -223,7 +223,7 @@ export default function NotificationSettings() {
                     type="checkbox"
                     checked={config.include_overdue_orders}
                     onChange={e => setConfig({ ...config, include_overdue_orders: e.target.checked })}
-                    className="h-4 w-4 rounded border-gray-300"
+                    className="h-4 w-4 rounded border-input"
                   />
                   <span className="text-sm">הזמנות באיחור</span>
                 </label>
@@ -232,7 +232,7 @@ export default function NotificationSettings() {
                     type="checkbox"
                     checked={config.include_upcoming_payments}
                     onChange={e => setConfig({ ...config, include_upcoming_payments: e.target.checked })}
-                    className="h-4 w-4 rounded border-gray-300"
+                    className="h-4 w-4 rounded border-input"
                   />
                   <span className="text-sm">תשלומים קרובים</span>
                 </label>
@@ -299,7 +299,7 @@ export default function NotificationSettings() {
                       onClick={() => handleToggleRecipient(r.id, !r.is_enabled)}
                       className={cn(
                         "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                        r.is_enabled ? "bg-primary" : "bg-gray-200"
+                        r.is_enabled ? "bg-primary" : "bg-input"
                       )}
                     >
                       <span className={cn(

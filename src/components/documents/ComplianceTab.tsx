@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
-import { useAuth, useData } from "@/contexts/AppContext";
+import { useAuth, useProducts } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,7 +55,7 @@ function StatusBadge({ status, daysLeft }: { status: string; daysLeft: number | 
 
 export default function ComplianceTab({ productId }: { productId?: string } = {}) {
   const { currentUser } = useAuth();
-  const { products } = useData();
+  const { products } = useProducts();
   const navigate = useNavigate();
   const isManager = currentUser?.role === "MANAGER";
   const [items, setItems] = useState<ComplianceItem[]>([]);

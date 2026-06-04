@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { useData, useAuth } from "@/contexts/AppContext";
+import { useProducts, useAuth } from "@/contexts/AppContext";
 import { markItemAsFaulty, unmarkItemAsFaulty } from "@/lib/inventoryUtils";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -111,8 +111,9 @@ function returnPctBadge(pct: number) {
 export default function InstallerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { products } = useData();
-  const { user } = useAuth();
+  const { products } = useProducts();
+  const { session, currentUser } = useAuth();
+  const user = session?.user;
 
   const [installer, setInstaller] = useState<Installer | null>(null);
   const [pickupRows, setPickupRows] = useState<PickupRow[]>([]);
@@ -390,7 +391,7 @@ export default function InstallerDetailPage() {
               )}
               <Badge variant="outline" className="text-xs">{installer.division}</Badge>
               <Badge
-                className={`text-xs ${installer.status === "פעיל" ? "bg-green-100 text-green-700 hover:bg-green-100" : "bg-gray-100 text-gray-500 hover:bg-gray-100"}`}
+                className={`text-xs ${installer.status === "פעיל" ? "bg-green-100 text-green-700 hover:bg-green-100" : "bg-muted text-muted-foreground hover:bg-muted"}`}
               >
                 {installer.status}
               </Badge>

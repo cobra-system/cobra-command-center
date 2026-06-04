@@ -261,7 +261,7 @@ export default function DivisionConsumptionPage() {
     return items;
   }, [productSummaries, searchTerm, sortField, sortDir]);
 
-  const colorClass = DIVISION_COLORS[division] ?? "border-gray-300 text-gray-700 bg-gray-50";
+  const colorClass = DIVISION_COLORS[division] ?? "border-border text-muted-foreground bg-muted/40";
   const frisbeeBranchId = FRISBEE_BASE44_BRANCHES[division] ?? null;
 
   if (consumptionLoading) {

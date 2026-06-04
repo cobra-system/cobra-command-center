@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { Globe, MapPin, DollarSign, AlertCircle, Truck, Clock, ChevronDown, ChevronUp, CreditCard, RefreshCw } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { supabase } from "@/lib/supabase";
-import { useData } from "@/contexts/AppContext";
+import { useOrders } from "@/contexts/AppContext";
 import { toast } from "sonner";
 
 import { format } from "date-fns";
@@ -55,7 +55,7 @@ export function OrdersDashboardView({ orders, orderPaymentStatuses, suppliers }:
   const [allPayments, setAllPayments] = useState<OrderPayment[]>([]);
   const [bulkTracking, setBulkTracking] = useState<{ running: boolean; done: number; total: number }>({ running: false, done: 0, total: 0 });
   const abortRef = useRef(false);
-  const { refreshOrders } = useData();
+  const { refreshOrders } = useOrders();
 
   useEffect(() => {
     const thirtyDays = new Date();
@@ -365,7 +365,7 @@ export function OrdersDashboardView({ orders, orderPaymentStatuses, suppliers }:
           icon={AlertCircle}
           label="הזמנות באיחור"
           value={stats.overdue}
-          bgColor={stats.overdue > 0 ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200"}
+          bgColor={stats.overdue > 0 ? "bg-red-50 border-red-200" : "bg-muted/50 border-border"}
           valueColor={stats.overdue > 0 ? "text-red-600" : undefined}
         />
         <StatCard
@@ -441,7 +441,7 @@ export function OrdersDashboardView({ orders, orderPaymentStatuses, suppliers }:
               <div key={status} className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">{status}</span>
                 <div className="flex items-center gap-2">
-                  <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden" dir="ltr">
+                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden" dir="ltr">
                     <div
                       className="h-full bg-blue-500 rounded-full"
                       style={{ width: `${(count / paymentChartData.total) * 100}%` }}

@@ -1,9 +1,9 @@
-import { useAuth, useData } from "@/contexts/AppContext";
+import { useAuth, useRoles } from "@/contexts/AppContext";
 import { canView, canEdit } from "@/lib/permissions";
 
 export function usePermissions(moduleKey: string) {
   const { currentUser } = useAuth();
-  const { currentUserPermissions } = useData();
+  const { currentUserPermissions } = useRoles();
 
   const isManager = currentUser?.role === "MANAGER";
   const hasView = isManager || canView(currentUserPermissions, moduleKey);

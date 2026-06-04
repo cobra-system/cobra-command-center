@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { useAuth, useData } from "@/contexts/AppContext";
+import { useAuth, useSuppliers } from "@/contexts/AppContext";
 import type { OrderRequest, Order, OrderItem } from "@/contexts/types";
 import { fmtNum } from "./orderRequestUtils";
 
@@ -20,7 +20,7 @@ interface Props {
 
 export function BulkFulfillDialog({ open, onOpenChange, requests, addOrder, onDone }: Props) {
   const { currentUser } = useAuth();
-  const { suppliers } = useData();
+  const { suppliers } = useSuppliers();
   const [priority, setPriority] = useState<string>("רגיל");
   const [orderDate, setOrderDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");

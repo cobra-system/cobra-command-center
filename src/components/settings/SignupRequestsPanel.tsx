@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase";
-import { useData, type Role, type RoleDefinition } from "@/contexts/AppContext";
+import { useRoles, type Role, type RoleDefinition } from "@/contexts/AppContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +33,7 @@ interface SignupRequest {
 const VALID_BASE_ROLES: Role[] = ["MANAGER", "WAREHOUSE_MANAGER", "LOGISTICS", "DRIVER"];
 
 export default function SignupRequestsPanel() {
-  const { roleDefinitions } = useData();
+  const { roleDefinitions } = useRoles();
   const [requests, setRequests] = useState<SignupRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<"pending" | "all">("pending");

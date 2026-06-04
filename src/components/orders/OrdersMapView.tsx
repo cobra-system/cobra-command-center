@@ -29,7 +29,7 @@ const priorityBorderColor: Record<string, string> = {
 const paymentColors: Record<string, string> = {
   "שולם": "bg-emerald-100 text-emerald-700",
   "שולם חלקי": "bg-amber-100 text-amber-700",
-  "ממתין": "bg-gray-100 text-gray-500",
+  "ממתין": "bg-muted text-muted-foreground",
 };
 
 export function OrdersMapView({ orders, orderPaymentStatuses, suppliers }: OrdersMapViewProps) {
@@ -132,7 +132,7 @@ export function OrdersMapView({ orders, orderPaymentStatuses, suppliers }: Order
                   <div className="flex items-center justify-end">
                     <span className={cn(
                       "text-[10px] font-medium px-2 py-0.5 rounded-full",
-                      paymentColors[paymentStatus] || "bg-gray-100 text-gray-500"
+                      paymentColors[paymentStatus] || "bg-muted text-muted-foreground"
                     )}>
                       {paymentStatus}
                     </span>

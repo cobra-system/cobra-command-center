@@ -223,7 +223,7 @@ export function DivisionPanel({ division, onClose, installers, pickups, returns 
     }
   };
 
-  const colorClass = DIVISION_COLOR[division ?? ""] ?? "bg-gray-100 text-gray-700 border-gray-200";
+  const colorClass = DIVISION_COLOR[division ?? ""] ?? "bg-muted text-muted-foreground border-border";
 
   return (
     <Sheet open={!!division} onOpenChange={(open) => !open && onClose()}>

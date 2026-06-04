@@ -97,7 +97,7 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
     pdfCvs.style.height = `${vp.height}px`;
 
     const ctx = pdfCvs.getContext("2d")!;
-    const transform = dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] as const : undefined;
+    const transform = dpr !== 1 ? [...[dpr, 0, 0, dpr, 0, 0] as const] : undefined;
     await page.render({ canvasContext: ctx, viewport: vp, transform }).promise;
 
     const fc = fabricRef.current;
@@ -219,8 +219,8 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
       setTool("select");
     };
 
-    canvas.on("mouse:down", handler);
-    return () => { canvas.off("mouse:down", handler); };
+    canvas.on("mouse:down", handler as any);
+    return () => { canvas.off("mouse:down", handler as any); };
   }, [tool, color]);
 
   // ── add rect via click ────────────────────────────────────────────────────────
@@ -239,8 +239,8 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
       setTool("select");
     };
 
-    canvas.on("mouse:down", handler);
-    return () => { canvas.off("mouse:down", handler); };
+    canvas.on("mouse:down", handler as any);
+    return () => { canvas.off("mouse:down", handler as any); };
   }, [tool, color, lineWidth]);
 
   // ── page nav ─────────────────────────────────────────────────────────────────

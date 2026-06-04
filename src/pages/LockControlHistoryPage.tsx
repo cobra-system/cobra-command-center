@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Download, Filter, Lock, Unlock, RefreshCw, User2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { useData } from "@/contexts/AppContext";
+import { useRoles } from "@/contexts/AppContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { downloadCsv, formatScanTime } from "@/components/lock-control/lockControlUtils";
 
@@ -35,7 +35,7 @@ function isoDateInputToToTs(value: string): string | null {
 }
 
 export default function LockControlHistoryPage() {
-  const { profiles } = useData();
+  const { profiles } = useRoles();
   const [locks, setLocks] = useState<LockRef[]>([]);
   const [scans, setScans] = useState<ScanRow[]>([]);
   const [loading, setLoading] = useState(true);

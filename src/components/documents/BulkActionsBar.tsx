@@ -4,7 +4,6 @@
  * Supports: status change, move-to-folder, star/unstar, export to Excel, delete.
  */
 import { useState } from "react";
-import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -83,7 +82,8 @@ export default function BulkActionsBar({ selectedIds, docs, folders, onClearSele
     setWorking(false);
   }
 
-  function exportExcel() {
+  async function exportExcel() {
+    const XLSX = await import("xlsx");
     const rows = selectedDocs.map(d => ({
       "שם מסמך":      d.document_name || d.notes || "ללא שם",
       "מספר מסמך":    d.document_number || "",
@@ -129,7 +129,7 @@ export default function BulkActionsBar({ selectedIds, docs, folders, onClearSele
             <ChevronDown className="h-3 w-3 opacity-60" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" dir="rtl">
+        <DropdownMenuContent align="start" {...{dir:"rtl"} as any}>
           {docStatusFlow.map(s => (
             <DropdownMenuItem key={s} onClick={() => bulkUpdate({ status: s })}>{s}</DropdownMenuItem>
           ))}
@@ -144,7 +144,7 @@ export default function BulkActionsBar({ selectedIds, docs, folders, onClearSele
             <ChevronDown className="h-3 w-3 opacity-60" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" dir="rtl">
+        <DropdownMenuContent align="start" {...{dir:"rtl"} as any}>
           <DropdownMenuItem onClick={() => bulkUpdate({ folder_id: null })}>— ללא תיקייה —</DropdownMenuItem>
           {folders.length > 0 && <DropdownMenuSeparator />}
           {folders.map(f => (

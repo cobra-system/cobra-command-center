@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, CalendarClock, Play, Zap, CheckCircle, Clock } from "lucide-react";
 import { toast } from "sonner";
-import { useData, type Priority } from "@/contexts/AppContext";
+import { useRoles, type Priority } from "@/contexts/AppContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -53,7 +53,7 @@ const priorityOptions: { value: Priority; label: string }[] = [
 ];
 
 export default function RecurringTasksPanel() {
-  const { profiles } = useData();
+  const { profiles } = useRoles();
   const [tasks, setTasks] = useState<RecurringTask[]>([]);
   const [workflows, setWorkflows] = useState<WorkflowInstance[]>([]);
   const [loading, setLoading] = useState(true);

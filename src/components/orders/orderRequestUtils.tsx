@@ -27,7 +27,7 @@ export function utilizationColor(v: number | null | undefined): string {
 export function urgencyClass(u?: OrderRequestUrgency | null): string {
   if (u === "דחוף") return "bg-red-50 text-red-700 border-red-200";
   if (u === "רגיל") return "bg-blue-50 text-blue-700 border-blue-200";
-  return "bg-gray-50 text-gray-600 border-gray-200";
+  return "bg-muted/50 text-muted-foreground border-border";
 }
 
 export const STATUS_LABELS: Record<OrderRequestStatus, string> = {
@@ -44,7 +44,7 @@ export function statusClass(s?: OrderRequestStatus | null): string {
     case "rejected":
       return "bg-red-50 text-red-700 border-red-200";
     case "cancelled":
-      return "bg-gray-100 text-gray-500 border-gray-200";
+      return "bg-muted text-muted-foreground border-border";
     default:
       return "bg-amber-50 text-amber-700 border-amber-200";
   }
@@ -72,7 +72,7 @@ export function ageBadge(req: OrderRequest): { text: string; cls: string } | nul
   if (days === null) return null;
   if (days >= 14) return { text: `${days} ימים`, cls: "bg-red-50 text-red-700 border-red-200" };
   if (days >= 7) return { text: `${days} ימים`, cls: "bg-amber-50 text-amber-700 border-amber-200" };
-  if (days >= 1) return { text: `${days} ימים`, cls: "bg-gray-50 text-gray-600 border-gray-200" };
+  if (days >= 1) return { text: `${days} ימים`, cls: "bg-muted/50 text-muted-foreground border-border" };
   return { text: "היום", cls: "bg-blue-50 text-blue-700 border-blue-200" };
 }
 

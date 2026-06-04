@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { RefreshCw, Truck, MapPin, Calendar, AlertTriangle, Check, Package, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useData } from "@/contexts/AppContext";
+import { useOrders } from "@/contexts/AppContext";
 import { format } from "date-fns";
 import {
   DHL_LEVELS,
@@ -74,7 +74,7 @@ function ProgressBar({ level, eventCode }: { level: TrackingLevel; eventCode: st
 }
 
 export function DhlTrackingWidget({ order, loading, onRefresh }: DhlTrackingWidgetProps) {
-  const { updateOrderStatus } = useData();
+  const { updateOrderStatus } = useOrders();
   const [expanded, setExpanded] = useState(false);
   const level = normalizeLevel(order.tracking_status_code);
   const meta = DHL_LEVELS[level];

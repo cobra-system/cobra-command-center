@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useData } from "@/contexts/AppContext";
+import { useProducts } from "@/contexts/AppContext";
 import { useProductScope } from "@/hooks/useProductScope";
 import { supabase } from "@/lib/supabase";
 import type { WarehouseZone, ZoneType } from "@/data/warehouseZones";
@@ -50,7 +50,7 @@ interface WarehouseZoneRow {
 }
 
 export function useWarehouseInventory() {
-  const { products: allProducts } = useData();
+  const { products: allProducts } = useProducts();
   const { scopedProducts, isScoped, scopedProductIds } = useProductScope();
   const [zones, setZones] = useState<WarehouseZone[]>([]);
   const [zoneProductRows, setZoneProductRows] = useState<ZoneProductRow[]>([]);

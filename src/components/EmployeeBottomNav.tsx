@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { useAuth, useData } from "@/contexts/AppContext";
+import { useAuth, useRoles } from "@/contexts/AppContext";
 import { canView, MODULES } from "@/lib/permissions";
 import { useState } from "react";
 import {
@@ -65,7 +65,7 @@ const MAX_VISIBLE_TABS = 5;
 
 export default function EmployeeBottomNav() {
   const { currentUser } = useAuth();
-  const { currentUserPermissions } = useData();
+  const { currentUserPermissions } = useRoles();
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();

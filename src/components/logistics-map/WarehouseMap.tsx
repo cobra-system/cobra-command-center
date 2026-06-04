@@ -310,11 +310,11 @@ export default function WarehouseMap({
 
           {/* Open floor space — light fill */}
           <div
-            className="rounded bg-gray-50 border border-dashed border-gray-200"
+            className="rounded bg-muted/40 border border-dashed border-border"
             style={{ gridRow: "3 / 5", gridColumn: "5 / 12" }}
           />
           <div
-            className="rounded bg-gray-50 border border-dashed border-gray-200"
+            className="rounded bg-muted/40 border border-dashed border-border"
             style={{ gridRow: "11 / 17", gridColumn: "5 / 25" }}
           />
         </div>

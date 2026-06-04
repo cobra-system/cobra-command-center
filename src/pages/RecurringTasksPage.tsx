@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, CalendarClock, Play } from "lucide-react";
 import { toast } from "sonner";
-import { useData, type Priority } from "@/contexts/AppContext";
+import { useRoles, type Priority } from "@/contexts/AppContext";
 
 import type { Task } from "@/contexts/AppContext";
 type RecurringTask = Task;
@@ -45,7 +45,7 @@ const priorityOptions: { value: Priority; label: string }[] = [
 ];
 
 export default function RecurringTasksPage() {
-  const { profiles } = useData();
+  const { profiles } = useRoles();
   const [tasks, setTasks] = useState<RecurringTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);

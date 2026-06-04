@@ -253,7 +253,7 @@ export default function DivisionProductsPage() {
   }
 
   const canManage = canEdit(currentUserPermissions, "equipment") || currentUser?.division === division;
-  const colorClass = DIVISION_COLORS[division] ?? "border-gray-300 text-gray-700 bg-gray-50";
+  const colorClass = DIVISION_COLORS[division] ?? "border-border text-muted-foreground bg-muted/40";
 
   // Build combobox options for items (all components not yet added)
   const addedComponentIds = useMemo(() => new Set(divisionItems.map((i) => i.component_id)), [divisionItems]);

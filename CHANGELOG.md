@@ -39,6 +39,26 @@
 
 ## [Unreleased]
 
+### Performance
+- Vite vendor chunking — heavy dependencies (recharts, pdf.js, pdf-lib, fabric, xlsx, mammoth, html2pdf, html5-qrcode) are split into isolated, individually-cacheable chunks instead of being merged into route bundles
+- `xlsx`, `mammoth`, and `html2pdf.js` converted to dynamic `import()` so they load only when a user actually exports/previews a file — the Document detail page no longer ships ~550 kB (gzip) of unused parsers just to view a document
+- Lazy route content now suspends *inside* the layout shell (sidebar/header stay mounted) instead of replacing the whole screen with a full-page spinner on every first navigation
+- Removed full-page `window.location.reload()` on logo click — navigation is now pure SPA, preserving the React Query cache and app state
+- App shell layouts (`ManagerLayout`, `EmployeeLayout`) subscribe to focused domain hooks (`useTasks`/`useRoles`) instead of the aggregate `useData()`, eliminating re-renders triggered by unrelated data changes
+- Documents and Payments tables use memoized `Map` lookups for supplier/product/order names instead of per-row `Array.find()`
+- Reduced re-renders app-wide — converted ~25 components plus the shared `usePermissions` / `useProductScope` / `useWarehouseInventory` hooks from the aggregate `useData()` (which subscribes to all 7 data contexts) to focused domain hooks (`useProducts`/`useOrders`/`useSuppliers`/`useRoles`), so a change in one data domain no longer re-renders consumers of unrelated domains
+- Client-side pagination (25 rows/page, configurable) on Orders, Documents, and Payments tables — large result sets no longer render 100+ DOM rows at once; reusable `usePagination` hook + `TablePagination` component
+
+### Fixed
+- Regenerated Supabase TypeScript types from live DB schema — added 5+ missing tables (`daily_reports`, `division_contacts`, `vehicle_models`, `quarterly_procurement_plans`, `frisbee_inspections`, `document_folders`) and 100+ missing columns, reducing `tsc` errors from **496 → ~90** (types-only, zero runtime impact)
+- Applied missing `document_folders` migration — `folder_id` and `is_starred` columns on `purchase_documents` now exist in the DB, enabling the folder/star features that were silently failing
+- Fixed `sortField` TypeScript union narrowing across 6 table components using `as const satisfies readonly ColDef[]`
+- Fixed 50+ additional type errors: unsafe `Json` casts, Supabase `.from()` overloads, fabric/pdfjs callback signatures, and more
+- Dark mode — replaced hardcoded gray/white colors with design tokens (`bg-card`, `bg-muted`, `text-muted-foreground`, `border-border`, `bg-input`) across the task Gantt chart, division-color badges, DHL/order-request status pills, the orders dashboard, notification toggles/checkboxes, and the warehouse map; these previously rendered as bright "unstyled" blocks on dark surfaces
+- Accessibility — added `aria-label`/`title` to icon-only buttons (logout, search, menu, sidebar collapse, theme toggle) across both layouts
+- Accessibility — honor `prefers-reduced-motion`: decorative/infinite animations (float, pulse-glow, shimmer, page transitions) are disabled for users who request reduced motion
+- Loading UX — list pages with their own data fetch (e.g. Issues) now show a layout-matching skeleton (`TablePageSkeleton`) instead of a bare centered spinner
+
 ### Added
 - Unified products page — consolidated `/products` and `/division/:divisionName/products` into a single page; admin sees total stock with expandable per-division breakdown (editable), division managers see their own division stock
 - Interactive product treemap/heatmap view on Products page — finviz-style visualization where cell size reflects consumption and color reflects inventory health, with zoom/pan, category grouping, and filters

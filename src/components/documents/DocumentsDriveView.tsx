@@ -415,7 +415,7 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
                               <MoreVertical className="h-3.5 w-3.5 text-foreground" />
                             </button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" dir="rtl" className="w-40">
+                          <DropdownMenuContent align="start" {...{dir:"rtl"} as any} className="w-40">
                             <DropdownMenuItem onClick={() => { setEditingFolder(folder); setCreateFolderOpen(true); }}>
                               <Pencil className="h-4 w-4 ml-2" />שנה שם
                             </DropdownMenuItem>
@@ -610,7 +610,7 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
                             <MoreVertical className="h-3.5 w-3.5" />
                           </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" dir="rtl" className="w-48">
+                        <DropdownMenuContent align="start" {...{dir:"rtl"} as any} className="w-48">
                           {isPdf(doc) && doc.file_url && (
                             <DropdownMenuItem onClick={() => setViewingPdf(doc)}>
                               <Eye className="h-4 w-4 ml-2" />צפה ב-PDF
@@ -637,7 +637,7 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
                           <DropdownMenuSeparator />
                           <DropdownMenuSub>
                             <DropdownMenuSubTrigger><FolderSymlink className="h-4 w-4 ml-2" />העבר לתיקייה</DropdownMenuSubTrigger>
-                            <DropdownMenuSubContent dir="rtl">
+                            <DropdownMenuSubContent {...{dir:"rtl"} as any}>
                               <DropdownMenuItem onClick={() => handleMoveToFolder(doc.id, null)}>— ללא תיקייה —</DropdownMenuItem>
                               {folders.map(f => (
                                 <DropdownMenuItem key={f.id} onClick={() => handleMoveToFolder(doc.id, f.id)}>{f.name}</DropdownMenuItem>

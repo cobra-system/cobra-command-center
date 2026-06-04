@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useData } from "@/contexts/AppContext";
+import { useSuppliers } from "@/contexts/AppContext";
 import { ArrowUpDown, ArrowUp, ArrowDown, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,8 +8,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { format, isPast } from "date-fns";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
-import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { useColumnVisibility, type ColDef } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/ui/TablePagination";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import type { Payment } from "./types";
@@ -32,10 +34,10 @@ const COLUMN_DEFS = [
   { id: "due_date",     label: "מועד פירעון",  sortField: "due_date" },
   { id: "status",       label: "סטטוס",        sortField: "status" },
   { id: "paid_date",    label: "תאריך תשלום",  sortField: "paid_date" },
-] as const;
+] as const satisfies readonly ColDef[];
 
 export default function PaymentsTable({ payments, search, onRefresh, onEdit }: Props) {
-  const { suppliers } = useData();
+  const { suppliers } = useSuppliers();
   const navigate = useNavigate();
 
   const prefs = useTablePreferences("PaymentsTable", {
@@ -51,7 +53,8 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
   const statusFilter = prefs.filters.statusFilter || "all";
   const typeFilter = prefs.filters.typeFilter || "all";
 
-  const supplierName = (id: string | null) => suppliers.find(s => s.id === id)?.company || "—";
+  const supplierById = useMemo(() => new Map(suppliers.map(s => [s.id, s])), [suppliers]);
+  const supplierName = (id: string | null) => (id ? supplierById.get(id)?.company : undefined) || "—";
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
@@ -97,6 +100,9 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
     return result;
   }, [payments, statusFilter, typeFilter, search, sortField, sortDir]);
 
+  const pagination = usePagination(filtered.length);
+  const pagePayments = pagination.paginated(filtered);
+
   const markPaid = async (id: string) => {
     await supabase.from("supplier_payments").update({ status: "שולם", paid_date: new Date().toISOString().split("T")[0] }).eq("id", id);
     toast.success("סומן כשולם");
@@ -136,7 +142,7 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
       <div className="md:hidden space-y-2" dir="rtl">
         {filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">אין תשלומים</p>
-        ) : filtered.map(p => {
+        ) : pagePayments.map(p => {
           const displayStatus = getDisplayStatus(p);
           const isOverdue = displayStatus === "מאוחר";
           return (
@@ -189,8 +195,8 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
             <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
               {COLUMN_DEFS.map(col => isVisible(col.id) ? (
                 <th key={col.id} className="text-right p-3 font-semibold text-foreground" onContextMenu={colThContextMenu(col, setColMenu)}>
-                  {col.sortField ? (
-                    <button onClick={() => prefs.toggleSort(col.sortField!)} className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors">
+                  {('sortField' in col && col.sortField) ? (
+                    <button onClick={() => prefs.toggleSort(col.sortField)} className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors">
                       {col.label} <SortIcon field={col.sortField as SortField} />
                     </button>
                   ) : col.label}
@@ -202,7 +208,7 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
           <tbody className="divide-y">
             {filtered.length === 0 ? (
               <tr><td colSpan={visibleCount + (onEdit ? 1 : 0)} className="p-8 text-center text-muted-foreground">אין תשלומים</td></tr>
-            ) : filtered.map(p => {
+            ) : pagePayments.map(p => {
               const displayStatus = getDisplayStatus(p);
               const isOverdue = displayStatus === "מאוחר";
               return (
@@ -268,6 +274,7 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
           </tbody>
         </table>
       </div>
+      <TablePagination pagination={pagination} />
       {colMenu && (
         <ColContextMenu
           menu={colMenu}

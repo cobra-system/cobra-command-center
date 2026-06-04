@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useAuth, useData } from "@/contexts/AppContext";
+import { useAuth, useOrders } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -22,7 +22,7 @@ interface Props {
 const ATTACHABLE_STATUSES = new Set(["PENDING", "ORDERED"]);
 
 export function AttachToOrderDialog({ open, onOpenChange, request, onAttached }: Props) {
-  const { orders } = useData();
+  const { orders } = useOrders();
   const { currentUser } = useAuth();
   const [search, setSearch] = useState("");
   const [supplierOnly, setSupplierOnly] = useState(true);

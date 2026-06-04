@@ -55,7 +55,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { useColumnVisibility, type ColDef } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { DispositionBadge, type DispositionType } from "./DispositionBadge";
@@ -153,7 +153,7 @@ const COLUMN_DEFS = [
   { id: "unit_cost", label: "עלות יחידה", sortField: "unit_cost" },
   { id: "days_waiting", label: "ימי המתנה", sortField: "created_at" },
   { id: "sale_info", label: "פרטי מכירה" },
-] as const;
+] as const satisfies readonly ColDef[];
 
 const ACTION_FILTER_OPTIONS = [
   { value: "all", label: "כל הפעולות" },
@@ -626,7 +626,7 @@ export function WasteItemsTab({ items, onRefresh, products, suppliers = [] }: Pr
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" dir="rtl">
+                          <DropdownMenuContent align="end" {...{dir:"rtl"} as any}>
                             <DropdownMenuItem onClick={() => startEdit(item)}>
                               <Pencil className="h-4 w-4 me-2" /> עריכה
                             </DropdownMenuItem>
@@ -849,8 +849,8 @@ export function WasteItemsTab({ items, onRefresh, products, suppliers = [] }: Pr
                 {COLUMN_DEFS.map((col) =>
                   isVisible(col.id) ? (
                     <TableHead key={col.id} className="font-semibold text-foreground" onContextMenu={colThContextMenu(col, setColMenu)}>
-                      {col.sortField ? (
-                        <button onClick={() => toggleSort(col.sortField!)} className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors">
+                      {('sortField' in col && col.sortField) ? (
+                        <button onClick={() => toggleSort(col.sortField)} className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors">
                           {col.label} <SortIcon field={col.sortField} />
                         </button>
                       ) : col.label}
@@ -1042,7 +1042,7 @@ export function WasteItemsTab({ items, onRefresh, products, suppliers = [] }: Pr
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" dir="rtl">
+                            <DropdownMenuContent align="end" {...{dir:"rtl"} as any}>
                               {!item.disposition_type && (
                                 <>
                                   <DropdownMenuItem onClick={() => setDestroyTarget(item)} className="text-destructive">

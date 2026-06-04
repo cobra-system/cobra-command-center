@@ -1,9 +1,11 @@
 import { useMemo } from "react";
-import { useAuth, useData } from "@/contexts/AppContext";
+import { useAuth, useProducts, useOrders, useSuppliers } from "@/contexts/AppContext";
 
 export function useProductScope() {
   const { currentUser } = useAuth();
-  const { products, orders, suppliers } = useData();
+  const { products } = useProducts();
+  const { orders } = useOrders();
+  const { suppliers } = useSuppliers();
 
   const allowedIds = currentUser?.allowed_product_ids;
   const hasAllowedIds = Array.isArray(allowedIds) && allowedIds.length > 0;

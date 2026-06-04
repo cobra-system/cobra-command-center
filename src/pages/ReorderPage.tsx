@@ -10,7 +10,7 @@ import { InlineEditField } from "@/components/InlineEditField";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "sonner";
-import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { useColumnVisibility, type ColDef } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 
 type SortKey = "status" | "name" | "sku" | "stock_qty" | "incoming_qty" | "monthly_sales_avg" | "days_until_stockout" | "lead_time_days" | "order_by_date";
@@ -25,7 +25,7 @@ const COLUMN_DEFS = [
   { id: "days_until_stockout", label: "ימים לאזילה",       sortField: "days_until_stockout" },
   { id: "lead_time_days",      label: "Lead Time",          sortField: "lead_time_days" },
   { id: "order_by_date",       label: "צריך להזמין עד",    sortField: "order_by_date" },
-] as const;
+] as const satisfies readonly ColDef[];
 
 interface ReorderRow {
   id: string;
@@ -309,8 +309,8 @@ export default function ReorderPage() {
             <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
               {COLUMN_DEFS.map(col => isVisible(col.id) ? (
                 <th key={col.id} className="text-right p-3 font-semibold text-foreground" onContextMenu={colThContextMenu(col, setColMenu)}>
-                  {col.sortField ? (
-                    <button onClick={() => prefs.toggleSort(col.sortField!)} className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors">
+                  {('sortField' in col && col.sortField) ? (
+                    <button onClick={() => prefs.toggleSort(col.sortField)} className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors">
                       {col.label} <SortIcon col={col.sortField as SortKey} />
                     </button>
                   ) : col.label}

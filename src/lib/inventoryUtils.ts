@@ -57,7 +57,7 @@ export async function deductInventoryForPickup(
       });
     }
 
-    await supabase.from("inventory_change_log").insert({
+    await supabase.from("inventory_change_log" as any).insert({
       center_id: centerId,
       product_id: item.product_id,
       old_quantity: oldQty,
@@ -65,7 +65,7 @@ export async function deductInventoryForPickup(
       change_type: "equipment_pickup",
       changed_by: changedBy,
       reason: `הצטיידות — ${installerName}`,
-    });
+    } as any);
   }
 }
 
@@ -105,7 +105,7 @@ export async function restockInventoryForReturn(
       });
     }
 
-    await supabase.from("inventory_change_log").insert({
+    await supabase.from("inventory_change_log" as any).insert({
       center_id: centerId,
       product_id: item.product_id,
       old_quantity: oldQty,
@@ -113,7 +113,7 @@ export async function restockInventoryForReturn(
       change_type: "equipment_return",
       changed_by: changedBy,
       reason: `החזרה — ${installerName}`,
-    });
+    } as any);
   }
 }
 
@@ -146,7 +146,7 @@ export async function markItemAsFaulty(opts: {
         .update({ quantity: newQty, updated_at: new Date().toISOString() })
         .eq("id", inv.id);
 
-      await supabase.from("inventory_change_log").insert({
+      await supabase.from("inventory_change_log" as any).insert({
         center_id: centerId,
         product_id: opts.productId,
         old_quantity: inv.quantity,
@@ -154,7 +154,7 @@ export async function markItemAsFaulty(opts: {
         change_type: "manual",
         changed_by: opts.changedByName,
         reason: "פריט שאושר כפגום — הועבר לניהול בלאי",
-      });
+      } as any);
     }
   }
 
@@ -170,7 +170,7 @@ export async function markItemAsFaulty(opts: {
     product_id: opts.productId,
     created_by: opts.changedBy,
     created_by_name: opts.changedByName,
-  });
+  } as any);
 }
 
 /**
@@ -199,7 +199,7 @@ export async function unmarkItemAsFaulty(opts: {
         .update({ quantity: newQty, updated_at: new Date().toISOString() })
         .eq("id", inv.id);
 
-      await supabase.from("inventory_change_log").insert({
+      await supabase.from("inventory_change_log" as any).insert({
         center_id: centerId,
         product_id: opts.productId,
         old_quantity: inv.quantity,
@@ -207,7 +207,7 @@ export async function unmarkItemAsFaulty(opts: {
         change_type: "manual",
         changed_by: opts.changedByName,
         reason: "סימון פגם בוטל — הוחזר למלאי",
-      });
+      } as any);
     }
   }
 

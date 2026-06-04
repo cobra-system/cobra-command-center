@@ -19,6 +19,8 @@ import { detectCarrier, carrierLabel } from "@/lib/trackingCarrierDetect";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { TableSelectionState } from "@/hooks/useTableSelection";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/ui/TablePagination";
 
 import { format } from "date-fns";
 export type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment" | "tracking_number" | "tracking_status" | "tracking_carrier" | "updated_at" | "pi_number";
@@ -100,6 +102,8 @@ export function OrderTable({
 
   const totalColSpan = visibleCount + 2 + (hasEdit ? 1 : 0) + (selection ? 1 : 0);
   const allFilteredIds = filtered.map(o => o.id);
+  const pagination = usePagination(filtered.length);
+  const pageOrders = pagination.paginated(filtered);
 
   return (
     <>
@@ -113,7 +117,7 @@ export function OrderTable({
             <p className="text-sm font-medium text-foreground">אין הזמנות להצגה</p>
             <p className="text-xs text-muted-foreground">נסה לשנות את הסינון או לחפש שם אחר</p>
           </div>
-        ) : filtered.map(order => {
+        ) : pageOrders.map(order => {
           const paymentStatus = orderPaymentStatuses[order.id] || "ממתין";
           const paymentColors: Record<string, string> = {
             "שולם": "bg-success/15 text-success",
@@ -251,7 +255,7 @@ export function OrderTable({
                   <p className="text-sm text-muted-foreground">אין הזמנות להצגה</p>
                 </div>
               </td></tr>
-            ) : filtered.map((order) => {
+            ) : pageOrders.map((order) => {
               const orderMenuGroups: ContextMenuGroupItem[][] = [
                 [
                   { label: "צפה בהזמנה", icon: Eye, onClick: () => navigate(`/orders/${order.id}`) },
@@ -479,6 +483,8 @@ export function OrderTable({
         </table>
       </div>
       </div>{/* end hidden md:block */}
+
+      <TablePagination pagination={pagination} />
 
       {colMenu && (
         <ColContextMenu

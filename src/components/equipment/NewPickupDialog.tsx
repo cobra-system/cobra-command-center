@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
-import { useData, useAuth } from "@/contexts/AppContext";
+import { useProducts, useAuth } from "@/contexts/AppContext";
 import { toast } from "sonner";
 import { deductInventoryForPickup } from "@/lib/inventoryUtils";
 import { Button } from "@/components/ui/button";
@@ -57,8 +57,9 @@ interface Props {
 }
 
 export function NewPickupDialog({ open, onOpenChange, onCreated, preselectedInstallerId, editingPickup, divisionProductIds }: Props) {
-  const { products } = useData();
-  const { user } = useAuth();
+  const { products } = useProducts();
+  const { session, currentUser } = useAuth();
+  const user = session?.user;
   const isEdit = !!editingPickup;
   const [saving, setSaving] = useState(false);
   const [installers, setInstallers] = useState<Installer[]>([]);

@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { AppProvider, useAuth, useData } from "@/contexts/AppContext";
+import { AppProvider, useAuth, useRoles } from "@/contexts/AppContext";
 import { Suspense, lazy, useState, useCallback } from "react";
 import SplashScreen from "@/components/SplashScreen";
 import { useMiddleClickNavigation } from "@/hooks/useMiddleClickNavigation";
@@ -81,7 +81,7 @@ function RequireManager() {
 
 function RequirePermission() {
   const { currentUser, loading } = useAuth();
-  const { currentUserPermissions } = useData();
+  const { currentUserPermissions } = useRoles();
   const location = useLocation();
   if (loading) return null;
   if (!currentUser) return <Navigate to="/login" replace />;

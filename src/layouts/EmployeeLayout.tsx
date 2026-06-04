@@ -1,12 +1,14 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { useAuth, useData } from "@/contexts/AppContext";
+import { Suspense } from "react";
+import { useAuth, useTasks } from "@/contexts/AppContext";
 import { LogOut } from "lucide-react";
 import cobraLogo from "@/assets/cobra-logo.png";
 import EmployeeBottomNav from "@/components/EmployeeBottomNav";
+import RouteLoader from "@/components/RouteLoader";
 
 export default function EmployeeLayout() {
   const { currentUser, logout } = useAuth();
-  const { tasks } = useData();
+  const { tasks } = useTasks();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -49,14 +51,16 @@ export default function EmployeeLayout() {
               )}
             </div>
           </div>
-          <button onClick={handleLogout} className="opacity-60 hover:opacity-100 transition-opacity p-1">
+          <button onClick={handleLogout} aria-label="התנתק" title="התנתק" className="opacity-60 hover:opacity-100 transition-opacity p-1">
             <LogOut className="h-4 w-4" />
           </button>
         </div>
       </header>
 
       <div key={location.pathname} className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-4 pt-3 sm:pt-4 pb-20 page-fade-in">
-        <Outlet />
+        <Suspense fallback={<RouteLoader />}>
+          <Outlet />
+        </Suspense>
       </div>
 
       <EmployeeBottomNav />

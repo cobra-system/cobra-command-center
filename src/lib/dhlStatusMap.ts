@@ -51,7 +51,7 @@ export interface TrackingLevelMeta {
 }
 
 export const DHL_LEVELS: Record<TrackingLevel, TrackingLevelMeta> = {
-  "pre-transit": { he: "ממתין לאיסוף", badgeClass: "bg-gray-100 text-gray-700", textClass: "text-gray-700", stageIndex: 0 },
+  "pre-transit": { he: "ממתין לאיסוף", badgeClass: "bg-muted text-muted-foreground", textClass: "text-muted-foreground", stageIndex: 0 },
   "transit":     { he: "בדרך",          badgeClass: "bg-blue-100 text-blue-700", textClass: "text-blue-700", stageIndex: 2 },
   "delivered":   { he: "נמסר",          badgeClass: "bg-green-100 text-green-700", textClass: "text-green-700", stageIndex: 4 },
   "failure":     { he: "תקלה",          badgeClass: "bg-red-100 text-red-700",   textClass: "text-red-700",  stageIndex: -1 },

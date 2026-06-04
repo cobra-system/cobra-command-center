@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useData, categories as allCategories, type Product } from "@/contexts/AppContext";
+import { useSuppliers, categories as allCategories, type Product } from "@/contexts/AppContext";
 import { useProductScope } from "@/hooks/useProductScope";
 import { usePickupMonthlyAvg } from "@/hooks/usePickupMonthlyAvg";
 import type { TreemapItem } from "./treemapLayout";
@@ -29,7 +29,7 @@ function getConsumption(product: Product, avgByProduct: Map<string, number>): nu
 export function useTreemapData(filters: TreemapFilters) {
   const { scopedProducts } = useProductScope();
   const { avgByProduct } = usePickupMonthlyAvg();
-  const { suppliers } = useData();
+  const { suppliers } = useSuppliers();
 
   const activeCats = useMemo(
     () => allCategories.filter(c => c !== "הכל"),

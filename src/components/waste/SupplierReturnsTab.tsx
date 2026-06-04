@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { useColumnVisibility, type ColDef } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { SupplierReturnStatusBadge } from "./DispositionBadge";
@@ -59,7 +59,7 @@ const COLUMN_DEFS = [
   { id: "return_reason", label: "סיבה" },
   { id: "resolution_type", label: "פתרון" },
   { id: "created_by_name", label: 'נוצר ע"י' },
-] as const;
+] as const satisfies readonly ColDef[];
 
 interface Props {
   canCreate: boolean;
@@ -382,9 +382,9 @@ export function SupplierReturnsTab({ canCreate, openReturnId }: Props) {
                         className="text-right p-3 font-semibold text-foreground"
                         onContextMenu={colThContextMenu(col, setColMenu)}
                       >
-                        {col.sortField ? (
+                        {('sortField' in col && col.sortField) ? (
                           <button
-                            onClick={() => toggleSort(col.sortField!)}
+                            onClick={() => toggleSort(col.sortField)}
                             className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors"
                           >
                             {col.label} <SortIcon field={col.sortField} />

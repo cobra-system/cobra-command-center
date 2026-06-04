@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
-import { useData } from "@/contexts/AppContext";
+import { useProducts, useSuppliers } from "@/contexts/AppContext";
+import { TablePageSkeleton } from "@/components/ui/TablePageSkeleton";
 import { useNavigate } from "react-router-dom";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Wrench, Plus, ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle, CheckCircle2, Clock, Hash, Minus, Circle, Check, X, Filter } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
-import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { useColumnVisibility, type ColDef } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { DiagnosticWizard, SimpleIssueForm } from "@/components/ProductIssuesTab";
 
@@ -25,7 +26,7 @@ const COLUMN_DEFS = [
   { id: "severity",      label: "חומרה",      sortField: "severity" },
   { id: "status",        label: "סטטוס",      sortField: "status" },
   { id: "ticket_number", label: "מספר פנייה" },
-] as const;
+] as const satisfies readonly ColDef[];
 
 interface Issue {
   id: string;
@@ -68,7 +69,8 @@ function relativeDate(dateStr: string): string {
 }
 
 export default function IssuesPage() {
-  const { products, suppliers } = useData();
+  const { products } = useProducts();
+  const { suppliers } = useSuppliers();
   const { hasEdit } = usePermissions("issues");
   const navigate = useNavigate();
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -175,7 +177,7 @@ export default function IssuesPage() {
     return products.filter(p => set.has(p.id));
   }, [issues, products]);
 
-  if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if (loading) return <TablePageSkeleton statCards={5} rows={8} />;
 
   const SortIcon = ({ col }: { col: SortKey }) => {
     if (sortKey !== col) return <ArrowUpDown className="h-3 w-3 opacity-30" />;
@@ -313,8 +315,8 @@ export default function IssuesPage() {
             <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
               {COLUMN_DEFS.map(col => isVisible(col.id) ? (
                 <th key={col.id} className="text-right p-3 font-semibold text-foreground" onContextMenu={colThContextMenu(col, setColMenu)}>
-                  {col.sortField ? (
-                    <button onClick={() => prefs.toggleSort(col.sortField!)} className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors">
+                  {('sortField' in col && col.sortField) ? (
+                    <button onClick={() => prefs.toggleSort(col.sortField)} className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors">
                       {col.label} <SortIcon col={col.sortField} />
                     </button>
                   ) : col.label}

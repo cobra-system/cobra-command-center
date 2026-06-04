@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useFileDropPaste } from "@/hooks/useFileDropPaste";
 import { supabase } from "@/lib/supabase";
-import { useData } from "@/contexts/AppContext";
+import { useRoles } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -327,7 +327,7 @@ export function SimpleIssueForm({ productId, onClose, onSaved }: { productId: st
 }
 
 export default function ProductIssuesTab({ productId, productName }: { productId: string; productName?: string }) {
-  const { profiles } = useData();
+  const { profiles } = useRoles();
   const [issues, setIssues] = useState<ProductIssue[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);

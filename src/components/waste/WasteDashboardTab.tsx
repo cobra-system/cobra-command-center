@@ -252,7 +252,7 @@ export function WasteDashboardTab({ wasteItems, supplierReturns, onAddItem, hasE
         <StatCard
           label="ממתינים לטיפול"
           value={stats.pending}
-          icon={<Clock className="h-5 w-5 text-slate-500" />}
+          icon={<Clock className="h-5 w-5 text-muted-foreground" />}
           color="bg-muted"
         />
         <StatCard

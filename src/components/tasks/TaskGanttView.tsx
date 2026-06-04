@@ -599,15 +599,15 @@ export default function TaskGanttView() {
       </div>
 
       {/* Gantt Area */}
-      <div className="flex-1 border rounded-lg overflow-hidden bg-white flex flex-row-reverse">
+      <div className="flex-1 border rounded-lg overflow-hidden bg-card flex flex-row-reverse">
         {/* Sidebar - Task list */}
         <div
-          className="border-l bg-gray-50 flex-shrink-0 overflow-hidden flex flex-col"
+          className="border-l bg-muted/30 flex-shrink-0 overflow-hidden flex flex-col"
           style={{ width: SIDEBAR_WIDTH }}
         >
           {/* Sidebar header */}
           <div
-            className="border-b bg-gray-100 flex items-center px-3 font-semibold text-sm text-gray-600 flex-shrink-0"
+            className="border-b bg-muted flex items-center px-3 font-semibold text-sm text-muted-foreground flex-shrink-0"
             style={{ height: TOTAL_HEADER_HEIGHT }}
           >
             משימות ({filteredTasks.length})
@@ -649,7 +649,7 @@ export default function TaskGanttView() {
                 return (
                   <div
                     key={task.id}
-                    className="flex items-center px-2 gap-2 border-b border-gray-100 cursor-pointer hover:bg-gray-100/70 transition-colors"
+                    className="flex items-center px-2 gap-2 border-b border-border cursor-pointer hover:bg-muted/70 transition-colors"
                     style={{
                       height: pos.height,
                       borderRight: `4px solid ${goalColor.bg}`,
@@ -662,14 +662,14 @@ export default function TaskGanttView() {
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] truncate font-medium leading-tight">{task.title}</div>
                       {task.assignee_name && (
-                        <div className="text-[11px] text-gray-400 truncate leading-tight">{task.assignee_name}</div>
+                        <div className="text-[11px] text-muted-foreground truncate leading-tight">{task.assignee_name}</div>
                       )}
                     </div>
                   </div>
                 );
               })}
               {filteredTasks.length === 0 && (
-                <div className="flex items-center justify-center h-32 text-sm text-gray-400">
+                <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
                   אין משימות להצגה
                 </div>
               )}
@@ -686,13 +686,13 @@ export default function TaskGanttView() {
         >
           <div style={{ width: totalWidth, minHeight: TOTAL_HEADER_HEIGHT + totalHeight }}>
             {/* Date headers */}
-            <div className="sticky top-0 z-20 bg-white border-b" style={{ height: TOTAL_HEADER_HEIGHT }}>
+            <div className="sticky top-0 z-20 bg-card border-b" style={{ height: TOTAL_HEADER_HEIGHT }}>
               {/* Month row */}
               <div className="relative border-b" style={{ height: MONTH_HEADER_HEIGHT }}>
                 {monthHeaders.map((mh, i) => (
                   <div
                     key={i}
-                    className="absolute top-0 text-center text-xs font-semibold text-gray-700 bg-gray-50 border-r flex items-center justify-center"
+                    className="absolute top-0 text-center text-xs font-semibold text-muted-foreground bg-muted/30 border-r flex items-center justify-center"
                     style={{
                       left: mh.startCol * effectiveDayWidth,
                       width: mh.span * effectiveDayWidth,
@@ -714,10 +714,10 @@ export default function TaskGanttView() {
                         key={i}
                         className={`absolute top-0 border-r text-center select-none ${
                           isToday
-                            ? "bg-blue-50 font-bold text-blue-600"
+                            ? "bg-primary/10 font-bold text-primary"
                             : isWkend
-                            ? "bg-gray-50 text-gray-400"
-                            : "text-gray-500"
+                            ? "bg-muted/40 text-muted-foreground"
+                            : "text-muted-foreground"
                         }`}
                         style={{
                           left: i * dayWidth,
@@ -739,7 +739,7 @@ export default function TaskGanttView() {
                       <div
                         key={i}
                         className={`absolute top-0 border-r text-center select-none ${
-                          isCurrentWeek ? "bg-blue-50 font-bold text-blue-600" : "text-gray-500"
+                          isCurrentWeek ? "bg-primary/10 font-bold text-primary" : "text-muted-foreground"
                         }`}
                         style={{
                           left: i * WEEK_COL_WIDTH,
@@ -747,7 +747,7 @@ export default function TaskGanttView() {
                           height: HEADER_HEIGHT,
                         }}
                       >
-                        <div className="text-[9px] mt-1 text-gray-400">שבוע {wc.weekIndex + 1}</div>
+                        <div className="text-[9px] mt-1 text-muted-foreground">שבוע {wc.weekIndex + 1}</div>
                         <div className="text-[10px] mt-0.5">{label}</div>
                       </div>
                     );
@@ -767,7 +767,7 @@ export default function TaskGanttView() {
                     <div
                       key={i}
                       className={`absolute top-0 border-r ${
-                        isToday ? "bg-blue-50/40" : isWkend ? "bg-gray-50/60" : ""
+                        isToday ? "bg-primary/5" : isWkend ? "bg-muted/40" : ""
                       }`}
                       style={{
                         left: i * dayWidth,
@@ -783,7 +783,7 @@ export default function TaskGanttView() {
                   return (
                     <div
                       key={i}
-                      className={`absolute top-0 border-r ${isCurrentWeek ? "bg-blue-50/30" : ""}`}
+                      className={`absolute top-0 border-r ${isCurrentWeek ? "bg-primary/5" : ""}`}
                       style={{
                         left: i * WEEK_COL_WIDTH,
                         width: WEEK_COL_WIDTH,
@@ -814,7 +814,7 @@ export default function TaskGanttView() {
                 return (
                   <div
                     key={`sep-${row.task.id}`}
-                    className="absolute w-full border-b border-gray-100"
+                    className="absolute w-full border-b border-border"
                     style={{ top: pos.top + pos.height }}
                   />
                 );
@@ -876,7 +876,7 @@ export default function TaskGanttView() {
                         height: BAR_HEIGHT,
                       }}
                     >
-                      <span className="text-xs text-gray-400 italic">אין תאריכים</span>
+                      <span className="text-xs text-muted-foreground italic">אין תאריכים</span>
                     </div>
                   );
                 }
@@ -956,22 +956,22 @@ export default function TaskGanttView() {
                       <TooltipContent side="top" className="text-right max-w-xs" dir="rtl">
                         <div className="font-semibold text-sm">{bar.task.title}</div>
                         {bar.task.milestone && (
-                          <div className="text-xs text-gray-400">{bar.task.milestone}</div>
+                          <div className="text-xs text-muted-foreground">{bar.task.milestone}</div>
                         )}
-                        <div className="text-xs text-gray-500 mt-1">
+                        <div className="text-xs text-muted-foreground mt-1">
                           {bar.start && format(bar.start, "dd/MM/yyyy")}
                           {bar.start && bar.end && " → "}
                           {bar.end && format(bar.end, "dd/MM/yyyy")}
                         </div>
                         {bar.task.assignee_name && (
-                          <div className="text-xs text-gray-500">אחראי: {bar.task.assignee_name}</div>
+                          <div className="text-xs text-muted-foreground">אחראי: {bar.task.assignee_name}</div>
                         )}
                         {hasDeps && (
-                          <div className="text-xs text-indigo-500 mt-1">
+                          <div className="text-xs text-primary mt-1">
                             תלוי ב-{(bar.task.depends_on ?? []).length} משימות
                           </div>
                         )}
-                        <div className="text-[10px] text-gray-400 mt-1">לחיצה כפולה לעריכה</div>
+                        <div className="text-[10px] text-muted-foreground mt-1">לחיצה כפולה לעריכה</div>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -984,8 +984,8 @@ export default function TaskGanttView() {
 
       {/* Dependency removal panel */}
       {selectedTask && (selectedTask.depends_on ?? []).length > 0 && (
-        <div className="mt-2 p-2 bg-indigo-50 border border-indigo-200 rounded-lg">
-          <div className="text-sm font-medium text-indigo-700 mb-1">
+        <div className="mt-2 p-2 bg-primary/10 border border-primary/20 rounded-lg">
+          <div className="text-sm font-medium text-primary mb-1">
             תלויות של &quot;{selectedTask.title}&quot;:
           </div>
           <div className="flex flex-wrap gap-1">
@@ -995,7 +995,7 @@ export default function TaskGanttView() {
                 <Badge
                   key={depId}
                   variant="secondary"
-                  className="bg-indigo-100 text-indigo-700 cursor-pointer hover:bg-red-100 hover:text-red-700 transition-colors"
+                  className="bg-primary/15 text-primary cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-colors"
                   onClick={() => handleRemoveDependency(selectedTask.id, depId)}
                 >
                   {depTask?.title ?? "משימה לא נמצאה"}
@@ -1004,7 +1004,7 @@ export default function TaskGanttView() {
               );
             })}
           </div>
-          <div className="text-[10px] text-gray-400 mt-1">לחץ על תלות כדי להסיר אותה</div>
+          <div className="text-[10px] text-muted-foreground mt-1">לחץ על תלות כדי להסיר אותה</div>
         </div>
       )}
 

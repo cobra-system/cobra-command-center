@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { useFileDropPaste } from "@/hooks/useFileDropPaste";
-import * as XLSX from "xlsx";
-import mammoth from "mammoth";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData, useAuth } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
@@ -27,7 +25,6 @@ import { format, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Payment } from "@/components/documents/types";
 import { docStatusFlow, docStatusColors, currencySymbol, payStatusColors, paymentTypeLabels } from "@/components/documents/constants";
-import html2pdf from "html2pdf.js";
 import { usePermissions } from "@/hooks/usePermissions";
 import DocumentProductSelector from "@/components/documents/DocumentProductSelector";
 
@@ -85,17 +82,18 @@ function FilePreview({ url, filename }: { url: string; filename?: string }) {
 
     fetch(url)
       .then(r => r.arrayBuffer())
-      .then(buf => {
+      .then(async buf => {
         if (cancelled) return;
         if (isExcel) {
+          const XLSX = await import("xlsx");
           const wb = XLSX.read(buf, { type: "array" });
           const ws = wb.Sheets[wb.SheetNames[0]];
           const html = XLSX.utils.sheet_to_html(ws);
           if (!cancelled) setExcelHtml(html);
         } else if (isWord) {
-          return mammoth.convertToHtml({ arrayBuffer: buf }).then(result => {
-            if (!cancelled) setWordHtml(result.value);
-          });
+          const mammoth = (await import("mammoth")).default;
+          const result = await mammoth.convertToHtml({ arrayBuffer: buf });
+          if (!cancelled) setWordHtml(result.value);
         }
       })
       .catch(() => { if (!cancelled) setDocError(true); })
@@ -246,7 +244,7 @@ function FilePreview({ url, filename }: { url: string; filename?: string }) {
   );
 }
 
-function generateDocumentPDF(
+async function generateDocumentPDF(
   doc: PurchaseDocument,
   supplierName: string | undefined,
   productName: string | undefined
@@ -346,6 +344,7 @@ function generateDocumentPDF(
     jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
   };
 
+  const html2pdf = (await import("html2pdf.js")).default;
   html2pdf().set(opt).from(element).save();
 }
 
@@ -557,7 +556,7 @@ export default function DocumentDetailPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => generateDocumentPDF(doc, supplierName, productName)}
+              onClick={() => generateDocumentPDF(doc, supplierName, productName).catch(() => toast.error("שגיאה ביצירת PDF"))}
             >
               <Download className="h-4 w-4 ml-1" />הורד כ PDF
             </Button>

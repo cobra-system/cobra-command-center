@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useData, useAuth } from "@/contexts/AppContext";
+import { useSuppliers, useProducts, useOrders, useAuth } from "@/contexts/AppContext";
 import { logger } from "@/lib/logger";
 import { ArrowUpDown, ArrowUp, ArrowDown, Paperclip, Trash2, Eye, RefreshCw, Pencil, ShoppingCart, Package, Copy } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
@@ -20,7 +20,9 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
-import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { useColumnVisibility, type ColDef } from "@/hooks/useColumnVisibility";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "@/components/ui/TablePagination";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { supabase } from "@/lib/supabase";
 import type { PurchaseDocument } from "./types";
@@ -47,10 +49,12 @@ const COLUMN_DEFS = [
   { id: "status",      label: "סטטוס",      sortField: "status" },
   { id: "approval",    label: "אישור" },
   { id: "created_at",  label: "תאריך",      sortField: "created_at" },
-] as const;
+] as const satisfies readonly ColDef[];
 
 export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Props) {
-  const { suppliers, products, orders } = useData();
+  const { suppliers } = useSuppliers();
+  const { products } = useProducts();
+  const { orders } = useOrders();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -68,11 +72,14 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
   const typeFilter = prefs.filters.typeFilter || "all";
   const statusFilter = prefs.filters.statusFilter || "all";
 
-  const supplierName = (id: string | null) => suppliers.find(s => s.id === id)?.company || "—";
-  const productName = (id: string | null) => products.find(p => p.id === id)?.name || "—";
+  const supplierById = useMemo(() => new Map(suppliers.map(s => [s.id, s])), [suppliers]);
+  const productById = useMemo(() => new Map(products.map(p => [p.id, p])), [products]);
+  const orderById = useMemo(() => new Map(orders.map(o => [o.id, o])), [orders]);
+  const supplierName = (id: string | null) => (id ? supplierById.get(id)?.company : undefined) || "—";
+  const productName = (id: string | null) => (id ? productById.get(id)?.name : undefined) || "—";
   const orderLabel = (id: string | null) => {
     if (!id) return null;
-    const o = orders.find(o => o.id === id);
+    const o = id ? orderById.get(id) : undefined;
     return o ? (o.supplier_name || o.id.slice(0, 8)) : null;
   };
 
@@ -115,6 +122,9 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
 
     return result;
   }, [docs, typeFilter, statusFilter, search, sortField, sortDir]);
+
+  const pagination = usePagination(filtered.length);
+  const pageDocs = pagination.paginated(filtered);
 
   const handleStatusChange = async (docId: string, newStatus: string) => {
     const updates: Record<string, unknown> = { status: newStatus };
@@ -168,7 +178,7 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
       <div className="md:hidden space-y-2" dir="rtl">
         {filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">אין מסמכים</p>
-        ) : filtered.map(doc => {
+        ) : pageDocs.map(doc => {
           const docName = doc.document_name || doc.notes || "ללא שם";
           return (
             <div
@@ -239,8 +249,8 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
             <tr className="border-b bg-muted/50" onContextMenu={trContextMenu(hiddenCols, setColMenu)}>
               {COLUMN_DEFS.map(col => isVisible(col.id) ? (
                 <th key={col.id} className="text-right p-3 font-semibold text-foreground" onContextMenu={colThContextMenu(col, setColMenu)}>
-                  {col.sortField ? (
-                    <button onClick={() => prefs.toggleSort(col.sortField!)} className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors">
+                  {('sortField' in col && col.sortField) ? (
+                    <button onClick={() => prefs.toggleSort(col.sortField)} className="flex items-center gap-1 cursor-pointer select-none hover:text-accent transition-colors">
                       {col.label} <SortIcon field={col.sortField} />
                     </button>
                   ) : col.label}
@@ -252,7 +262,7 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
           <tbody className="divide-y">
             {filtered.length === 0 ? (
               <tr><td colSpan={visibleCount + 1} className="p-8 text-center text-muted-foreground">אין מסמכים</td></tr>
-            ) : filtered.map(doc => {
+            ) : pageDocs.map(doc => {
               const docName = doc.document_name || doc.notes || "ללא שם";
               const docMenuGroups: ContextMenuGroupItem[][] = [
                 [
@@ -378,6 +388,7 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
           </tbody>
         </table>
       </div>
+      <TablePagination pagination={pagination} />
       {colMenu && (
         <ColContextMenu
           menu={colMenu}

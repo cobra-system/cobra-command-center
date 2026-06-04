@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { useAuth, useData } from "@/contexts/AppContext";
+import { useAuth, useTasks, useRoles } from "@/contexts/AppContext";
 import MobileNavPopup from "@/components/MobileNavPopup";
 import MobileSearchOverlay from "@/components/MobileSearchOverlay";
 import { canView, getModuleKeyFromRoute, isDivisionManager } from "@/lib/permissions";
@@ -37,10 +37,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useTheme } from "next-themes";
 import cobraLogo from "@/assets/cobra-logo.png";
 import GlobalSearch from "@/components/GlobalSearch";
+import RouteLoader from "@/components/RouteLoader";
 import { useOrderRequestToasts } from "@/hooks/useOrderRequestToasts";
 
 const defaultNavItems = [
@@ -86,7 +87,8 @@ function getStoredOrder(): typeof defaultNavItems {
 
 export default function ManagerLayout() {
   const { currentUser, logout } = useAuth();
-  const { tasks, currentUserPermissions, roleDefinitions } = useData();
+  const { tasks } = useTasks();
+  const { currentUserPermissions, roleDefinitions } = useRoles();
   const roleLabel = roleDefinitions.find((rd) => rd.id === currentUser?.role_definition_id)?.name ?? currentUser?.role;
   const navigate = useNavigate();
   const location = useLocation();
@@ -140,6 +142,18 @@ export default function ManagerLayout() {
     navigate("/login");
   };
 
+  // Navigate to the role-appropriate home. SPA navigation only — no full
+  // page reload (which would blow away the query cache and all app state).
+  const goHome = () => {
+    navigate(
+      divisionManager
+        ? isBondedDivMgr
+          ? `/division/${divEnc}/consumption`
+          : `/equipment/division/${divEnc}`
+        : "/dashboard"
+    );
+  };
+
   const handleDragStart = (index: number) => setDragIndex(index);
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
@@ -169,28 +183,12 @@ export default function ManagerLayout() {
       `}>
         {/* Logo area */}
         <div className={`h-16 flex items-center border-b border-border/50 ${collapsed ? "justify-center px-2" : "px-5 justify-between"}`}>
-          {!collapsed && (
-            <img
-              src={cobraLogo}
-              alt="COBRA.IO"
-              className="h-8 cursor-pointer opacity-90 hover:opacity-100 transition-opacity"
-              onClick={() => {
-                navigate(divisionManager ? (isBondedDivMgr ? `/division/${divEnc}/consumption` : `/equipment/division/${divEnc}`) : "/dashboard");
-                window.location.reload();
-              }}
-            />
-          )}
-          {collapsed && (
-            <img
-              src={cobraLogo}
-              alt="COBRA.IO"
-              className="h-7 cursor-pointer opacity-90 hover:opacity-100 transition-opacity"
-              onClick={() => {
-                navigate(divisionManager ? (isBondedDivMgr ? `/division/${divEnc}/consumption` : `/equipment/division/${divEnc}`) : "/dashboard");
-                window.location.reload();
-              }}
-            />
-          )}
+          <img
+            src={cobraLogo}
+            alt="COBRA.IO"
+            className={`${collapsed ? "h-7" : "h-8"} cursor-pointer opacity-90 hover:opacity-100 transition-opacity`}
+            onClick={goHome}
+          />
         </div>
 
         {/* Search */}
@@ -262,6 +260,8 @@ export default function ManagerLayout() {
         <div className="hidden lg:flex justify-center py-2 border-t border-border/50">
           <button
             onClick={() => setCollapsed(!collapsed)}
+            aria-label={collapsed ? "הרחב תפריט" : "כווץ תפריט"}
+            title={collapsed ? "הרחב תפריט" : "כווץ תפריט"}
             className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-muted/60 transition-colors"
           >
             <ChevronLeft className={`h-4 w-4 transition-transform duration-300 ${collapsed ? "rotate-180 rtl:rotate-0" : "rtl:rotate-180"}`} />
@@ -289,7 +289,7 @@ export default function ManagerLayout() {
                 >
                   {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                 </button>
-                <button onClick={handleLogout} className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded-md hover:bg-destructive/10">
+                <button onClick={handleLogout} aria-label="התנתק" title="התנתק" className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded-md hover:bg-destructive/10">
                   <LogOut className="h-4 w-4" />
                 </button>
               </div>
@@ -313,16 +313,18 @@ export default function ManagerLayout() {
         <header className="lg:hidden sticky top-0 z-30 bg-card/90 backdrop-blur-xl border-b border-border/50 px-4 py-3 flex items-center gap-3">
           <img src={cobraLogo} alt="COBRA.IO" className="h-6 opacity-90 shrink-0" />
           <span className="flex-1 text-sm font-semibold text-foreground text-center truncate">{pageTitle}</span>
-          <button onClick={() => setSearchOpen(true)} className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/60 transition-colors shrink-0">
+          <button onClick={() => setSearchOpen(true)} aria-label="חיפוש" title="חיפוש" className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/60 transition-colors shrink-0">
             <Search className="h-5 w-5" />
           </button>
-          <button onClick={() => setSidebarOpen(true)} className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/60 transition-colors shrink-0">
+          <button onClick={() => setSidebarOpen(true)} aria-label="פתח תפריט" title="תפריט" className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/60 transition-colors shrink-0">
             <Menu className="h-5 w-5" />
           </button>
         </header>
 
         <div key={location.pathname} className="flex-1 p-3 sm:p-4 lg:p-8 max-w-[1600px] overflow-x-hidden page-fade-in">
-          <Outlet />
+          <Suspense fallback={<RouteLoader />}>
+            <Outlet />
+          </Suspense>
         </div>
       </main>
 
