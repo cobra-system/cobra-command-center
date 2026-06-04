@@ -3,7 +3,6 @@ import { useState, useMemo, useEffect } from "react";
 import { useData, useAuth, categories, divisions, type ProductComponent } from "@/contexts/AppContext";
 import { canSeePrices } from "@/lib/permissions";
 import { useLiveProductMetrics } from "@/hooks/useLiveProductMetrics";
-import { usePickupMonthlyAvg } from "@/hooks/usePickupMonthlyAvg";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, ExternalLink, Info, Pencil, Trash2 } from "lucide-react";
 import ProductDeleteDialog from "@/components/products/ProductDeleteDialog";
@@ -53,7 +52,6 @@ export default function ProductDetailPage() {
   const product = products.find(p => p.id === id);
   const productArr = useMemo(() => (product ? [product] : []), [product]);
   const { metrics } = useLiveProductMetrics(productArr);
-  const { avgByProduct } = usePickupMonthlyAvg();
   const relatedOrders = useMemo(
     () => product ? orders.filter(o => o.items.some(item => item.name === product.name || item.product_id === product.id)) : [],
     [orders, product]
@@ -115,9 +113,7 @@ export default function ProductDetailPage() {
     { label: "שיטת משלוח", field: "shipping", value: product.shipping, options: shippingOptions, tooltip: "אופן המשלוח המועדף מהספק" },
     { label: "מחיר רכישה", field: "purchase_price", value: product.purchase_price, priceGated: true, tooltip: product.product_type === "מורכב" ? "מחושב אוטומטית — סכום מחירי הרכיבים" : "מחיר קנייה מהספק ($)" },
     { label: "מחיר מכירה", field: "sale_price", value: product.sale_price, priceGated: true, tooltip: "מחיר מכירה ללקוח הסופי ($)" },
-    { label: "צריכה (לפי הצטיידות)", field: "monthly_sales", value: avgByProduct.get(product.id) ?? undefined, readOnly: true, isComputed: true, tooltip: "מחושב אוטומטית — ממוצע כמויות שהוצאו מהמלאי בחודשים האחרונים" },
     { label: "הזמנה חודשית", field: "monthly_order", value: product.monthly_order, tooltip: "כמות ההזמנה החודשית המתוכננת — מוגדרת ידנית" },
-    { label: "ממוצע SAP", field: "monthly_sales_avg", value: product.monthly_sales_avg, tooltip: "ממוצע צריכה שנתי ממערכת SAP — מוגדר ידנית" },
     { label: "מלאי קיים", field: "stock_qty", value: product.stock_qty, tooltip: "כמות יחידות פיזיות במחסן — מוגדרת ידנית" },
     { label: 'עול"ב', field: "incoming_qty", value: metrics[product.id]?.incomingQty ?? product.incoming_qty, readOnly: true, isComputed: true, tooltip: 'מחושב אוטומטית — סכום כמויות מהזמנות פעילות (נשלח / הגיע לנמל / שחרור מכס)' },
     { label: "הערות", field: "notes", value: product.notes, tooltip: "הערות חופשיות על המוצר" },
@@ -268,9 +264,8 @@ export default function ProductDetailPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {[
             { label: "מלאי כולל", value: totalStock, danger: totalStock === 0, tooltip: divisionData.length > 0 ? `קוברה ת"א: ${product.stock_qty} + חטיבות: ${divTotal}` : "כמות יחידות פיזיות במחסן" },
-            { label: 'עול"ב', value: metrics[product.id]?.incomingQty ?? product.incoming_qty, tooltip: 'מחושב מהזמנות פעילות (נשלח / הגיע לנמל / שחרור מכס)' },
-            ...(totalDivConsumption > 0 ? [{ label: "צריכה חטיבות (ממוצע)", value: totalDivConsumption, danger: false, tooltip: "סכום ממוצע הצריכה החודשי של כל החטיבות — הצריכה המשוקללת שקוברה צריכה לתכנן עליה" }] : []),
-            { label: "צריכה (הצטיידות)", value: avgByProduct.get(product.id) ?? "—", danger: false, tooltip: "ממוצע חודשי מחושב מהיסטוריית הוצאות המלאי" },
+            { label: 'עול"ב', value: metrics[product.id]?.incomingQty ?? product.incoming_qty, danger: false, tooltip: 'מחושב מהזמנות פעילות (נשלח / הגיע לנמל / שחרור מכס)' },
+            ...(totalDivConsumption > 0 ? [{ label: "צריכה (ממוצע חודשי)", value: totalDivConsumption, danger: false, tooltip: "סכום ממוצע הצריכה החודשי מכל החטיבות — מוזן ידנית או דרך MCP" }] : []),
             { label: "הזמנה חודשית", value: product.monthly_order ?? "—", danger: false, tooltip: "כמות הזמנה חודשית מתוכננת — מוגדרת ידנית" },
             ...(showPrices ? [
               {

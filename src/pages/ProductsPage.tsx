@@ -4,7 +4,6 @@ import { useData, useAuth, categories, type Product } from "@/contexts/AppContex
 import { canSeePrices, isDivisionManager } from "@/lib/permissions";
 import { useProductScope } from "@/hooks/useProductScope";
 import { useLiveProductMetrics, type ProductMetrics } from "@/hooks/useLiveProductMetrics";
-import { usePickupMonthlyAvg } from "@/hooks/usePickupMonthlyAvg";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { supabase } from "@/lib/supabase";
 import { Search, ChevronDown, ChevronUp, Boxes, Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye, Pencil, Truck, ShoppingCart, ClipboardList, Copy, Hash, Table2, LayoutGrid } from "lucide-react";
@@ -26,25 +25,23 @@ import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/c
 import { usePermissions } from "@/hooks/usePermissions";
 import { QuantityBar } from "@/components/ui/QuantityBar";
 
-type SortKey = "name" | "sku" | "product_type" | "supplier" | "stock_qty" | "incoming_qty" | "purchase_price" | "monthly_order" | "sale_price" | "monthly_sales" | "category" | "lead_time_days" | "monthly_sales_avg" | "division" | "shipping" | "div_consumption";
+type SortKey = "name" | "sku" | "product_type" | "supplier" | "stock_qty" | "incoming_qty" | "purchase_price" | "monthly_order" | "sale_price" | "category" | "lead_time_days" | "division" | "shipping" | "div_consumption";
 
 const COLUMN_DEFS = [
-  { id: "name",             label: "שם מוצר",             sortField: "name" as SortKey },
-  { id: "sku",              label: "מק״ט",                 sortField: "sku" as SortKey },
-  { id: "product_type",     label: "סוג",                  sortField: "product_type" as SortKey },
-  { id: "supplier",         label: "ספק",                  sortField: "supplier" as SortKey },
-  { id: "stock_qty",        label: "מלאי",                 sortField: "stock_qty" as SortKey },
-  { id: "incoming_qty",     label: 'עול"ב',                sortField: "incoming_qty" as SortKey },
-  { id: "purchase_price",   label: "מחיר רכישה",          sortField: "purchase_price" as SortKey },
-  { id: "monthly_order",    label: "הזמנה חודשית",        sortField: "monthly_order" as SortKey },
-  { id: "sale_price",       label: "מחיר מכירה",          sortField: "sale_price" as SortKey },
-  { id: "monthly_sales",    label: "צריכה (הצטיידות)",    sortField: "monthly_sales" as SortKey },
-  { id: "div_consumption",  label: "צריכה חטיבות",        sortField: "div_consumption" as SortKey },
-  { id: "category",         label: "קטגוריה",              sortField: "category" as SortKey },
-  { id: "lead_time_days",   label: "זמן אספקה (ימים)",    sortField: "lead_time_days" as SortKey },
-  { id: "monthly_sales_avg", label: "ממוצע SAP",           sortField: "monthly_sales_avg" as SortKey },
-  { id: "division",         label: "חטיבות",               sortField: "division" as SortKey },
-  { id: "shipping",         label: "שיטת משלוח",           sortField: "shipping" as SortKey },
+  { id: "name",            label: "שם מוצר",          sortField: "name" as SortKey },
+  { id: "sku",             label: "מק״ט",              sortField: "sku" as SortKey },
+  { id: "product_type",    label: "סוג",               sortField: "product_type" as SortKey },
+  { id: "supplier",        label: "ספק",               sortField: "supplier" as SortKey },
+  { id: "stock_qty",       label: "מלאי",              sortField: "stock_qty" as SortKey },
+  { id: "incoming_qty",    label: 'עול"ב',             sortField: "incoming_qty" as SortKey },
+  { id: "purchase_price",  label: "מחיר רכישה",       sortField: "purchase_price" as SortKey },
+  { id: "monthly_order",   label: "הזמנה חודשית",     sortField: "monthly_order" as SortKey },
+  { id: "sale_price",      label: "מחיר מכירה",       sortField: "sale_price" as SortKey },
+  { id: "div_consumption", label: "צריכה",             sortField: "div_consumption" as SortKey },
+  { id: "category",        label: "קטגוריה",           sortField: "category" as SortKey },
+  { id: "lead_time_days",  label: "זמן אספקה (ימים)", sortField: "lead_time_days" as SortKey },
+  { id: "division",        label: "חטיבות",            sortField: "division" as SortKey },
+  { id: "shipping",        label: "שיטת משלוח",        sortField: "shipping" as SortKey },
 ];
 
 function CompositeIncomingBadge({ m }: { m: ProductMetrics | undefined }) {
@@ -124,7 +121,7 @@ export default function ProductsPage() {
   const colVis = useColumnVisibility(
     "products:hidden-columns",
     COLUMN_DEFS,
-    ["sale_price", "monthly_sales", "div_consumption", "category", "lead_time_days", "monthly_sales_avg", "division", "shipping"]
+    ["sale_price", "category", "lead_time_days", "division", "shipping"]
   );
   const PRICE_COLS = new Set(["purchase_price", "sale_price"]);
   const isVisible = (id: string) => !showPrices && PRICE_COLS.has(id) ? false : colVis.isVisible(id);
@@ -132,7 +129,6 @@ export default function ProductsPage() {
   const visibleCount = COLUMN_DEFS.filter(c => isVisible(c.id)).length;
   const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
   const { metrics } = useLiveProductMetrics(products);
-  const { avgByProduct } = usePickupMonthlyAvg();
 
   const { hasEdit } = usePermissions("products");
   // If a stored sort preference points to a hidden price column, fall
@@ -597,7 +593,6 @@ export default function ProductsPage() {
                         {p.sale_price ? `$${p.sale_price.toLocaleString()}` : "—"}
                       </td>
                     )}
-                    {isVisible("monthly_sales") && <td className="p-2 sm:p-3 text-muted-foreground">{avgByProduct.get(p.id) ?? "—"}</td>}
                     {isVisible("div_consumption") && (
                       <td className="p-2 sm:p-3 text-muted-foreground">
                         {divAvgByProduct.get(p.id) != null ? divAvgByProduct.get(p.id) : "—"}
@@ -605,7 +600,6 @@ export default function ProductsPage() {
                     )}
                     {isVisible("category") && <td className="p-2 sm:p-3 text-muted-foreground">{p.category || "—"}</td>}
                     {isVisible("lead_time_days") && <td className="p-2 sm:p-3 text-muted-foreground">{p.lead_time_days ?? "—"}</td>}
-                    {isVisible("monthly_sales_avg") && <td className="p-2 sm:p-3 text-muted-foreground">{p.monthly_sales_avg ?? "—"}</td>}
                     {isVisible("division") && <td className="p-2 sm:p-3 text-muted-foreground">{p.division || "—"}</td>}
                     {isVisible("shipping") && <td className="p-2 sm:p-3 text-muted-foreground">{p.shipping || "—"}</td>}
                     {hasEdit && (
