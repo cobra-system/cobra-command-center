@@ -345,7 +345,7 @@ async function generateDocumentPDF(
   };
 
   const html2pdf = (await import("html2pdf.js")).default;
-  html2pdf().set(opt).from(element).save();
+  html2pdf().set(opt as any).from(element).save();
 }
 
 export default function DocumentDetailPage() {
@@ -603,7 +603,6 @@ export default function DocumentDetailPage() {
                           {format(new Date(doc.expiry_date), "dd/MM/yyyy")}
                         </span>
                       : <span className="text-muted-foreground">לחץ להוספה</span>}
-                    placeholder="YYYY-MM-DD"
                   />
                 </InfoCell>
               </div>

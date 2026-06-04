@@ -263,7 +263,7 @@ export default function ProcurementMeetingTab() {
 
     const alreadyIds = new Set((alreadyRes.data || []).map((r: Record<string, unknown>) => r.order_id as string));
 
-    const rows: PendingOrderRow[] = ((ordersRes.data || []) as Order[])
+    const rows: PendingOrderRow[] = ((ordersRes.data || []) as unknown as Order[])
       .filter(o => !alreadyIds.has(o.id))
       .map(o => ({ ...o, pendingPayments: paymentsByOrder[o.id] || [] }));
 

@@ -49,7 +49,10 @@ export default function RolePermissionsManager() {
     });
   };
 
-  const groupedModules = Object.groupBy(MODULES, (mod) => mod.category);
+  const groupedModules: Record<string, typeof MODULES> = {};
+  for (const mod of MODULES) {
+    (groupedModules[mod.category] ??= []).push(mod);
+  }
 
   return (
     <Card dir="rtl">

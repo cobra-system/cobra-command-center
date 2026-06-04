@@ -65,7 +65,7 @@ export default function ProductDeleteDialog({ open, productId, productName, onCo
     }).finally(() => setLoading(false));
   }, [open, productId]);
 
-  const rows: { label: string; count: number; action: "ימחק" | "יינותק" }[] = impact ? [
+  const rows = impact ? ([
     { label: "רכיבי מוצר", count: impact.components, action: "ימחק" },
     { label: "פריטי הזמנה", count: impact.orderItems, action: "יינותק" },
     { label: "רשומות מלאי", count: impact.centerInventory, action: "ימחק" },
@@ -75,7 +75,7 @@ export default function ProductDeleteDialog({ open, productId, productName, onCo
 { label: "פריטי איסוף ציוד", count: impact.equipmentPickupItems, action: "ימחק" },
     { label: "פריטי החזרת ציוד", count: impact.equipmentReturnItems, action: "ימחק" },
     { label: "הקצאות מחסן", count: impact.warehouseZoneProducts, action: "ימחק" },
-  ].filter(r => r.count > 0) : [];
+  ] as { label: string; count: number; action: "ימחק" | "יינותק" }[]).filter(r => r.count > 0) : [];
 
   return (
     <Dialog open={open} onOpenChange={open ? onCancel : undefined}>

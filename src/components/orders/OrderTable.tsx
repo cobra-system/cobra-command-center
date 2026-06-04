@@ -233,11 +233,11 @@ export function OrderTable({
                     onContextMenu={colThContextMenu(col, setColMenu)}
                   >
                     <button
-                      onClick={() => toggleSort(col.sortField)}
+                      onClick={() => toggleSort(col.sortField as SortField)}
                       className="flex items-center gap-1 hover:text-primary transition-colors"
                     >
                       {col.label}
-                      <SortIcon field={col.sortField} sortField={sortField} sortDir={sortDir} />
+                      <SortIcon field={col.sortField as SortField} sortField={sortField} sortDir={sortDir} />
                     </button>
                   </th>
                 );

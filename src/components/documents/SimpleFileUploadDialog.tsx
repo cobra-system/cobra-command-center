@@ -108,7 +108,7 @@ export default function SimpleFileUploadDialog({
       document_number: documentNumber.trim() || null,
       expiry_date: expiryDate || null,
       quantity: 0,
-    } as Record<string, unknown>);
+    } as any);
 
     if (error) {
       // Rollback: delete uploaded file if DB insert failed

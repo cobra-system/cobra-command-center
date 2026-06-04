@@ -89,19 +89,19 @@ export function OrderAuditLog({ orderId }: { orderId: string }) {
     setLoading(true);
     const [auditRes, noteRes] = await Promise.all([
       supabase
-        .from("audit_log")
+        .from("audit_log" as any)
         .select("id, action, details, created_at")
         .eq("entity_type", "order")
         .eq("entity_id", orderId)
         .order("created_at", { ascending: false })
         .limit(50),
       supabase
-        .from("order_notes_history")
+        .from("order_notes_history" as any)
         .select("id, note_text, changed_by, changed_at, change_reason")
         .eq("order_id", orderId)
         .order("changed_at", { ascending: false })
         .limit(20),
-    ]);
+    ]) as any[];
 
     const auditEntries: TimelineEntry[] = (auditRes.data || []).map((r: AuditRow) => ({
       id: `audit-${r.id}`,

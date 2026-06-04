@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { useData } from "@/contexts/AppContext";
+import { useData, categories } from "@/contexts/AppContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -117,7 +117,7 @@ const CHART_COLORS = [
 export default function DivisionConsumptionPage() {
   const { divisionName } = useParams<{ divisionName: string }>();
   const navigate = useNavigate();
-  const { products: allProducts, categories } = useData();
+  const { products: allProducts } = useData();
   const division = divisionName ? decodeURIComponent(divisionName) : "";
 
   useEffect(() => {
@@ -466,7 +466,7 @@ export default function DivisionConsumptionPage() {
                             {p.category_id && categoryMap.has(p.category_id) && (
                               <>
                                 <span className="text-muted-foreground/40">·</span>
-                                <span>{categoryMap.get(p.category_id)}</span>
+                                <span>{String(categoryMap.get(p.category_id))}</span>
                               </>
                             )}
                           </div>

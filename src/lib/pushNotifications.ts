@@ -53,14 +53,14 @@ export async function subscribePush(vapidPublicKey: string): Promise<{ ok: boole
 
   // Replace any existing push subscription for this user (1 device = 1 row)
   await supabase
-    .from("notification_subscriptions")
+    .from("notification_subscriptions" as any)
     .upsert({
       user_id: user.id,
       channel: "push",
       config: json,
       user_agent: navigator.userAgent,
       is_active: true,
-    }, { onConflict: "user_id,channel" });
+    } as any, { onConflict: "user_id,channel" });
 
   return { ok: true };
 }

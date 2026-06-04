@@ -47,7 +47,7 @@ export function SupplierReturnsSection({ supplierId }: { supplierId: string }) {
       .eq("supplier_id", supplierId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
-    setReturns(data ?? []);
+    setReturns((data ?? []) as unknown as SupplierReturn[]);
     setLoading(false);
   };
 

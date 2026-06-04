@@ -191,6 +191,10 @@ const HANDLE_POSITIONS: Record<ResizeHandle, string> = {
   ne: "top-0 left-0 cursor-ne-resize",
   sw: "bottom-0 right-0 cursor-sw-resize",
   se: "bottom-0 left-0 cursor-se-resize",
+  n: "top-0 left-1/2 -translate-x-1/2 cursor-n-resize",
+  s: "bottom-0 left-1/2 -translate-x-1/2 cursor-s-resize",
+  e: "top-1/2 left-0 -translate-y-1/2 cursor-e-resize",
+  w: "top-1/2 right-0 -translate-y-1/2 cursor-w-resize",
 };
 
 function ResizeHandles({

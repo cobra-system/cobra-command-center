@@ -150,7 +150,7 @@ export default function ProductsPage() {
         if (av == null && bv == null) return 0;
         if (av == null) return 1;
         if (bv == null) return -1;
-        const cmp = typeof av === "number" ? av - bv : String(av).localeCompare(String(bv), "he");
+        const cmp = typeof av === "number" ? av - Number(bv) : String(av).localeCompare(String(bv), "he");
         return sortDir === "asc" ? cmp : -cmp;
       });
     }

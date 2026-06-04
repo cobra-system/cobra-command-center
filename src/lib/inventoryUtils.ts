@@ -212,9 +212,9 @@ export async function unmarkItemAsFaulty(opts: {
   }
 
   // Delete waste_item created from this return item
-  await supabase
+  await (supabase
     .from("waste_items")
     .delete()
-    .eq("return_item_id", opts.returnItemId)
-    .eq("source", "equipment_return");
+    .eq("return_item_id" as any, opts.returnItemId)
+    .eq("source" as any, "equipment_return"));
 }

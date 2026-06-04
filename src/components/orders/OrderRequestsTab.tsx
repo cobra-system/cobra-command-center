@@ -322,8 +322,8 @@ export function OrderRequestsTab() {
       .filter(r => freeTextMatch(r, search))
       .sort((a, b) => {
         if (!sortField) return 0;
-        const av = (a as Record<string, unknown>)[sortField] ?? "";
-        const bv = (b as Record<string, unknown>)[sortField] ?? "";
+        const av = (a as unknown as Record<string, unknown>)[sortField] ?? "";
+        const bv = (b as unknown as Record<string, unknown>)[sortField] ?? "";
         if (typeof av === "number" && typeof bv === "number") return sortDir === "asc" ? av - bv : bv - av;
         return sortDir === "asc"
           ? String(av).localeCompare(String(bv))

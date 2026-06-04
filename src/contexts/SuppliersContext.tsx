@@ -45,7 +45,7 @@ export function SuppliersProvider({ children }: { children: ReactNode }) {
 
   const addSupplier = useCallback(async (supplier: Omit<Supplier, "id">) => {
     try {
-      const { error } = await supabase.from("suppliers").insert(supplier as Record<string, unknown>);
+      const { error } = await supabase.from("suppliers").insert(supplier as any);
       if (error) throw error;
       await queryClient.refetchQueries({ queryKey: ["suppliers"] });
       toast.success("ספק נוסף בהצלחה");

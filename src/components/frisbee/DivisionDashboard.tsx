@@ -929,10 +929,10 @@ export function DivisionDashboard({ branchId, lastSynced }: Props) {
                           <td className="p-3 font-medium">{String(row.equip)}</td>
                           {searchMonths.map(m => (
                             <td key={m} className={`p-3 font-mono ${Number(row[m]) > 0 ? "" : "text-muted-foreground"}`}>
-                              {Number(row[m]) > 0 ? row[m] : 0}
+                              {Number(row[m]) > 0 ? String(row[m]) : 0}
                             </td>
                           ))}
-                          <td className="p-3 font-mono font-bold text-primary">{row["total"]}</td>
+                          <td className="p-3 font-mono font-bold text-primary">{String(row["total"])}</td>
                         </tr>
                       ))}
                     </tbody>

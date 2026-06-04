@@ -301,7 +301,7 @@ export default function EquipmentPage() {
         supabase.from("center_inventory").select("*"),
         supabase.from("inventory_transfers").select("*").order("created_at", { ascending: false }).limit(20),
       ]);
-      setCenters((c ?? []) as DistributionCenter[]);
+      setCenters((c ?? []) as unknown as DistributionCenter[]);
       setCenterInventory((inv ?? []) as CenterInventoryItem[]);
       setCenterTransfers((tr ?? []) as InventoryTransfer[]);
       setCentersLoading(false);

@@ -65,7 +65,7 @@ export function SnapshotsDialog({ open, onOpenChange, division, current }: Props
       .single();
     setActiveLoading(false);
     if (error || !data) { toast.error("שגיאה בטעינת הצילום"); return; }
-    setActive(data as OrderRequestSnapshot);
+    setActive(data as unknown as OrderRequestSnapshot);
     setView("detail");
   };
 

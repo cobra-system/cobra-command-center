@@ -27,8 +27,8 @@ export function compareValues(
     }
 
     case "date": {
-      const dateA = new Date(a).getTime()
-      const dateB = new Date(b).getTime()
+      const dateA = new Date(a as string | number).getTime()
+      const dateB = new Date(b as string | number).getTime()
       return dateA - dateB
     }
 

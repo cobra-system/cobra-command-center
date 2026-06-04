@@ -24,10 +24,10 @@ async function migrateWorkflowTemplates() {
     { action: "confirm",     index: 5, name: "אישור קליטה במלאי", required: true },
   ];
 
-  await supabase
-    .from("workflow_templates")
-    .update({ steps: internationalSteps })
-    .eq("id", INTERNATIONAL_TEMPLATE_ID);
+  await (supabase
+    .from("workflow_templates" as any)
+    .update({ steps: internationalSteps } as any)
+    .eq("id", INTERNATIONAL_TEMPLATE_ID));
 
   // Update Israeli procurement workflow (4 steps only)
   const israelSteps = [
@@ -37,10 +37,10 @@ async function migrateWorkflowTemplates() {
     { action: "confirm",    index: 3, name: "נשלחה לספק",        required: true },
   ];
 
-  await supabase
-    .from("workflow_templates")
-    .update({ steps: israelSteps })
-    .eq("id", ISRAEL_TEMPLATE_ID);
+  await (supabase
+    .from("workflow_templates" as any)
+    .update({ steps: israelSteps } as any)
+    .eq("id", ISRAEL_TEMPLATE_ID));
 
   console.log("✅ Workflow templates updated");
 }
@@ -48,11 +48,11 @@ async function migrateWorkflowTemplates() {
 async function fixIsraeliOrderWorkflows() {
   // Find workflow instances that use the international template
   // but belong to orders with Israeli suppliers
-  const { data: instances } = await supabase
-    .from("workflow_instances")
+  const { data: instances } = await (supabase
+    .from("workflow_instances" as any)
     .select("id, order_id, template_id, current_step")
     .eq("template_id", INTERNATIONAL_TEMPLATE_ID)
-    .not("order_id", "is", null);
+    .not("order_id", "is", null)) as { data: any[] | null };
 
   if (!instances || instances.length === 0) return;
 
@@ -90,20 +90,20 @@ async function fixIsraeliOrderWorkflows() {
 
   for (const instance of instancesToFix) {
     // Delete old step logs
-    await supabase
-      .from("workflow_step_logs")
+    await (supabase
+      .from("workflow_step_logs" as any)
       .delete()
-      .eq("instance_id", instance.id);
+      .eq("instance_id", instance.id));
 
     // Update to Israeli template and reset step
-    await supabase
-      .from("workflow_instances")
+    await (supabase
+      .from("workflow_instances" as any)
       .update({
         template_id: ISRAEL_TEMPLATE_ID,
         current_step: 0,
         status: "active",
-      })
-      .eq("id", instance.id);
+      } as any)
+      .eq("id", instance.id));
   }
 
   if (instancesToFix.length > 0) {
@@ -112,7 +112,7 @@ async function fixIsraeliOrderWorkflows() {
 }
 
 async function verifyTableExists(tableName: string): Promise<boolean> {
-  const { error } = await supabase.from(tableName).select("id").limit(1);
+  const { error } = await supabase.from(tableName as any).select("id").limit(1);
   // If table doesn't exist, error code is "42P01" or message contains "relation"
   if (error && (error.code === "42P01" || error.message?.includes("relation") || error.message?.includes("schema cache"))) {
     return false;

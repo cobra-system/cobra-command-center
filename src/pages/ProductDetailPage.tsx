@@ -278,7 +278,7 @@ export default function ProductDetailPage() {
 
       {/* Product Licenses Tab */}
       <div className="bg-card rounded-xl border shadow-sm p-5">
-        <ProductLicensesTab productId={product.id} hasEdit={hasEdit} />
+        <ProductLicensesTab productId={product.id} isManager={hasEdit} />
       </div>
 
       {/* Compliance */}

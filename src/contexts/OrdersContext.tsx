@@ -31,7 +31,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   const { data: rawOrders = [] } = useQuery({
     queryKey: ["orders"],
     queryFn: async () => {
-      const { data: ords } = await supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(500);
+      const { data: ords } = await (supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(500) as any);
       if (ords) {
         return ords.map(o => {
           const items = o.order_items || [];
@@ -56,7 +56,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       return rawOrders;
     }
     return rawOrders.filter(order =>
-      order.division?.split(",").map(d => d.trim()).includes(currentUser.division)
+      (order as any).division?.split(",").map((d: string) => d.trim()).includes(currentUser.division)
     );
   }, [rawOrders, currentUser]);
 

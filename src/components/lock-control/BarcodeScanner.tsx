@@ -118,10 +118,9 @@ export function BarcodeScanner({ open, title, hint, onScan, onClose, onManualEnt
       const instance = scannerRef.current;
       scannerRef.current = null;
       if (instance) {
-        instance
-          .stop()
+        Promise.resolve(instance.stop())
           .catch(() => {})
-          .finally(() => instance.clear().catch(() => {}));
+          .finally(() => Promise.resolve(instance.clear()).catch(() => {}));
       }
     };
     // onScan/onManualEntry are intentionally read via refs — see comment above.

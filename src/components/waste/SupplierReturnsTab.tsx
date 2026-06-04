@@ -134,7 +134,7 @@ export function SupplierReturnsTab({ canCreate, openReturnId }: Props) {
         .select("id, product_name, sku, quantity, supplier_return_id, photo_url")
         .not("supplier_return_id", "is", null),
     ]);
-    setReturns(rets ?? []);
+    setReturns((rets ?? []) as unknown as SupplierReturn[]);
     setAllWasteItems(items ?? []);
     setLoading(false);
   }, []);

@@ -74,7 +74,7 @@ function getStoredOrder(): typeof defaultNavItems {
     const stored = localStorage.getItem(NAV_ORDER_KEY);
     if (!stored) return defaultNavItems;
     const order: string[] = JSON.parse(stored);
-    const itemMap = new Map(defaultNavItems.map(i => [i.to, i]));
+    const itemMap = new Map(defaultNavItems.map(i => [i.to, i] as [string, typeof i]));
     const result = order.filter(to => itemMap.has(to)).map(to => itemMap.get(to)!);
     defaultNavItems.forEach(item => {
       if (!result.find(r => r.to === item.to)) result.push(item);

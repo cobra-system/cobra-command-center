@@ -144,18 +144,18 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
 
   /** Insert a task, gracefully handling missing optional columns and RLS issues. */
   const insertTask = async (payload: Record<string, unknown>) => {
-    const { data, error } = await supabase.from("tasks").insert(payload).select("id").single();
+    const { data, error } = await supabase.from("tasks").insert(payload as any).select("id").single();
     if (error?.message?.includes("created_by") && "created_by" in payload) {
       const { created_by: _, ...rest } = payload;
-      return supabase.from("tasks").insert(rest).select("id").single();
+      return supabase.from("tasks").insert(rest as any).select("id").single();
     }
     if (error?.message?.includes("row-level security") && "created_by" in payload) {
       const { created_by: _, ...rest } = payload;
-      return supabase.from("tasks").insert(rest).select("id").single();
+      return supabase.from("tasks").insert(rest as any).select("id").single();
     }
     if (error?.message?.includes("end_date") && "end_date" in payload) {
       const { end_date: _, ...rest } = payload;
-      return supabase.from("tasks").insert(rest).select("id").single();
+      return supabase.from("tasks").insert(rest as any).select("id").single();
     }
     return { data, error };
   };

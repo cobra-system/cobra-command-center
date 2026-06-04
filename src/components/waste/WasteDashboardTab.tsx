@@ -379,7 +379,7 @@ export function WasteDashboardTab({ wasteItems, supplierReturns, onAddItem, hasE
                   {longPendingItems.length} פריטים ממתינים מעל 30 יום
                 </p>
                 <p className="text-xs text-orange-600 dark:text-orange-400">
-                  {longPendingItems.slice(0, 3).map((i) => (i as Record<string, unknown>).product_name as string ?? "").filter(Boolean).join(", ")}
+                  {longPendingItems.slice(0, 3).map((i) => (i as unknown as Record<string, unknown>).product_name as string ?? "").filter(Boolean).join(", ")}
                   {longPendingItems.length > 3 ? ` ועוד ${longPendingItems.length - 3}` : ""}
                 </p>
               </div>
@@ -473,10 +473,10 @@ export function WasteDashboardTab({ wasteItems, supplierReturns, onAddItem, hasE
                       <Package className="h-3.5 w-3.5 text-muted-foreground" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium">{(item as Record<string, unknown>).product_name as string ?? "—"}</p>
+                      <p className="text-sm font-medium">{(item as unknown as Record<string, unknown>).product_name as string ?? "—"}</p>
                       <p className="text-xs text-muted-foreground">
                         {new Date(item.created_at).toLocaleDateString("he-IL")}
-                        {(item as Record<string, unknown>).created_by_name ? ` · ${(item as Record<string, unknown>).created_by_name}` : ""}
+                        {(item as unknown as Record<string, unknown>).created_by_name ? ` · ${(item as unknown as Record<string, unknown>).created_by_name}` : ""}
                       </p>
                     </div>
                   </div>

@@ -77,15 +77,15 @@ export default function RecurringTasksPanel() {
   };
 
   const fetchWorkflows = async () => {
-    const { data, error } = await supabase
-      .from("workflow_instances")
+    const { data, error } = await (supabase
+      .from("workflow_instances" as any)
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })) as { data: any[] | null; error: any };
     if (!error && data) {
-      const instances = data.map(i => ({
+      const instances = data.map((i: any) => ({
         ...i,
         template: { name: i.template_id || "תהליך", steps: [] }
-      } as WorkflowInstance));
+      } as unknown as WorkflowInstance));
       setWorkflows(instances);
     }
     setLoading(false);

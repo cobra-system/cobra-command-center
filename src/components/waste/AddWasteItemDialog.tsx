@@ -131,7 +131,7 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
     setOtherDetail("");
 
     supabase.from("suppliers").select("id, name").order("name").then(({ data }) => {
-      setSuppliers(data ?? []);
+      setSuppliers((data ?? []) as any as Supplier[]);
     });
   }, [open]);
 
@@ -258,7 +258,7 @@ export function AddWasteItemDialog({ open, onClose, onSaved, products }: Props) 
 
       const { data: newItem, error: itemErr } = await supabase
         .from("waste_items")
-        .insert(itemPayload)
+        .insert(itemPayload as any)
         .select()
         .single();
 

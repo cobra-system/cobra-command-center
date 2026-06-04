@@ -80,7 +80,7 @@ export default function TreemapContainer({ children, contentWidth, contentHeight
     isDragging.current = true;
     dragStart.current = { x: e.clientX, y: e.clientY };
     panStart.current = { ...pan };
-    e.currentTarget.style.cursor = "grabbing";
+    (e.currentTarget as HTMLElement).style.cursor = "grabbing";
   }, [pan, scale]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -95,7 +95,7 @@ export default function TreemapContainer({ children, contentWidth, contentHeight
 
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
     isDragging.current = false;
-    e.currentTarget.style.cursor = scale > 1 ? "grab" : "default";
+    (e.currentTarget as HTMLElement).style.cursor = scale > 1 ? "grab" : "default";
   }, [scale]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {

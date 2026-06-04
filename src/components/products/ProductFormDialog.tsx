@@ -197,7 +197,7 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
       if (editProduct) {
         await updateProduct(editProduct.id, productData);
       } else {
-        await addProduct(productData, compData);
+        await addProduct(productData as any, compData);
         onCreated?.();
       }
       onOpenChange(false);

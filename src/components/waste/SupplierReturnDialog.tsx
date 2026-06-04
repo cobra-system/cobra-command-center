@@ -64,7 +64,7 @@ export function SupplierReturnDialog({ open, onClose, onSaved, preselectedItemId
       .from("suppliers")
       .select("id, name")
       .order("name")
-      .then(({ data }) => setSuppliers(data ?? []));
+      .then(({ data }) => setSuppliers((data ?? []) as any as Supplier[]));
 
     // Fetch undisposed waste items
     supabase
