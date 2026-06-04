@@ -120,7 +120,7 @@ grep -r "\"TABLE_NAME\"" mcp-server/src/tools/
 cd mcp-server && npm run build
 ```
 
-### Module inventory (34 modules · 274 tools)
+### Module inventory (34 modules · 278 tools)
 
 | Module | Domain | Key tables | Tools |
 |--------|--------|------------|------:|
@@ -129,7 +129,7 @@ cd mcp-server && npm run build
 | `bulk-ops` | Bulk operations | orders, products, tasks | 5 |
 | `compliance` | Compliance items | compliance_items, compliance_product_links | 7 |
 | `daily-reports` | Daily reports | daily_reports, tasks | 5 |
-| `divisions` | Division management | division_products, division_product_items, order_requests, profiles | 10 |
+| `divisions` | Division management | division_products, division_product_items, division_product_consumption, order_requests, profiles | 14 |
 | `documents` | Documents | documents, purchase_documents | 10 |
 | `equipment` | Equipment tracking | installers, equipment_pickups, equipment_returns | 36 |
 | `finance` | Finance & payments | orders, supplier_payments | 4 |

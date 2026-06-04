@@ -11,6 +11,7 @@ export function registerInventoryTools(server: McpServer) {
       const { data, error } = await supabase
         .from("distribution_centers")
         .select("*")
+        .is("deleted_at", null)
         .order("name");
 
       if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };

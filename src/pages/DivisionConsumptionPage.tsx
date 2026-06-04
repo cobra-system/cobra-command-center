@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useData } from "@/contexts/AppContext";
@@ -17,6 +17,8 @@ import {
 import { DivisionDashboard } from "@/components/frisbee/DivisionDashboard";
 import { DIVISION_COLORS, BONDED_DIVISIONS } from "@/components/equipment/constants";
 import { useDivisionConsumption, type ProductConsumptionSummary } from "@/hooks/useDivisionConsumption";
+import { useProductConsumption } from "@/hooks/useProductConsumption";
+import { ProductConsumptionChart } from "@/components/product-detail/ProductConsumptionChart";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import {
   ColContextMenu, useColMenu, colThContextMenu, trContextMenu,
@@ -89,6 +91,23 @@ function HealthDot({ color, label }: { color: string; label: string }) {
   );
 }
 
+function ExpandedProductRow({ productId, division, colSpan }: { productId: string; division: string; colSpan: number }) {
+  const { monthlyData, avgAnnual, avgHalfYear, avgQuarter, loading } = useProductConsumption(productId, division);
+  if (loading) return <tr><td colSpan={colSpan} className="p-4"><Skeleton className="h-[280px] w-full" /></td></tr>;
+  return (
+    <tr>
+      <td colSpan={colSpan} className="p-3 bg-muted/20">
+        <ProductConsumptionChart
+          monthlyData={monthlyData}
+          avgAnnual={avgAnnual}
+          avgHalfYear={avgHalfYear}
+          avgQuarter={avgQuarter}
+        />
+      </td>
+    </tr>
+  );
+}
+
 // ─── Column Definitions ──────────────────────────────────────────────────────
 
 type SortField = "name" | "division_stock" | "monthly_avg" | "quarterly_demand" | "main_stock" | "total" | "avg3" | "health";
@@ -131,6 +150,8 @@ export default function DivisionConsumptionPage() {
     divisionProducts, productSummaries, monthlyTotals,
     allMonths, loading: consumptionLoading,
   } = useDivisionConsumption(division);
+
+  const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
 
   // ── Order requests ──
   const [orderRequests, setOrderRequests] = useState<OrderRequest[]>([]);
@@ -453,22 +474,29 @@ export default function DivisionConsumptionPage() {
                 </thead>
                 <tbody>
                   {filteredSorted.map(p => (
+                    <React.Fragment key={p.product_id}>
                     <tr
-                      key={p.product_id}
                       className="border-b last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
-                      onClick={() => navigate(`/products/${p.product_id}`)}
+                      onClick={() => setExpandedProductId(prev => prev === p.product_id ? null : p.product_id)}
                     >
                       {isVisible("name") && (
                         <td className="p-3">
-                          <div className="font-medium">{p.name}</div>
-                          <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-                            <span className="font-mono">{p.sku}</span>
-                            {p.category_id && categoryMap.has(p.category_id) && (
-                              <>
-                                <span className="text-muted-foreground/40">·</span>
-                                <span>{categoryMap.get(p.category_id)}</span>
-                              </>
-                            )}
+                          <div className="flex items-center gap-1.5">
+                            {expandedProductId === p.product_id
+                              ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                              : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+                            <div>
+                              <div className="font-medium">{p.name}</div>
+                              <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                <span className="font-mono">{p.sku}</span>
+                                {p.category_id && categoryMap.has(p.category_id) && (
+                                  <>
+                                    <span className="text-muted-foreground/40">·</span>
+                                    <span>{categoryMap.get(p.category_id)}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </td>
                       )}
@@ -511,6 +539,10 @@ export default function DivisionConsumptionPage() {
                         </td>
                       )}
                     </tr>
+                    {expandedProductId === p.product_id && (
+                      <ExpandedProductRow productId={p.product_id} division={division} colSpan={visibleCount} />
+                    )}
+                    </React.Fragment>
                   ))}
                   {filteredSorted.length === 0 && (
                     <tr>

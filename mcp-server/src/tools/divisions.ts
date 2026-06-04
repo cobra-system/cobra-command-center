@@ -666,4 +666,162 @@ export function registerDivisionTools(server: McpServer) {
       return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
     }
   );
+
+  // ═══════════════════════════════════════════════════════════════
+  // Division Consumption — נתוני צריכה לחטיבה
+  // ═══════════════════════════════════════════════════════════════
+
+  server.tool(
+    "upsert_division_consumption",
+    "עדכון צריכה — Upsert a single consumption row for a division/product/month. Used when importing data one row at a time.",
+    {
+      division: z.string().describe("Division name: 'AWACS' | 'כפתור' | 'DOORE' | 'דלק מוטורס' | 'פריזבי קרסו' | 'לובינסקי'"),
+      product_id: z.string().uuid().describe("Product UUID"),
+      month: z.string().describe("Month in YYYY-MM-DD format (first day of month, e.g. '2026-01-01')"),
+      quantity: z.number().int().min(0).describe("Consumption quantity for the month"),
+    },
+    async ({ division, product_id, month, quantity }) => {
+      const { data, error } = await supabase
+        .from("division_product_consumption")
+        .upsert(
+          { division, product_id, month, quantity },
+          { onConflict: "division,product_id,month" }
+        )
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "bulk_upsert_division_consumption",
+    "עדכון צריכה מרובה — Bulk upsert many consumption rows at once. Efficient way to import an entire Excel sheet.",
+    {
+      rows: z.array(z.object({
+        division: z.string().describe("Division name"),
+        product_id: z.string().uuid().describe("Product UUID"),
+        month: z.string().describe("Month in YYYY-MM-DD format (first day of month)"),
+        quantity: z.number().int().min(0).describe("Consumption quantity"),
+      })).min(1).describe("Array of consumption rows to upsert"),
+    },
+    async ({ rows }) => {
+      const { data, error } = await supabase
+        .from("division_product_consumption")
+        .upsert(rows, { onConflict: "division,product_id,month" })
+        .select();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify({ upserted: data?.length ?? 0 }, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "recompute_division_averages",
+    "חישוב ממוצעים מחדש — Recompute monthly_avg, monthly_avg_half_year, and monthly_avg_quarter on division_products from consumption history. Call after importing new consumption data.",
+    {
+      division: z.string().optional().describe("Optional: only recompute for this division"),
+    },
+    async ({ division }) => {
+      // 1. Fetch consumption rows
+      let consumptionQuery = supabase
+        .from("division_product_consumption")
+        .select("division, product_id, month, quantity")
+        .order("month", { ascending: false });
+      if (division) consumptionQuery = consumptionQuery.eq("division", division);
+
+      const { data: rows, error: fetchErr } = await consumptionQuery;
+      if (fetchErr) return { content: [{ type: "text" as const, text: `Error fetching consumption: ${fetchErr.message}` }] };
+      if (!rows || rows.length === 0) {
+        return { content: [{ type: "text" as const, text: "No consumption data found." }] };
+      }
+
+      // 2. Group by (division, product_id) and compute averages
+      const grouped = new Map<string, { division: string; product_id: string; months: { month: string; quantity: number }[] }>();
+      for (const r of rows) {
+        const key = `${r.division}::${r.product_id}`;
+        if (!grouped.has(key)) {
+          grouped.set(key, { division: r.division, product_id: r.product_id, months: [] });
+        }
+        grouped.get(key)!.months.push({ month: r.month, quantity: r.quantity });
+      }
+
+      const updates: { division: string; product_id: string; monthly_avg: number; monthly_avg_half_year: number; monthly_avg_quarter: number }[] = [];
+
+      for (const [, g] of grouped) {
+        // Sort months descending to find max month
+        g.months.sort((a, b) => b.month.localeCompare(a.month));
+        const maxMonth = new Date(g.months[0].month);
+
+        // Compute cutoff dates
+        const halfYearCutoff = new Date(maxMonth);
+        halfYearCutoff.setMonth(halfYearCutoff.getMonth() - 5);
+        const quarterCutoff = new Date(maxMonth);
+        quarterCutoff.setMonth(quarterCutoff.getMonth() - 2);
+
+        const allQty = g.months.map(m => m.quantity);
+        const halfYearQty = g.months.filter(m => new Date(m.month) >= halfYearCutoff).map(m => m.quantity);
+        const quarterQty = g.months.filter(m => new Date(m.month) >= quarterCutoff).map(m => m.quantity);
+
+        const avg = (arr: number[]) => arr.length > 0 ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length) : 0;
+
+        updates.push({
+          division: g.division,
+          product_id: g.product_id,
+          monthly_avg: avg(allQty),
+          monthly_avg_half_year: avg(halfYearQty),
+          monthly_avg_quarter: avg(quarterQty),
+        });
+      }
+
+      // 3. Update division_products one by one
+      let updated = 0;
+      const errors: string[] = [];
+      for (const u of updates) {
+        const { error: updErr } = await supabase
+          .from("division_products")
+          .update({
+            monthly_avg: u.monthly_avg,
+            monthly_avg_half_year: u.monthly_avg_half_year,
+            monthly_avg_quarter: u.monthly_avg_quarter,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("division", u.division)
+          .eq("product_id", u.product_id);
+
+        if (updErr) {
+          errors.push(`${u.division}/${u.product_id}: ${updErr.message}`);
+        } else {
+          updated++;
+        }
+      }
+
+      const result = { updated, total_groups: updates.length, errors: errors.length > 0 ? errors : undefined };
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "list_division_consumption",
+    "רשימת צריכה — List consumption data for divisions. Useful for checking what's already imported.",
+    {
+      division: z.string().optional().describe("Filter by division name"),
+      product_id: z.string().uuid().optional().describe("Filter by product UUID"),
+    },
+    async ({ division, product_id }) => {
+      let query = supabase
+        .from("division_product_consumption")
+        .select("*")
+        .order("division")
+        .order("month");
+
+      if (division) query = query.eq("division", division);
+      if (product_id) query = query.eq("product_id", product_id);
+
+      const { data, error } = await query;
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
 }

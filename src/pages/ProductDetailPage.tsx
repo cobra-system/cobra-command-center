@@ -23,6 +23,8 @@ import { BOMTable } from "@/components/product-detail/BOMTable";
 import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 import { OrdersHistoryTable } from "@/components/product-detail/OrdersHistoryTable";
 import { WasteItemsSection } from "@/components/product-detail/WasteItemsSection";
+import { ProductConsumptionChart } from "@/components/product-detail/ProductConsumptionChart";
+import { useProductConsumption } from "@/hooks/useProductConsumption";
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -56,6 +58,7 @@ export default function ProductDetailPage() {
     [orders, product]
   );
   const supplierPayments = useProductSupplierPayments(product?.id ?? "", relatedOrders);
+  const consumption = useProductConsumption(product?.id);
 
   if (!product || (isScoped && id && !scopedProductIds.has(id))) {
     return (
@@ -270,6 +273,15 @@ export default function ProductDetailPage() {
         product={product}
         hasEdit={hasEdit}
       />
+
+      {!consumption.loading && consumption.monthlyData.length > 0 && (
+        <ProductConsumptionChart
+          monthlyData={consumption.monthlyData}
+          avgAnnual={consumption.avgAnnual}
+          avgHalfYear={consumption.avgHalfYear}
+          avgQuarter={consumption.avgQuarter}
+        />
+      )}
 
       <WasteItemsSection product={product} />
 
