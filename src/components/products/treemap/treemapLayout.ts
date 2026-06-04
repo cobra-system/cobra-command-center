@@ -6,9 +6,16 @@ export interface TreemapItem {
   ratio: number;
   category: string;
   supplier?: string;
+  supplierId?: string;
   stockQty: number;
   consumption: number;
   incomingQty?: number;
+  purchasePrice?: number;
+  leadTimeDays?: number;
+  productType?: string;
+  openIssues?: number;
+  lastOrderDate?: string;
+  reorderPoint?: number;
 }
 
 export interface TreemapRect {
