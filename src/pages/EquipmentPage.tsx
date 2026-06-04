@@ -297,7 +297,7 @@ export default function EquipmentPage() {
     async function fetchCenters() {
       setCentersLoading(true);
       const [{ data: c }, { data: inv }, { data: tr }] = await Promise.all([
-        supabase.from("distribution_centers").select("*").order("is_main", { ascending: false }).order("name"),
+        supabase.from("distribution_centers").select("*").is("deleted_at", null).order("is_main", { ascending: false }).order("name"),
         supabase.from("center_inventory").select("*"),
         supabase.from("inventory_transfers").select("*").order("created_at", { ascending: false }).limit(20),
       ]);
