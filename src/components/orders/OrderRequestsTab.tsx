@@ -710,10 +710,14 @@ export function OrderRequestsTab() {
                     return d !== null && d >= 30;
                   })();
                   const editable = canEditRow(req) && req.status === "pending";
+                  const divisionRowBg = req.division === "דלק מוטורס" ? "bg-red-50/60"
+                    : req.division === "פריזבי קרסו" ? "bg-green-50/60"
+                    : req.division === "לובינסקי" ? "bg-sky-50/60"
+                    : "";
                   return (
                       <tr
                         key={req.id}
-                        className={`hover:bg-muted/30 transition-colors cursor-pointer ${overdueDate ? "bg-red-50/40" : ""} ${selected.has(req.id) ? "bg-primary/5" : ""}`}
+                        className={`hover:bg-muted/30 transition-colors cursor-pointer ${selected.has(req.id) ? "bg-primary/5" : overdueDate ? "bg-red-50/40" : divisionRowBg}`}
                         onClick={(e) => {
                           // Don't open detail when clicking buttons or checkboxes
                           if ((e.target as HTMLElement).closest("button, [role='checkbox'], input, a")) return;
