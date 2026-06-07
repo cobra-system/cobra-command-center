@@ -28,7 +28,6 @@ export interface Product {
   supplier_origin?: string | null;
   shipping?: string | null;
   purchase_price?: number | null;
-  monthly_sales?: number | null;
   monthly_order?: number | null;
   sale_price?: number | null;
   stock_qty: number;
@@ -53,6 +52,22 @@ export interface ProductComponent {
   price?: number | null;
   notes?: string | null;
   image_url?: string | null;
+}
+
+export interface ProductCategory {
+  id: string;
+  name: string;
+  color?: string | null;
+}
+
+export interface DivisionProduct {
+  id: string;
+  product_id: string;
+  division: string;
+  division_stock: number;
+  quarterly_demand?: number | null;
+  monthly_avg?: number | null;
+  monthly_avg_updated_at?: string | null;
 }
 
 export interface SupplierContact {

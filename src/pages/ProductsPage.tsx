@@ -25,7 +25,7 @@ import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/c
 import { usePermissions } from "@/hooks/usePermissions";
 import { QuantityBar } from "@/components/ui/QuantityBar";
 
-type SortKey = "name" | "sku" | "product_type" | "supplier" | "stock_qty" | "incoming_qty" | "purchase_price" | "monthly_order" | "sale_price" | "category" | "lead_time_days" | "division" | "shipping" | "div_consumption";
+type SortKey = "name" | "sku" | "product_type" | "supplier" | "stock_qty" | "incoming_qty" | "purchase_price" | "monthly_order" | "sale_price" | "category" | "lead_time_days" | "division" | "shipping" | "div_consumption" | "health";
 
 const COLUMN_DEFS = [
   { id: "name",            label: "שם מוצר",          sortField: "name" as SortKey },
@@ -38,11 +38,30 @@ const COLUMN_DEFS = [
   { id: "monthly_order",   label: "הזמנה חודשית",     sortField: "monthly_order" as SortKey },
   { id: "sale_price",      label: "מחיר מכירה",       sortField: "sale_price" as SortKey },
   { id: "div_consumption", label: "צריכה",             sortField: "div_consumption" as SortKey },
+  { id: "health",          label: "בריאות מלאי",       sortField: "health" as SortKey },
   { id: "category",        label: "קטגוריה",           sortField: "category" as SortKey },
   { id: "lead_time_days",  label: "זמן אספקה (ימים)", sortField: "lead_time_days" as SortKey },
   { id: "division",        label: "חטיבות",            sortField: "division" as SortKey },
   { id: "shipping",        label: "שיטת משלוח",        sortField: "shipping" as SortKey },
 ];
+
+const HEALTH_THRESHOLDS = [
+  { min: 4,    color: "#16a34a", label: "מצוין" },
+  { min: 3,    color: "#4ade80", label: "תקין" },
+  { min: 2,    color: "#eab308", label: "סביר" },
+  { min: 1,    color: "#f97316", label: "נמוך" },
+  { min: 0.01, color: "#ef4444", label: "קריטי" },
+  { min: 0,    color: "#dc2626", label: "אזל" },
+];
+function getHealth(stock: number, avg: number | null): { ratio: number | null; color: string; label: string } {
+  if (!avg || avg <= 0) return { ratio: null, color: "#6b7280", label: "אין נתונים" };
+  if (stock <= 0) return { ratio: 0, color: "#dc2626", label: "אזל" };
+  const ratio = stock / avg;
+  for (const t of HEALTH_THRESHOLDS) {
+    if (ratio >= t.min) return { ratio, color: t.color, label: t.label };
+  }
+  return { ratio, color: "#dc2626", label: "אזל" };
+}
 
 function CompositeIncomingBadge({ m }: { m: ProductMetrics | undefined }) {
   if (!m?.compositeIncoming) return <span className="text-muted-foreground">—</span>;
@@ -150,11 +169,25 @@ export default function ProductsPage() {
     return map;
   }, [divStockByProduct, divManager, userDivision]);
 
+  const healthByProduct = useMemo(() => {
+    const map = new Map<string, { ratio: number | null; color: string; label: string }>();
+    for (const p of products) {
+      const entries = divStockByProduct.get(p.id);
+      const divTotal = entries ? entries.reduce((s, d) => s + d.stock, 0) : 0;
+      const stock = divManager
+        ? (entries?.find(d => d.division === userDivision)?.stock ?? 0)
+        : (p.stock_qty + divTotal);
+      const avg = divAvgByProduct.get(p.id) ?? null;
+      map.set(p.id, getHealth(stock, avg));
+    }
+    return map;
+  }, [products, divStockByProduct, divAvgByProduct, divManager, userDivision]);
+
   const showPrices = canSeePrices(currentUser);
   const colVis = useColumnVisibility(
     "products:hidden-columns",
     COLUMN_DEFS,
-    ["sale_price", "category", "lead_time_days", "division", "shipping"]
+    ["sale_price", "category", "lead_time_days", "division", "shipping", "health"]
   );
   const PRICE_COLS = new Set(["purchase_price", "sale_price"]);
   const isVisible = (id: string) => !showPrices && PRICE_COLS.has(id) ? false : colVis.isVisible(id);
@@ -190,6 +223,11 @@ export default function ProductsPage() {
           const bv = divAvgByProduct.get(b.id) ?? 0;
           return sortDir === "asc" ? av - bv : bv - av;
         }
+        if (sortKey === "health") {
+          const av = healthByProduct.get(a.id)?.ratio ?? -1;
+          const bv = healthByProduct.get(b.id)?.ratio ?? -1;
+          return sortDir === "asc" ? av - bv : bv - av;
+        }
         const av = a[sortKey as keyof Product];
         const bv = b[sortKey as keyof Product];
         if (av == null && bv == null) return 0;
@@ -200,7 +238,7 @@ export default function ProductsPage() {
       });
     }
     return result;
-  }, [products, category, typeFilter, supplierFilter, search, sortKey, sortDir, divAvgByProduct]);
+  }, [products, category, typeFilter, supplierFilter, search, sortKey, sortDir, divAvgByProduct, healthByProduct]);
 
   const uniqueSuppliers = useMemo(() => {
     const set = new Set(products.map(p => p.supplier).filter(Boolean) as string[]);
@@ -663,6 +701,23 @@ export default function ProductsPage() {
                             {divAvgByProduct.get(p.id) != null ? divAvgByProduct.get(p.id) : "—"}
                           </span>
                         )}
+                      </td>
+                    )}
+                    {isVisible("health") && (
+                      <td className="p-2 sm:p-3">
+                        {(() => {
+                          const h = healthByProduct.get(p.id);
+                          if (!h) return <span className="text-muted-foreground">—</span>;
+                          return (
+                            <span className="inline-flex items-center gap-1.5 text-xs">
+                              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: h.color }} />
+                              <span style={{ color: h.color }} className="font-medium">{h.label}</span>
+                              {h.ratio !== null && (
+                                <span className="text-muted-foreground">({Math.round(h.ratio * 10) / 10})</span>
+                              )}
+                            </span>
+                          );
+                        })()}
                       </td>
                     )}
                     {isVisible("category") && <td className="p-2 sm:p-3 text-muted-foreground">{p.category || "—"}</td>}

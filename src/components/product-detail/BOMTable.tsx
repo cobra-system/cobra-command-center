@@ -192,6 +192,7 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
                           })()}
                         </span>
                       )}
+                      {comp.origin && <span>מוצא: {comp.origin}</span>}
                       <span>מלאי: {comp.stock_qty ?? "—"}</span>
                       {showPrices && comp.price != null && <span>${comp.price}</span>}
                       {comp.notes && <span className="truncate max-w-[200px]">💡 {comp.notes}</span>}
@@ -209,6 +210,7 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
                     <th className="text-right p-3 font-semibold text-foreground">רכיב</th>
                     <th className="text-right p-3 font-semibold text-foreground">מק״ט</th>
                     <th className="text-right p-3 font-semibold text-foreground">ספק</th>
+                    <th className="text-right p-3 font-semibold text-foreground">מוצא</th>
                     <th className="text-right p-3 font-semibold text-foreground">מלאי</th>
                     {showPrices && <th className="text-right p-3 font-semibold text-foreground">מחיר</th>}
                     <th className="text-right p-3 font-semibold text-foreground">הערות</th>
@@ -241,6 +243,9 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
                               {suppliers.map(s => <SelectItem key={s.id} value={s.company}>{s.company}</SelectItem>)}
                             </SelectContent>
                           </Select>
+                        </td>
+                        <td className="p-2">
+                          <Input value={editCompFields.origin} onChange={e => setEditCompFields(p => ({ ...p, origin: e.target.value }))} className="h-8 text-sm" placeholder="מוצא" />
                         </td>
                         <td className="p-2">
                           <Input type="number" value={editCompFields.stock_qty} onChange={e => setEditCompFields(p => ({ ...p, stock_qty: e.target.value }))} className="h-8 text-sm w-20" />
@@ -293,6 +298,7 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
                             ) : (comp.supplier || "—");
                           })()}
                         </td>
+                        <td className="p-3 text-muted-foreground text-xs">{comp.origin || "—"}</td>
                         <td className="p-3 text-muted-foreground">
                           {canEditStock ? (
                             <InlineEditField
@@ -361,6 +367,10 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
                 </Select>
               </div>
               <div className="space-y-1">
+                <Label className="text-xs">מוצא</Label>
+                <Input value={newComp.origin} onChange={e => setNewComp(p => ({ ...p, origin: e.target.value }))} placeholder="למשל: סין" />
+              </div>
+              <div className="space-y-1">
                 <Label className="text-xs">מלאי</Label>
                 <Input type="number" value={newComp.stock_qty} onChange={e => setNewComp(p => ({ ...p, stock_qty: e.target.value }))} />
               </div>
@@ -405,6 +415,10 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
                     {suppliers.map(s => <SelectItem key={s.id} value={s.company}>{s.company}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">מוצא</Label>
+                <Input value={mobileEditFields.origin || ""} onChange={e => setMobileEditFields(p => ({ ...p, origin: e.target.value }))} placeholder="למשל: סין" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">מלאי</Label>
