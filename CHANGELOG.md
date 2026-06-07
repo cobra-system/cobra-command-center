@@ -7,11 +7,15 @@
 
 ## [2026-06-07]
 
+- feat: add avg values on reference lines and division filter to consumption chart (0f333fd)
+
+<!-- last-commit: f162ed22bc5d5bed87b8623746cfe1a1260476c2 -->
+## [2026-06-07]
+
 - feat: color-code order request rows by division (7ac2003)
 - fix: apply missing linked_order_ids migration + add received_qty (7e243f4)
 - feat: order requests — delivery status, ETA, george email, fix nav button (26fd845)
 
-<!-- last-commit: 1d2b5fe47e285844e2576741fba951d33367e5c4 -->
 ## [2026-06-07]
 
 - feat: complete product field audit — gaps G3/G4/G6/G7 (c13ec81)
