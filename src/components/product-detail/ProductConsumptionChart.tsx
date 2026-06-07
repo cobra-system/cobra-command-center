@@ -41,7 +41,6 @@ function getOrderColor(status: string): string {
   return "#2563eb";
 }
 
-/** Priority for choosing which color to show when multiple orders land in the same month */
 function orderColorPriority(c: string) {
   return c === "#f97316" ? 3 : c === "#2563eb" ? 2 : c === "#16a34a" ? 1 : 0;
 }
@@ -59,7 +58,6 @@ const DIV_COLORS = [
 
 const DATE_RANGE_LABELS: Record<DateRange, string> = { "3m": "3m", "6m": "6m", "1y": "שנה", "all": "הכל" };
 
-// ── Custom order-marker label rendered inside the SVG ────────────────────────
 function OrderLabel({ viewBox, qty, color, tooltip }: {
   viewBox?: { x: number; y: number; height: number };
   qty: number;
@@ -79,7 +77,6 @@ function OrderLabel({ viewBox, qty, color, tooltip }: {
   );
 }
 
-// ── Custom chart tooltip ──────────────────────────────────────────────────────
 function ChartTooltip({
   active, payload, label, viewMode, activeDivisions,
 }: {
@@ -135,13 +132,10 @@ export function ProductConsumptionChart({
   const showModeToggle = !fixedDivision && divisions.length >= 2;
 
   const [selectedDivisions, setSelectedDivisions] = useState<Set<string> | null>(null);
-
-  // Smart default: if fewer than 6 months of data exist, show "all"
   const [dateRange, setDateRange] = useState<DateRange>(() => {
     const monthCount = new Set(rawRows.map(r => r.month)).size;
     return monthCount < 6 ? "all" : "1y";
   });
-
   const [viewMode, setViewMode] = useState<ViewMode>("aggregate");
   const [showOrders, setShowOrders] = useState(true);
 
@@ -156,7 +150,6 @@ export function ProductConsumptionChart({
     return selectedDivisions ? [...selectedDivisions] : null;
   }, [fixedDivision, selectedDivisions]);
 
-  // Apply date range filter
   const filteredRows = useMemo(() => {
     if (dateRange === "all") return rawRows;
     const months = dateRange === "3m" ? 3 : dateRange === "6m" ? 6 : 12;
@@ -193,7 +186,6 @@ export function ProductConsumptionChart({
     return [...set].sort();
   }, [filteredRows, activeDivisions]);
 
-  // Always compute forecast when stockQty provided (used for stockout marker in all modes)
   const forecastPoints = useMemo(() => {
     if (stockQty === undefined || monthlyData.length < 2) return [];
     return forecastConsumption(monthlyData, 5);
@@ -217,7 +209,6 @@ export function ProductConsumptionChart({
       }
       points.push(point);
     }
-    // Forecast extension (only for the area visuals in aggregate mode)
     if (viewMode === "aggregate") {
       for (const fp of forecastPoints) {
         points.push({
@@ -229,7 +220,6 @@ export function ProductConsumptionChart({
     return points;
   }, [allHistoricalMonths, monthlyData, viewMode, activeDivisionsList, divisionMonthlyMaps, forecastPoints]);
 
-  // Order event markers — grouped by month with rich tooltip text
   const orderMarkers = useMemo(() => {
     if (!relatedOrders || !showOrders || !productId) return [];
     const chartLabelSet = new Set(chartData.map(d => d.label as string));
@@ -258,10 +248,7 @@ export function ProductConsumptionChart({
       }
     }
     return [...byLabel.entries()].map(([label, v]) => ({
-      label,
-      qty: v.qty,
-      color: v.color,
-      tooltip: v.tooltipLines.join("\n"),
+      label, qty: v.qty, color: v.color, tooltip: v.tooltipLines.join("\n"),
     }));
   }, [relatedOrders, showOrders, productId, chartData]);
 
@@ -302,65 +289,11 @@ export function ProductConsumptionChart({
       <CardHeader className="pb-2">
         <div className="flex flex-col gap-2">
 
-          {/* ── Row 1: title + controls + legend ───────────────────────── */}
-          <div className="flex items-center justify-between flex-wrap gap-x-3 gap-y-1.5">
-            <CardTitle className="text-base shrink-0">מגמת צריכה חודשית</CardTitle>
-
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {/* Date range buttons */}
-              {(["3m", "6m", "1y", "all"] as DateRange[]).map(r => (
-                <button
-                  key={r}
-                  onClick={() => setDateRange(r)}
-                  className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${
-                    dateRange === r
-                      ? "bg-foreground text-background border-foreground"
-                      : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
-                  }`}
-                >
-                  {DATE_RANGE_LABELS[r]}
-                </button>
-              ))}
-
-              {/* View mode toggle */}
-              {showModeToggle && (
-                <div className="flex items-center border border-border rounded overflow-hidden text-[11px]">
-                  {(["aggregate", "compare", "stacked"] as ViewMode[]).map(mode => {
-                    const labels: Record<ViewMode, string> = { aggregate: "מאוחד", compare: "השוואה", stacked: "מוערם" };
-                    return (
-                      <button
-                        key={mode}
-                        onClick={() => setViewMode(mode)}
-                        className={`px-2 py-0.5 transition-colors ${
-                          viewMode === mode
-                            ? "bg-foreground text-background"
-                            : "text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        {labels[mode]}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Order markers toggle */}
-              {relatedOrders && relatedOrders.length > 0 && (
-                <button
-                  onClick={() => setShowOrders(v => !v)}
-                  className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border transition-colors ${
-                    showOrders
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
-                  }`}
-                >
-                  הזמנות {showOrders ? "✓" : ""}
-                </button>
-              )}
-            </div>
-
-            {/* Avg legend */}
-            <div className="flex items-center gap-3 text-[11px] shrink-0 mr-auto">
+          {/* ── Row 1: title ────────────────────────────────────────────── */}
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base">מגמת צריכה חודשית</CardTitle>
+            {/* Avg legend — hidden on mobile, shown sm+ */}
+            <div className="hidden sm:flex items-center gap-3 text-[11px]">
               {AVG_LINES.map(l => {
                 const val = l.key === "avgAnnual" ? avgAnnual : l.key === "avgHalfYear" ? avgHalfYear : avgQuarter;
                 return val > 0 ? (
@@ -379,12 +312,78 @@ export function ProductConsumptionChart({
             </div>
           </div>
 
-          {/* ── Row 2: division pills ────────────────────────────────── */}
+          {/* ── Row 2: controls ─────────────────────────────────────────── */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Date range */}
+            {(["3m", "6m", "1y", "all"] as DateRange[]).map(r => (
+              <button
+                key={r}
+                onClick={() => setDateRange(r)}
+                className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${
+                  dateRange === r
+                    ? "bg-foreground text-background border-foreground"
+                    : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
+                }`}
+              >
+                {DATE_RANGE_LABELS[r]}
+              </button>
+            ))}
+
+            {/* View mode toggle */}
+            {showModeToggle && (
+              <div className="flex items-center border border-border rounded overflow-hidden text-[11px]">
+                {(["aggregate", "compare", "stacked"] as ViewMode[]).map(mode => {
+                  const labels: Record<ViewMode, string> = { aggregate: "מאוחד", compare: "השוואה", stacked: "מוערם" };
+                  return (
+                    <button
+                      key={mode}
+                      onClick={() => setViewMode(mode)}
+                      className={`px-2 py-0.5 transition-colors ${
+                        viewMode === mode
+                          ? "bg-foreground text-background"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {labels[mode]}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Order markers toggle */}
+            {relatedOrders && relatedOrders.length > 0 && (
+              <button
+                onClick={() => setShowOrders(v => !v)}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border transition-colors ${
+                  showOrders
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
+                }`}
+              >
+                הזמנות {showOrders ? "✓" : ""}
+              </button>
+            )}
+
+            {/* Avg legend — mobile inline, placed after controls */}
+            <div className="flex sm:hidden items-center gap-2 text-[10px] flex-wrap mr-auto">
+              {AVG_LINES.map(l => {
+                const val = l.key === "avgAnnual" ? avgAnnual : l.key === "avgHalfYear" ? avgHalfYear : avgQuarter;
+                return val > 0 ? (
+                  <span key={l.key} style={{ color: l.color }} className="font-medium">
+                    {l.label}: {Math.ceil(val)}
+                  </span>
+                ) : null;
+              })}
+            </div>
+          </div>
+
+          {/* ── Row 3: division pills ────────────────────────────────── */}
           {showFilter && (
-            <div className="flex items-center gap-1.5 flex-wrap" dir="rtl">
+            <div className="flex items-center gap-1 flex-wrap" dir="rtl">
               <button
                 onClick={() => setSelectedDivisions(null)}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-all duration-150 ${
+                className={`px-2 py-0.5 rounded-md text-xs font-medium border transition-all duration-150 ${
                   isAllSelected
                     ? "bg-foreground text-background border-foreground"
                     : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
@@ -399,7 +398,7 @@ export function ProductConsumptionChart({
                   <button
                     key={div}
                     onClick={() => toggleDivision(div)}
-                    className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-all duration-150 ${
+                    className={`px-2 py-0.5 rounded-md text-xs font-medium border transition-all duration-150 ${
                       active
                         ? "text-white border-transparent"
                         : "bg-transparent border-border text-muted-foreground hover:text-foreground hover:border-foreground"
@@ -407,7 +406,7 @@ export function ProductConsumptionChart({
                     style={active ? { backgroundColor: color, borderColor: color } : {}}
                   >
                     <span
-                      className="inline-block w-2 h-2 rounded-full mr-1"
+                      className="inline-block w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full mr-0.5"
                       style={{ backgroundColor: color, opacity: active ? 1 : 0.5 }}
                     />
                     {div}
@@ -420,9 +419,9 @@ export function ProductConsumptionChart({
       </CardHeader>
 
       <CardContent className="pb-4">
-        <div className="h-[300px]">
+        <div className="h-[260px] sm:h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData as never[]} margin={{ top: 12, right: 16, left: 4, bottom: 4 }}>
+            <AreaChart data={chartData as never[]} margin={{ top: 12, right: 8, left: 0, bottom: 4 }}>
               <defs>
                 <linearGradient id="cg-history" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.28} />
@@ -431,12 +430,11 @@ export function ProductConsumptionChart({
               </defs>
 
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.06)" />
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-              <YAxis domain={[0, "auto"]} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={36} />
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+              <YAxis domain={[0, "auto"]} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={30} />
 
               <Tooltip content={<ChartTooltip viewMode={viewMode} activeDivisions={activeDivisionsList} />} />
 
-              {/* ── Aggregate mode: single area + forecast ─────────────── */}
               {viewMode === "aggregate" && (
                 <>
                   <Area type="monotone" dataKey="quantity"
@@ -461,7 +459,6 @@ export function ProductConsumptionChart({
                 </>
               )}
 
-              {/* ── Compare / Stacked mode: per-division areas ─────────── */}
               {(viewMode === "compare" || viewMode === "stacked") &&
                 activeDivisionsList.map((div, i) => {
                   const color = DIV_COLORS[i % DIV_COLORS.length];
@@ -476,7 +473,6 @@ export function ProductConsumptionChart({
                 })
               }
 
-              {/* ── Avg reference lines ─────────────────────────────────── */}
               {avgAnnual > 0 && (
                 <ReferenceLine y={avgAnnual} stroke="#16a34a" strokeDasharray="5 4"
                   label={{ value: `שנתי  ${Math.ceil(avgAnnual)}`, position: "insideTopLeft", fontSize: 10, fill: "#16a34a" }} />
@@ -490,19 +486,16 @@ export function ProductConsumptionChart({
                   label={{ value: `רבעוני  ${Math.ceil(avgQuarter)}`, position: "insideTopLeft", fontSize: 10, fill: "#f97316" }} />
               )}
 
-              {/* ── Reorder point ────────────────────────────────────────── */}
               {reorderLabel && (
                 <ReferenceLine y={reorderLabel} stroke="#f97316" strokeDasharray="3 3" strokeWidth={1}
                   label={{ value: `נק' הזמנה ${reorderLabel}`, position: "insideBottomLeft", fontSize: 9, fill: "#f97316" }} />
               )}
 
-              {/* ── Stockout marker (all view modes) ─────────────────────── */}
               {stockoutLabel && (
                 <ReferenceLine x={stockoutLabel} stroke="#ef4444" strokeDasharray="5 3" strokeWidth={2}
                   label={{ value: `אזל  ${stockoutLabel}`, position: "insideTopRight", fontSize: 10, fill: "#ef4444" }} />
               )}
 
-              {/* ── Order event markers ──────────────────────────────────── */}
               {orderMarkers.map(({ label, qty, color, tooltip }) => (
                 <ReferenceLine key={`order-${label}`} x={label}
                   stroke={color} strokeDasharray="3 3" strokeWidth={1.5}
@@ -513,9 +506,9 @@ export function ProductConsumptionChart({
           </ResponsiveContainer>
         </div>
 
-        {/* ── Bottom legend strip ───────────────────────────────────────── */}
+        {/* ── Bottom legend ─────────────────────────────────────────────── */}
         {(showForecastArea || stockoutLabel) && (
-          <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground flex-wrap">
+          <div className="flex items-center gap-2 mt-2 text-[10px] text-muted-foreground flex-wrap">
             {showForecastArea && (
               <>
                 <span className="flex items-center gap-1">
@@ -534,16 +527,13 @@ export function ProductConsumptionChart({
                 צפי אזילה: {stockoutLabel}
               </span>
             ) : stockQty !== undefined && forecastPoints.length > 0 ? (
-              <span className="flex items-center gap-1 text-green-600 font-medium">
-                ✓ מלאי מספיק לאופק התחזית
-              </span>
+              <span className="text-green-600 font-medium">✓ מלאי מספיק לאופק התחזית</span>
             ) : null}
           </div>
         )}
 
-        {/* ── Compare/stacked division legend ──────────────────────────── */}
         {(viewMode === "compare" || viewMode === "stacked") && hasMultiDivisions && (
-          <div className="flex items-center gap-3 mt-2 flex-wrap text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-2 mt-2 flex-wrap text-[10px] text-muted-foreground">
             {activeDivisionsList.map((div, i) => (
               <span key={div} className="flex items-center gap-1">
                 <span className="inline-block w-3 h-3 rounded-sm" style={{ background: DIV_COLORS[i % DIV_COLORS.length] }} />

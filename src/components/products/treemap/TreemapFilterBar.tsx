@@ -16,16 +16,16 @@ interface Props {
 }
 
 const TOP_N_OPTIONS = [
-  { value: "all", label: "כל המוצרים" },
-  { value: "5", label: "Top 5" },
-  { value: "10", label: "Top 10" },
-  { value: "20", label: "Top 20" },
-  { value: "50", label: "Top 50" },
+  { value: "all", label: "הכל" },
+  { value: "5", label: "5" },
+  { value: "10", label: "10" },
+  { value: "20", label: "20" },
+  { value: "50", label: "50" },
 ];
 
 const SIZE_OPTIONS: { value: SizeMetric; label: string }[] = [
   { value: "consumption", label: "צריכה" },
-  { value: "stockValue", label: "שווי מלאי" },
+  { value: "stockValue", label: "שווי" },
 ];
 
 const HEALTH_OPTIONS: { value: HealthFilter; label: string; color?: string }[] = [
@@ -39,13 +39,14 @@ const HEALTH_OPTIONS: { value: HealthFilter; label: string; color?: string }[] =
 
 export default function TreemapFilterBar({ filters, onChange, categories, suppliers, divisions, isManager, search, onSearchChange }: Props) {
   return (
-    <div className="flex flex-wrap gap-2 items-center">
-      <div className="flex bg-secondary rounded-lg p-1">
+    <div className="flex flex-wrap gap-1.5 items-center">
+      {/* Top-N toggle */}
+      <div className="flex bg-secondary rounded-lg p-0.5 sm:p-1">
         {TOP_N_OPTIONS.map(opt => (
           <button
             key={opt.value}
             onClick={() => onChange({ ...filters, topN: opt.value === "all" ? null : Number(opt.value) })}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors ${
               (filters.topN === null && opt.value === "all") || String(filters.topN) === opt.value
                 ? "bg-card text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -56,11 +57,8 @@ export default function TreemapFilterBar({ filters, onChange, categories, suppli
         ))}
       </div>
 
-      <Select
-        value={filters.category}
-        onValueChange={v => onChange({ ...filters, category: v })}
-      >
-        <SelectTrigger className="w-[150px]">
+      <Select value={filters.category} onValueChange={v => onChange({ ...filters, category: v })}>
+        <SelectTrigger className="w-[120px] sm:w-[150px] h-8 sm:h-9 text-xs sm:text-sm">
           <SelectValue placeholder="קטגוריה" />
         </SelectTrigger>
         <SelectContent>
@@ -72,11 +70,8 @@ export default function TreemapFilterBar({ filters, onChange, categories, suppli
         </SelectContent>
       </Select>
 
-      <Select
-        value={filters.supplier}
-        onValueChange={v => onChange({ ...filters, supplier: v })}
-      >
-        <SelectTrigger className="w-[150px]">
+      <Select value={filters.supplier} onValueChange={v => onChange({ ...filters, supplier: v })}>
+        <SelectTrigger className="w-[110px] sm:w-[150px] h-8 sm:h-9 text-xs sm:text-sm">
           <SelectValue placeholder="ספק" />
         </SelectTrigger>
         <SelectContent>
@@ -88,11 +83,8 @@ export default function TreemapFilterBar({ filters, onChange, categories, suppli
       </Select>
 
       {isManager && divisions.length > 0 && (
-        <Select
-          value={filters.division}
-          onValueChange={v => onChange({ ...filters, division: v })}
-        >
-          <SelectTrigger className="w-[150px]">
+        <Select value={filters.division} onValueChange={v => onChange({ ...filters, division: v })}>
+          <SelectTrigger className="w-[110px] sm:w-[150px] h-8 sm:h-9 text-xs sm:text-sm">
             <SelectValue placeholder="חטיבה" />
           </SelectTrigger>
           <SelectContent>
@@ -104,11 +96,8 @@ export default function TreemapFilterBar({ filters, onChange, categories, suppli
         </Select>
       )}
 
-      <Select
-        value={filters.health ?? "all"}
-        onValueChange={v => onChange({ ...filters, health: v as HealthFilter })}
-      >
-        <SelectTrigger className="w-[130px]">
+      <Select value={filters.health ?? "all"} onValueChange={v => onChange({ ...filters, health: v as HealthFilter })}>
+        <SelectTrigger className="w-[100px] sm:w-[130px] h-8 sm:h-9 text-xs sm:text-sm">
           <SelectValue placeholder="מצב מלאי" />
         </SelectTrigger>
         <SelectContent>
@@ -123,12 +112,13 @@ export default function TreemapFilterBar({ filters, onChange, categories, suppli
         </SelectContent>
       </Select>
 
-      <div className="flex bg-secondary rounded-lg p-1">
+      {/* Size-by toggle */}
+      <div className="flex bg-secondary rounded-lg p-0.5 sm:p-1">
         {SIZE_OPTIONS.map(opt => (
           <button
             key={opt.value}
             onClick={() => onChange({ ...filters, sizeBy: opt.value })}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors ${
               filters.sizeBy === opt.value
                 ? "bg-card text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -139,13 +129,14 @@ export default function TreemapFilterBar({ filters, onChange, categories, suppli
         ))}
       </div>
 
-      <div className="relative flex-1 min-w-[140px] max-w-[220px]">
+      {/* Search */}
+      <div className="relative flex-1 min-w-[100px] max-w-[200px] sm:min-w-[140px] sm:max-w-[220px]">
         <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <Input
           placeholder="חיפוש מק״ט..."
           value={search}
           onChange={e => onSearchChange(e.target.value)}
-          className="pr-8 h-9 text-sm"
+          className="pr-8 h-8 sm:h-9 text-xs sm:text-sm"
         />
       </div>
     </div>
