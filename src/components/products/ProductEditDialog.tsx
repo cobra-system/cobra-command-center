@@ -49,7 +49,7 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
         product_type: product.product_type || "",
         description: product.description || "",
         supplier: product.supplier || "",
-        supplier_origin: product.supplier_origin || "",
+
         shipping: product.shipping || "",
         purchase_price: product.purchase_price ?? "",
         sale_price: product.sale_price ?? "",
@@ -60,7 +60,6 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
         end_product_url: product.end_product_url || "",
         end_product_image: product.end_product_image || "",
         notes: product.notes || "",
-        sap_code: product.sap_code || "",
       });
     }
   }, [open, product]);
@@ -72,7 +71,7 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
     try {
       const updates: Record<string, any> = {};
       const numericFields = ["purchase_price", "sale_price", "monthly_order", "monthly_sales_avg", "stock_qty", "lead_time_days"];
-      const textFields = ["name", "sku", "category", "division", "product_type", "description", "supplier", "supplier_origin", "shipping", "end_product_url", "end_product_image", "notes", "sap_code"];
+      const textFields = ["name", "sku", "category", "division", "product_type", "description", "supplier", "shipping", "end_product_url", "end_product_image", "notes"];
 
       for (const key of textFields) {
         updates[key] = fields[key] === "" ? null : fields[key];
@@ -176,7 +175,7 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
                   </SelectContent>
                 </Select>
               </div>
-              {textField("supplier_origin", "מדינת מקור")}
+
               <div className="space-y-1">
                 <Label className="text-xs">שיטת משלוח</Label>
                 <Select value={fields.shipping || ""} onValueChange={v => set("shipping", v)}>
@@ -187,7 +186,6 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
                 </Select>
               </div>
               {numField("lead_time_days", "זמן אספקה (ימים)")}
-              {textField("sap_code", "קוד SAP")}
             </div>
           </div>
 

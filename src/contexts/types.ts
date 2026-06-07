@@ -26,7 +26,6 @@ export interface Product {
   supplier?: string | null;
   supplier_id?: string | null;
   supplier_origin?: string | null;
-  sap_code?: string | null;
   shipping?: string | null;
   purchase_price?: number | null;
   monthly_sales?: number | null;

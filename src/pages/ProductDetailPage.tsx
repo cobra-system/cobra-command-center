@@ -106,7 +106,6 @@ export default function ProductDetailPage() {
     { label: "קטגוריה", field: "category", value: product.category, options: categoryOptions, tooltip: "הקטגוריה שהמוצר שייך אליה" },
     { label: "חטיבות", field: "division", value: product.division, options: divisionOptions, multiSelect: true, tooltip: "החטיבות הארגוניות שמשתמשות במוצר" },
     { label: "מק״ט", field: "sku", value: product.sku, tooltip: "קוד מוצר ייחודי (SKU)" },
-    { label: "קוד SAP", field: "sap_code", value: product.sap_code, tooltip: "קוד המוצר במערכת SAP" },
     { label: "סוג מוצר", field: "product_type", value: product.product_type, options: productTypeOptions, tooltip: "מוגמר = מוצר בסיסי, מורכב = הרכבה מרכיבים" },
     { label: "תיאור", field: "description", value: product.description, tooltip: "תיאור חופשי של המוצר" },
     { label: "ספק", field: "supplier", value: product.supplier, isSupplierLink: true, options: supplierOptions, tooltip: "הספק הראשי שממנו מזמינים את המוצר" },
