@@ -4,7 +4,6 @@ import { useData, useAuth, categories, type Product } from "@/contexts/AppContex
 import { canSeePrices, isDivisionManager } from "@/lib/permissions";
 import { useProductScope } from "@/hooks/useProductScope";
 import { useLiveProductMetrics, type ProductMetrics } from "@/hooks/useLiveProductMetrics";
-import { usePickupMonthlyAvg } from "@/hooks/usePickupMonthlyAvg";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { supabase } from "@/lib/supabase";
 import { Search, ChevronDown, ChevronUp, Boxes, Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye, Pencil, Truck, ShoppingCart, ClipboardList, Copy, Hash, Table2, LayoutGrid } from "lucide-react";
@@ -26,25 +25,43 @@ import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/c
 import { usePermissions } from "@/hooks/usePermissions";
 import { QuantityBar } from "@/components/ui/QuantityBar";
 
-type SortKey = "name" | "sku" | "product_type" | "supplier" | "stock_qty" | "incoming_qty" | "purchase_price" | "monthly_order" | "sale_price" | "monthly_sales" | "category" | "lead_time_days" | "monthly_sales_avg" | "division" | "shipping";
+type SortKey = "name" | "sku" | "product_type" | "supplier" | "stock_qty" | "incoming_qty" | "purchase_price" | "monthly_order" | "sale_price" | "category" | "lead_time_days" | "division" | "shipping" | "div_consumption" | "health";
 
 const COLUMN_DEFS = [
-  { id: "name",           label: "שם מוצר",           sortField: "name" },
-  { id: "sku",            label: "מק״ט",               sortField: "sku" },
-  { id: "product_type",   label: "סוג",                sortField: "product_type" },
-  { id: "supplier",       label: "ספק",                sortField: "supplier" },
-  { id: "stock_qty",      label: "מלאי",               sortField: "stock_qty" },
-  { id: "incoming_qty",   label: 'עול"ב',              sortField: "incoming_qty" },
-  { id: "purchase_price", label: "מחיר רכישה",        sortField: "purchase_price" },
-  { id: "monthly_order",  label: "הזמנה חודשית",      sortField: "monthly_order" },
-  { id: "sale_price",     label: "מחיר מכירה",        sortField: "sale_price" },
-  { id: "monthly_sales",     label: "מכירות חודשיות (לפי הצטיידות)", sortField: "monthly_sales" },
-  { id: "category",          label: "קטגוריה",                       sortField: "category" },
-  { id: "lead_time_days",    label: "זמן אספקה (ימים)",              sortField: "lead_time_days" },
-  { id: "monthly_sales_avg", label: "ממוצע צריכה שנתי (SAP)",        sortField: "monthly_sales_avg" },
-  { id: "division",          label: "חטיבות",                        sortField: "division" },
-  { id: "shipping",          label: "שיטת משלוח",                    sortField: "shipping" },
-] as const;
+  { id: "name",            label: "שם מוצר",          sortField: "name" as SortKey },
+  { id: "sku",             label: "מק״ט",              sortField: "sku" as SortKey },
+  { id: "product_type",    label: "סוג",               sortField: "product_type" as SortKey },
+  { id: "supplier",        label: "ספק",               sortField: "supplier" as SortKey },
+  { id: "stock_qty",       label: "מלאי",              sortField: "stock_qty" as SortKey },
+  { id: "incoming_qty",    label: 'עול"ב',             sortField: "incoming_qty" as SortKey },
+  { id: "purchase_price",  label: "מחיר רכישה",       sortField: "purchase_price" as SortKey },
+  { id: "monthly_order",   label: "הזמנה חודשית",     sortField: "monthly_order" as SortKey },
+  { id: "sale_price",      label: "מחיר מכירה",       sortField: "sale_price" as SortKey },
+  { id: "div_consumption", label: "צריכה",             sortField: "div_consumption" as SortKey },
+  { id: "health",          label: "בריאות מלאי",       sortField: "health" as SortKey },
+  { id: "category",        label: "קטגוריה",           sortField: "category" as SortKey },
+  { id: "lead_time_days",  label: "זמן אספקה (ימים)", sortField: "lead_time_days" as SortKey },
+  { id: "division",        label: "חטיבות",            sortField: "division" as SortKey },
+  { id: "shipping",        label: "שיטת משלוח",        sortField: "shipping" as SortKey },
+];
+
+const HEALTH_THRESHOLDS = [
+  { min: 4,    color: "#16a34a", label: "מצוין" },
+  { min: 3,    color: "#4ade80", label: "תקין" },
+  { min: 2,    color: "#eab308", label: "סביר" },
+  { min: 1,    color: "#f97316", label: "נמוך" },
+  { min: 0.01, color: "#ef4444", label: "קריטי" },
+  { min: 0,    color: "#dc2626", label: "אזל" },
+];
+function getHealth(stock: number, avg: number | null): { ratio: number | null; color: string; label: string } {
+  if (!avg || avg <= 0) return { ratio: null, color: "#6b7280", label: "אין נתונים" };
+  if (stock <= 0) return { ratio: 0, color: "#dc2626", label: "אזל" };
+  const ratio = stock / avg;
+  for (const t of HEALTH_THRESHOLDS) {
+    if (ratio >= t.min) return { ratio, color: t.color, label: t.label };
+  }
+  return { ratio, color: "#dc2626", label: "אזל" };
+}
 
 function CompositeIncomingBadge({ m }: { m: ProductMetrics | undefined }) {
   if (!m?.compositeIncoming) return <span className="text-muted-foreground">—</span>;
@@ -82,9 +99,15 @@ export default function ProductsPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   // Division stock state
-  interface DivStockEntry { division: string; stock: number; dpId: string }
+  interface DivStockEntry { division: string; stock: number; dpId: string; monthly_avg: number | null }
   const [divStockByProduct, setDivStockByProduct] = useState<Map<string, DivStockEntry[]>>(new Map());
+  const [divConsumptionByProduct, setDivConsumptionByProduct] = useState<Map<string, number>>(new Map());
   const [expandedStockId, setExpandedStockId] = useState<string | null>(null);
+
+  const currentMonth = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  }, []);
 
   const prefs = useTablePreferences("ProductsPage", {
     sortField: "name",
@@ -96,24 +119,75 @@ export default function ProductsPage() {
   const isBondedDivMgr = divManager && BONDED_DIVISIONS.has(userDivision);
 
   const fetchDivisionStock = useCallback(async () => {
-    let q = supabase.from("division_products").select("id, division, product_id, division_stock");
+    let q = supabase.from("division_products").select("id, division, product_id, division_stock, monthly_avg");
     if (divManager && userDivision) q = q.eq("division", userDivision);
     const { data } = await q;
     const map = new Map<string, DivStockEntry[]>();
-    for (const r of (data ?? []) as { id: string; division: string; product_id: string; division_stock: number }[]) {
+    for (const r of (data ?? []) as { id: string; division: string; product_id: string; division_stock: number; monthly_avg: number | null }[]) {
       const list = map.get(r.product_id) ?? [];
-      list.push({ division: r.division, stock: r.division_stock ?? 0, dpId: r.id });
+      list.push({ division: r.division, stock: r.division_stock ?? 0, dpId: r.id, monthly_avg: r.monthly_avg ?? null });
       map.set(r.product_id, list);
     }
     setDivStockByProduct(map);
   }, [divManager, userDivision]);
 
+  const fetchDivisionConsumption = useCallback(async () => {
+    if (!divManager || !userDivision) return;
+    const { data } = await supabase
+      .from("division_product_consumption")
+      .select("product_id, quantity")
+      .eq("division", userDivision)
+      .eq("month", currentMonth);
+    const map = new Map<string, number>();
+    for (const r of (data ?? []) as { product_id: string; quantity: number }[]) {
+      map.set(r.product_id, r.quantity);
+    }
+    setDivConsumptionByProduct(map);
+  }, [divManager, userDivision, currentMonth]);
+
   useEffect(() => { fetchDivisionStock(); }, [fetchDivisionStock]);
+  useEffect(() => { fetchDivisionConsumption(); }, [fetchDivisionConsumption]);
+
+  const saveDivisionConsumption = useCallback(async (productId: string, quantity: number) => {
+    await supabase
+      .from("division_product_consumption")
+      .upsert(
+        { division: userDivision, product_id: productId, month: currentMonth, quantity },
+        { onConflict: "division,product_id,month" }
+      );
+    fetchDivisionConsumption();
+  }, [userDivision, currentMonth, fetchDivisionConsumption]);
+
+  // For admins: sum all divisions' monthly_avg. For division managers: their own division only.
+  const divAvgByProduct = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const [pid, entries] of divStockByProduct) {
+      const relevant = divManager ? entries.filter(d => d.division === userDivision) : entries;
+      const total = relevant.reduce((s, d) => s + (d.monthly_avg ?? 0), 0);
+      if (total > 0) map.set(pid, Math.round(total * 10) / 10);
+    }
+    return map;
+  }, [divStockByProduct, divManager, userDivision]);
+
+  const healthByProduct = useMemo(() => {
+    const map = new Map<string, { ratio: number | null; color: string; label: string }>();
+    for (const p of products) {
+      const entries = divStockByProduct.get(p.id);
+      const divTotal = entries ? entries.reduce((s, d) => s + d.stock, 0) : 0;
+      const stock = divManager
+        ? (entries?.find(d => d.division === userDivision)?.stock ?? 0)
+        : (p.stock_qty + divTotal);
+      const avg = divAvgByProduct.get(p.id) ?? null;
+      map.set(p.id, getHealth(stock, avg));
+    }
+    return map;
+  }, [products, divStockByProduct, divAvgByProduct, divManager, userDivision]);
+
   const showPrices = canSeePrices(currentUser);
   const colVis = useColumnVisibility(
     "products:hidden-columns",
     COLUMN_DEFS,
-    ["sale_price", "monthly_sales", "category", "lead_time_days", "monthly_sales_avg", "division", "shipping"]
+    ["sale_price", "category", "lead_time_days", "division", "shipping", "health"]
   );
   const PRICE_COLS = new Set(["purchase_price", "sale_price"]);
   const isVisible = (id: string) => !showPrices && PRICE_COLS.has(id) ? false : colVis.isVisible(id);
@@ -121,7 +195,6 @@ export default function ProductsPage() {
   const visibleCount = COLUMN_DEFS.filter(c => isVisible(c.id)).length;
   const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
   const { metrics } = useLiveProductMetrics(products);
-  const { avgByProduct } = usePickupMonthlyAvg();
 
   const { hasEdit } = usePermissions("products");
   // If a stored sort preference points to a hidden price column, fall
@@ -145,6 +218,16 @@ export default function ProductsPage() {
 
     if (sortKey) {
       result = [...result].sort((a, b) => {
+        if (sortKey === "div_consumption") {
+          const av = divAvgByProduct.get(a.id) ?? 0;
+          const bv = divAvgByProduct.get(b.id) ?? 0;
+          return sortDir === "asc" ? av - bv : bv - av;
+        }
+        if (sortKey === "health") {
+          const av = healthByProduct.get(a.id)?.ratio ?? -1;
+          const bv = healthByProduct.get(b.id)?.ratio ?? -1;
+          return sortDir === "asc" ? av - bv : bv - av;
+        }
         const av = a[sortKey as keyof Product];
         const bv = b[sortKey as keyof Product];
         if (av == null && bv == null) return 0;
@@ -155,7 +238,7 @@ export default function ProductsPage() {
       });
     }
     return result;
-  }, [products, category, typeFilter, supplierFilter, search, sortKey, sortDir]);
+  }, [products, category, typeFilter, supplierFilter, search, sortKey, sortDir, divAvgByProduct, healthByProduct]);
 
   const uniqueSuppliers = useMemo(() => {
     const set = new Set(products.map(p => p.supplier).filter(Boolean) as string[]);
@@ -339,6 +422,23 @@ export default function ProductsPage() {
                       )}
                     </div>
                     <span className="text-xs text-muted-foreground">מלאי</span>
+                    {divManager && (
+                      <div className="w-20 mt-1" onClick={e => e.stopPropagation()}>
+                        <InlineEditCell
+                          value={divConsumptionByProduct.get(p.id) ?? 0}
+                          type="number"
+                          onCommit={async (val) => {
+                            try {
+                              await saveDivisionConsumption(p.id, (val as number) ?? 0);
+                              toast.success("צריכה עודכנה");
+                            } catch {
+                              toast.error("שגיאה בעדכון צריכה");
+                            }
+                          }}
+                        />
+                        <span className="text-xs text-muted-foreground">צריכה</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -391,10 +491,12 @@ export default function ProductsPage() {
               <th className="text-right p-2 sm:p-3 font-semibold text-foreground w-8"></th>
               {COLUMN_DEFS.map(col => isVisible(col.id) ? (
                 <th key={col.id} className="text-right p-2 sm:p-3 font-semibold text-foreground" onContextMenu={colThContextMenu(col, setColMenu)}>
-                  <button onClick={() => prefs.toggleSort(col.sortField)} className="flex items-center gap-1 hover:text-accent transition-colors">
-                    {col.label}
-                    <SortIcon col={col.sortField} />
-                  </button>
+                  {col.sortField ? (
+                    <button onClick={() => prefs.toggleSort(col.sortField!)} className="flex items-center gap-1 hover:text-accent transition-colors">
+                      {col.label}
+                      <SortIcon col={col.sortField!} />
+                    </button>
+                  ) : col.label}
                 </th>
               ) : null)}
               {hasEdit && <th className="text-right p-2 sm:p-3 font-semibold text-foreground w-10"></th>}
@@ -579,10 +681,47 @@ export default function ProductsPage() {
                         {p.sale_price ? `$${p.sale_price.toLocaleString()}` : "—"}
                       </td>
                     )}
-                    {isVisible("monthly_sales") && <td className="p-2 sm:p-3 text-muted-foreground">{avgByProduct.get(p.id) ?? "—"}</td>}
+                    {isVisible("div_consumption") && (
+                      <td className="p-2 sm:p-3" onClick={e => e.stopPropagation()}>
+                        {divManager ? (
+                          <InlineEditCell
+                            value={divConsumptionByProduct.get(p.id) ?? 0}
+                            type="number"
+                            onCommit={async (val) => {
+                              try {
+                                await saveDivisionConsumption(p.id, (val as number) ?? 0);
+                                toast.success("צריכה עודכנה");
+                              } catch {
+                                toast.error("שגיאה בעדכון צריכה");
+                              }
+                            }}
+                          />
+                        ) : (
+                          <span className="text-muted-foreground">
+                            {divAvgByProduct.get(p.id) != null ? divAvgByProduct.get(p.id) : "—"}
+                          </span>
+                        )}
+                      </td>
+                    )}
+                    {isVisible("health") && (
+                      <td className="p-2 sm:p-3">
+                        {(() => {
+                          const h = healthByProduct.get(p.id);
+                          if (!h) return <span className="text-muted-foreground">—</span>;
+                          return (
+                            <span className="inline-flex items-center gap-1.5 text-xs">
+                              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: h.color }} />
+                              <span style={{ color: h.color }} className="font-medium">{h.label}</span>
+                              {h.ratio !== null && (
+                                <span className="text-muted-foreground">({Math.round(h.ratio * 10) / 10})</span>
+                              )}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                    )}
                     {isVisible("category") && <td className="p-2 sm:p-3 text-muted-foreground">{p.category || "—"}</td>}
                     {isVisible("lead_time_days") && <td className="p-2 sm:p-3 text-muted-foreground">{p.lead_time_days ?? "—"}</td>}
-                    {isVisible("monthly_sales_avg") && <td className="p-2 sm:p-3 text-muted-foreground">{p.monthly_sales_avg ?? avgByProduct.get(p.id) ?? "—"}</td>}
                     {isVisible("division") && <td className="p-2 sm:p-3 text-muted-foreground">{p.division || "—"}</td>}
                     {isVisible("shipping") && <td className="p-2 sm:p-3 text-muted-foreground">{p.shipping || "—"}</td>}
                     {hasEdit && (

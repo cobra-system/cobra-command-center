@@ -356,6 +356,10 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
                       />
                     </div>
                     <div className="space-y-1">
+                      <Label className="text-xs">מדינת מקור</Label>
+                      <Input value={comp.origin} onChange={e => { const nc = [...comps]; nc[i].origin = e.target.value; setComps(nc); }} className="h-8 text-xs" placeholder="לדוג' סין" />
+                    </div>
+                    <div className="space-y-1">
                       <Label className="text-xs">מלאי</Label>
                       <Input type="number" value={comp.stock_qty} onChange={e => { const nc = [...comps]; nc[i].stock_qty = e.target.value; setComps(nc); }} className="h-8 text-xs" />
                     </div>

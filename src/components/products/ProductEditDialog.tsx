@@ -49,6 +49,7 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
         product_type: product.product_type || "",
         description: product.description || "",
         supplier: product.supplier || "",
+
         shipping: product.shipping || "",
         purchase_price: product.purchase_price ?? "",
         sale_price: product.sale_price ?? "",
@@ -174,6 +175,7 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="space-y-1">
                 <Label className="text-xs">שיטת משלוח</Label>
                 <Select value={fields.shipping || ""} onValueChange={v => set("shipping", v)}>

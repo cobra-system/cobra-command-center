@@ -1,9 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useData, useAuth, categories, divisions, type ProductComponent } from "@/contexts/AppContext";
 import { canSeePrices } from "@/lib/permissions";
 import { useLiveProductMetrics } from "@/hooks/useLiveProductMetrics";
-import { usePickupMonthlyAvg } from "@/hooks/usePickupMonthlyAvg";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, ExternalLink, Info, Pencil, Trash2 } from "lucide-react";
 import ProductDeleteDialog from "@/components/products/ProductDeleteDialog";
@@ -25,6 +24,7 @@ import { OrdersHistoryTable } from "@/components/product-detail/OrdersHistoryTab
 import { WasteItemsSection } from "@/components/product-detail/WasteItemsSection";
 import { ProductConsumptionChart } from "@/components/product-detail/ProductConsumptionChart";
 import { useProductConsumption } from "@/hooks/useProductConsumption";
+import { supabase } from "@/lib/supabase";
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -52,13 +52,22 @@ export default function ProductDetailPage() {
   const product = products.find(p => p.id === id);
   const productArr = useMemo(() => (product ? [product] : []), [product]);
   const { metrics } = useLiveProductMetrics(productArr);
-  const { avgByProduct } = usePickupMonthlyAvg();
   const relatedOrders = useMemo(
     () => product ? orders.filter(o => o.items.some(item => item.name === product.name || item.product_id === product.id)) : [],
     [orders, product]
   );
   const supplierPayments = useProductSupplierPayments(product?.id ?? "", relatedOrders);
   const consumption = useProductConsumption(product?.id);
+
+  const [divisionData, setDivisionData] = useState<{ division: string; division_stock: number; monthly_avg: number | null }[]>([]);
+  useEffect(() => {
+    if (!product) return;
+    supabase
+      .from("division_products")
+      .select("division, division_stock, monthly_avg")
+      .eq("product_id", product.id)
+      .then(({ data }) => setDivisionData((data ?? []) as { division: string; division_stock: number; monthly_avg: number | null }[]));
+  }, [product?.id]);
 
   if (!product || (isScoped && id && !scopedProductIds.has(id))) {
     return (
@@ -69,9 +78,13 @@ export default function ProductDetailPage() {
     );
   }
 
-  const stockStatus = product.stock_qty === 0
+  const divTotal = divisionData.reduce((s, d) => s + (d.division_stock ?? 0), 0);
+  const totalStock = product.stock_qty + divTotal;
+  const totalDivConsumption = Math.round(divisionData.reduce((s, d) => s + (d.monthly_avg ?? 0), 0) * 10) / 10;
+
+  const stockStatus = totalStock === 0
     ? { label: "אזל מהמלאי", className: "bg-destructive/15 text-destructive" }
-    : product.monthly_order && product.stock_qty < product.monthly_order
+    : product.monthly_order && totalStock < product.monthly_order
     ? { label: "מלאי נמוך", className: "bg-warning/15 text-warning" }
     : { label: "תקין", className: "bg-success/15 text-success" };
 
@@ -99,9 +112,7 @@ export default function ProductDetailPage() {
     { label: "שיטת משלוח", field: "shipping", value: product.shipping, options: shippingOptions, tooltip: "אופן המשלוח המועדף מהספק" },
     { label: "מחיר רכישה", field: "purchase_price", value: product.purchase_price, priceGated: true, tooltip: product.product_type === "מורכב" ? "מחושב אוטומטית — סכום מחירי הרכיבים" : "מחיר קנייה מהספק ($)" },
     { label: "מחיר מכירה", field: "sale_price", value: product.sale_price, priceGated: true, tooltip: "מחיר מכירה ללקוח הסופי ($)" },
-    { label: "מכירות חודשיות (לפי הצטיידות)", field: "monthly_sales", value: avgByProduct.get(product.id) ?? undefined, readOnly: true, isComputed: true, tooltip: "מחושב אוטומטית — ממוצע כמויות שהוצאו מהמלאי בחודשים האחרונים" },
     { label: "הזמנה חודשית", field: "monthly_order", value: product.monthly_order, tooltip: "כמות ההזמנה החודשית המתוכננת — מוגדרת ידנית" },
-    { label: "ממוצע צריכה שנתי (SAP)", field: "monthly_sales_avg", value: product.monthly_sales_avg, tooltip: "ממוצע צריכה שנתי ממערכת SAP — מוגדר ידנית" },
     { label: "מלאי קיים", field: "stock_qty", value: product.stock_qty, tooltip: "כמות יחידות פיזיות במחסן — מוגדרת ידנית" },
     { label: 'עול"ב', field: "incoming_qty", value: metrics[product.id]?.incomingQty ?? product.incoming_qty, readOnly: true, isComputed: true, tooltip: 'מחושב אוטומטית — סכום כמויות מהזמנות פעילות (נשלח / הגיע לנמל / שחרור מכס)' },
     { label: "הערות", field: "notes", value: product.notes, tooltip: "הערות חופשיות על המוצר" },
@@ -195,7 +206,7 @@ export default function ProductDetailPage() {
       {/* Quantity bar — visual stock level indicator */}
       <div className="bg-card rounded-xl border shadow-sm px-5 py-4 space-y-2">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>רמת מלאי</span>
+          <span>רמת מלאי (קוברה ת"א)</span>
           <span className="tabular-nums">{product.stock_qty} יח׳</span>
         </div>
         <QuantityBar
@@ -211,6 +222,25 @@ export default function ProductDetailPage() {
           {product.reorder_point ? <span>מינ׳: {product.reorder_point}</span> : <span />}
           {product.monthly_order ? <span>מקס׳: {product.monthly_order}</span> : <span />}
         </div>
+        {divisionData.length > 0 && (
+          <div className="mt-3 pt-3 border-t space-y-1.5">
+            <p className="text-xs font-semibold text-foreground">מלאי לפי מיקום</p>
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>מרכז לוגיסטי (קוברה ת"א)</span>
+              <span className="font-medium text-foreground tabular-nums">{product.stock_qty}</span>
+            </div>
+            {divisionData.map(d => (
+              <div key={d.division} className="flex justify-between text-xs text-muted-foreground">
+                <span>{d.division}</span>
+                <span className="font-medium text-foreground tabular-nums">{d.division_stock}</span>
+              </div>
+            ))}
+            <div className="flex justify-between text-xs font-semibold text-foreground pt-1.5 border-t">
+              <span>סה"כ מלאי</span>
+              <span className="tabular-nums">{totalStock}</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <ProductDetailsGrid
@@ -232,10 +262,10 @@ export default function ProductDetailPage() {
       <TooltipProvider delayDuration={200}>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {[
-            { label: "מלאי קיים", value: product.stock_qty, danger: product.stock_qty === 0, tooltip: "כמות יחידות פיזיות במחסן" },
-            { label: 'עול"ב', value: metrics[product.id]?.incomingQty ?? product.incoming_qty, tooltip: 'מחושב מהזמנות פעילות (נשלח / הגיע לנמל / שחרור מכס)' },
-            { label: "מכירות חודשיות (לפי הצטיידות)", value: avgByProduct.get(product.id) ?? "—", tooltip: "ממוצע מכירות חודשי מחושב מהיסטוריית הוצאות המלאי" },
-            { label: "הזמנה חודשית", value: product.monthly_order ?? "—", tooltip: "כמות הזמנה חודשית מתוכננת — מוגדרת ידנית" },
+            { label: "מלאי כולל", value: totalStock, danger: totalStock === 0, tooltip: divisionData.length > 0 ? `קוברה ת"א: ${product.stock_qty} + חטיבות: ${divTotal}` : "כמות יחידות פיזיות במחסן" },
+            { label: 'עול"ב', value: metrics[product.id]?.incomingQty ?? product.incoming_qty, danger: false, tooltip: 'מחושב מהזמנות פעילות (נשלח / הגיע לנמל / שחרור מכס)' },
+            ...(totalDivConsumption > 0 ? [{ label: "צריכה (ממוצע חודשי)", value: totalDivConsumption, danger: false, tooltip: "סכום ממוצע הצריכה החודשי מכל החטיבות — מוזן ידנית או דרך MCP" }] : []),
+            { label: "הזמנה חודשית", value: product.monthly_order ?? "—", danger: false, tooltip: "כמות הזמנה חודשית מתוכננת — מוגדרת ידנית" },
             ...(showPrices ? [
               {
                 label: "תשלומים לספק החודש",
