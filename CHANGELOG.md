@@ -5,6 +5,15 @@
 
 ---
 
+## [2026-06-07]
+
+- feat: complete product field audit — gaps G3/G4/G6/G7 (c13ec81)
+- feat: division manager can report monthly consumption from products table (d1bc624)
+- revert: remove sap_code and supplier_origin fields from products UI (5c9b07d)
+- refactor: single consumption column — sum of division monthly_avg (7c0a16d)
+- feat: division inventory & consumption visibility across products system (267fad4)
+
+<!-- last-commit: ae356d61e777f5e9092b132aa0b9e266e3a232f2 -->
 ## [Unreleased]
 
 ### Added
@@ -23,7 +32,6 @@
 
 - layout: move consumption chart below product details (d0c4572)
 
-<!-- last-commit: 26fde4c9ab4b17ed5bd1f259d6095a3906789be7 -->
 ## [2026-06-04]
 
 - Merge pull request #230 from cobra-system/claude/trusting-ritchie-N7Ir4 (99c5c09)
