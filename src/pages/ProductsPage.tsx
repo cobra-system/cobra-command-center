@@ -82,7 +82,13 @@ export default function ProductsPage() {
   // Division stock state
   interface DivStockEntry { division: string; stock: number; dpId: string; monthly_avg: number | null }
   const [divStockByProduct, setDivStockByProduct] = useState<Map<string, DivStockEntry[]>>(new Map());
+  const [divConsumptionByProduct, setDivConsumptionByProduct] = useState<Map<string, number>>(new Map());
   const [expandedStockId, setExpandedStockId] = useState<string | null>(null);
+
+  const currentMonth = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  }, []);
 
   const prefs = useTablePreferences("ProductsPage", {
     sortField: "name",
@@ -106,16 +112,43 @@ export default function ProductsPage() {
     setDivStockByProduct(map);
   }, [divManager, userDivision]);
 
-  useEffect(() => { fetchDivisionStock(); }, [fetchDivisionStock]);
+  const fetchDivisionConsumption = useCallback(async () => {
+    if (!divManager || !userDivision) return;
+    const { data } = await supabase
+      .from("division_product_consumption")
+      .select("product_id, quantity")
+      .eq("division", userDivision)
+      .eq("month", currentMonth);
+    const map = new Map<string, number>();
+    for (const r of (data ?? []) as { product_id: string; quantity: number }[]) {
+      map.set(r.product_id, r.quantity);
+    }
+    setDivConsumptionByProduct(map);
+  }, [divManager, userDivision, currentMonth]);
 
+  useEffect(() => { fetchDivisionStock(); }, [fetchDivisionStock]);
+  useEffect(() => { fetchDivisionConsumption(); }, [fetchDivisionConsumption]);
+
+  const saveDivisionConsumption = useCallback(async (productId: string, quantity: number) => {
+    await supabase
+      .from("division_product_consumption")
+      .upsert(
+        { division: userDivision, product_id: productId, month: currentMonth, quantity },
+        { onConflict: "division,product_id,month" }
+      );
+    fetchDivisionConsumption();
+  }, [userDivision, currentMonth, fetchDivisionConsumption]);
+
+  // For admins: sum all divisions' monthly_avg. For division managers: their own division only.
   const divAvgByProduct = useMemo(() => {
     const map = new Map<string, number>();
     for (const [pid, entries] of divStockByProduct) {
-      const total = entries.reduce((s, d) => s + (d.monthly_avg ?? 0), 0);
+      const relevant = divManager ? entries.filter(d => d.division === userDivision) : entries;
+      const total = relevant.reduce((s, d) => s + (d.monthly_avg ?? 0), 0);
       if (total > 0) map.set(pid, Math.round(total * 10) / 10);
     }
     return map;
-  }, [divStockByProduct]);
+  }, [divStockByProduct, divManager, userDivision]);
 
   const showPrices = canSeePrices(currentUser);
   const colVis = useColumnVisibility(
@@ -351,6 +384,23 @@ export default function ProductsPage() {
                       )}
                     </div>
                     <span className="text-xs text-muted-foreground">מלאי</span>
+                    {divManager && (
+                      <div className="w-20 mt-1" onClick={e => e.stopPropagation()}>
+                        <InlineEditCell
+                          value={divConsumptionByProduct.get(p.id) ?? 0}
+                          type="number"
+                          onCommit={async (val) => {
+                            try {
+                              await saveDivisionConsumption(p.id, (val as number) ?? 0);
+                              toast.success("צריכה עודכנה");
+                            } catch {
+                              toast.error("שגיאה בעדכון צריכה");
+                            }
+                          }}
+                        />
+                        <span className="text-xs text-muted-foreground">צריכה</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -594,8 +644,25 @@ export default function ProductsPage() {
                       </td>
                     )}
                     {isVisible("div_consumption") && (
-                      <td className="p-2 sm:p-3 text-muted-foreground">
-                        {divAvgByProduct.get(p.id) != null ? divAvgByProduct.get(p.id) : "—"}
+                      <td className="p-2 sm:p-3" onClick={e => e.stopPropagation()}>
+                        {divManager ? (
+                          <InlineEditCell
+                            value={divConsumptionByProduct.get(p.id) ?? 0}
+                            type="number"
+                            onCommit={async (val) => {
+                              try {
+                                await saveDivisionConsumption(p.id, (val as number) ?? 0);
+                                toast.success("צריכה עודכנה");
+                              } catch {
+                                toast.error("שגיאה בעדכון צריכה");
+                              }
+                            }}
+                          />
+                        ) : (
+                          <span className="text-muted-foreground">
+                            {divAvgByProduct.get(p.id) != null ? divAvgByProduct.get(p.id) : "—"}
+                          </span>
+                        )}
                       </td>
                     )}
                     {isVisible("category") && <td className="p-2 sm:p-3 text-muted-foreground">{p.category || "—"}</td>}
