@@ -11,7 +11,7 @@ import { format, formatDistanceToNow, addDays } from "date-fns";
 import { he } from "date-fns/locale";
 import {
   Pencil, MessageSquare, Clock, ShoppingCart, Ban, RotateCcw, Trash2, ExternalLink,
-  Send, AlertTriangle, Paperclip, Info, Truck, Sparkles,
+  Send, AlertTriangle, Paperclip, Info, Truck, Sparkles, X,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -21,6 +21,19 @@ import {
   fmtNum, fmtPct, urgencyClass, statusClass, STATUS_LABELS,
   utilizationColor, daysSince, ageBadge,
 } from "./orderRequestUtils";
+
+type DeliveryStatus = "נשלחה" | "התקבלה" | "נקלטה";
+const DELIVERY_STATUS_OPTIONS: { value: DeliveryStatus; label: string }[] = [
+  { value: "נשלחה", label: "נשלחה" },
+  { value: "התקבלה", label: "התקבלה" },
+  { value: "נקלטה", label: "נקלטה" },
+];
+function deliveryStatusClass(s?: DeliveryStatus | null): string {
+  if (s === "נקלטה") return "bg-green-50 text-green-700 border-green-200";
+  if (s === "התקבלה") return "bg-blue-50 text-blue-700 border-blue-200";
+  if (s === "נשלחה") return "bg-amber-50 text-amber-700 border-amber-200";
+  return "bg-gray-50 text-gray-400 border-gray-200";
+}
 
 interface Props {
   request: OrderRequest | null;
@@ -81,6 +94,19 @@ export function RequestDetailPanel({
   const [newFileDesc, setNewFileDesc] = useState("");
   const [savingFile, setSavingFile] = useState(false);
   const isManager = currentUser?.role === "MANAGER";
+  const [deliveryStatusSaving, setDeliveryStatusSaving] = useState(false);
+
+  const updateDeliveryStatus = async (val: DeliveryStatus | null) => {
+    if (!request) return;
+    setDeliveryStatusSaving(true);
+    const { error } = await supabase
+      .from("order_requests")
+      .update({ delivery_status: val })
+      .eq("id", request.id);
+    setDeliveryStatusSaving(false);
+    if (error) { toast.error("שגיאה בעדכון סטטוס אספקה"); return; }
+    onRefresh();
+  };
 
   const fetchHistory = useCallback(async (id: string) => {
     const { data } = await supabase
@@ -190,6 +216,16 @@ export function RequestDetailPanel({
   })();
   const age = ageBadge(request);
   const supplierForLink = suppliers.find(s => s.company === request.supplier);
+
+  // Resolve ETA from the first linked order
+  const linkedOrderEta = (() => {
+    const ids = (request.linked_order_ids && request.linked_order_ids.length > 0)
+      ? request.linked_order_ids
+      : (request.order_id ? [request.order_id] : []);
+    if (ids.length === 0) return null;
+    const o = orders.find(x => x.id === ids[0]);
+    return o?.tracking_eta ?? o?.eta ?? null;
+  })();
   const editable = isManager || (currentUser?.division === request.division && request.status === "pending");
 
   return (
@@ -411,11 +447,50 @@ export function RequestDetailPanel({
                     label='תאריך הגעת עול"ב'
                     value={request.incoming_arrival_date ? format(new Date(request.incoming_arrival_date), "dd/MM/yyyy") : "—"}
                   />
+                  <Detail
+                    label="ETA (מההזמנה)"
+                    value={linkedOrderEta ? format(new Date(linkedOrderEta), "dd/MM/yyyy") : "—"}
+                  />
                   <Detail label="סוג משלוח" value={request.shipping_type ?? "—"} />
                   <Detail label="סטטוס תשלום" value={request.payment_status ?? "—"} />
                   <Detail label="כמות שהוזמנה בפועל" value={fmtNum(request.actual_ordered_qty)} />
                 </DetailGrid>
               </Section>
+
+              {request.status === "ordered" && (
+                <Section title="סטטוס אספקה">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {DELIVERY_STATUS_OPTIONS.map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        disabled={deliveryStatusSaving || !isManager}
+                        onClick={() => isManager && updateDeliveryStatus(
+                          request.delivery_status === opt.value ? null : opt.value
+                        )}
+                        className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                          request.delivery_status === opt.value
+                            ? deliveryStatusClass(opt.value) + " ring-2 ring-offset-1 ring-current"
+                            : "bg-muted/40 text-muted-foreground border-border hover:bg-muted"
+                        } ${isManager ? "cursor-pointer" : "cursor-default"}`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                    {request.delivery_status && isManager && (
+                      <button
+                        type="button"
+                        disabled={deliveryStatusSaving}
+                        onClick={() => updateDeliveryStatus(null)}
+                        className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                        title="נקה סטטוס"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </Section>
+              )}
 
               {(request.reason || request.notes || request.current_consumption) && (
                 <Section title="פירוט">

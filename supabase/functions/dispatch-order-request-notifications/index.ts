@@ -18,6 +18,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders, handleCors } from "../_shared/cors.ts";
 
 const BATCH_SIZE = 50;
+const GEORGE_EMAIL = "george@cobra.co.il";
 
 interface QueueRow {
   id: string;
@@ -183,7 +184,8 @@ Deno.serve(async (req) => {
     });
   }
 
-  let sent = 0, failed = 0, skipped = 0;
+  let sent = 0, failed = 0;
+  const skipped = 0;
 
   for (const row of (queue ?? []) as QueueRow[]) {
     try {
@@ -202,30 +204,17 @@ Deno.serve(async (req) => {
         recipientIds = (data ?? []).map((r: { id: string }) => r.id);
       }
 
-      if (recipientIds.length === 0) {
-        await supabase.from("notification_queue")
-          .update({ status: "skipped", attempts: row.attempts + 1, last_error: "no recipients" })
-          .eq("id", row.id);
-        skipped++;
-        continue;
-      }
-
-      const { data: subs } = await supabase
-        .from("notification_subscriptions")
-        .select("id,user_id,channel,config,is_active")
-        .in("user_id", recipientIds)
-        .eq("is_active", true);
-
-      const subscriptions = (subs ?? []) as SubRow[];
-      if (subscriptions.length === 0) {
-        await supabase.from("notification_queue")
-          .update({ status: "skipped", attempts: row.attempts + 1, last_error: "no active subscriptions" })
-          .eq("id", row.id);
-        skipped++;
-        continue;
-      }
-
       const { subject, html } = buildEmailHtml(row.event_type, row.payload);
+
+      let subscriptions: SubRow[] = [];
+      if (recipientIds.length > 0) {
+        const { data: subs } = await supabase
+          .from("notification_subscriptions")
+          .select("id,user_id,channel,config,is_active")
+          .in("user_id", recipientIds)
+          .eq("is_active", true);
+        subscriptions = (subs ?? []) as SubRow[];
+      }
       const pushPayload = JSON.stringify({
         title: subject,
         body: row.payload.product_name ?? "",
@@ -262,6 +251,16 @@ Deno.serve(async (req) => {
           }
         } catch (err) {
           errors.push(err instanceof Error ? err.message : String(err));
+        }
+      }
+
+      // Always forward every order request event to george@cobra.co.il
+      if (emailEnabled) {
+        try {
+          await sendResendEmail(resendKey, fromAddr, GEORGE_EMAIL, subject, html);
+          anyDelivered = true;
+        } catch (err) {
+          errors.push(`george: ${err instanceof Error ? err.message : String(err)}`);
         }
       }
 

@@ -61,6 +61,8 @@ const COLUMN_DEFS: ColDef[] = [
   { id: "created_at", label: "נשלחה ב", sortField: "created_at" },
   { id: "age", label: "ימי המתנה" },
   { id: "status", label: "סטטוס", sortField: "status" },
+  { id: "delivery_status", label: "סטטוס אספקה" },
+  { id: "eta", label: "ETA" },
   { id: "ordered_by", label: "טופלה ע״י" },
   { id: "ordered_at", label: "תאריך הזמנה", sortField: "ordered_at" },
 ];
@@ -119,8 +121,8 @@ export function OrderRequestsTab() {
     "manager-order-requests:hidden-columns",
     COLUMN_DEFS,
     isManager
-      ? ["utilization_pct", "order_execution_date", "created_by", "created_at", "age", "ordered_by", "ordered_at"]
-      : ["division", "utilization_pct", "order_execution_date", "created_by", "created_at", "age", "ordered_by", "ordered_at"]
+      ? ["utilization_pct", "order_execution_date", "created_by", "created_at", "age", "ordered_by", "ordered_at", "delivery_status", "eta"]
+      : ["division", "utilization_pct", "order_execution_date", "created_by", "created_at", "age", "ordered_by", "ordered_at", "delivery_status", "eta"]
   );
   const { menu, setMenu, closeMenu } = useColMenu();
 
@@ -891,6 +893,29 @@ export function OrderRequestsTab() {
                             </div>
                           </td>
                         )}
+                        {isVisible("delivery_status") && (
+                          <td className={cellPadding}>
+                            {req.delivery_status ? (
+                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${
+                                req.delivery_status === "נקלטה" ? "bg-green-50 text-green-700 border-green-200" :
+                                req.delivery_status === "התקבלה" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                "bg-amber-50 text-amber-700 border-amber-200"
+                              }`}>
+                                {req.delivery_status}
+                              </span>
+                            ) : "—"}
+                          </td>
+                        )}
+                        {isVisible("eta") && (
+                          <td className={`${cellPadding} text-muted-foreground text-xs whitespace-nowrap`}>
+                            {(() => {
+                              const linked = linkedOrdersFor(req);
+                              const o = orders.find(x => x.id === (linked[0]?.id ?? null));
+                              const eta = o?.tracking_eta ?? o?.eta ?? null;
+                              return eta ? format(new Date(eta), "dd/MM/yyyy") : "—";
+                            })()}
+                          </td>
+                        )}
                         {isVisible("ordered_by") && <td className={`${cellPadding} text-muted-foreground text-xs`}>{req.ordered_by_name ?? req.reviewed_by_name ?? "—"}</td>}
                         {isVisible("ordered_at") && (
                           <td className={`${cellPadding} text-muted-foreground text-xs whitespace-nowrap`}>
@@ -1096,7 +1121,7 @@ export function OrderRequestsTab() {
         onDelete={(r) => { setDetailRequest(null); void handleDelete(r); }}
         onRevert={(r) => { setDetailRequest(null); void handleRevert(r); }}
         onRefresh={fetchRequests}
-        navigateToOrder={(id) => { setDetailRequest(null); navigate(`/orders?focus=${id}`); }}
+        navigateToOrder={(id) => { navigate(`/orders?focus=${id}`); setDetailRequest(null); }}
         navigateToProduct={(id) => { setDetailRequest(null); navigate(`/products/${id}`); }}
         navigateToSupplier={(name) => {
           const s = suppliers.find(s => s.company === name);
