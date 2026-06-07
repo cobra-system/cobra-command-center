@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import type { CategoryRect, TreemapItem } from "./treemapLayout";
 import { NO_CATEGORY_GROUP } from "./useTreemapData";
 import TreemapCell from "./TreemapCell";
@@ -13,7 +13,7 @@ interface Props {
 
 const HEADER_HEIGHT = 24;
 
-export default function TreemapCategoryGroup({ category: cat, isHighlighted, onSelect, onHoverCategory, searchMatches }: Props) {
+const TreemapCategoryGroup = memo(function TreemapCategoryGroup({ category: cat, isHighlighted, onSelect, onHoverCategory, searchMatches }: Props) {
   const isFlat = cat.category === NO_CATEGORY_GROUP;
 
   const headerStats = useMemo(() => {
@@ -80,4 +80,6 @@ export default function TreemapCategoryGroup({ category: cat, isHighlighted, onS
       ))}
     </div>
   );
-}
+});
+
+export default TreemapCategoryGroup;

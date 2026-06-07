@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, Fragment, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, Fragment, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData, useAuth, categories, type Product } from "@/contexts/AppContext";
 import { canSeePrices, isDivisionManager } from "@/lib/permissions";
@@ -93,6 +93,14 @@ export default function ProductsPage() {
   const [viewMode, setViewMode] = usePersistedState<"table" | "treemap">("products-view-mode", "table");
   const [category, setCategory] = useState("הכל");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setSearch(val);
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => setDebouncedSearch(val), 200);
+  }, []);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
@@ -145,8 +153,10 @@ export default function ProductsPage() {
     setDivConsumptionByProduct(map);
   }, [divManager, userDivision, currentMonth]);
 
-  useEffect(() => { fetchDivisionStock(); }, [fetchDivisionStock]);
-  useEffect(() => { fetchDivisionConsumption(); }, [fetchDivisionConsumption]);
+  useEffect(() => {
+    fetchDivisionStock();
+    fetchDivisionConsumption();
+  }, [fetchDivisionStock, fetchDivisionConsumption]);
 
   const saveDivisionConsumption = useCallback(async (productId: string, quantity: number) => {
     await supabase
@@ -207,12 +217,30 @@ export default function ProductsPage() {
   const typeFilter = (prefs.filters.typeFilter || "all") as "all" | "מוגמר" | "מורכב";
   const supplierFilter = prefs.filters.supplierFilter || "all";
 
+  const totalStockByProduct = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const p of products) {
+      const divEntries = divStockByProduct.get(p.id);
+      const divTotal = divEntries ? divEntries.reduce((s, d) => s + d.stock, 0) : 0;
+      map.set(p.id, p.stock_qty + divTotal);
+    }
+    return map;
+  }, [products, divStockByProduct]);
+
+  const skuToProduct = useMemo(() => {
+    const map = new Map<string, Product>();
+    for (const p of products) {
+      if (p.sku) map.set(p.sku, p);
+    }
+    return map;
+  }, [products]);
+
   const filtered = useMemo(() => {
     let result = products.filter(p => {
       if (category !== "הכל" && p.category !== category) return false;
       if (typeFilter !== "all" && p.product_type !== typeFilter) return false;
       if (supplierFilter !== "all" && p.supplier !== supplierFilter) return false;
-      if (search && !p.name.includes(search) && !p.sku.includes(search) && !(p.notes || "").toLowerCase().includes(search.toLowerCase())) return false;
+      if (debouncedSearch && !p.name.includes(debouncedSearch) && !p.sku.includes(debouncedSearch) && !(p.notes || "").toLowerCase().includes(debouncedSearch.toLowerCase())) return false;
       return true;
     });
 
@@ -238,7 +266,7 @@ export default function ProductsPage() {
       });
     }
     return result;
-  }, [products, category, typeFilter, supplierFilter, search, sortKey, sortDir, divAvgByProduct, healthByProduct]);
+  }, [products, category, typeFilter, supplierFilter, debouncedSearch, sortKey, sortDir, divAvgByProduct, healthByProduct]);
 
   const uniqueSuppliers = useMemo(() => {
     const set = new Set(products.map(p => p.supplier).filter(Boolean) as string[]);
@@ -330,7 +358,7 @@ export default function ProductsPage() {
         </Select>
         <div className="relative flex-1 min-w-[150px]">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="חיפוש לפי שם או מק״ט..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
+          <Input placeholder="חיפוש לפי שם או מק״ט..." value={search} onChange={handleSearchChange} className="pr-9" />
         </div>
       </div>
 
@@ -597,11 +625,7 @@ export default function ProductsPage() {
                         ) : (
                           <div>
                             <QuantityBar
-                              value={(() => {
-                                const divEntries = divStockByProduct.get(p.id);
-                                const divTotal = divEntries ? divEntries.reduce((s, d) => s + d.stock, 0) : 0;
-                                return p.stock_qty + divTotal;
-                              })()}
+                              value={totalStockByProduct.get(p.id) ?? p.stock_qty}
                               min={p.reorder_point ?? 0}
                               max={p.monthly_order ?? 0}
                               onMinChange={v => updateProduct(p.id, { reorder_point: v })}
@@ -766,7 +790,7 @@ export default function ProductsPage() {
                                 )}
                                 {(() => {
                                   if (!comp.sku) return null;
-                                  const compProduct = products.find(q => q.sku === comp.sku);
+                                  const compProduct = skuToProduct.get(comp.sku);
                                   if (!compProduct) return null;
                                   const inc = metrics[compProduct.id]?.incomingQty;
                                   if (!inc) return null;

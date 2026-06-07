@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Product } from "@/contexts/types";
 
@@ -9,15 +9,15 @@ const ACTIVE_STATUSES = [
 ] as const;
 
 export interface CompositeIncoming {
-  matched: number;        // components whose SKU maps to a known product
-  total: number;          // total components
-  minUnits: number | null; // min incoming across all matched; null if any component unresolved
+  matched: number;
+  total: number;
+  minUnits: number | null;
 }
 
 export interface ProductMetrics {
   incomingQty: number;
   purchasePrice: number | null;
-  compositeIncoming: CompositeIncoming | null; // null for finished products
+  compositeIncoming: CompositeIncoming | null;
 }
 
 export function useLiveProductMetrics(products: Product[]): {
@@ -27,20 +27,28 @@ export function useLiveProductMetrics(products: Product[]): {
 } {
   const [metrics, setMetrics] = useState<Record<string, ProductMetrics>>({});
   const [loading, setLoading] = useState(true);
+  const productsRef = useRef(products);
+  productsRef.current = products;
+
+  const stableKey = products.map(p => p.id).join(",");
 
   const compute = useCallback(async () => {
+    const prods = productsRef.current;
+    if (prods.length === 0) {
+      setMetrics({});
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
-    // Single query: all non-cancelled order_items with order status + created_at
     const { data } = await supabase
       .from("order_items")
       .select("product_id, qty, price, orders!inner(status, created_at)")
       .not("product_id", "is", null)
       .not("orders.status", "eq", "CANCELLED");
 
-    // Per finished-product aggregations from order_items
     const incoming: Record<string, number> = {};
-    // Track latest-priced order per product: { price, created_at }
     const latestOrder: Record<string, { price: number; created_at: string }> = {};
 
     if (data) {
@@ -54,12 +62,10 @@ export function useLiveProductMetrics(products: Product[]): {
         const status = row.orders?.status;
         const createdAt = row.orders?.created_at ?? "";
 
-        // Incoming: only active statuses
         if (ACTIVE_STATUSES.includes(status as (typeof ACTIVE_STATUSES)[number])) {
           incoming[pid] = (incoming[pid] ?? 0) + (row.qty ?? 0);
         }
 
-        // Latest price: track most recent order that has a price
         if (row.price != null) {
           const prev = latestOrder[pid];
           if (!prev || createdAt > prev.created_at) {
@@ -69,18 +75,15 @@ export function useLiveProductMetrics(products: Product[]): {
       }
     }
 
-    // Build SKU → productId map for composite resolution
     const skuToId: Record<string, string> = {};
-    for (const p of products) {
+    for (const p of prods) {
       if (p.sku) skuToId[p.sku] = p.id;
     }
 
-    // Build final metrics per product
     const result: Record<string, ProductMetrics> = {};
 
-    for (const p of products) {
+    for (const p of prods) {
       if (p.product_type === "מורכב") {
-        // --- Composite product ---
         const components = p.components ?? [];
         const total = components.length;
 
@@ -93,7 +96,6 @@ export function useLiveProductMetrics(products: Product[]): {
           continue;
         }
 
-        // Purchase price: sum of component prices
         let priceSum = 0;
         let hasAnyPrice = false;
         for (const comp of components) {
@@ -103,7 +105,6 @@ export function useLiveProductMetrics(products: Product[]): {
           }
         }
 
-        // Incoming: resolve each component SKU → product → incoming
         let matched = 0;
         let allResolved = true;
         const incomingValues: number[] = [];
@@ -133,7 +134,6 @@ export function useLiveProductMetrics(products: Product[]): {
           compositeIncoming: { matched, total, minUnits },
         };
       } else {
-        // --- Finished product ---
         const liveIncoming = incoming[p.id] ?? 0;
         const livePrice = latestOrder[p.id]?.price ?? null;
 
@@ -147,7 +147,8 @@ export function useLiveProductMetrics(products: Product[]): {
 
     setMetrics(result);
     setLoading(false);
-  }, [products]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stableKey]);
 
   useEffect(() => {
     compute();

@@ -34,7 +34,9 @@ export default function ProductTreemapView() {
         const height = isFullscreen
           ? window.innerHeight - 120
           : Math.max(400, window.innerHeight - 310);
-        setDimensions({ width, height });
+        setDimensions(prev =>
+          prev.width === width && prev.height === height ? prev : { width, height }
+        );
       }
     });
 
