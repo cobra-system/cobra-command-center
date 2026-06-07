@@ -155,7 +155,7 @@ cd mcp-server && npm run build
 | `user-preferences` | User preferences | user_preferences | 3 |
 | `warehouse` | Warehouse zones | warehouse_zones, warehouse_zone_products | 6 |
 | `warehouse-locks` | Lock control & scan log | warehouse_locks, warehouse_lock_scans | 5 |
-| `waste` | Waste tracking | waste_items, supplier_returns | 11 |
+| `waste` | Waste tracking | waste_items, waste_supplier_returns, waste_return_items | 13 |
 | `frisbee` | Base44 QA sync & consumption | frisbee_inspections, frisbee_inspection_equipment, frisbee_product_mapping | 5 |
 | `quarterly-planning` | Quarterly procurement planning | vehicle_models, quarterly_vehicle_forecasts, product_model_mappings, quarterly_procurement_plans, quarterly_plan_snapshots | 13 |
 

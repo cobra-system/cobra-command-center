@@ -169,6 +169,75 @@ export interface OrderPayment {
   updated_at?: string;
 }
 
+// ─── Waste Management ────────────────────────────────────────────────────────
+
+export type WasteStatus = "pending" | "destroyed" | "returning" | "repairing" | "sold";
+export type WasteReturnStatus = "draft" | "shipped" | "delivered" | "settled";
+export type WasteReturnSettlement = "rma" | "credit";
+
+export interface WasteItem {
+  id: string;
+  product_id?: string | null;
+  product_name?: string | null;
+  product_sku?: string | null;
+  quantity: number;
+  condition_notes?: string | null;
+  photo_url?: string | null;
+  status: WasteStatus;
+  source?: "manual" | "equipment_return" | null;
+  return_item_id?: string | null;
+  destruction_date?: string | null;
+  destruction_certificate_url?: string | null;
+  repair_technician_id?: string | null;
+  repair_technician_name?: string | null;
+  repair_expected_date?: string | null;
+  repair_completed_date?: string | null;
+  sale_buyer?: string | null;
+  sale_price?: number | null;
+  sale_date?: string | null;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+  return_id?: string | null;
+  deleted_at?: string | null;
+}
+
+export interface WasteSupplierReturn {
+  id: string;
+  supplier_id: string;
+  supplier_name?: string | null;
+  status: WasteReturnStatus;
+  tracking_number?: string | null;
+  tracking_carrier?: "dhl" | "other" | null;
+  tracking_status?: string | null;
+  tracking_status_code?: "pre-transit" | "transit" | "delivered" | "failure" | "unknown" | null;
+  tracking_raw_status?: string | null;
+  tracking_description?: string | null;
+  tracking_eta?: string | null;
+  tracking_last_location?: string | null;
+  tracking_origin?: string | null;
+  tracking_destination?: string | null;
+  tracking_events?: Array<{ timestamp: string | null; code: string | null; description: string | null; location: string | null }> | null;
+  tracking_last_event?: string | null;
+  tracking_last_synced_at?: string | null;
+  tracking_updated_at?: string | null;
+  tracking_sync_error?: string | null;
+  return_reason?: string | null;
+  settlement_type?: WasteReturnSettlement | null;
+  rma_expected_return_date?: string | null;
+  credit_amount?: number | null;
+  notes?: string | null;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+  items?: WasteItem[];
+  items_count?: number;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface OrderNoteHistory {
   id: string;
   order_id: string;
