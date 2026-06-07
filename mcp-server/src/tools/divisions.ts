@@ -293,6 +293,7 @@ export function registerDivisionTools(server: McpServer) {
       estimated_arrival_date: z.string().nullable().optional(),
       notes: z.string().nullable().optional(),
       delivery_status: z.enum(["נשלחה", "התקבלה", "נקלטה"]).nullable().optional(),
+      received_qty: z.number().nonnegative().nullable().optional(),
     },
     async ({ request_id, ...rest }) => {
       const payload: Record<string, unknown> = {};

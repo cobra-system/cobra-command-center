@@ -95,6 +95,8 @@ export function RequestDetailPanel({
   const [savingFile, setSavingFile] = useState(false);
   const isManager = currentUser?.role === "MANAGER";
   const [deliveryStatusSaving, setDeliveryStatusSaving] = useState(false);
+  const [receivedQtyDraft, setReceivedQtyDraft] = useState<string>("");
+  const [receivedQtyEditing, setReceivedQtyEditing] = useState(false);
 
   const updateDeliveryStatus = async (val: DeliveryStatus | null) => {
     if (!request) return;
@@ -105,6 +107,22 @@ export function RequestDetailPanel({
       .eq("id", request.id);
     setDeliveryStatusSaving(false);
     if (error) { toast.error("שגיאה בעדכון סטטוס אספקה"); return; }
+    onRefresh();
+  };
+
+  const commitReceivedQty = async () => {
+    if (!request) return;
+    const parsed = receivedQtyDraft.trim() === "" ? null : Number(receivedQtyDraft);
+    if (parsed !== null && (Number.isNaN(parsed) || parsed < 0)) {
+      toast.error("כמות לא חוקית");
+      return;
+    }
+    const { error } = await supabase
+      .from("order_requests")
+      .update({ received_qty: parsed })
+      .eq("id", request.id);
+    if (error) { toast.error("שגיאה בעדכון כמות שהתקבלה"); return; }
+    setReceivedQtyEditing(false);
     onRefresh();
   };
 
@@ -489,6 +507,49 @@ export function RequestDetailPanel({
                       </button>
                     )}
                   </div>
+                  {(request.delivery_status === "התקבלה" || request.delivery_status === "נקלטה") && (
+                    <div className="mt-3 space-y-1">
+                      <div className="text-[11px] text-muted-foreground">
+                        כמות שהתקבלה
+                        {(() => {
+                          const total = request.required_to_order ?? request.quantity;
+                          if (!total) return null;
+                          return ` (מתוך ${fmtNum(total)})`;
+                        })()}
+                      </div>
+                      {receivedQtyEditing && isManager ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min={0}
+                            value={receivedQtyDraft}
+                            onChange={e => setReceivedQtyDraft(e.target.value)}
+                            className="h-7 w-28 text-sm"
+                            autoFocus
+                            onKeyDown={e => {
+                              if (e.key === "Enter") { e.preventDefault(); void commitReceivedQty(); }
+                              if (e.key === "Escape") setReceivedQtyEditing(false);
+                            }}
+                          />
+                          <button type="button" onClick={() => void commitReceivedQty()} className="text-xs text-primary hover:underline">שמור</button>
+                          <button type="button" onClick={() => setReceivedQtyEditing(false)} className="text-xs text-muted-foreground hover:text-foreground">ביטול</button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!isManager) return;
+                            setReceivedQtyDraft(request.received_qty != null ? String(request.received_qty) : "");
+                            setReceivedQtyEditing(true);
+                          }}
+                          className={`text-sm font-semibold tabular-nums ${isManager ? "hover:underline cursor-pointer" : "cursor-default"}`}
+                          title={isManager ? "לחץ לעריכה" : undefined}
+                        >
+                          {request.received_qty != null ? fmtNum(request.received_qty) : (isManager ? "הזן כמות" : "—")}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </Section>
               )}
 
