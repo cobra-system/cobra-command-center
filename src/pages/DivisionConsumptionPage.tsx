@@ -91,7 +91,7 @@ function HealthDot({ color, label }: { color: string; label: string }) {
   );
 }
 
-function ExpandedProductRow({ productId, division, colSpan }: { productId: string; division: string; colSpan: number }) {
+function ExpandedProductRow({ productId, division, divisionStock, colSpan }: { productId: string; division: string; divisionStock?: number; colSpan: number }) {
   const { rawRows, divisions, loading } = useProductConsumption(productId);
   if (loading) return <tr><td colSpan={colSpan} className="p-4"><Skeleton className="h-[280px] w-full" /></td></tr>;
   return (
@@ -101,6 +101,7 @@ function ExpandedProductRow({ productId, division, colSpan }: { productId: strin
           rawRows={rawRows}
           divisions={divisions}
           fixedDivision={division}
+          stockQty={divisionStock}
         />
       </td>
     </tr>
@@ -539,7 +540,7 @@ export default function DivisionConsumptionPage() {
                       )}
                     </tr>
                     {expandedProductId === p.product_id && (
-                      <ExpandedProductRow productId={p.product_id} division={division} colSpan={visibleCount} />
+                      <ExpandedProductRow productId={p.product_id} division={division} divisionStock={p.division_stock} colSpan={visibleCount} />
                     )}
                     </React.Fragment>
                   ))}
