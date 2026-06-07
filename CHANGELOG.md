@@ -7,13 +7,19 @@
 
 ## [2026-06-07]
 
+- feat: color-code order request rows by division (7ac2003)
+- fix: apply missing linked_order_ids migration + add received_qty (7e243f4)
+- feat: order requests — delivery status, ETA, george email, fix nav button (26fd845)
+
+<!-- last-commit: 1d2b5fe47e285844e2576741fba951d33367e5c4 -->
+## [2026-06-07]
+
 - feat: complete product field audit — gaps G3/G4/G6/G7 (c13ec81)
 - feat: division manager can report monthly consumption from products table (d1bc624)
 - revert: remove sap_code and supplier_origin fields from products UI (5c9b07d)
 - refactor: single consumption column — sum of division monthly_avg (7c0a16d)
 - feat: division inventory & consumption visibility across products system (267fad4)
 
-<!-- last-commit: ae356d61e777f5e9092b132aa0b9e266e3a232f2 -->
 ## [Unreleased]
 
 ### Added
