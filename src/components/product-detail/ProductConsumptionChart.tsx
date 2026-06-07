@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import {
   AreaChart,
   Area,
@@ -9,15 +10,13 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { type ConsumptionRow, aggregateByMonth, calcAvgs } from "@/hooks/useProductConsumption";
 
 interface ProductConsumptionChartProps {
-  monthlyData: { month: string; quantity: number }[];
-  avgAnnual: number;
-  avgHalfYear: number;
-  avgQuarter: number;
-  availableDivisions?: string[];
-  selectedDivision?: string | null;
-  onDivisionChange?: (div: string | null) => void;
+  rawRows: ConsumptionRow[];
+  divisions: string[];
+  /** When set, initialise to this division only and hide the filter bar */
+  fixedDivision?: string;
 }
 
 const MONTHS_HE = ["ינו", "פבר", "מרץ", "אפר", "מאי", "יוני", "יולי", "אוג", "ספט", "אוק", "נוב", "דצמ"];
@@ -27,24 +26,72 @@ function formatMonth(dateStr: string): string {
   return `${MONTHS_HE[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
 }
 
-export function ProductConsumptionChart({
-  monthlyData,
-  avgAnnual,
-  avgHalfYear,
-  avgQuarter,
-  availableDivisions,
-  selectedDivision,
-  onDivisionChange,
-}: ProductConsumptionChartProps) {
-  const showDivisionFilter = availableDivisions && availableDivisions.length >= 2 && onDivisionChange;
+const AVG_LINES = [
+  { key: "avgAnnual",   label: "ממוצע שנתי", color: "#16a34a" },
+  { key: "avgHalfYear", label: "חצי שנתי",   color: "#eab308" },
+  { key: "avgQuarter",  label: "רבעוני",      color: "#f97316" },
+] as const;
 
-  const averageLines = [
-    { label: "ממוצע שנתי", color: "#16a34a", value: avgAnnual },
-    { label: "חצי שנתי", color: "#eab308", value: avgHalfYear },
-    { label: "רבעוני", color: "#f97316", value: avgQuarter },
-  ];
+// Stable palette for division pills (cycles if >8 divisions)
+const DIV_COLORS = [
+  "#2563eb", "#7c3aed", "#0891b2", "#059669",
+  "#d97706", "#dc2626", "#db2777", "#0284c7",
+];
 
-  if (monthlyData.length === 0) {
+export function ProductConsumptionChart({ rawRows, divisions, fixedDivision }: ProductConsumptionChartProps) {
+  const showFilter = !fixedDivision && divisions.length >= 2;
+
+  // selectedDivisions: null means "all"
+  const [selectedDivisions, setSelectedDivisions] = useState<Set<string> | null>(null);
+
+  // Resolve which divisions are effectively active
+  const activeDivisions = useMemo<string[] | null>(() => {
+    if (fixedDivision) return [fixedDivision];
+    if (!selectedDivisions) return null; // all
+    return [...selectedDivisions];
+  }, [fixedDivision, selectedDivisions]);
+
+  const monthlyData = useMemo(
+    () => aggregateByMonth(rawRows, activeDivisions),
+    [rawRows, activeDivisions],
+  );
+
+  const { avgAnnual, avgHalfYear, avgQuarter } = useMemo(
+    () => calcAvgs(monthlyData),
+    [monthlyData],
+  );
+
+  const chartData = useMemo(
+    () => monthlyData.map((d) => ({ ...d, label: formatMonth(d.month) })),
+    [monthlyData],
+  );
+
+  function toggleDivision(div: string) {
+    setSelectedDivisions((prev) => {
+      const allSelected = prev === null;
+      if (allSelected) {
+        // isolate clicked division
+        return new Set([div]);
+      }
+      const next = new Set(prev);
+      if (next.has(div)) {
+        if (next.size === 1) return null; // last one → reset to all
+        next.delete(div);
+      } else {
+        next.add(div);
+        if (next.size === divisions.length) return null; // all selected → reset
+      }
+      return next;
+    });
+  }
+
+  function selectAll() {
+    setSelectedDivisions(null);
+  }
+
+  const isAllSelected = selectedDivisions === null;
+
+  if (rawRows.length === 0) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center h-[280px]">
@@ -54,58 +101,68 @@ export function ProductConsumptionChart({
     );
   }
 
-  const chartData = monthlyData.map((d) => ({
-    month: d.month,
-    label: formatMonth(d.month),
-    quantity: d.quantity,
-  }));
-
   return (
     <Card>
       <CardHeader className="pb-2">
         <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between">
+          {/* Title + legend */}
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="text-base">מגמת צריכה חודשית</CardTitle>
             <div className="flex items-center gap-3 text-xs">
-              {averageLines.map((l) => (
-                <span key={l.label} className="flex items-center gap-1">
-                  <span className="inline-block w-4 h-0.5" style={{ background: l.color, borderTop: `2px dashed ${l.color}` }} />
-                  <span style={{ color: l.color }} className="font-medium">
-                    {l.label}{l.value > 0 ? `: ${Math.ceil(l.value)}` : ""}
+              {AVG_LINES.map((l) => {
+                const val = l.key === "avgAnnual" ? avgAnnual : l.key === "avgHalfYear" ? avgHalfYear : avgQuarter;
+                return (
+                  <span key={l.key} className="flex items-center gap-1">
+                    <span className="inline-block w-4 h-0.5" style={{ borderTop: `2px dashed ${l.color}` }} />
+                    <span style={{ color: l.color }} className="font-medium">
+                      {l.label}{val > 0 ? `: ${Math.ceil(val)}` : ""}
+                    </span>
                   </span>
-                </span>
-              ))}
+                );
+              })}
             </div>
           </div>
-          {showDivisionFilter && (
-            <div className="flex items-center gap-1.5 flex-wrap">
+
+          {/* Division filter — only when multiple divisions exist */}
+          {showFilter && (
+            <div className="flex items-center gap-1.5 flex-wrap" dir="rtl">
               <button
-                onClick={() => onDivisionChange(null)}
-                className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors ${
-                  !selectedDivision
-                    ? "bg-primary text-primary-foreground border-primary"
+                onClick={selectAll}
+                className={`
+                  px-2.5 py-1 rounded-md text-xs font-medium border transition-all duration-150
+                  ${isAllSelected
+                    ? "bg-foreground text-background border-foreground"
                     : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
-                }`}
+                  }
+                `}
               >
                 הכל
               </button>
-              {availableDivisions.map((div) => (
-                <button
-                  key={div}
-                  onClick={() => onDivisionChange(div)}
-                  className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors ${
-                    selectedDivision === div
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
-                  }`}
-                >
-                  {div}
-                </button>
-              ))}
+              {divisions.map((div, i) => {
+                const color = DIV_COLORS[i % DIV_COLORS.length];
+                const active = isAllSelected ? false : (selectedDivisions?.has(div) ?? false);
+                return (
+                  <button
+                    key={div}
+                    onClick={() => toggleDivision(div)}
+                    className={`
+                      px-2.5 py-1 rounded-md text-xs font-medium border transition-all duration-150
+                      ${active
+                        ? "text-white border-transparent"
+                        : "bg-transparent border-border text-muted-foreground hover:text-foreground hover:border-foreground"
+                      }
+                    `}
+                    style={active ? { backgroundColor: color, borderColor: color } : {}}
+                  >
+                    {div}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
       </CardHeader>
+
       <CardContent className="pb-4">
         <div className="h-[280px]">
           <ResponsiveContainer width="100%" height="100%">
@@ -117,19 +174,8 @@ export function ProductConsumptionChart({
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 12 }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                domain={[0, "auto"]}
-                tick={{ fontSize: 12 }}
-                tickLine={false}
-                axisLine={false}
-                width={40}
-              />
+              <XAxis dataKey="label" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+              <YAxis domain={[0, "auto"]} tick={{ fontSize: 12 }} tickLine={false} axisLine={false} width={40} />
               <Tooltip
                 formatter={(value: number) => [value, "כמות"]}
                 labelFormatter={(label: string) => label}
@@ -145,28 +191,16 @@ export function ProductConsumptionChart({
                 activeDot={{ r: 5 }}
               />
               {avgAnnual > 0 && (
-                <ReferenceLine
-                  y={avgAnnual}
-                  stroke="#16a34a"
-                  strokeDasharray="5 5"
-                  label={{ value: `ממוצע שנתי  ${Math.ceil(avgAnnual)}`, position: "insideTopLeft", fontSize: 11, fill: "#16a34a" }}
-                />
+                <ReferenceLine y={avgAnnual} stroke="#16a34a" strokeDasharray="5 5"
+                  label={{ value: `ממוצע שנתי  ${Math.ceil(avgAnnual)}`, position: "insideTopLeft", fontSize: 11, fill: "#16a34a" }} />
               )}
               {avgHalfYear > 0 && (
-                <ReferenceLine
-                  y={avgHalfYear}
-                  stroke="#eab308"
-                  strokeDasharray="5 5"
-                  label={{ value: `חצי שנתי  ${Math.ceil(avgHalfYear)}`, position: "insideTopLeft", fontSize: 11, fill: "#eab308" }}
-                />
+                <ReferenceLine y={avgHalfYear} stroke="#eab308" strokeDasharray="5 5"
+                  label={{ value: `חצי שנתי  ${Math.ceil(avgHalfYear)}`, position: "insideTopLeft", fontSize: 11, fill: "#eab308" }} />
               )}
               {avgQuarter > 0 && (
-                <ReferenceLine
-                  y={avgQuarter}
-                  stroke="#f97316"
-                  strokeDasharray="5 5"
-                  label={{ value: `רבעוני  ${Math.ceil(avgQuarter)}`, position: "insideTopLeft", fontSize: 11, fill: "#f97316" }}
-                />
+                <ReferenceLine y={avgQuarter} stroke="#f97316" strokeDasharray="5 5"
+                  label={{ value: `רבעוני  ${Math.ceil(avgQuarter)}`, position: "insideTopLeft", fontSize: 11, fill: "#f97316" }} />
               )}
             </AreaChart>
           </ResponsiveContainer>

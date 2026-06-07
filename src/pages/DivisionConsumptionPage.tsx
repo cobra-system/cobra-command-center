@@ -92,16 +92,15 @@ function HealthDot({ color, label }: { color: string; label: string }) {
 }
 
 function ExpandedProductRow({ productId, division, colSpan }: { productId: string; division: string; colSpan: number }) {
-  const { monthlyData, avgAnnual, avgHalfYear, avgQuarter, loading } = useProductConsumption(productId, division);
+  const { rawRows, divisions, loading } = useProductConsumption(productId);
   if (loading) return <tr><td colSpan={colSpan} className="p-4"><Skeleton className="h-[280px] w-full" /></td></tr>;
   return (
     <tr>
       <td colSpan={colSpan} className="p-3 bg-muted/20">
         <ProductConsumptionChart
-          monthlyData={monthlyData}
-          avgAnnual={avgAnnual}
-          avgHalfYear={avgHalfYear}
-          avgQuarter={avgQuarter}
+          rawRows={rawRows}
+          divisions={divisions}
+          fixedDivision={division}
         />
       </td>
     </tr>
