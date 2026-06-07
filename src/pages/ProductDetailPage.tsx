@@ -32,6 +32,7 @@ export default function ProductDetailPage() {
   const { products, orders, updateProduct, suppliers, addComponent, updateComponent, deleteComponent, deleteProduct } = useData();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [selectedDivision, setSelectedDivision] = useState<string | null>(null);
 
   const categoryOptions = useMemo(() => categories.filter(c => c !== "הכל").map(c => ({ value: c, label: c })), []);
   const supplierOptions = useMemo(() => suppliers.map(s => ({ value: s.company, label: s.company })), [suppliers]);
@@ -57,7 +58,7 @@ export default function ProductDetailPage() {
     [orders, product]
   );
   const supplierPayments = useProductSupplierPayments(product?.id ?? "", relatedOrders);
-  const consumption = useProductConsumption(product?.id);
+  const consumption = useProductConsumption(product?.id, selectedDivision ?? undefined);
 
   const [divisionData, setDivisionData] = useState<{ division: string; division_stock: number; monthly_avg: number | null }[]>([]);
   useEffect(() => {
@@ -250,12 +251,15 @@ export default function ProductDetailPage() {
         onInlineSave={handleInlineSave}
       />
 
-      {!consumption.loading && consumption.monthlyData.length > 0 && (
+      {!consumption.loading && (consumption.monthlyData.length > 0 || divisionData.length >= 2) && (
         <ProductConsumptionChart
           monthlyData={consumption.monthlyData}
           avgAnnual={consumption.avgAnnual}
           avgHalfYear={consumption.avgHalfYear}
           avgQuarter={consumption.avgQuarter}
+          availableDivisions={divisionData.length >= 2 ? divisionData.map(d => d.division) : undefined}
+          selectedDivision={selectedDivision}
+          onDivisionChange={divisionData.length >= 2 ? setSelectedDivision : undefined}
         />
       )}
 

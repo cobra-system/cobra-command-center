@@ -15,6 +15,9 @@ interface ProductConsumptionChartProps {
   avgAnnual: number;
   avgHalfYear: number;
   avgQuarter: number;
+  availableDivisions?: string[];
+  selectedDivision?: string | null;
+  onDivisionChange?: (div: string | null) => void;
 }
 
 const MONTHS_HE = ["ינו", "פבר", "מרץ", "אפר", "מאי", "יוני", "יולי", "אוג", "ספט", "אוק", "נוב", "דצמ"];
@@ -24,18 +27,23 @@ function formatMonth(dateStr: string): string {
   return `${MONTHS_HE[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
 }
 
-const LINES = [
-  { label: "ממוצע שנתי", color: "#16a34a" },
-  { label: "חצי שנתי", color: "#eab308" },
-  { label: "רבעוני", color: "#f97316" },
-] as const;
-
 export function ProductConsumptionChart({
   monthlyData,
   avgAnnual,
   avgHalfYear,
   avgQuarter,
+  availableDivisions,
+  selectedDivision,
+  onDivisionChange,
 }: ProductConsumptionChartProps) {
+  const showDivisionFilter = availableDivisions && availableDivisions.length >= 2 && onDivisionChange;
+
+  const averageLines = [
+    { label: "ממוצע שנתי", color: "#16a34a", value: avgAnnual },
+    { label: "חצי שנתי", color: "#eab308", value: avgHalfYear },
+    { label: "רבעוני", color: "#f97316", value: avgQuarter },
+  ];
+
   if (monthlyData.length === 0) {
     return (
       <Card>
@@ -55,16 +63,47 @@ export function ProductConsumptionChart({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base">מגמת צריכה חודשית</CardTitle>
-          <div className="flex items-center gap-3 text-xs">
-            {LINES.map((l) => (
-              <span key={l.label} className="flex items-center gap-1">
-                <span className="inline-block w-4 h-0.5" style={{ background: l.color, borderTop: `2px dashed ${l.color}` }} />
-                {l.label}
-              </span>
-            ))}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">מגמת צריכה חודשית</CardTitle>
+            <div className="flex items-center gap-3 text-xs">
+              {averageLines.map((l) => (
+                <span key={l.label} className="flex items-center gap-1">
+                  <span className="inline-block w-4 h-0.5" style={{ background: l.color, borderTop: `2px dashed ${l.color}` }} />
+                  <span style={{ color: l.color }} className="font-medium">
+                    {l.label}{l.value > 0 ? `: ${Math.ceil(l.value)}` : ""}
+                  </span>
+                </span>
+              ))}
+            </div>
           </div>
+          {showDivisionFilter && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                onClick={() => onDivisionChange(null)}
+                className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors ${
+                  !selectedDivision
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
+                }`}
+              >
+                הכל
+              </button>
+              {availableDivisions.map((div) => (
+                <button
+                  key={div}
+                  onClick={() => onDivisionChange(div)}
+                  className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors ${
+                    selectedDivision === div
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
+                  }`}
+                >
+                  {div}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent className="pb-4">
@@ -110,7 +149,7 @@ export function ProductConsumptionChart({
                   y={avgAnnual}
                   stroke="#16a34a"
                   strokeDasharray="5 5"
-                  label={{ value: "ממוצע שנתי", position: "insideTopLeft", fontSize: 11, fill: "#16a34a" }}
+                  label={{ value: `ממוצע שנתי  ${Math.ceil(avgAnnual)}`, position: "insideTopLeft", fontSize: 11, fill: "#16a34a" }}
                 />
               )}
               {avgHalfYear > 0 && (
@@ -118,7 +157,7 @@ export function ProductConsumptionChart({
                   y={avgHalfYear}
                   stroke="#eab308"
                   strokeDasharray="5 5"
-                  label={{ value: "חצי שנתי", position: "insideTopLeft", fontSize: 11, fill: "#eab308" }}
+                  label={{ value: `חצי שנתי  ${Math.ceil(avgHalfYear)}`, position: "insideTopLeft", fontSize: 11, fill: "#eab308" }}
                 />
               )}
               {avgQuarter > 0 && (
@@ -126,7 +165,7 @@ export function ProductConsumptionChart({
                   y={avgQuarter}
                   stroke="#f97316"
                   strokeDasharray="5 5"
-                  label={{ value: "רבעוני", position: "insideTopLeft", fontSize: 11, fill: "#f97316" }}
+                  label={{ value: `רבעוני  ${Math.ceil(avgQuarter)}`, position: "insideTopLeft", fontSize: 11, fill: "#f97316" }}
                 />
               )}
             </AreaChart>
