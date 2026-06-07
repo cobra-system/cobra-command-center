@@ -290,6 +290,8 @@ export interface OrderRequest {
   shipping_type?: string | null;
   estimated_arrival_date?: string | null;
   notes?: string | null;
+  delivery_status?: "נשלחה" | "התקבלה" | "נקלטה" | null;
+  received_qty?: number | null;
 }
 
 export interface OrderRequestHistory {
