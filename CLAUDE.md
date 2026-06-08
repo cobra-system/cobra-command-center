@@ -84,7 +84,7 @@ const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 - `frisbee-models:hidden-columns` — FrisbeeDashboard (sales dashboard model breakdown table)
 - `division-product-items:hidden-columns` — DivisionProductsPage (items tab)
 - `waste-items:hidden-columns` — WasteItemsTab
-- `supplier-returns:hidden-columns` — SupplierReturnsTab
+- `waste-returns:hidden-columns` — WasteSupplierReturnsTab
 - `qp-models:hidden-columns` — QuarterlyPlanningPage (vehicle models tab)
 - `qp-mappings:hidden-columns` — QuarterlyPlanningPage (product-model mappings tab)
 - `qp-procurement:hidden-columns` — QuarterlyPlanningPage (procurement plan tab)
