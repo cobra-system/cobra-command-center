@@ -5,15 +5,12 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ConsumptionRow, aggregateByMonth, calcAvgs } from "@/hooks/useProductConsumption";
-import { forecastConsumption, projectStockout } from "@/lib/consumptionForecast";
 import type { Order } from "@/contexts/AppContext";
 
 interface ProductConsumptionChartProps {
   rawRows: ConsumptionRow[];
   divisions: string[];
   fixedDivision?: string;
-  stockQty?: number;
-  reorderPoint?: number;
   relatedOrders?: Order[];
   productId?: string;
 }
@@ -84,16 +81,12 @@ function ChartTooltip({
   activeDivisions: string[];
 }) {
   if (!active || !payload?.length) return null;
-  const first = payload[0].payload as Record<string, unknown>;
-  const isForecast = first.isForecast as boolean;
   return (
     <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-lg min-w-[120px]" dir="rtl">
-      <p className="font-semibold text-foreground mb-1">{label}{isForecast ? " (תחזית)" : ""}</p>
+      <p className="font-semibold text-foreground mb-1">{label}</p>
       {viewMode === "aggregate" && (
         <p className="text-muted-foreground">
-          כמות: <span className="text-foreground font-medium">
-            {isForecast ? first.forecastQty as number : payload[0]?.value ?? 0}
-          </span>
+          כמות: <span className="text-foreground font-medium">{payload[0]?.value ?? 0}</span>
         </p>
       )}
       {(viewMode === "compare" || viewMode === "stacked") && activeDivisions.map(div => {
@@ -112,8 +105,6 @@ export function ProductConsumptionChart({
   rawRows,
   divisions,
   fixedDivision,
-  stockQty,
-  reorderPoint,
   relatedOrders,
   productId,
 }: ProductConsumptionChartProps) {
@@ -186,20 +177,10 @@ export function ProductConsumptionChart({
     return [...set].sort();
   }, [filteredRows, activeDivisions]);
 
-  const forecastPoints = useMemo(() => {
-    if (stockQty === undefined || monthlyData.length < 2) return [];
-    return forecastConsumption(monthlyData, 5);
-  }, [monthlyData, stockQty]);
-
-  const stockoutMonth = useMemo(() => {
-    if (!forecastPoints.length || stockQty === undefined) return null;
-    return projectStockout(forecastPoints, stockQty);
-  }, [forecastPoints, stockQty]);
-
   const chartData = useMemo(() => {
     const points: Record<string, unknown>[] = [];
     for (const month of allHistoricalMonths) {
-      const point: Record<string, unknown> = { month, label: formatMonth(month), isForecast: false };
+      const point: Record<string, unknown> = { month, label: formatMonth(month) };
       if (viewMode === "aggregate") {
         point.quantity = monthlyData.find(d => d.month === month)?.quantity ?? 0;
       } else {
@@ -209,17 +190,8 @@ export function ProductConsumptionChart({
       }
       points.push(point);
     }
-    // Append forecast (aggregate mode only) — just the line, no band
-    if (viewMode === "aggregate") {
-      for (const fp of forecastPoints) {
-        points.push({
-          month: fp.month, label: formatMonth(fp.month), isForecast: true,
-          forecastQty: fp.forecastQty,
-        });
-      }
-    }
     return points;
-  }, [allHistoricalMonths, monthlyData, viewMode, activeDivisionsList, divisionMonthlyMaps, forecastPoints]);
+  }, [allHistoricalMonths, monthlyData, viewMode, activeDivisionsList, divisionMonthlyMaps]);
 
   const orderMarkers = useMemo(() => {
     if (!relatedOrders || !showOrders || !productId) return [];
@@ -280,10 +252,6 @@ export function ProductConsumptionChart({
       </Card>
     );
   }
-
-  const stockoutLabel = stockoutMonth ? formatMonth(stockoutMonth) : null;
-  const reorderLabel = reorderPoint && reorderPoint > 0 ? reorderPoint : null;
-  const showForecast = viewMode === "aggregate" && forecastPoints.length > 0;
 
   return (
     <Card>
@@ -399,10 +367,6 @@ export function ProductConsumptionChart({
                   <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.25} />
                   <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.02} />
                 </linearGradient>
-                <linearGradient id="grad-forecast" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.08} />
-                  <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.01} />
-                </linearGradient>
               </defs>
 
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.06)" />
@@ -411,20 +375,12 @@ export function ProductConsumptionChart({
 
               <Tooltip content={<ChartTooltip viewMode={viewMode} activeDivisions={activeDivisionsList} />} />
 
-              {/* ── Aggregate: history area + forecast dashed line ──── */}
+              {/* ── Aggregate: history area ──────────────────────────── */}
               {viewMode === "aggregate" && (
-                <>
-                  <Area type="monotone" dataKey="quantity"
-                    stroke="#3b82f6" strokeWidth={2}
-                    fill="url(#grad-history)" dot={false}
-                    activeDot={{ r: 4, strokeWidth: 0 }} connectNulls={false} />
-                  {showForecast && (
-                    <Area type="monotone" dataKey="forecastQty"
-                      stroke="#3b82f6" strokeWidth={1.5} strokeDasharray="6 4"
-                      fill="url(#grad-forecast)" dot={false}
-                      activeDot={{ r: 4, strokeWidth: 0 }} connectNulls />
-                  )}
-                </>
+                <Area type="monotone" dataKey="quantity"
+                  stroke="#3b82f6" strokeWidth={2}
+                  fill="url(#grad-history)" dot={false}
+                  activeDot={{ r: 4, strokeWidth: 0 }} connectNulls={false} />
               )}
 
               {/* ── Compare / Stacked ───────────────────────────────── */}
@@ -448,18 +404,6 @@ export function ProductConsumptionChart({
                   label={{ value: `${Math.ceil(l.value)}`, position: "insideTopLeft", fontSize: 10, fill: l.color }} />
               ))}
 
-              {/* ── Reorder point ────────────────────────────────────── */}
-              {reorderLabel && (
-                <ReferenceLine y={reorderLabel} stroke="#f97316" strokeDasharray="3 3" strokeWidth={1} strokeOpacity={0.6}
-                  label={{ value: `הזמנה ${reorderLabel}`, position: "insideBottomLeft", fontSize: 9, fill: "#f97316" }} />
-              )}
-
-              {/* ── Stockout marker (all modes) ──────────────────────── */}
-              {stockoutLabel && (
-                <ReferenceLine x={stockoutLabel} stroke="#ef4444" strokeDasharray="5 3" strokeWidth={1.5}
-                  label={{ value: `אזל ${stockoutLabel}`, position: "insideTopRight", fontSize: 10, fill: "#ef4444" }} />
-              )}
-
               {/* ── Order event markers ──────────────────────────────── */}
               {orderMarkers.map(({ label, qty, color, tooltip }) => (
                 <ReferenceLine key={`order-${label}`} x={label}
@@ -469,25 +413,6 @@ export function ProductConsumptionChart({
             </AreaChart>
           </ResponsiveContainer>
         </div>
-
-        {/* ── Bottom status bar ─────────────────────────────────────── */}
-        {(showForecast || stockoutLabel) && (
-          <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground flex-wrap">
-            {showForecast && (
-              <span className="flex items-center gap-1">
-                <span className="inline-block w-5 h-0.5" style={{ borderTop: "2px dashed #3b82f6" }} />
-                תחזית {forecastPoints.length} חודשים
-              </span>
-            )}
-            {stockoutLabel ? (
-              <span className="flex items-center gap-1 text-red-500 font-semibold">
-                ⚠ צפי אזילה: {stockoutLabel}
-              </span>
-            ) : stockQty !== undefined && forecastPoints.length > 0 ? (
-              <span className="text-green-600 font-medium">✓ מלאי מספיק לאופק התחזית</span>
-            ) : null}
-          </div>
-        )}
 
         {/* ── Division color legend ─────────────────────────────────── */}
         {(viewMode === "compare" || viewMode === "stacked") && hasMultiDivisions && (
