@@ -254,8 +254,6 @@ export default function ProductDetailPage() {
         <ProductConsumptionChart
           rawRows={consumption.rawRows}
           divisions={consumption.divisions}
-          stockQty={totalStock}
-          reorderPoint={product.reorder_point ?? undefined}
           relatedOrders={relatedOrders}
           productId={product.id}
         />
