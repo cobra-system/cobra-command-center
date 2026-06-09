@@ -18,7 +18,7 @@ export function forecastConsumption(
   const stdDev = Math.sqrt(last.reduce((s, d) => s + (d.quantity - mean) ** 2, 0) / last.length);
 
   const result: ForecastPoint[] = [];
-  const lastDate = new Date(data[data.length - 1].month + "-01");
+  const lastDate = new Date(data[data.length - 1].month.slice(0, 7) + "-01");
   for (let i = 1; i <= horizonMonths; i++) {
     const d = new Date(lastDate);
     d.setMonth(d.getMonth() + i);
