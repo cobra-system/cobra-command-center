@@ -42,6 +42,7 @@ import { useTheme } from "next-themes";
 import cobraLogo from "@/assets/cobra-logo.png";
 import GlobalSearch from "@/components/GlobalSearch";
 import { useOrderRequestToasts } from "@/hooks/useOrderRequestToasts";
+import { CurrencyToggle } from "@/components/ui/CurrencyToggle";
 
 const defaultNavItems = [
   { to: "/dashboard", icon: "LayoutDashboard", label: "דשבורד" },
@@ -289,19 +290,23 @@ export default function ManagerLayout() {
                 >
                   {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                 </button>
+                <CurrencyToggle />
                 <button onClick={handleLogout} className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded-md hover:bg-destructive/10">
                   <LogOut className="h-4 w-4" />
                 </button>
               </div>
             )}
             {collapsed && (
-              <button
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted/60 mt-1"
-                title={theme === "dark" ? "מצב בהיר" : "מצב כהה"}
-              >
-                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </button>
+              <>
+                <button
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted/60 mt-1"
+                  title={theme === "dark" ? "מצב בהיר" : "מצב כהה"}
+                >
+                  {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                </button>
+                <CurrencyToggle className="mt-1" />
+              </>
             )}
           </div>
         </div>

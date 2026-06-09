@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useAuth, useData, roleLabel, type Role, type RoleDefinition } from "@/contexts/AppContext";
+import { useAuth, useData, useCurrency, roleLabel, type Role, type RoleDefinition } from "@/contexts/AppContext";
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
-  Lock, Pencil, User, Settings, Users, Shield, Bell, Check, X, UserPlus,
+  Lock, Pencil, User, Settings, Users, Shield, Bell, Check, X, UserPlus, TrendingUp,
 } from "lucide-react";
 import RolePermissionsManager from "@/components/settings/RolePermissionsManager";
 import RoleDefinitionManager from "@/components/settings/RoleDefinitionManager";
@@ -26,6 +26,7 @@ const VALID_TABS: TabKey[] = ["account", "users", "signup-requests", "roles", "n
 export default function SettingsPage() {
   const { currentUser } = useAuth();
   const { profiles, products, updateProfile, createEmployee, refreshProfiles, roleDefinitions, addRoleDefinition, updateRoleDefinition, deleteRoleDefinition } = useData();
+  const { ilsPerUsd, setIlsPerUsd } = useCurrency();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
@@ -39,6 +40,17 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
+
+  const [rateInput, setRateInput] = useState(String(ilsPerUsd));
+  const handleSaveRate = () => {
+    const v = parseFloat(rateInput);
+    if (!isNaN(v) && v > 0) {
+      setIlsPerUsd(v);
+      toast.success(`שער עודכן: 1$ = ₪${v}`);
+    } else {
+      toast.error("שער לא תקין");
+    }
+  };
 
   // Employee form
   const [employeeOpen, setEmployeeOpen] = useState(false);
@@ -327,6 +339,37 @@ export default function SettingsPage() {
               <div className="space-y-2"><Label>סיסמה חדשה</Label><Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="לפחות 6 תווים" /></div>
               <div className="space-y-2"><Label>אימות סיסמה</Label><Input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="הזן שוב" /></div>
               <Button onClick={handleChangePassword} disabled={changingPassword || !newPassword || !confirmPassword}>{changingPassword ? "משנה..." : "שנה סיסמה"}</Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <TrendingUp className="h-5 w-5" />שער חליפין (₪/$)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground mb-3">
+                מוצג בכל מחירי המערכת בעת מעבר לתצוגת דולר. נשמר בדפדפן.
+              </p>
+              <div className="flex items-end gap-3 max-w-xs">
+                <div className="flex-1 space-y-1.5">
+                  <Label>1$ = ₪</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={rateInput}
+                    onChange={e => setRateInput(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && handleSaveRate()}
+                    placeholder="3.70"
+                    dir="ltr"
+                  />
+                </div>
+                <Button onClick={handleSaveRate} size="sm">
+                  <Check className="h-4 w-4 ml-1" />שמור
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

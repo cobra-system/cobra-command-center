@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import type { Order, Product, Priority, OrderStatus } from "@/contexts/AppContext";
+import { useCurrency } from "@/contexts/CurrencyContext";
 import { format } from "date-fns";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
@@ -32,6 +33,7 @@ interface OrdersHistoryTableProps {
 }
 
 export function OrdersHistoryTable({ relatedOrders, product, hasEdit }: OrdersHistoryTableProps) {
+  const { formatPrice } = useCurrency();
   const navigate = useNavigate();
   const { isVisible, hide, show, hiddenCols, visibleCount } = useColumnVisibility(
     "product-orders-history:hidden-columns",
@@ -124,7 +126,7 @@ export function OrdersHistoryTable({ relatedOrders, product, hasEdit }: OrdersHi
                         {isVisible("pi_number") && <td className="p-3 text-muted-foreground text-xs">{order.pi_number || "—"}</td>}
                         {isVisible("vessel_name") && <td className="p-3 text-muted-foreground text-xs">{order.vessel_name || "—"}</td>}
                         {isVisible("tracking_number") && <td className="p-3 text-muted-foreground text-xs">{order.tracking_number || "—"}</td>}
-                        {isVisible("total_price") && <td className="p-3 text-muted-foreground text-xs">{order.total_price != null ? `$${order.total_price.toLocaleString()}` : "—"}</td>}
+                        {isVisible("total_price") && <td className="p-3 text-muted-foreground text-xs">{order.total_price != null ? formatPrice(order.total_price) : "—"}</td>}
                         {isVisible("notes") && <td className="p-3 text-muted-foreground text-xs max-w-[200px] truncate">{order.notes || "—"}</td>}
                       </tr>
                     );

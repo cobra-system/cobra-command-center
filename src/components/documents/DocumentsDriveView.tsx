@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { differenceInDays, isPast, isValid, parseISO } from "date-fns";
 import { useNavigate } from "react-router-dom";
-import { useData, useAuth } from "@/contexts/AppContext";
+import { useData, useAuth, useCurrency } from "@/contexts/AppContext";
 import { logger } from "@/lib/logger";
 import {
   Folder, FolderOpen, FileText, FileSpreadsheet, File,
@@ -131,6 +131,7 @@ interface Props {
 export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate }: Props) {
   const { suppliers, products, orders } = useData();
   const { currentUser } = useAuth();
+  const { formatPrice } = useCurrency();
   const navigate = useNavigate();
   const { hasEdit } = usePermissions("documents");
 
@@ -757,7 +758,7 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
                       </td>
                       <td className="p-3 text-muted-foreground">{supplierName(doc.supplier_id)}</td>
                       <td className="p-3 text-muted-foreground font-mono text-xs" dir="ltr">
-                        {doc.total_price ? `${currencySymbol[doc.currency] || ""}${doc.total_price.toLocaleString()}` : "—"}
+                        {doc.total_price ? formatPrice(doc.total_price, doc.currency) : "—"}
                       </td>
                       <td className="p-3" onClick={e => e.stopPropagation()}>
                         <Popover>

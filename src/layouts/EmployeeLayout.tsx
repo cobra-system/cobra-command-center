@@ -3,6 +3,7 @@ import { useAuth, useData } from "@/contexts/AppContext";
 import { LogOut } from "lucide-react";
 import cobraLogo from "@/assets/cobra-logo.png";
 import EmployeeBottomNav from "@/components/EmployeeBottomNav";
+import { CurrencyToggle } from "@/components/ui/CurrencyToggle";
 
 export default function EmployeeLayout() {
   const { currentUser, logout } = useAuth();
@@ -49,6 +50,7 @@ export default function EmployeeLayout() {
               )}
             </div>
           </div>
+          <CurrencyToggle className="opacity-60 hover:opacity-100" />
           <button onClick={handleLogout} className="opacity-60 hover:opacity-100 transition-opacity p-1">
             <LogOut className="h-4 w-4" />
           </button>

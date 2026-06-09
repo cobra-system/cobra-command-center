@@ -5,6 +5,7 @@ import { Bell, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OrderStatusBadge } from "@/components/StatusBadge";
+import { useCurrency } from "@/contexts/AppContext";
 import type { OrderStatus } from "@/contexts/AppContext";
 
 import { format } from "date-fns";
@@ -37,7 +38,6 @@ interface PIWithoutSWIFT {
   orders?: { supplier_name: string | null; pi_number: string | null } | null;
 }
 
-const currencySymbol = (c: string) => c === "USD" ? "$" : c === "EUR" ? "€" : "₪";
 const formatDate = (d: string | null) => d ? format(new Date(d), "dd/MM/yyyy") : "—";
 
 function AlertCard({
@@ -73,6 +73,7 @@ function AlertCard({
 }
 
 export default function AlertsContent() {
+  const { formatPrice } = useCurrency();
   const navigate = useNavigate();
   const [overduePayments, setOverduePayments] = useState<OverduePayment[]>([]);
   const [overdueETAs, setOverdueETAs] = useState<OverdueETA[]>([]);
@@ -163,7 +164,7 @@ export default function AlertsContent() {
                 key={`pay-${p.id}`}
                 severity="error"
                 title={`תשלום באיחור — ${supplierName || "ספק לא ידוע"}`}
-                description={`${p.payment_type === "Deposit" ? "מקדמה" : "יתרה"} ${currencySymbol(p.currency)}${(p.amount || 0).toLocaleString()} · מועד: ${formatDate(p.due_date)} (${days}י׳ עיכוב)`}
+                description={`${p.payment_type === "Deposit" ? "מקדמה" : "יתרה"} ${formatPrice(p.amount || 0, p.currency)} · מועד: ${formatDate(p.due_date)} (${days}י׳ עיכוב)`}
                 meta={piNumber || undefined}
                 onClick={() => p.order_id && navigate(`/orders/${p.order_id}`)}
               />
@@ -187,7 +188,7 @@ export default function AlertsContent() {
                 key={`swift-${p.id}`}
                 severity="info"
                 title={`ממתין ל-SWIFT — ${supplierName || "ספק לא ידוע"}`}
-                description={`${p.payment_type === "Deposit" ? "מקדמה" : "יתרה"} ${currencySymbol(p.currency)}${(p.amount || 0).toLocaleString()}${p.due_date ? ` · מועד: ${formatDate(p.due_date)}` : ""}`}
+                description={`${p.payment_type === "Deposit" ? "מקדמה" : "יתרה"} ${formatPrice(p.amount || 0, p.currency)}${p.due_date ? ` · מועד: ${formatDate(p.due_date)}` : ""}`}
                 meta={piNumber || undefined}
                 onClick={() => p.order_id && navigate(`/orders/${p.order_id}`)}
               />
@@ -205,7 +206,7 @@ export default function AlertsContent() {
                 key={p.id}
                 severity="error"
                 title={`תשלום באיחור — ${supplierName || "ספק לא ידוע"}`}
-                description={`${p.payment_type === "Deposit" ? "מקדמה" : "יתרה"} ${currencySymbol(p.currency)}${(p.amount || 0).toLocaleString()} · מועד: ${formatDate(p.due_date)} (${days}י׳ עיכוב)`}
+                description={`${p.payment_type === "Deposit" ? "מקדמה" : "יתרה"} ${formatPrice(p.amount || 0, p.currency)} · מועד: ${formatDate(p.due_date)} (${days}י׳ עיכוב)`}
                 meta={piNumber || undefined}
                 onClick={() => p.order_id && navigate(`/orders/${p.order_id}`)}
               />
@@ -239,7 +240,7 @@ export default function AlertsContent() {
                 key={p.id}
                 severity="info"
                 title={`ממתין ל-SWIFT — ${supplierName || "ספק לא ידוע"}`}
-                description={`${p.payment_type === "Deposit" ? "מקדמה" : "יתרה"} ${currencySymbol(p.currency)}${(p.amount || 0).toLocaleString()}${p.due_date ? ` · מועד: ${formatDate(p.due_date)}` : ""}`}
+                description={`${p.payment_type === "Deposit" ? "מקדמה" : "יתרה"} ${formatPrice(p.amount || 0, p.currency)}${p.due_date ? ` · מועד: ${formatDate(p.due_date)}` : ""}`}
                 meta={piNumber || undefined}
                 onClick={() => p.order_id && navigate(`/orders/${p.order_id}`)}
               />

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { useData, useAuth, type Supplier, type SupplierContact, type Priority, type OrderStatus, type Product } from "@/contexts/AppContext";
+import { useData, useAuth, useCurrency, type Supplier, type SupplierContact, type Priority, type OrderStatus, type Product } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ export default function SupplierDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const { formatPrice } = useCurrency();
   const showPrices = canSeePrices(currentUser);
   const { updateSupplier, deleteSupplier, refreshSuppliers, updateProduct } = useData();
   const { scopedSuppliers: suppliers, scopedOrders: orders, scopedProducts: products, isScoped } = useProductScope();
@@ -452,7 +453,7 @@ export default function SupplierDetailPage() {
                     <tr key={order.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/orders/${order.id}`)} data-navigate-to={`/orders/${order.id}`}>
                       <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
                       <td className="p-3 text-muted-foreground text-xs">{order.items.map(i => i.name).join(", ")}</td>
-                      {showPrices && <td className="p-3 text-muted-foreground">{order.total_price ? `$${order.total_price}` : "—"}</td>}
+                      {showPrices && <td className="p-3 text-muted-foreground">{order.total_price ? formatPrice(order.total_price) : "—"}</td>}
                       <td className="p-3"><OrderStatusBadge status={order.status as OrderStatus} /></td>
                       <td className="p-3 text-muted-foreground text-xs">{order.order_date ? format(new Date(order.order_date), "dd/MM/yyyy") : "—"}</td>
                     </tr>

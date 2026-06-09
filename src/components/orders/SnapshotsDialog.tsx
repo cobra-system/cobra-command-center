@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { ArrowRight, Camera, Trash2, Download } from "lucide-react";
 import type { OrderRequest, OrderRequestSnapshot } from "@/contexts/types";
 import { fmtNum, fmtMoney } from "./orderRequestUtils";
+import { useCurrency } from "@/contexts/CurrencyContext";
 import { downloadCsv } from "./orderRequestExcel";
 
 interface Props {
@@ -24,6 +25,7 @@ interface Props {
 type Listed = Omit<OrderRequestSnapshot, "payload">;
 
 export function SnapshotsDialog({ open, onOpenChange, division, current }: Props) {
+  const { formatPrice } = useCurrency();
   const [view, setView] = useState<"list" | "detail">("list");
   const [list, setList] = useState<Listed[]>([]);
   const [loading, setLoading] = useState(false);
@@ -173,7 +175,7 @@ export function SnapshotsDialog({ open, onOpenChange, division, current }: Props
                     <div>{s.total_requests} בקשות</div>
                     <div>{fmtNum(s.total_required_qty)} יח׳</div>
                     {s.total_estimated_value && Number(s.total_estimated_value) > 0 && (
-                      <div>{fmtMoney(Number(s.total_estimated_value))}</div>
+                      <div>{fmtMoney(Number(s.total_estimated_value), formatPrice)}</div>
                     )}
                   </div>
                   <div className="flex flex-col gap-1 shrink-0">
@@ -201,7 +203,7 @@ export function SnapshotsDialog({ open, onOpenChange, division, current }: Props
               {active.notes && <div className="text-xs text-muted-foreground">{active.notes}</div>}
               <div className="text-xs text-muted-foreground">
                 ע"י {active.captured_by_name ?? "—"} · {active.total_requests} בקשות · סה״כ נדרש: {fmtNum(active.total_required_qty)} יח׳
-                {active.total_estimated_value && Number(active.total_estimated_value) > 0 && <> · ערך משוער: {fmtMoney(Number(active.total_estimated_value))}</>}
+                {active.total_estimated_value && Number(active.total_estimated_value) > 0 && <> · ערך משוער: {fmtMoney(Number(active.total_estimated_value), formatPrice)}</>}
               </div>
             </div>
 

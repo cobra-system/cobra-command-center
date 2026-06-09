@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, Fragment, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
-import { useData, useAuth, categories, type Product } from "@/contexts/AppContext";
+import { useData, useAuth, useCurrency, categories, type Product } from "@/contexts/AppContext";
 import { canSeePrices, isDivisionManager } from "@/lib/permissions";
 import { useProductScope } from "@/hooks/useProductScope";
 import { useLiveProductMetrics, type ProductMetrics } from "@/hooks/useLiveProductMetrics";
@@ -88,6 +88,7 @@ function CompositeIncomingBadge({ m }: { m: ProductMetrics | undefined }) {
 
 export default function ProductsPage() {
   const { suppliers, deleteProduct, updateProduct } = useData();
+  const { formatPrice } = useCurrency();
   const { scopedProducts: products } = useProductScope();
   const navigate = useNavigate();
   const [viewMode, setViewMode] = usePersistedState<"table" | "treemap">("products-view-mode", "table");
@@ -686,7 +687,7 @@ export default function ProductsPage() {
                         {(() => {
                           const pp = metrics[p.id]?.purchasePrice ?? p.purchase_price;
                           if (!pp) return "—";
-                          const formatted = `$${pp.toLocaleString()}`;
+                          const formatted = formatPrice(pp);
                           if (isComposite) {
                             return (
                               <span title="מחושב מסכום רכיבים">
@@ -702,7 +703,7 @@ export default function ProductsPage() {
                     {isVisible("monthly_order") && <td className="p-2 sm:p-3 text-muted-foreground">{p.monthly_order || "—"}</td>}
                     {isVisible("sale_price") && (
                       <td className="p-2 sm:p-3 text-muted-foreground">
-                        {p.sale_price ? `$${p.sale_price.toLocaleString()}` : "—"}
+                        {p.sale_price ? formatPrice(p.sale_price) : "—"}
                       </td>
                     )}
                     {isVisible("div_consumption") && (

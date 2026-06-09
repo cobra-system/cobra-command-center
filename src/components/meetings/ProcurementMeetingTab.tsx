@@ -20,6 +20,7 @@ import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { cn } from "@/lib/utils";
 import type { Meeting, ProcurementDecision } from "./types";
+import { useCurrency } from "@/contexts/AppContext";
 import type { Order, Priority, OrderStatus } from "@/contexts/AppContext";
 
 // ─── Column defs ─────────────────────────────────────────────────────────────
@@ -78,11 +79,6 @@ const DECISION_OPTIONS: { value: ProcurementDecision; label: string; color: stri
   { value: "deferred", label: "נדחה",   color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400" },
 ];
 
-function fmtAmount(amount: number | null | undefined, currency?: string | null) {
-  if (!amount) return "—";
-  const sym = currency === "EUR" ? "€" : currency === "ILS" ? "₪" : "$";
-  return `${sym}${amount.toLocaleString()}`;
-}
 
 function fmtDate(d: string | null | undefined) {
   return d ? format(new Date(d), "dd/MM/yyyy") : "—";
@@ -100,6 +96,9 @@ function DecisionBadge({ decision }: { decision: ProcurementDecision }) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ProcurementMeetingTab() {
+  const { formatPrice } = useCurrency();
+  const fmtAmount = (amount: number | null | undefined, currency?: string | null) =>
+    formatPrice(amount, currency || "USD");
   const navigate = useNavigate();
 
   // ── KPI state ─────────────────────────────────────────────────────────────

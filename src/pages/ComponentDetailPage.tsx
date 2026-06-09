@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { useData } from "@/contexts/AppContext";
+import { useData, useCurrency } from "@/contexts/AppContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -15,6 +15,7 @@ export default function ComponentDetailPage() {
   const { productId, componentId } = useParams<{ productId: string; componentId: string }>();
   const navigate = useNavigate();
   const { products, suppliers, updateComponent, deleteComponent } = useData();
+  const { formatPrice } = useCurrency();
   const { hasEdit } = usePermissions("products");
   const { hasEdit: hasInventoryEdit } = usePermissions("inventory");
   const canEditStock = hasEdit || hasInventoryEdit;
@@ -217,7 +218,7 @@ export default function ComponentDetailPage() {
               { label: "ספק", value: component.supplier || "—", isSupplier: true },
               { label: "מוצא", value: component.origin || "—" },
               { label: "מלאי", value: component.stock_qty ?? "—" },
-              { label: "מחיר ($)", value: component.price != null ? `$${component.price}` : "—" },
+              { label: "מחיר", value: component.price != null ? formatPrice(component.price) : "—" },
               { label: "הערות", value: component.notes || "—", wide: true },
             ].map(item => (
               <div key={item.label} className={item.wide ? "sm:col-span-2" : ""}>

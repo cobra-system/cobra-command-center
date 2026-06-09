@@ -9,6 +9,7 @@ import type { ColDef } from "@/hooks/useColumnVisibility";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { cn } from "@/lib/utils";
+import { useCurrency } from "@/contexts/AppContext";
 import type { Priority, OrderStatus } from "@/contexts/AppContext";
 
 import { format } from "date-fns";
@@ -58,6 +59,7 @@ interface UrgentOrder {
 }
 
 export function ProcurementAgendaTab() {
+  const { formatPrice } = useCurrency();
   const navigate = useNavigate();
   const [pendingPayments, setPendingPayments] = useState<PendingPayment[]>([]);
   const [overdueOrders, setOverdueOrders] = useState<OverdueOrder[]>([]);
@@ -145,7 +147,6 @@ export function ProcurementAgendaTab() {
     return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   };
 
-  const currencySymbol = (c: string) => c === "USD" ? "$" : c === "EUR" ? "€" : "₪";
 
   const formatDate = (d: string | null) => d ? format(new Date(d), "dd/MM/yyyy") : "—";
 
@@ -215,7 +216,7 @@ export function ProcurementAgendaTab() {
                     </div>
                     <div className="text-left shrink-0">
                       <p className="text-sm font-bold text-foreground">
-                        {currencySymbol(p.currency)}{(p.amount || 0).toLocaleString()}
+                        {formatPrice(p.amount || 0, p.currency)}
                       </p>
                       {daysLeft !== null && (
                         <p className={cn("text-xs", isOverdue ? "text-destructive font-medium" : daysLeft <= 7 ? "text-warning" : "text-muted-foreground")}>
@@ -288,7 +289,7 @@ export function ProcurementAgendaTab() {
               <div className="flex flex-wrap items-center gap-2">
                 <OrderStatusBadge status={o.status as OrderStatus} />
                 {o.pi_number && <span className="text-xs text-muted-foreground font-mono">{o.pi_number}</span>}
-                {o.total_price && <span className="text-xs font-medium text-foreground">${o.total_price.toLocaleString()}</span>}
+                {o.total_price && <span className="text-xs font-medium text-foreground">{formatPrice(o.total_price)}</span>}
               </div>
               {(o.etd || o.eta) && (
                 <div className="mt-1.5 flex gap-3 text-xs text-muted-foreground">
@@ -341,7 +342,7 @@ export function ProcurementAgendaTab() {
                 )}
                 {isVisible("total_price") && (
                   <td className="p-3 text-muted-foreground text-xs">
-                    {o.total_price ? `$${o.total_price.toLocaleString()}` : "—"}
+                    {o.total_price ? formatPrice(o.total_price) : "—"}
                   </td>
                 )}
               </tr>

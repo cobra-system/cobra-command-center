@@ -5,6 +5,7 @@
  * New code can import domain-specific hooks directly (useProducts, useOrders, etc.).
  */
 import React, { useEffect, useState, type ReactNode } from "react";
+import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import { AuthProvider, useAuth as useAuthDirect } from "@/contexts/AuthContext";
 import { ProductsProvider, useProducts } from "@/contexts/ProductsContext";
 import { OrdersProvider, useOrders } from "@/contexts/OrdersContext";
@@ -20,6 +21,9 @@ export type { Profile, Product, ProductComponent, SupplierContact, Supplier } fr
 export type { Order, OrderItem, Goal, Task } from "@/contexts/types";
 export type { RoleDefinition, RolePermissionRecord } from "@/contexts/types";
 
+// Re-export currency hook and type
+export { useCurrency } from "@/contexts/CurrencyContext";
+export type { DisplayCurrency } from "@/contexts/CurrencyContext";
 // Re-export domain hooks for direct use
 export { useAuth } from "@/contexts/AuthContext";
 export { useProducts } from "@/contexts/ProductsContext";
@@ -113,11 +117,13 @@ function DataLoader({ children }: { children: ReactNode }) {
  */
 export function AppProvider({ children }: { children: ReactNode }) {
   return (
-    <AuthProvider>
-      <InnerProviders>
-        {children}
-      </InnerProviders>
-    </AuthProvider>
+    <CurrencyProvider>
+      <AuthProvider>
+        <InnerProviders>
+          {children}
+        </InnerProviders>
+      </AuthProvider>
+    </CurrencyProvider>
   );
 }
 

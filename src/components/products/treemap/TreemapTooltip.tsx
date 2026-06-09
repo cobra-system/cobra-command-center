@@ -1,6 +1,7 @@
 import { useRef, useLayoutEffect, useState } from "react";
 import type { TreemapItem } from "./treemapLayout";
 import { getHealthInfo } from "./treemapColors";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 interface Props {
   item: TreemapItem;
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export default function TreemapTooltip({ item, x, y }: Props) {
+  const { formatPrice } = useCurrency();
   const health = getHealthInfo(item.stockQty, item.consumption);
   const months = item.consumption > 0 ? (item.stockQty / item.consumption).toFixed(1) : "—";
   const ref = useRef<HTMLDivElement>(null);
@@ -56,10 +58,10 @@ export default function TreemapTooltip({ item, x, y }: Props) {
         )}
         <Row label="חודשי מלאי" value={months} />
         {item.purchasePrice != null && (
-          <Row label="מחיר" value={`$${item.purchasePrice.toLocaleString()}`} />
+          <Row label="מחיר" value={formatPrice(item.purchasePrice)} />
         )}
         {stockValue != null && stockValue > 0 && (
-          <Row label="שווי מלאי" value={`$${stockValue.toLocaleString()}`} />
+          <Row label="שווי מלאי" value={formatPrice(stockValue)} />
         )}
         {item.supplier && <Row label="ספק" value={item.supplier} />}
         {(item.openIssues ?? 0) > 0 && (

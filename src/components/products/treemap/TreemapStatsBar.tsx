@@ -1,11 +1,13 @@
 import { Package, AlertTriangle, TrendingUp, DollarSign, Bug, ShoppingCart } from "lucide-react";
 import type { TreemapItem } from "./treemapLayout";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 interface Props {
   items: TreemapItem[];
 }
 
 export default function TreemapStatsBar({ items }: Props) {
+  const { formatPrice } = useCurrency();
   const total = items.length;
   const critical = items.filter(i => i.consumption > 0 && i.stockQty / i.consumption < 1).length;
   const outOfStock = items.filter(i => i.stockQty <= 0 && i.consumption > 0).length;
@@ -75,11 +77,7 @@ export default function TreemapStatsBar({ items }: Props) {
         <Stat
           icon={<DollarSign className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
           label="שווי"
-          value={`$${totalStockValue >= 1_000_000
-            ? `${(totalStockValue / 1_000_000).toFixed(1)}M`
-            : totalStockValue >= 1_000
-            ? `${(totalStockValue / 1_000).toFixed(0)}K`
-            : totalStockValue.toLocaleString()}`}
+          value={formatPrice(totalStockValue)}
         />
       )}
     </div>
