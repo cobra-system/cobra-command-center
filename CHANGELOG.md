@@ -5,11 +5,19 @@
 
 ---
 
+## [2026-06-09]
+
+- fix: mobile responsiveness for consumption chart, treemap panel & filter bar (581d996)
+- feat: forecast in all view modes, smart date range, richer order tooltips, division stockout (7939046)
+- feat: enterprise consumption chart — forecast, order markers, stacked view (a476aa9)
+- perf: optimize products pages — debounce, memo, precomputed maps (a9344ee)
+- refactor: client-side division aggregation + multi-select filter in consumption chart (b5871b7)
+
+<!-- last-commit: 3b17ac6dd8ee46a30b54b50ef92e2c005a26bc5f -->
 ## [2026-06-07]
 
 - feat: add avg values on reference lines and division filter to consumption chart (0f333fd)
 
-<!-- last-commit: f162ed22bc5d5bed87b8623746cfe1a1260476c2 -->
 ## [2026-06-07]
 
 - feat: color-code order request rows by division (7ac2003)
