@@ -7,10 +7,17 @@
 
 ## [2026-06-09]
 
+- Merge pull request #238 from cobra-system/claude/blissful-pasteur-fof02k (52e2e32)
+- feat(currency): fix mixed-currency aggregation, add compact formatter, configurable rate (4ea7896)
+- fix: update DocumentsSection test mock to include useCurrency (5145f32)
+- feat: add global ILS/USD currency display toggle (81a327f)
+
+<!-- last-commit: 52e2e329889bb3bb0bb40117b7f25d82685724e1 -->
+## [2026-06-09]
+
 - Merge pull request #239 from cobra-system/claude/gracious-maxwell-t2B05 (62f5388)
 - feat: remove forecast feature from consumption chart (7f5e88b)
 
-<!-- last-commit: 62f53888fed6d14a9554b21f81f995cc3141f85b -->
 ## [2026-06-09]
 
 - Merge pull request #237 from cobra-system/claude/gracious-maxwell-t2B05 (e686dc0)
