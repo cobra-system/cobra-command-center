@@ -16,7 +16,7 @@ const COLORS = [
 
 export default function ReportsPage() {
   const { products, orders, tasks, suppliers } = useData();
-  const { formatPrice } = useCurrency();
+  const { formatPrice, toDisplayAmount, displayCurrency } = useCurrency();
   const [monthOffset, setMonthOffset] = useState(0);
   const [issues, setIssues] = useState<Record<string, unknown>[]>([]);
   const [allIssues, setAllIssues] = useState<Record<string, unknown>[]>([]);
@@ -106,8 +106,8 @@ export default function ReportsPage() {
     suppliers.forEach(s => { byCountry[s.country || "לא צוין"] = (byCountry[s.country || "לא צוין"] || 0) + 1; });
     const countryChart = Object.entries(byCountry).map(([name, value]) => ({ name, value }));
 
-    const totalPaid = payments.filter(p => p.status === "שולם" && inRange(p.paid_date)).reduce((s, p) => s + (p.amount || 0), 0);
-    const totalPending = payments.filter(p => p.status !== "שולם").reduce((s, p) => s + (p.amount || 0), 0);
+    const totalPaid = payments.filter(p => p.status === "שולם" && inRange(p.paid_date)).reduce((s, p) => s + toDisplayAmount(p.amount || 0, p.currency || "USD"), 0);
+    const totalPending = payments.filter(p => p.status !== "שולם").reduce((s, p) => s + toDisplayAmount(p.amount || 0, p.currency || "USD"), 0);
 
     const ordersBySupplier = suppliers.map(s => ({
       name: s.company.length > 15 ? s.company.slice(0, 15) + "…" : s.company,
@@ -140,8 +140,8 @@ export default function ReportsPage() {
 • ${issueData.openCount} עדיין פתוחות
 
 💳 תשלומים:
-• סה״כ שולם: ${formatPrice(supplierData.totalPaid)}
-• ממתין לתשלום: ${formatPrice(supplierData.totalPending)}`;
+• סה״כ שולם: ${formatPrice(supplierData.totalPaid, displayCurrency)}
+• ממתין לתשלום: ${formatPrice(supplierData.totalPending, displayCurrency)}`;
 
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -340,8 +340,8 @@ export default function ReportsPage() {
         <TabsContent value="suppliers" className="space-y-5">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <KpiCard icon={Users} label="סה״כ ספקים" value={suppliers.length} />
-            <KpiCard icon={DollarSign} label="שולם החודש" value={formatPrice(supplierData.totalPaid)} color="text-success" />
-            <KpiCard icon={DollarSign} label="ממתין לתשלום" value={formatPrice(supplierData.totalPending)} color={supplierData.totalPending > 0 ? "text-warning" : undefined} />
+            <KpiCard icon={DollarSign} label="שולם החודש" value={formatPrice(supplierData.totalPaid, displayCurrency)} color="text-success" />
+            <KpiCard icon={DollarSign} label="ממתין לתשלום" value={formatPrice(supplierData.totalPending, displayCurrency)} color={supplierData.totalPending > 0 ? "text-warning" : undefined} />
             <KpiCard icon={Truck} label="הזמנות פעילות" value={orders.filter(o => o.status !== "ARRIVED" && o.status !== "CANCELLED").length} />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

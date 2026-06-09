@@ -24,7 +24,6 @@ export type { RoleDefinition, RolePermissionRecord } from "@/contexts/types";
 // Re-export currency hook and type
 export { useCurrency } from "@/contexts/CurrencyContext";
 export type { DisplayCurrency } from "@/contexts/CurrencyContext";
-
 // Re-export domain hooks for direct use
 export { useAuth } from "@/contexts/AuthContext";
 export { useProducts } from "@/contexts/ProductsContext";

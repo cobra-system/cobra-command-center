@@ -48,7 +48,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 const ACTIVE_STATUSES = ["PENDING", "ORDERED", "SHIPPED", "ARRIVED_PORT", "CUSTOMS_CLEARANCE", "DELIVERED"];
 
 export function OrdersDashboardView({ orders, orderPaymentStatuses, suppliers }: OrdersDashboardViewProps) {
-  const { formatPrice } = useCurrency();
+  const { formatPrice, formatPriceCompact } = useCurrency();
   const navigate = useNavigate();
   const [timelineExpanded, setTimelineExpanded] = useState(false);
   const [paymentSupplierFilter, setPaymentSupplierFilter] = useState<string>("all");
@@ -692,7 +692,7 @@ export function OrdersDashboardView({ orders, orderPaymentStatuses, suppliers }:
             <BarChart data={cashFlowData} barGap={2}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} reversed />
-              <YAxis tick={{ fontSize: 11 }} orientation="right" tickFormatter={v => formatPrice(v)} />
+              <YAxis tick={{ fontSize: 11 }} orientation="right" tickFormatter={v => formatPriceCompact(v)} />
               <Tooltip formatter={(value: number) => formatPrice(value)} />
               <Legend />
               <Bar dataKey="paid" name="שולם" fill="#34d399" radius={[4, 4, 0, 0]} />

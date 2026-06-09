@@ -9,8 +9,10 @@ interface Props {
 }
 
 export default function DocumentSummaryCards({ docs, payments }: Props) {
-  const { formatPrice } = useCurrency();
-  const totalOwed = payments.filter(p => p.status !== "שולם").reduce((s, p) => s + p.amount, 0);
+  const { formatPrice, toDisplayAmount, displayCurrency } = useCurrency();
+  const totalOwed = payments
+    .filter(p => p.status !== "שולם")
+    .reduce((s, p) => s + toDisplayAmount(p.amount, p.currency || "USD"), 0);
   const overdue = payments.filter(p => p.status !== "שולם" && p.due_date && isPast(new Date(p.due_date))).length;
 
   return (
@@ -25,7 +27,7 @@ export default function DocumentSummaryCards({ docs, payments }: Props) {
       </div>
       <div className="bg-card rounded-xl border p-4 text-center">
         <p className="text-xs text-muted-foreground mb-1">חוב פתוח</p>
-        <p className="text-2xl font-bold text-foreground">{formatPrice(totalOwed)}</p>
+        <p className="text-2xl font-bold text-foreground">{formatPrice(totalOwed, displayCurrency)}</p>
       </div>
       <div className="bg-card rounded-xl border p-4 text-center">
         <p className="text-xs text-muted-foreground mb-1">באיחור</p>
