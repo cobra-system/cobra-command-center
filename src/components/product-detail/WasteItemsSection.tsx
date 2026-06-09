@@ -1,80 +1,47 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Recycle, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
+import { WasteStatusBadge } from "@/components/waste/WasteStatusBadge";
 import type { Product } from "@/contexts/AppContext";
-
+import type { WasteItem } from "@/contexts/types";
 import { format } from "date-fns";
-interface WasteItem {
-  id: string;
-  product_name: string;
-  sku: string;
-  quantity: number;
-  in_use: boolean;
-  recommendations: string;
-  created_by_name: string | null;
-  created_at: string;
-}
 
-interface WasteItemsSectionProps {
+interface Props {
   product: Product;
 }
 
-const statusCls = (inUse: boolean) =>
-  inUse
-    ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-    : "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
-
-export function WasteItemsSection({ product }: WasteItemsSectionProps) {
+export function WasteItemsSection({ product }: Props) {
   const navigate = useNavigate();
   const [items, setItems] = useState<WasteItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // FK-based filter parts (fast, indexed)
-  const componentIds = useMemo(
-    () => (product.components || []).map((c) => c.id),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [product.id, (product.components || []).map((c) => c.id).join("|")]
-  );
-
-  // Name-based fallback parts (covers old records not yet backfilled)
-  const matchingNames = useMemo(
-    () => [product.name, ...(product.components || []).map((c) => c.name)],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [product.id, product.name, (product.components || []).map((c) => c.name).join("|")]
-  );
-
   const fetchItems = useCallback(async () => {
-    const fkParts = [
-      `product_id.eq.${product.id}`,
-      ...componentIds.map((id) => `component_id.eq.${id}`),
-    ].join(",");
-    const nameParts = matchingNames.map((n) => `product_name.eq.${n}`).join(",");
-
     const { data } = await supabase
       .from("waste_items")
-      .select("id, product_name, sku, quantity, in_use, recommendations, created_by_name, created_at")
-      .or(`${fkParts},${nameParts}`)
+      .select("*, products(name, sku)")
+      .eq("product_id", product.id)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false });
 
-    // De-duplicate in case a row matches both FK and name filters
-    const seen = new Set<string>();
-    const unique = ((data as WasteItem[]) || []).filter(
-      (r) => !seen.has(r.id) && seen.add(r.id)
+    setItems(
+      (data ?? []).map((row: any) => ({
+        ...row,
+        product_name: row.products?.name ?? null,
+        product_sku: row.products?.sku ?? null,
+      })) as WasteItem[],
     );
-    setItems(unique);
     setLoading(false);
-  }, [product.id, componentIds, matchingNames]);
+  }, [product.id]);
 
   useEffect(() => {
     fetchItems();
-
     const channel = supabase
       .channel(`waste-product-${product.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "waste_items" }, fetchItems)
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, [fetchItems, product.id]);
 
@@ -90,12 +57,7 @@ export function WasteItemsSection({ product }: WasteItemsSectionProps) {
             </span>
           )}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate("/waste-management")}
-          data-navigate-to="/waste-management"
-        >
+        <Button variant="outline" size="sm" onClick={() => navigate("/waste-management")}>
           <ExternalLink className="h-3.5 w-3.5 ml-1" />
           דף הבלאי
         </Button>
@@ -103,63 +65,48 @@ export function WasteItemsSection({ product }: WasteItemsSectionProps) {
 
       {loading ? (
         <p className="text-sm text-muted-foreground py-4 text-center">טוען...</p>
-      ) : items.length > 0 ? (
+      ) : items.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-4 text-center">אין פריטי בלאי למוצר זה</p>
+      ) : (
         <>
-          {/* Mobile card list */}
+          {/* Mobile */}
           <div className="md:hidden space-y-2">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30"
-              >
+            {items.map(item => (
+              <div key={item.id} className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{item.product_name}</p>
-                  {item.recommendations && (
-                    <p className="text-xs text-muted-foreground truncate">{item.recommendations}</p>
+                  <p className="text-sm font-medium text-foreground">{item.product_name}</p>
+                  {item.condition_notes && (
+                    <p className="text-xs text-muted-foreground truncate">{item.condition_notes}</p>
                   )}
-                  <p className="text-xs text-muted-foreground">
-                    {format(new Date(item.created_at), "dd/MM/yyyy")}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{format(new Date(item.created_at), "dd/MM/yyyy")}</p>
                 </div>
                 <div className="shrink-0 space-y-1 text-right">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusCls(item.in_use)}`}>
-                    {item.in_use ? "בשימוש" : "לא בשימוש"}
-                  </span>
+                  <WasteStatusBadge status={item.status} />
                   <p className="text-xs text-muted-foreground">כמות: {item.quantity}</p>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Desktop table */}
+          {/* Desktop */}
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50">
-                  <th className="text-right p-3 font-semibold text-foreground">פריט</th>
                   <th className="text-right p-3 font-semibold text-foreground">כמות</th>
-                  <th className="text-right p-3 font-semibold text-foreground">סטטוס</th>
-                  <th className="text-right p-3 font-semibold text-foreground">המלצות</th>
+                  <th className="text-right p-3 font-semibold text-foreground">מצב</th>
+                  <th className="text-right p-3 font-semibold text-foreground">הערות</th>
                   <th className="text-right p-3 font-semibold text-foreground">תאריך</th>
                   <th className="text-right p-3 font-semibold text-foreground">דווח ע"י</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {items.map((item) => (
+                {items.map(item => (
                   <tr key={item.id} className="hover:bg-muted/30">
-                    <td className="p-3 font-medium">{item.product_name}</td>
                     <td className="p-3 text-muted-foreground">{item.quantity}</td>
-                    <td className="p-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusCls(item.in_use)}`}>
-                        {item.in_use ? "בשימוש" : "לא בשימוש"}
-                      </span>
-                    </td>
-                    <td className="p-3 text-muted-foreground max-w-[200px] truncate">
-                      {item.recommendations || "—"}
-                    </td>
-                    <td className="p-3 text-muted-foreground text-xs">
-                      {format(new Date(item.created_at), "dd/MM/yyyy")}
-                    </td>
+                    <td className="p-3"><WasteStatusBadge status={item.status} /></td>
+                    <td className="p-3 text-muted-foreground max-w-[200px] truncate">{item.condition_notes || "—"}</td>
+                    <td className="p-3 text-muted-foreground text-xs">{format(new Date(item.created_at), "dd/MM/yyyy")}</td>
                     <td className="p-3 text-muted-foreground">{item.created_by_name || "—"}</td>
                   </tr>
                 ))}
@@ -167,8 +114,6 @@ export function WasteItemsSection({ product }: WasteItemsSectionProps) {
             </table>
           </div>
         </>
-      ) : (
-        <p className="text-sm text-muted-foreground py-4 text-center">אין פריטי בלאי למוצר זה</p>
       )}
     </div>
   );

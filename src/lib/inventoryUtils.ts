@@ -158,16 +158,12 @@ export async function markItemAsFaulty(opts: {
     }
   }
 
-  // Create waste_item record
   await supabase.from("waste_items").insert({
-    product_name: opts.productName,
-    sku: opts.sku ?? "",
+    product_id: opts.productId,
     quantity: opts.quantity,
-    in_use: false,
-    recommendations: "",
+    status: "pending",
     source: "equipment_return",
     return_item_id: opts.returnItemId,
-    product_id: opts.productId,
     created_by: opts.changedBy,
     created_by_name: opts.changedByName,
   });

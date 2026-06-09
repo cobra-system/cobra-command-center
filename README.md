@@ -55,7 +55,8 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 | תכנון רכש | `/reorder` | ניתוח מלאי + המלצות הזמנה לפי Lead Time |
 | תקלות | `/issues` | דיווח ומעקב תקלות מוצרים |
 | פרטי תקלה | `/issues/:id` | עמוד תקלה — עריכה inline, עדכונים, גלריית מדיה |
-| ניהול פסולת | `/waste-management` | מעקב פסולת ובלאי, חיבור לציוד וסיבות החזרה |
+| ניהול פסולת | `/waste-management` | מעקב פסולת ובלאי — 4 נתיבים: השמדה, החזרה לספק, תיקון, מכירה |
+| פרטי החזרה לספק | `/waste-management/returns/:id` | עמוד החזרה מלא — מעקב DHL, פריטים, סטטוס, הסדר (RMA/זיכוי) |
 | ניהול חטיבות | `/equipment` | ניהול חטיבות: ציוד, הצטיידויות, החזרות ופעילות התקנה |
 | פירוט מתקין | `/equipment/installer/:id` | פרטי מתקין, ציוד בשטח, היסטוריית החזרות |
 | פרטי חטיבה | `/equipment/division/:divisionName` | טכנאים, הצטיידויות, מלאי, אנשי קשר לפי חטיבה (חטיבות ציוד) |
@@ -150,8 +151,9 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 - `frisbee_product_mapping` — מיפוי מזהי ציוד Base44 למוצרים פנימיים
 
 ### ניהול פסולת
-- `waste_items` — פריטי פסולת/בלאי (מוצר, כמות, מקור, המלצות, `product_id → products`, `component_id → product_components`, `disposition_type`, `supplier_return_id`)
-- `supplier_returns` — החזרות לספקים (סטטוס, מספר מעקב, סיבה, פתרון, `supplier_id → suppliers`)
+- `waste_items` — פריטי בלאי (מוצר, כמות, סטטוס: pending/destroyed/returning/repairing/sold, `product_id → products`, שדות השמדה/תיקון/מכירה)
+- `waste_supplier_returns` — החזרות לספקים עם מעקב DHL מלא (סטטוס, tracking, ETA, מיקום, אירועים JSON, הסדר RMA/זיכוי)
+- `waste_return_items` — קשר many-to-many בין החזרות לפריטי בלאי
 
 ### מפת מחסן
 - `warehouse_zone_products` — שיוך מוצרים לאזורים במחסן (zone_id, product_id)
@@ -299,6 +301,7 @@ mcp-server/              # MCP Server לאינטגרציה עם Claude Code (30+
 | `dispatch-order-request-notifications` | שליחת התראות לבקשות הזמנה (אימייל ב-Resend + Web Push דרך VAPID) |
 | `sync-frisbee` | סינכרון בדיקות QA מ-Base44 לטבלאות `frisbee_inspections` + `frisbee_inspection_equipment` (פריזבי קרסו — Bearer auth) |
 | `sync-lubinski` | סינכרון נתוני אביזרים מ-Base44 לטבלאות frisbee_* (לובינסקי — api_key auth) |
+| `track-waste-return` | רענון סטטוס מעקב DHL עבור החזרת בלאי לספק לפי return_id |
 
 ---
 

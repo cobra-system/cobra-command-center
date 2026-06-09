@@ -36,7 +36,8 @@ const ReportsPage = lazy(() => import("@/pages/ReportsPage"));
 const MyTasksPage = lazy(() => import("@/pages/MyTasksPage"));
 const MyTaskDetailPage = lazy(() => import("@/pages/MyTaskDetailPage"));
 const IssuesPage = lazy(() => import("@/pages/IssuesPage"));
-const WasteManagementPage = lazy(() => import("@/pages/WasteManagementPage"));
+const WasteManagementPage = lazy(() => import("@/pages/WastePage"));
+const WasteReturnDetailPage = lazy(() => import("@/pages/WasteReturnDetailPage"));
 const EquipmentPage = lazy(() => import("@/pages/EquipmentPage"));
 const InstallerDetailPage = lazy(() => import("@/pages/InstallerDetailPage"));
 const DivisionDetailPage = lazy(() => import("@/pages/DivisionDetailPage"));
@@ -158,6 +159,7 @@ function AppRoutes() {
         <Route path="/reorder" element={<ReorderPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/waste-management" element={<WasteManagementPage />} />
+        <Route path="/waste-management/returns/:id" element={<WasteReturnDetailPage />} />
         <Route path="/equipment" element={<EquipmentPage />} />
         <Route path="/equipment/installer/:id" element={<InstallerDetailPage />} />
         <Route path="/equipment/division/:divisionName" element={<DivisionDetailPage />} />
