@@ -157,6 +157,12 @@ export function useTreemapData(filters: TreemapFilters) {
     return Array.from(set).sort((a, b) => a.localeCompare(b, "he"));
   }, [divStockByProduct]);
 
+  const supplierIdByName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const s of suppliers) map.set(s.company, s.id);
+    return map;
+  }, [suppliers]);
+
   const items = useMemo(() => {
     let products = scopedProducts;
 
@@ -171,7 +177,6 @@ export function useTreemapData(filters: TreemapFilters) {
 
     let mapped: TreemapItem[] = products.map(p => {
       const divEntries = divStockByProduct.get(p.id) ?? [];
-      const supplierObj = suppliers.find(s => s.company === p.supplier);
 
       let stockQty: number;
       let consumption: number;
@@ -211,7 +216,7 @@ export function useTreemapData(filters: TreemapFilters) {
         ratio: consumption > 0 ? stockQty / consumption : 0,
         category: filters.category === NO_CATEGORY_GROUP ? NO_CATEGORY_GROUP : (p.category || "ללא קטגוריה"),
         supplier: p.supplier ?? undefined,
-        supplierId: supplierObj?.id,
+        supplierId: p.supplier ? supplierIdByName.get(p.supplier) : undefined,
         stockQty,
         consumption,
         incomingQty: p.incoming_qty,
@@ -250,7 +255,7 @@ export function useTreemapData(filters: TreemapFilters) {
     }
 
     return mapped;
-  }, [scopedProducts, avgByProduct, filters, divStockByProduct, isDivMgr, userDivision, isManager, suppliers, issuesByProduct, lastOrderByProduct]);
+  }, [scopedProducts, avgByProduct, filters, divStockByProduct, isDivMgr, userDivision, isManager, supplierIdByName, issuesByProduct, lastOrderByProduct]);
 
   return { items, categories: activeCats, suppliers: uniqueSuppliers, divisions: uniqueDivisions, isManager };
 }

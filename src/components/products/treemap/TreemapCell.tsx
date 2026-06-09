@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState } from "react";
+import { memo, useRef, useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import type { TreemapRect } from "./treemapLayout";
 import { getHealthColor } from "./treemapColors";
@@ -16,7 +16,7 @@ interface Props {
 
 const DRAG_THRESHOLD = 5;
 
-export default function TreemapCell({ rect, offsetX, offsetY, onSelect, onHoverCategory, isSearchMatch }: Props) {
+const TreemapCell = memo(function TreemapCell({ rect, offsetX, offsetY, onSelect, onHoverCategory, isSearchMatch }: Props) {
   const scale = useTreemapScale();
   const mouseDownPos = useRef<{ x: number; y: number } | null>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number } | null>(null);
@@ -165,4 +165,6 @@ export default function TreemapCell({ rect, offsetX, offsetY, onSelect, onHoverC
       )}
     </>
   );
-}
+});
+
+export default TreemapCell;
