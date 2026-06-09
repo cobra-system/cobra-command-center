@@ -7,11 +7,16 @@
 
 ## [2026-06-09]
 
+- Merge pull request #239 from cobra-system/claude/gracious-maxwell-t2B05 (62f5388)
+- feat: remove forecast feature from consumption chart (7f5e88b)
+
+<!-- last-commit: 62f53888fed6d14a9554b21f81f995cc3141f85b -->
+## [2026-06-09]
+
 - Merge pull request #237 from cobra-system/claude/gracious-maxwell-t2B05 (e686dc0)
 - fix: chart UI — fewer avg lines (12% threshold), no confidence band, clean forecast (2653880)
 - fix: X-axis labels showing 'undefined N' — normalize DB date format (c08a32c)
 
-<!-- last-commit: e686dc019c390c4abf1256e307934aca584e3e51 -->
 ## [2026-06-09]
 
 - Merge pull request #236 from cobra-system/claude/focused-knuth-HfK5j (8dee875)
