@@ -23,9 +23,11 @@ type ViewMode = "aggregate" | "compare" | "stacked";
 
 const MONTHS_HE = ["ינו", "פבר", "מרץ", "אפר", "מאי", "יוני", "יולי", "אוג", "ספט", "אוק", "נוב", "דצמ"];
 
+// dateStr is always "YYYY-MM" after normalization in useProductConsumption
 function formatMonth(dateStr: string): string {
-  const d = new Date(dateStr + "-01");
-  return `${MONTHS_HE[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
+  const [year, mon] = dateStr.split("-");
+  const m = parseInt(mon, 10) - 1;
+  return `${MONTHS_HE[m] ?? "?"} ${year.slice(2)}`;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -45,12 +47,6 @@ function orderColorPriority(c: string) {
   return c === "#f97316" ? 3 : c === "#2563eb" ? 2 : c === "#16a34a" ? 1 : 0;
 }
 
-const AVG_LINES = [
-  { key: "avgAnnual",   label: "שנתי",    color: "#16a34a" },
-  { key: "avgHalfYear", label: "חצי שנתי", color: "#eab308" },
-  { key: "avgQuarter",  label: "רבעוני",   color: "#f97316" },
-] as const;
-
 const DIV_COLORS = [
   "#2563eb", "#7c3aed", "#0891b2", "#059669",
   "#d97706", "#dc2626", "#db2777", "#0284c7",
@@ -58,6 +54,7 @@ const DIV_COLORS = [
 
 const DATE_RANGE_LABELS: Record<DateRange, string> = { "3m": "3m", "6m": "6m", "1y": "שנה", "all": "הכל" };
 
+// Order badge rendered in SVG
 function OrderLabel({ viewBox, qty, color, tooltip }: {
   viewBox?: { x: number; y: number; height: number };
   qty: number;
@@ -69,7 +66,7 @@ function OrderLabel({ viewBox, qty, color, tooltip }: {
   return (
     <g>
       <title>{tooltip}</title>
-      <rect x={x - 15} y={y + 4} width={30} height={16} rx={3} fill={color} fillOpacity={0.92} />
+      <rect x={x - 15} y={y + 4} width={30} height={16} rx={3} fill={color} fillOpacity={0.9} />
       <text x={x} y={y + 15} textAnchor="middle" fill="white" fontSize={9} fontWeight="700">
         {qty > 0 ? `📦 ${qty}` : "📦"}
       </text>
@@ -81,7 +78,7 @@ function ChartTooltip({
   active, payload, label, viewMode, activeDivisions,
 }: {
   active?: boolean;
-  payload?: Array<{ dataKey: string; value: number; color: string; payload: Record<string, unknown> }>;
+  payload?: Array<{ dataKey: string; value: number; payload: Record<string, unknown> }>;
   label?: string;
   viewMode: ViewMode;
   activeDivisions: string[];
@@ -92,23 +89,15 @@ function ChartTooltip({
   return (
     <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-lg min-w-[120px]" dir="rtl">
       <p className="font-semibold text-foreground mb-1">{label}{isForecast ? " (תחזית)" : ""}</p>
-      {viewMode === "aggregate" && !isForecast && (
+      {viewMode === "aggregate" && (
         <p className="text-muted-foreground">
-          כמות: <span className="text-foreground font-medium">{payload[0]?.value ?? 0}</span>
+          כמות: <span className="text-foreground font-medium">
+            {isForecast ? first.forecastQty as number : payload[0]?.value ?? 0}
+          </span>
         </p>
       )}
-      {viewMode === "aggregate" && isForecast && (
-        <>
-          <p className="text-muted-foreground">
-            תחזית: <span className="text-foreground font-medium">{first.forecastQty as number}</span>
-          </p>
-          <p className="text-muted-foreground text-[10px]">
-            טווח: {first.forecastLow as number} – {((first.forecastLow as number) + (first.forecastBand as number)).toFixed(1)}
-          </p>
-        </>
-      )}
       {(viewMode === "compare" || viewMode === "stacked") && activeDivisions.map(div => {
-        const val = first[div] as number ?? 0;
+        const val = (first[div] as number) ?? 0;
         return val > 0 ? (
           <p key={div} className="text-muted-foreground">
             {div}: <span className="text-foreground font-medium">{val}</span>
@@ -169,6 +158,17 @@ export function ProductConsumptionChart({
     [monthlyData],
   );
 
+  // Only show avg lines that are meaningfully different (>12% gap) to avoid clutter
+  const visibleAvgLines = useMemo(() => {
+    const lines: { label: string; value: number; color: string }[] = [];
+    if (avgAnnual > 0) lines.push({ label: "ממוצע שנתי", value: avgAnnual, color: "#16a34a" });
+    if (avgHalfYear > 0 && Math.abs(avgHalfYear - avgAnnual) / Math.max(avgAnnual, 1) > 0.12)
+      lines.push({ label: "חצי שנתי", value: avgHalfYear, color: "#eab308" });
+    if (avgQuarter > 0 && Math.abs(avgQuarter - avgHalfYear) / Math.max(avgHalfYear, avgAnnual, 1) > 0.12)
+      lines.push({ label: "רבעוני", value: avgQuarter, color: "#f97316" });
+    return lines;
+  }, [avgAnnual, avgHalfYear, avgQuarter]);
+
   const divisionMonthlyMaps = useMemo(() => {
     const result = new Map<string, Map<string, number>>();
     for (const div of activeDivisionsList) {
@@ -209,11 +209,12 @@ export function ProductConsumptionChart({
       }
       points.push(point);
     }
+    // Append forecast (aggregate mode only) — just the line, no band
     if (viewMode === "aggregate") {
       for (const fp of forecastPoints) {
         points.push({
           month: fp.month, label: formatMonth(fp.month), isForecast: true,
-          forecastQty: fp.forecastQty, forecastLow: fp.forecastLow, forecastBand: fp.forecastBand,
+          forecastQty: fp.forecastQty,
         });
       }
     }
@@ -282,39 +283,28 @@ export function ProductConsumptionChart({
 
   const stockoutLabel = stockoutMonth ? formatMonth(stockoutMonth) : null;
   const reorderLabel = reorderPoint && reorderPoint > 0 ? reorderPoint : null;
-  const showForecastArea = viewMode === "aggregate" && forecastPoints.length > 0;
+  const showForecast = viewMode === "aggregate" && forecastPoints.length > 0;
 
   return (
     <Card>
       <CardHeader className="pb-2">
         <div className="flex flex-col gap-2">
 
-          {/* ── Row 1: title ────────────────────────────────────────────── */}
-          <div className="flex items-center justify-between gap-2">
+          {/* ── Row 1: title + avg summary ──────────────────────────── */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
             <CardTitle className="text-base">מגמת צריכה חודשית</CardTitle>
-            {/* Avg legend — hidden on mobile, shown sm+ */}
-            <div className="hidden sm:flex items-center gap-3 text-[11px]">
-              {AVG_LINES.map(l => {
-                const val = l.key === "avgAnnual" ? avgAnnual : l.key === "avgHalfYear" ? avgHalfYear : avgQuarter;
-                return val > 0 ? (
-                  <span key={l.key} className="flex items-center gap-1">
-                    <span className="inline-block w-3.5 h-0.5" style={{ borderTop: `2px dashed ${l.color}` }} />
-                    <span style={{ color: l.color }} className="font-medium">{l.label}: {Math.ceil(val)}</span>
-                  </span>
-                ) : null;
-              })}
-              {stockQty !== undefined && (
-                <span className="flex items-center gap-1 text-muted-foreground">
-                  <span className="inline-block w-3.5 h-0.5" style={{ borderTop: "2px dashed #6b7280" }} />
-                  מלאי: {stockQty}
+            <div className="flex items-center gap-3 text-[11px] flex-wrap">
+              {visibleAvgLines.map(l => (
+                <span key={l.label} className="flex items-center gap-1">
+                  <span className="inline-block w-4 h-0.5" style={{ borderTop: `2px dashed ${l.color}` }} />
+                  <span style={{ color: l.color }} className="font-medium">{l.label}: {Math.ceil(l.value)}</span>
                 </span>
-              )}
+              ))}
             </div>
           </div>
 
-          {/* ── Row 2: controls ─────────────────────────────────────────── */}
+          {/* ── Row 2: controls ─────────────────────────────────────── */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            {/* Date range */}
             {(["3m", "6m", "1y", "all"] as DateRange[]).map(r => (
               <button
                 key={r}
@@ -329,7 +319,6 @@ export function ProductConsumptionChart({
               </button>
             ))}
 
-            {/* View mode toggle */}
             {showModeToggle && (
               <div className="flex items-center border border-border rounded overflow-hidden text-[11px]">
                 {(["aggregate", "compare", "stacked"] as ViewMode[]).map(mode => {
@@ -351,7 +340,6 @@ export function ProductConsumptionChart({
               </div>
             )}
 
-            {/* Order markers toggle */}
             {relatedOrders && relatedOrders.length > 0 && (
               <button
                 onClick={() => setShowOrders(v => !v)}
@@ -364,18 +352,6 @@ export function ProductConsumptionChart({
                 הזמנות {showOrders ? "✓" : ""}
               </button>
             )}
-
-            {/* Avg legend — mobile inline, placed after controls */}
-            <div className="flex sm:hidden items-center gap-2 text-[10px] flex-wrap mr-auto">
-              {AVG_LINES.map(l => {
-                const val = l.key === "avgAnnual" ? avgAnnual : l.key === "avgHalfYear" ? avgHalfYear : avgQuarter;
-                return val > 0 ? (
-                  <span key={l.key} style={{ color: l.color }} className="font-medium">
-                    {l.label}: {Math.ceil(val)}
-                  </span>
-                ) : null;
-              })}
-            </div>
           </div>
 
           {/* ── Row 3: division pills ────────────────────────────────── */}
@@ -383,7 +359,7 @@ export function ProductConsumptionChart({
             <div className="flex items-center gap-1 flex-wrap" dir="rtl">
               <button
                 onClick={() => setSelectedDivisions(null)}
-                className={`px-2 py-0.5 rounded-md text-xs font-medium border transition-all duration-150 ${
+                className={`px-2 py-0.5 rounded-md text-xs font-medium border transition-all ${
                   isAllSelected
                     ? "bg-foreground text-background border-foreground"
                     : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
@@ -398,17 +374,13 @@ export function ProductConsumptionChart({
                   <button
                     key={div}
                     onClick={() => toggleDivision(div)}
-                    className={`px-2 py-0.5 rounded-md text-xs font-medium border transition-all duration-150 ${
-                      active
-                        ? "text-white border-transparent"
-                        : "bg-transparent border-border text-muted-foreground hover:text-foreground hover:border-foreground"
+                    className={`px-2 py-0.5 rounded-md text-xs font-medium border transition-all ${
+                      active ? "text-white border-transparent" : "border-border text-muted-foreground hover:text-foreground hover:border-foreground"
                     }`}
                     style={active ? { backgroundColor: color, borderColor: color } : {}}
                   >
-                    <span
-                      className="inline-block w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full mr-0.5"
-                      style={{ backgroundColor: color, opacity: active ? 1 : 0.5 }}
-                    />
+                    <span className="inline-block w-1.5 h-1.5 rounded-full mr-0.5 align-middle"
+                      style={{ backgroundColor: color, opacity: active ? 1 : 0.4 }} />
                     {div}
                   </button>
                 );
@@ -421,110 +393,95 @@ export function ProductConsumptionChart({
       <CardContent className="pb-4">
         <div className="h-[260px] sm:h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData as never[]} margin={{ top: 12, right: 8, left: 0, bottom: 4 }}>
+            <AreaChart data={chartData as never[]} margin={{ top: 10, right: 8, left: 0, bottom: 4 }}>
               <defs>
-                <linearGradient id="cg-history" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.28} />
+                <linearGradient id="grad-history" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.25} />
                   <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.02} />
+                </linearGradient>
+                <linearGradient id="grad-forecast" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.08} />
+                  <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.01} />
                 </linearGradient>
               </defs>
 
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.06)" />
               <XAxis dataKey="label" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-              <YAxis domain={[0, "auto"]} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={30} />
+              <YAxis domain={[0, "auto"]} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={32} />
 
               <Tooltip content={<ChartTooltip viewMode={viewMode} activeDivisions={activeDivisionsList} />} />
 
+              {/* ── Aggregate: history area + forecast dashed line ──── */}
               {viewMode === "aggregate" && (
                 <>
                   <Area type="monotone" dataKey="quantity"
                     stroke="#3b82f6" strokeWidth={2}
-                    fill="url(#cg-history)" dot={false}
+                    fill="url(#grad-history)" dot={false}
                     activeDot={{ r: 4, strokeWidth: 0 }} connectNulls={false} />
-                  {showForecastArea && (
-                    <Area type="monotone" dataKey="forecastLow" stackId="fc"
-                      stroke="none" fill="transparent" dot={false}
-                      legendType="none" activeDot={false} connectNulls />
-                  )}
-                  {showForecastArea && (
-                    <Area type="monotone" dataKey="forecastBand" stackId="fc"
-                      stroke="none" fill="rgba(59,130,246,0.12)" dot={false}
-                      legendType="none" activeDot={false} connectNulls />
-                  )}
-                  {showForecastArea && (
+                  {showForecast && (
                     <Area type="monotone" dataKey="forecastQty"
-                      stroke="#3b82f6" strokeWidth={2} strokeDasharray="6 4"
-                      fill="none" dot={false} activeDot={{ r: 4, strokeWidth: 0 }} connectNulls />
+                      stroke="#3b82f6" strokeWidth={1.5} strokeDasharray="6 4"
+                      fill="url(#grad-forecast)" dot={false}
+                      activeDot={{ r: 4, strokeWidth: 0 }} connectNulls />
                   )}
                 </>
               )}
 
+              {/* ── Compare / Stacked ───────────────────────────────── */}
               {(viewMode === "compare" || viewMode === "stacked") &&
                 activeDivisionsList.map((div, i) => {
                   const color = DIV_COLORS[i % DIV_COLORS.length];
                   return (
                     <Area key={div} type="monotone" dataKey={div}
                       stackId={viewMode === "stacked" ? "stack" : undefined}
-                      stroke={color}
-                      strokeWidth={viewMode === "compare" ? 2 : 1.5}
-                      fill={color} fillOpacity={viewMode === "stacked" ? 0.55 : 0.12}
+                      stroke={color} strokeWidth={2}
+                      fill={color} fillOpacity={viewMode === "stacked" ? 0.5 : 0.1}
                       dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
                   );
                 })
               }
 
-              {avgAnnual > 0 && (
-                <ReferenceLine y={avgAnnual} stroke="#16a34a" strokeDasharray="5 4"
-                  label={{ value: `שנתי  ${Math.ceil(avgAnnual)}`, position: "insideTopLeft", fontSize: 10, fill: "#16a34a" }} />
-              )}
-              {avgHalfYear > 0 && Math.abs(avgHalfYear - avgAnnual) > 1 && (
-                <ReferenceLine y={avgHalfYear} stroke="#eab308" strokeDasharray="5 4"
-                  label={{ value: `חצי שנתי  ${Math.ceil(avgHalfYear)}`, position: "insideTopLeft", fontSize: 10, fill: "#eab308" }} />
-              )}
-              {avgQuarter > 0 && Math.abs(avgQuarter - avgHalfYear) > 1 && (
-                <ReferenceLine y={avgQuarter} stroke="#f97316" strokeDasharray="5 4"
-                  label={{ value: `רבעוני  ${Math.ceil(avgQuarter)}`, position: "insideTopLeft", fontSize: 10, fill: "#f97316" }} />
-              )}
+              {/* ── Avg reference lines (deduplicated) ──────────────── */}
+              {visibleAvgLines.map(l => (
+                <ReferenceLine key={l.label} y={l.value}
+                  stroke={l.color} strokeDasharray="5 4" strokeOpacity={0.7}
+                  label={{ value: `${Math.ceil(l.value)}`, position: "insideTopLeft", fontSize: 10, fill: l.color }} />
+              ))}
 
+              {/* ── Reorder point ────────────────────────────────────── */}
               {reorderLabel && (
-                <ReferenceLine y={reorderLabel} stroke="#f97316" strokeDasharray="3 3" strokeWidth={1}
-                  label={{ value: `נק' הזמנה ${reorderLabel}`, position: "insideBottomLeft", fontSize: 9, fill: "#f97316" }} />
+                <ReferenceLine y={reorderLabel} stroke="#f97316" strokeDasharray="3 3" strokeWidth={1} strokeOpacity={0.6}
+                  label={{ value: `הזמנה ${reorderLabel}`, position: "insideBottomLeft", fontSize: 9, fill: "#f97316" }} />
               )}
 
+              {/* ── Stockout marker (all modes) ──────────────────────── */}
               {stockoutLabel && (
-                <ReferenceLine x={stockoutLabel} stroke="#ef4444" strokeDasharray="5 3" strokeWidth={2}
-                  label={{ value: `אזל  ${stockoutLabel}`, position: "insideTopRight", fontSize: 10, fill: "#ef4444" }} />
+                <ReferenceLine x={stockoutLabel} stroke="#ef4444" strokeDasharray="5 3" strokeWidth={1.5}
+                  label={{ value: `אזל ${stockoutLabel}`, position: "insideTopRight", fontSize: 10, fill: "#ef4444" }} />
               )}
 
+              {/* ── Order event markers ──────────────────────────────── */}
               {orderMarkers.map(({ label, qty, color, tooltip }) => (
                 <ReferenceLine key={`order-${label}`} x={label}
                   stroke={color} strokeDasharray="3 3" strokeWidth={1.5}
-                  label={<OrderLabel qty={qty} color={color} tooltip={tooltip} />}
-                />
+                  label={<OrderLabel qty={qty} color={color} tooltip={tooltip} />} />
               ))}
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
-        {/* ── Bottom legend ─────────────────────────────────────────────── */}
-        {(showForecastArea || stockoutLabel) && (
-          <div className="flex items-center gap-2 mt-2 text-[10px] text-muted-foreground flex-wrap">
-            {showForecastArea && (
-              <>
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-5 h-0.5" style={{ borderTop: "2px dashed #3b82f6" }} />
-                  תחזית {forecastPoints.length} חודשים
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-4 h-3 rounded-sm" style={{ background: "rgba(59,130,246,0.2)" }} />
-                  טווח אמון (±σ)
-                </span>
-              </>
+        {/* ── Bottom status bar ─────────────────────────────────────── */}
+        {(showForecast || stockoutLabel) && (
+          <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground flex-wrap">
+            {showForecast && (
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-5 h-0.5" style={{ borderTop: "2px dashed #3b82f6" }} />
+                תחזית {forecastPoints.length} חודשים
+              </span>
             )}
             {stockoutLabel ? (
-              <span className="flex items-center gap-1 text-red-500 font-medium">
-                <span className="inline-block w-5 h-0.5" style={{ borderTop: "2px dashed #ef4444" }} />
-                צפי אזילה: {stockoutLabel}
+              <span className="flex items-center gap-1 text-red-500 font-semibold">
+                ⚠ צפי אזילה: {stockoutLabel}
               </span>
             ) : stockQty !== undefined && forecastPoints.length > 0 ? (
               <span className="text-green-600 font-medium">✓ מלאי מספיק לאופק התחזית</span>
@@ -532,8 +489,9 @@ export function ProductConsumptionChart({
           </div>
         )}
 
+        {/* ── Division color legend ─────────────────────────────────── */}
         {(viewMode === "compare" || viewMode === "stacked") && hasMultiDivisions && (
-          <div className="flex items-center gap-2 mt-2 flex-wrap text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-3 mt-2 flex-wrap text-[10px] text-muted-foreground">
             {activeDivisionsList.map((div, i) => (
               <span key={div} className="flex items-center gap-1">
                 <span className="inline-block w-3 h-3 rounded-sm" style={{ background: DIV_COLORS[i % DIV_COLORS.length] }} />

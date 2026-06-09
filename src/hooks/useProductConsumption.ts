@@ -55,7 +55,10 @@ export function useProductConsumption(productId: string | undefined): ProductCon
       .select("month, quantity, division")
       .eq("product_id", productId)
       .order("month", { ascending: true });
-    setRawRows((data ?? []) as ConsumptionRow[]);
+    // Normalize month to "YYYY-MM" — DB returns date columns as "YYYY-MM-DD"
+    setRawRows(
+      (data ?? []).map(r => ({ ...(r as ConsumptionRow), month: (r as ConsumptionRow).month.slice(0, 7) }))
+    );
     setLoading(false);
   }, [productId]);
 
