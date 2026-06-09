@@ -7,13 +7,19 @@
 
 ## [2026-06-09]
 
+- Merge pull request #237 from cobra-system/claude/gracious-maxwell-t2B05 (e686dc0)
+- fix: chart UI — fewer avg lines (12% threshold), no confidence band, clean forecast (2653880)
+- fix: X-axis labels showing 'undefined N' — normalize DB date format (c08a32c)
+
+<!-- last-commit: e686dc019c390c4abf1256e307934aca584e3e51 -->
+## [2026-06-09]
+
 - Merge pull request #236 from cobra-system/claude/focused-knuth-HfK5j (8dee875)
 - docs(claude): update storage key for WasteSupplierReturnsTab (556d3db)
 - chore: remove deleted WasteManagementPage.tsx (replaced by WastePage) (7e1dff8)
 - docs: update README for waste system rebuild (new routes, tables, edge function) (8e4ed8d)
 - feat(waste): rebuild waste management system from scratch (e7fef52)
 
-<!-- last-commit: 8dee875cc3173c78dff5c91d1712da3d0eaa9041 -->
 ## [2026-06-09]
 
 - fix: mobile responsiveness for consumption chart, treemap panel & filter bar (581d996)
