@@ -7,13 +7,21 @@
 
 ## [2026-06-09]
 
+- Merge pull request #236 from cobra-system/claude/focused-knuth-HfK5j (8dee875)
+- docs(claude): update storage key for WasteSupplierReturnsTab (556d3db)
+- chore: remove deleted WasteManagementPage.tsx (replaced by WastePage) (7e1dff8)
+- docs: update README for waste system rebuild (new routes, tables, edge function) (8e4ed8d)
+- feat(waste): rebuild waste management system from scratch (e7fef52)
+
+<!-- last-commit: 8dee875cc3173c78dff5c91d1712da3d0eaa9041 -->
+## [2026-06-09]
+
 - fix: mobile responsiveness for consumption chart, treemap panel & filter bar (581d996)
 - feat: forecast in all view modes, smart date range, richer order tooltips, division stockout (7939046)
 - feat: enterprise consumption chart — forecast, order markers, stacked view (a476aa9)
 - perf: optimize products pages — debounce, memo, precomputed maps (a9344ee)
 - refactor: client-side division aggregation + multi-select filter in consumption chart (b5871b7)
 
-<!-- last-commit: 3b17ac6dd8ee46a30b54b50ef92e2c005a26bc5f -->
 ## [2026-06-07]
 
 - feat: add avg values on reference lines and division filter to consumption chart (0f333fd)
