@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/contexts/AppContext";
+import { useAuth, useCurrency } from "@/contexts/AppContext";
 import { canSeeDocuments } from "@/lib/permissions";
 import type { PurchaseDocument, Payment } from "@/components/documents/types";
 import { docStatusFlow, docStatusColors, payStatusColors, currencySymbol, paymentTypeLabels } from "@/components/documents/constants";
@@ -23,6 +23,7 @@ const docTypes = ["PI", "PO", "כללי"] as const;
 export default function DocumentsSection({ supplierId, productId, orderId }: Props) {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const { formatPrice } = useCurrency();
   const [docs, setDocs] = useState<PurchaseDocument[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,7 +141,7 @@ export default function DocumentsSection({ supplierId, productId, orderId }: Pro
                       </Popover>
                     </td>
                     <td className="p-3 text-muted-foreground font-mono" dir="ltr">
-                      {doc.total_price ? `${currencySymbol[doc.currency] || ""}${doc.total_price.toLocaleString()}` : "—"}
+                      {doc.total_price ? formatPrice(doc.total_price, doc.currency) : "—"}
                     </td>
                     <td className="p-3" onClick={e => e.stopPropagation()}>
                       <Popover>
@@ -197,7 +198,7 @@ export default function DocumentsSection({ supplierId, productId, orderId }: Pro
                     const displayStatus = isOverdue ? "מאוחר" : p.status;
                     return (
                       <tr key={p.id} className={isOverdue ? "bg-destructive/5" : ""}>
-                        <td className="p-3 font-mono" dir="ltr">{currencySymbol[p.currency] || ""}{p.amount.toLocaleString()}</td>
+                        <td className="p-3 font-mono" dir="ltr">{formatPrice(p.amount, p.currency)}</td>
                         <td className="p-3 text-muted-foreground">{paymentTypeLabels[p.payment_type] || p.payment_type}</td>
                         <td className="p-3 text-muted-foreground text-xs">{p.due_date ? format(new Date(p.due_date), "dd/MM/yyyy") : "—"}</td>
                         <td className="p-3">

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect, useMemo } from "react";
-import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
+import { useData, useCurrency, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Trash2, CreditCard, Check, Ship, Hash, Plus, Pencil, ChevronRight, Warehouse } from "lucide-react";
@@ -64,6 +64,7 @@ export default function OrderDetailPage() {
   const { updateOrderStatus, updateOrder, deleteOrder, refreshOrders, updateProduct, updateComponent } = useData();
   const { scopedOrders: orders, scopedSuppliers: suppliers, scopedProducts: products, scopeOrderItems } = useProductScope();
   const { currentUser } = useAuth();
+  const { formatPrice } = useCurrency();
   const showPrices = canSeePrices(currentUser);
 
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -191,25 +192,25 @@ export default function OrderDetailPage() {
     if (enteredPrice !== null && enteredPrice > 0) {
       if (linkedComponent && enteredPrice !== linkedComponent.price) {
         const compName = linkedComponent.name;
-        toast.info(`מחיר הרכיב "${compName}" לא מוגדר או שונה. תרצה לעדכן ל-$${enteredPrice}?`, {
+        toast.info(`מחיר הרכיב "${compName}" לא מוגדר או שונה. תרצה לעדכן ל-${formatPrice(enteredPrice)}?`, {
           action: {
             label: "עדכן",
             onClick: async () => {
               await updateComponent(linkedComponent.id, { price: enteredPrice });
-              toast.success(`מחיר הרכיב "${compName}" עודכן ל-$${enteredPrice}`);
+              toast.success(`מחיר הרכיב "${compName}" עודכן ל-${formatPrice(enteredPrice)}`);
             },
           },
           duration: 10000,
         });
       } else if (linkedProduct && !linkedComponent && enteredPrice !== linkedProduct.purchase_price) {
         const prodName = linkedProduct.name;
-        toast.info(`מחיר הרכישה של "${prodName}" לא מוגדר או שונה. תרצה לעדכן ל-$${enteredPrice}?`, {
+        toast.info(`מחיר הרכישה של "${prodName}" לא מוגדר או שונה. תרצה לעדכן ל-${formatPrice(enteredPrice)}?`, {
           action: {
             label: "עדכן",
             onClick: async () => {
               try {
                 await updateProduct(linkedProduct.id, { purchase_price: enteredPrice });
-                toast.success(`מחיר הרכישה של "${prodName}" עודכן ל-$${enteredPrice}`);
+                toast.success(`מחיר הרכישה של "${prodName}" עודכן ל-${formatPrice(enteredPrice)}`);
               } catch {
                 // error toast already shown by AppContext
               }
@@ -332,7 +333,7 @@ export default function OrderDetailPage() {
               <InlineEditField key={d.label} label={d.label} value={d.value}
                 displayValue={supplierMatch ? (
                   <button onClick={() => navigate(`/suppliers/${supplierMatch.id}`)} className="text-sm font-medium text-primary hover:underline">{supplierMatch.company}</button>
-                ) : d.field === "total_price" && d.value ? `$${d.value}` : undefined}
+                ) : d.field === "total_price" && d.value ? formatPrice(Number(d.value)) : undefined}
                 type={d.field === "total_price" ? "number" : "text"}
                 onSave={(v) => handleInlineSave(d.field, v)} disabled={d.isReadOnly || !hasEdit} options={d.options} />
             );
@@ -473,8 +474,8 @@ export default function OrderDetailPage() {
                     {linkedProduct ? <span className="text-primary hover:underline">{item.name}</span> : item.name}
                   </td>
                   <td className="p-3 text-muted-foreground">{item.qty}</td>
-                  {showPrices && <td className="p-3 text-muted-foreground">{item.price ? `$${item.price}` : "—"}</td>}
-                  {showPrices && <td className="p-3 text-muted-foreground">{item.price ? `$${(item.price * item.qty).toLocaleString()}` : "—"}</td>}
+                  {showPrices && <td className="p-3 text-muted-foreground">{item.price ? formatPrice(item.price) : "—"}</td>}
+                  {showPrices && <td className="p-3 text-muted-foreground">{item.price ? formatPrice(item.price * item.qty) : "—"}</td>}
                   {hasEdit && (
                     <td className="p-3" onClick={e => e.stopPropagation()}>
                       <div className="flex gap-1">

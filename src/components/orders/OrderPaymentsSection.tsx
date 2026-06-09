@@ -14,7 +14,7 @@ import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import type { ColDef } from "@/hooks/useColumnVisibility";
 import type { OrderPayment } from "@/contexts/types";
-import { useAuth } from "@/contexts/AppContext";
+import { useAuth, useCurrency } from "@/contexts/AppContext";
 import { canSeePrices } from "@/lib/permissions";
 
 import { format } from "date-fns";
@@ -58,6 +58,7 @@ const statusColors: Record<string, string> = {
 
 export function OrderPaymentsSection({ orderId, orderTotal, hasEdit }: Props) {
   const { currentUser } = useAuth();
+  const { formatPrice } = useCurrency();
   const [payments, setPayments] = useState<OrderPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -236,20 +237,20 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit }: Props) {
             <div>
               <span className="text-muted-foreground text-xs">סה״כ מתוכנן: </span>
               <span className={cn("font-semibold", orderTotal && Math.abs(totalScheduled - orderTotal) > 1 ? "text-warning" : "")}>
-                ${totalScheduled.toLocaleString()}
+                {formatPrice(totalScheduled)}
               </span>
               {orderTotal && Math.abs(totalScheduled - orderTotal) > 1 && (
-                <span className="text-xs text-muted-foreground mr-1">(ס״כ הזמנה: ${orderTotal.toLocaleString()})</span>
+                <span className="text-xs text-muted-foreground mr-1">(ס״כ הזמנה: {formatPrice(orderTotal)})</span>
               )}
             </div>
             <div>
               <span className="text-muted-foreground text-xs">שולם: </span>
-              <span className="font-semibold text-success">${totalPaid.toLocaleString()}</span>
+              <span className="font-semibold text-success">{formatPrice(totalPaid)}</span>
             </div>
             <div>
               <span className="text-muted-foreground text-xs">נותר: </span>
               <span className={cn("font-semibold", remaining > 0 ? "text-warning" : "text-success")}>
-                ${remaining.toLocaleString()}
+                {formatPrice(remaining)}
               </span>
             </div>
           </div>
@@ -292,7 +293,7 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit }: Props) {
                   )}
                   {isVisible("amount") && (
                     <td className="p-3 font-medium">
-                      {p.amount ? `${p.currency === "USD" ? "$" : p.currency === "EUR" ? "€" : "₪"}${p.amount.toLocaleString()}` : "—"}
+                      {p.amount ? formatPrice(p.amount, p.currency) : "—"}
                     </td>
                   )}
                   {isVisible("currency") && (

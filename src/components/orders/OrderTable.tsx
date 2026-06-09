@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { type Order, type OrderStatus } from "@/contexts/AppContext";
+import { type Order, type OrderStatus, useCurrency } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { Trash2, Copy, ArrowUpDown, ArrowUp, ArrowDown, Eye, RefreshCw, Truck, ShoppingCart } from "lucide-react";
@@ -91,6 +91,7 @@ export function OrderTable({
   selection,
   hidePrices,
 }: OrderTableProps) {
+  const { formatPrice } = useCurrency();
   const navigate = useNavigate();
   const colVis = useColumnVisibility("orders:hidden-columns", COLUMN_DEFS, ["total_price", "pi_number"]);
   const isVisible = (id: string) => hidePrices && PRICE_COLS.has(id) ? false : colVis.isVisible(id);
@@ -376,7 +377,7 @@ export function OrderTable({
                       <td className="p-3 text-muted-foreground text-xs">{order.eta ? format(new Date(order.eta), "dd/MM/yyyy") : "—"}</td>
                     )}
                     {isVisible("total_price") && (
-                      <td className="p-3 text-muted-foreground text-xs">{order.total_price ? `$${order.total_price.toLocaleString()}` : "—"}</td>
+                      <td className="p-3 text-muted-foreground text-xs">{order.total_price ? formatPrice(order.total_price) : "—"}</td>
                     )}
                     {isVisible("payment") && (
                       <td className="p-3" onClick={e => e.stopPropagation()}>

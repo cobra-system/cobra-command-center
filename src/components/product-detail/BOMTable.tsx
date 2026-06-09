@@ -10,7 +10,7 @@ import { InlineEditField } from "@/components/InlineEditField";
 import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 import { toast } from "sonner";
 import type { Product, Supplier, ProductComponent } from "@/contexts/AppContext";
-import { useAuth } from "@/contexts/AppContext";
+import { useAuth, useCurrency } from "@/contexts/AppContext";
 import { canSeePrices } from "@/lib/permissions";
 
 interface BOMTableProps {
@@ -37,6 +37,7 @@ const emptyNewComp = { name: "", sku: "", supplier: "", origin: "", stock_qty: "
 export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddComponent, onUpdateComponent, onDeleteComponent }: BOMTableProps) {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const { formatPrice } = useCurrency();
   const showPrices = canSeePrices(currentUser);
   const [addCompOpen, setAddCompOpen] = useState(false);
   const [editingCompId, setEditingCompId] = useState<string | null>(null);
@@ -315,7 +316,7 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
                             comp.stock_qty ?? "—"
                           )}
                         </td>
-                        {showPrices && <td className="p-3 text-muted-foreground">{comp.price ? `$${comp.price}` : "—"}</td>}
+                        {showPrices && <td className="p-3 text-muted-foreground">{comp.price ? formatPrice(comp.price) : "—"}</td>}
                         <td className="p-3 text-muted-foreground text-xs">{comp.notes || "—"}</td>
                         {hasEdit && (
                           <td className="p-3">

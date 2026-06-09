@@ -3,7 +3,7 @@ import { useFileDropPaste } from "@/hooks/useFileDropPaste";
 import * as XLSX from "xlsx";
 import mammoth from "mammoth";
 import { useParams, useNavigate } from "react-router-dom";
-import { useData, useAuth } from "@/contexts/AppContext";
+import { useData, useAuth, useCurrency } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
 import { logger } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
@@ -258,8 +258,7 @@ function generateDocumentPDF(
   element.style.direction = "rtl";
 
   const formatCurrency = (amount: number | null, currency: string) => {
-    if (amount === null || amount === undefined) return "—";
-    return `${currencySymbol[currency] || currency} ${amount.toLocaleString()}`;
+    return formatPrice(amount, currency);
   };
 
   element.innerHTML = `
@@ -354,6 +353,7 @@ export default function DocumentDetailPage() {
   const navigate = useNavigate();
   const { suppliers, products, orders } = useData();
   const { currentUser } = useAuth();
+  const { formatPrice } = useCurrency();
 
   const [doc, setDoc] = useState<PurchaseDocument | null>(null);
   const [linkedPayments, setLinkedPayments] = useState<Payment[]>([]);
@@ -648,7 +648,7 @@ export default function DocumentDetailPage() {
                 {/* Total - read only */}
                 <InfoCell label="סה״כ">
                   <p className="text-sm font-medium text-foreground">
-                    {doc.total_price ? `${currencySymbol[doc.currency] || ""}${doc.total_price.toLocaleString()}` : "—"}
+                    {formatPrice(doc.total_price, doc.currency)}
                   </p>
                 </InfoCell>
 
@@ -864,7 +864,7 @@ export default function DocumentDetailPage() {
                 return (
                   <div key={p.id} className={cn("rounded-lg border p-3 space-y-2", isOverdue ? "bg-destructive/5 border-destructive/30" : "bg-muted/20")}>
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-mono font-bold text-foreground" dir="ltr">{currencySymbol[p.currency] || ""}{p.amount.toLocaleString()}</span>
+                      <span className="text-sm font-mono font-bold text-foreground" dir="ltr">{formatPrice(p.amount, p.currency)}</span>
                       <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium shrink-0", payStatusColors[displayStatus] || "bg-muted text-muted-foreground")}>
                         {displayStatus}
                       </span>
@@ -902,7 +902,7 @@ export default function DocumentDetailPage() {
                     const displayStatus = isOverdue ? "מאוחר" : p.status;
                     return (
                       <tr key={p.id} className={isOverdue ? "bg-destructive/5" : ""}>
-                        <td className="p-3 font-mono" dir="ltr">{currencySymbol[p.currency] || ""}{p.amount.toLocaleString()}</td>
+                        <td className="p-3 font-mono" dir="ltr">{formatPrice(p.amount, p.currency)}</td>
                         <td className="p-3 text-muted-foreground">{paymentTypeLabels[p.payment_type] || p.payment_type}</td>
                         <td className="p-3 text-muted-foreground text-xs">{p.due_date ? format(new Date(p.due_date), "dd/MM/yyyy") : "—"}</td>
                         <td className="p-3">

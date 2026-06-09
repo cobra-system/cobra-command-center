@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { ExternalLink, X, ShoppingCart, Truck, Clock, AlertTriangle, Calendar } from "lucide-react";
 import type { TreemapItem } from "./treemapLayout";
 import { getHealthInfo } from "./treemapColors";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 interface Props {
   item: TreemapItem;
@@ -10,10 +11,11 @@ interface Props {
 
 export default function TreemapInfoPanel({ item, onClose }: Props) {
   const navigate = useNavigate();
+  const { formatPrice } = useCurrency();
   const health = getHealthInfo(item.stockQty, item.consumption);
   const months = item.consumption > 0 ? (item.stockQty / item.consumption).toFixed(1) : "—";
   const stockValue = item.purchasePrice
-    ? `$${(item.stockQty * item.purchasePrice).toLocaleString()}`
+    ? formatPrice(item.stockQty * item.purchasePrice)
     : null;
 
   return (
@@ -62,7 +64,7 @@ export default function TreemapInfoPanel({ item, onClose }: Props) {
           <Field label="צריכה/חודש" value={item.consumption.toLocaleString()} />
           <Field label="חודשי מלאי" value={months} />
           {stockValue && <Field label="שווי" value={stockValue} />}
-          {item.purchasePrice != null && <Field label="מחיר" value={`$${item.purchasePrice.toLocaleString()}`} />}
+          {item.purchasePrice != null && <Field label="מחיר" value={formatPrice(item.purchasePrice)} />}
           {item.leadTimeDays != null && (
             <span className="flex items-center gap-0.5 text-muted-foreground">
               <Clock className="h-3 w-3" />

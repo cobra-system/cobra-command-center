@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useData } from "@/contexts/AppContext";
+import { useData, useCurrency } from "@/contexts/AppContext";
 import { ArrowUpDown, ArrowUp, ArrowDown, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -36,6 +36,7 @@ const COLUMN_DEFS = [
 
 export default function PaymentsTable({ payments, search, onRefresh, onEdit }: Props) {
   const { suppliers } = useData();
+  const { formatPrice } = useCurrency();
   const navigate = useNavigate();
 
   const prefs = useTablePreferences("PaymentsTable", {
@@ -147,7 +148,7 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
                   <p className="text-xs text-muted-foreground mt-0.5">{paymentTypeLabels[p.payment_type] || p.payment_type}</p>
                 </div>
                 <div className="shrink-0 text-left">
-                  <p className="font-bold text-foreground" dir="ltr">{currencySymbol[p.currency] || ""}{p.amount.toLocaleString()}</p>
+                  <p className="font-bold text-foreground" dir="ltr">{formatPrice(p.amount, p.currency)}</p>
                   <span className={cn("mt-0.5 inline-block px-2 py-0.5 rounded-full text-xs font-medium", payStatusColors[displayStatus] || "bg-muted text-muted-foreground")}>
                     {displayStatus}
                   </span>
@@ -208,7 +209,7 @@ export default function PaymentsTable({ payments, search, onRefresh, onEdit }: P
               return (
                 <tr key={p.id} className={`hover:bg-muted/30 ${isOverdue ? "bg-destructive/5" : ""}`}>
                   {isVisible("supplier") && <td className="p-3 font-medium text-foreground">{supplierName(p.supplier_id)}</td>}
-                  {isVisible("amount") && <td className="p-3 text-foreground font-mono" dir="ltr">{currencySymbol[p.currency] || ""}{p.amount.toLocaleString()}</td>}
+                  {isVisible("amount") && <td className="p-3 text-foreground font-mono" dir="ltr">{formatPrice(p.amount, p.currency)}</td>}
                   {isVisible("payment_type") && <td className="p-3 text-muted-foreground">{paymentTypeLabels[p.payment_type] || p.payment_type}</td>}
                   {isVisible("document") && (
                     <td className="p-3">

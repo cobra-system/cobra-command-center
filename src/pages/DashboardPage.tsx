@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth, useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
+import { useAuth, useData, useCurrency, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import DailyReportWidget from "@/components/DailyReportWidget";
@@ -17,6 +17,7 @@ const priorityOrder: Record<string, number> = { "דחוף": 0, "גבוה": 1, "�
 export default function DashboardPage() {
   const { products, orders, tasks, suppliers } = useData();
   const { currentUser } = useAuth();
+  const { formatPrice } = useCurrency();
   const navigate = useNavigate();
   const [expiringLicenses, setExpiringLicenses] = useState<{ id: string; name: string; daysLeft: number }[]>([]);
   const [openIssueCount, setOpenIssueCount] = useState(0);
@@ -148,7 +149,7 @@ export default function DashboardPage() {
           <div onClick={() => navigate("/documents")} data-navigate-to="/documents" className="bg-accent/5 border border-accent/20 rounded-lg p-3 cursor-pointer hover:bg-accent/10 transition-colors flex items-center gap-3">
             <DollarSign className="h-5 w-5 text-accent flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground">${pendingPayments.toLocaleString()} ממתין לתשלום</p>
+              <p className="text-sm font-semibold text-foreground">{formatPrice(pendingPayments)} ממתין לתשלום</p>
               <p className="text-xs text-muted-foreground truncate">תשלומים פתוחים</p>
             </div>
             <ChevronLeft className="h-4 w-4 text-muted-foreground" />

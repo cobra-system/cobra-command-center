@@ -1,6 +1,7 @@
 import { AlertTriangle } from "lucide-react";
 import type { PurchaseDocument, Payment } from "./types";
 import { isPast } from "date-fns";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 interface Props {
   docs: PurchaseDocument[];
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default function DocumentSummaryCards({ docs, payments }: Props) {
+  const { formatPrice } = useCurrency();
   const totalOwed = payments.filter(p => p.status !== "שולם").reduce((s, p) => s + p.amount, 0);
   const overdue = payments.filter(p => p.status !== "שולם" && p.due_date && isPast(new Date(p.due_date))).length;
 
@@ -23,7 +25,7 @@ export default function DocumentSummaryCards({ docs, payments }: Props) {
       </div>
       <div className="bg-card rounded-xl border p-4 text-center">
         <p className="text-xs text-muted-foreground mb-1">חוב פתוח</p>
-        <p className="text-2xl font-bold text-foreground">${totalOwed.toLocaleString()}</p>
+        <p className="text-2xl font-bold text-foreground">{formatPrice(totalOwed)}</p>
       </div>
       <div className="bg-card rounded-xl border p-4 text-center">
         <p className="text-xs text-muted-foreground mb-1">באיחור</p>

@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useMemo, useEffect } from "react";
-import { useData, useAuth, categories, divisions, type ProductComponent } from "@/contexts/AppContext";
+import { useData, useAuth, useCurrency, categories, divisions, type ProductComponent } from "@/contexts/AppContext";
 import { canSeePrices } from "@/lib/permissions";
 import { useLiveProductMetrics } from "@/hooks/useLiveProductMetrics";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { products, orders, updateProduct, suppliers, addComponent, updateComponent, deleteComponent, deleteProduct } = useData();
+  const { formatPrice } = useCurrency();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -271,12 +272,12 @@ export default function ProductDetailPage() {
             ...(showPrices ? [
               {
                 label: "תשלומים לספק החודש",
-                value: supplierPayments.loading ? "..." : supplierPayments.monthly > 0 ? `$${supplierPayments.monthly.toLocaleString("en", { maximumFractionDigits: 0 })}` : "—",
+                value: supplierPayments.loading ? "..." : supplierPayments.monthly > 0 ? formatPrice(supplierPayments.monthly) : "—",
                 tooltip: "סה\"כ תשלומים ששולמו לספק עבור הזמנות של מוצר זה בחודש הנוכחי (יחסי לשווי המוצר בהזמנה)",
               },
               {
                 label: "תשלומים לספק ברבעון",
-                value: supplierPayments.loading ? "..." : supplierPayments.quarterly > 0 ? `$${supplierPayments.quarterly.toLocaleString("en", { maximumFractionDigits: 0 })}` : "—",
+                value: supplierPayments.loading ? "..." : supplierPayments.quarterly > 0 ? formatPrice(supplierPayments.quarterly) : "—",
                 tooltip: "סה\"כ תשלומים ששולמו לספק עבור הזמנות של מוצר זה ברבעון הנוכחי (יחסי לשווי המוצר בהזמנה)",
               },
             ] : []),

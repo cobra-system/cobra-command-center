@@ -12,8 +12,12 @@ export function fmtPct(v: number | null | undefined): string {
   return `${Math.round(v)}%`;
 }
 
-export function fmtMoney(v: number | null | undefined): string {
+export function fmtMoney(
+  v: number | null | undefined,
+  formatFn?: (amount: number, sourceCurrency: string) => string
+): string {
   if (v === null || v === undefined || Number.isNaN(v)) return "—";
+  if (formatFn) return formatFn(Number(v), "ILS");
   return `₪${Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 }
 

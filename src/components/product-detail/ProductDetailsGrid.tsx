@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Package } from "lucide-react";
 import { InlineEditField } from "@/components/InlineEditField";
 import type { Supplier } from "@/contexts/AppContext";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 interface ProductDetailsGridProps {
   details: Array<{
@@ -22,6 +23,7 @@ interface ProductDetailsGridProps {
 
 export function ProductDetailsGrid({ details, suppliers, hasEdit, onInlineSave }: ProductDetailsGridProps) {
   const navigate = useNavigate();
+  const { formatPrice } = useCurrency();
 
   return (
     <div className="bg-card rounded-xl border shadow-sm p-5">
@@ -50,7 +52,7 @@ export function ProductDetailsGrid({ details, suppliers, hasEdit, onInlineSave }
                     {d.value}
                   </button>
                 ) : d.field === "purchase_price" || d.field === "sale_price"
-                  ? (d.value ? `$${d.value}` : "—")
+                  ? (d.value ? formatPrice(Number(d.value)) : "—")
                   : undefined
               }
               type={

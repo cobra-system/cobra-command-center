@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useData, useAuth } from "@/contexts/AppContext";
+import { useData, useAuth, useCurrency } from "@/contexts/AppContext";
 import { logger } from "@/lib/logger";
 import { ArrowUpDown, ArrowUp, ArrowDown, Paperclip, Trash2, Eye, RefreshCw, Pencil, ShoppingCart, Package, Copy } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
@@ -52,6 +52,7 @@ const COLUMN_DEFS = [
 export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Props) {
   const { suppliers, products, orders } = useData();
   const { currentUser } = useAuth();
+  const { formatPrice } = useCurrency();
   const navigate = useNavigate();
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -191,7 +192,7 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
                 </div>
                 {doc.total_price && (
                   <p className="font-bold text-foreground shrink-0 text-sm" dir="ltr">
-                    {currencySymbol[doc.currency] || ""}{doc.total_price.toLocaleString()}
+                    {formatPrice(doc.total_price, doc.currency)}
                   </p>
                 )}
               </div>
@@ -297,7 +298,7 @@ export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Prop
                 {isVisible("quantity") && <td className="p-3 text-muted-foreground">{doc.quantity || "—"}</td>}
                 {isVisible("total_price") && (
                   <td className="p-3 text-muted-foreground font-mono" dir="ltr">
-                    {doc.total_price ? `${currencySymbol[doc.currency] || ""}${doc.total_price.toLocaleString()}` : "—"}
+                    {doc.total_price ? formatPrice(doc.total_price, doc.currency) : "—"}
                   </td>
                 )}
                 {isVisible("order") && (

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useData } from "@/contexts/AppContext";
+import { useData, useCurrency } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ const COLORS = [
 
 export default function ReportsPage() {
   const { products, orders, tasks, suppliers } = useData();
+  const { formatPrice } = useCurrency();
   const [monthOffset, setMonthOffset] = useState(0);
   const [issues, setIssues] = useState<Record<string, unknown>[]>([]);
   const [allIssues, setAllIssues] = useState<Record<string, unknown>[]>([]);
@@ -128,7 +129,7 @@ export default function ReportsPage() {
 📊 מלאי:
 • ${invData.lowStock.length} מוצרים במלאי נמוך
 • ${invData.outOfStock.length} אזלו מהמלאי
-• שווי מלאי כולל: $${invData.totalValue.toLocaleString()}
+• שווי מלאי כולל: ${formatPrice(invData.totalValue)}
 
 ✅ משימות:
 • ${opsData.tasksClosed} נסגרו מתוך ${opsData.tasksTotal}
@@ -139,8 +140,8 @@ export default function ReportsPage() {
 • ${issueData.openCount} עדיין פתוחות
 
 💳 תשלומים:
-• סה״כ שולם: $${supplierData.totalPaid.toLocaleString()}
-• ממתין לתשלום: $${supplierData.totalPending.toLocaleString()}`;
+• סה״כ שולם: ${formatPrice(supplierData.totalPaid)}
+• ממתין לתשלום: ${formatPrice(supplierData.totalPending)}`;
 
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -249,7 +250,7 @@ export default function ReportsPage() {
             <KpiCard icon={Package} label="סה״כ מוצרים" value={products.length} />
             <KpiCard icon={Package} label="מלאי נמוך" value={invData.lowStock.length} color={invData.lowStock.length > 0 ? "text-warning" : undefined} />
             <KpiCard icon={Package} label="אזל מהמלאי" value={invData.outOfStock.length} color={invData.outOfStock.length > 0 ? "text-destructive" : undefined} />
-            <KpiCard icon={DollarSign} label="שווי מלאי" value={`$${invData.totalValue.toLocaleString()}`} />
+            <KpiCard icon={DollarSign} label="שווי מלאי" value={formatPrice(invData.totalValue)} />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="bg-card rounded-xl border shadow-sm p-5">
@@ -339,8 +340,8 @@ export default function ReportsPage() {
         <TabsContent value="suppliers" className="space-y-5">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <KpiCard icon={Users} label="סה״כ ספקים" value={suppliers.length} />
-            <KpiCard icon={DollarSign} label="שולם החודש" value={`$${supplierData.totalPaid.toLocaleString()}`} color="text-success" />
-            <KpiCard icon={DollarSign} label="ממתין לתשלום" value={`$${supplierData.totalPending.toLocaleString()}`} color={supplierData.totalPending > 0 ? "text-warning" : undefined} />
+            <KpiCard icon={DollarSign} label="שולם החודש" value={formatPrice(supplierData.totalPaid)} color="text-success" />
+            <KpiCard icon={DollarSign} label="ממתין לתשלום" value={formatPrice(supplierData.totalPending)} color={supplierData.totalPending > 0 ? "text-warning" : undefined} />
             <KpiCard icon={Truck} label="הזמנות פעילות" value={orders.filter(o => o.status !== "ARRIVED" && o.status !== "CANCELLED").length} />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

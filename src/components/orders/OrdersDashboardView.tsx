@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { Globe, MapPin, DollarSign, AlertCircle, Truck, Clock, ChevronDown, ChevronUp, CreditCard, RefreshCw } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { supabase } from "@/lib/supabase";
-import { useData } from "@/contexts/AppContext";
+import { useData, useCurrency } from "@/contexts/AppContext";
 import { toast } from "sonner";
 
 import { format } from "date-fns";
@@ -48,6 +48,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 const ACTIVE_STATUSES = ["PENDING", "ORDERED", "SHIPPED", "ARRIVED_PORT", "CUSTOMS_CLEARANCE", "DELIVERED"];
 
 export function OrdersDashboardView({ orders, orderPaymentStatuses, suppliers }: OrdersDashboardViewProps) {
+  const { formatPrice } = useCurrency();
   const navigate = useNavigate();
   const [timelineExpanded, setTimelineExpanded] = useState(false);
   const [paymentSupplierFilter, setPaymentSupplierFilter] = useState<string>("all");
@@ -371,7 +372,7 @@ export function OrdersDashboardView({ orders, orderPaymentStatuses, suppliers }:
         <StatCard
           icon={DollarSign}
           label="ערך צנרת פתוחה"
-          value={`$${stats.totalValue.toLocaleString()}`}
+          value={formatPrice(stats.totalValue)}
           bgColor="bg-emerald-50 border-emerald-200"
         />
       </div>
@@ -625,7 +626,7 @@ export function OrdersDashboardView({ orders, orderPaymentStatuses, suppliers }:
                             {daysLeft !== null ? (daysLeft === 0 ? "היום" : `${daysLeft} ימים`) : "—"}
                           </span>
                           <span className="text-sm font-semibold">
-                            {p.currency === "USD" ? "$" : p.currency === "EUR" ? "€" : "₪"}{p.amount.toLocaleString()}
+                            {formatPrice(p.amount, p.currency)}
                           </span>
                         </div>
                       </div>
@@ -691,8 +692,8 @@ export function OrdersDashboardView({ orders, orderPaymentStatuses, suppliers }:
             <BarChart data={cashFlowData} barGap={2}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} reversed />
-              <YAxis tick={{ fontSize: 11 }} orientation="right" tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
-              <Tooltip formatter={(value: number) => `$${value.toLocaleString()}`} />
+              <YAxis tick={{ fontSize: 11 }} orientation="right" tickFormatter={v => formatPrice(v)} />
+              <Tooltip formatter={(value: number) => formatPrice(value)} />
               <Legend />
               <Bar dataKey="paid" name="שולם" fill="#34d399" radius={[4, 4, 0, 0]} />
               <Bar dataKey="pending" name="ממתין" fill="#fb923c" radius={[4, 4, 0, 0]} />
