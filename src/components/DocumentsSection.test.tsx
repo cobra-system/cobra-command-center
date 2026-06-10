@@ -9,7 +9,7 @@ const mockUseAuth = vi.fn();
 const mockFormatPrice = vi.fn((amount: number) => `$${amount}`);
 vi.mock("@/contexts/AppContext", () => ({
   useAuth: () => mockUseAuth(),
-  useCurrency: () => ({ formatPrice: mockFormatPrice, displayCurrency: "USD", setDisplayCurrency: vi.fn() }),
+  useCurrency: () => ({ formatPrice: mockFormatPrice, toDisplayAmount: (v: number) => v }),
 }));
 
 // Supabase: return empty arrays so the MANAGER render path doesn't throw.

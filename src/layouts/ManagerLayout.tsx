@@ -42,7 +42,6 @@ import { useTheme } from "next-themes";
 import cobraLogo from "@/assets/cobra-logo.png";
 import GlobalSearch from "@/components/GlobalSearch";
 import { useOrderRequestToasts } from "@/hooks/useOrderRequestToasts";
-import { CurrencyToggle } from "@/components/ui/CurrencyToggle";
 
 const defaultNavItems = [
   { to: "/dashboard", icon: "LayoutDashboard", label: "דשבורד" },
@@ -290,7 +289,6 @@ export default function ManagerLayout() {
                 >
                   {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                 </button>
-                <CurrencyToggle />
                 <button onClick={handleLogout} className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded-md hover:bg-destructive/10">
                   <LogOut className="h-4 w-4" />
                 </button>
@@ -305,7 +303,6 @@ export default function ManagerLayout() {
                 >
                   {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                 </button>
-                <CurrencyToggle className="mt-1" />
               </>
             )}
           </div>

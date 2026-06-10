@@ -20,7 +20,7 @@ const priorities: { value: Priority; label: string }[] = [
 ];
 
 type ItemType = "product" | "component";
-interface ItemRow { type: ItemType; name: string; qty: string; price: string; productId: string; componentId: string; }
+interface ItemRow { type: ItemType; name: string; qty: string; price: string; currency: string; productId: string; componentId: string; }
 
 interface FlatComponent extends ProductComponent { productName: string; }
 
@@ -58,7 +58,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
   const [etd, setEtd] = useState<Date>();
   const [eta, setEta] = useState<Date>();
   const [tracking_number, setTrackingNumber] = useState("");
-  const [items, setItems] = useState<ItemRow[]>([{ type: "product", name: "", qty: "", price: "", productId: "", componentId: "" }]);
+  const [items, setItems] = useState<ItemRow[]>([{ type: "product", name: "", qty: "", price: "", currency: "USD", productId: "", componentId: "" }]);
 
   const allComponents: FlatComponent[] = products.flatMap(p =>
     (p.components || []).map(c => ({ ...c, productName: p.name }))
@@ -71,7 +71,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
   const resetForm = () => {
     setPriority("בינוני"); setSupplierId(""); setShipping(""); setDestinationSupplierId(""); setNotes("");
     setEtd(undefined); setEta(undefined); setTrackingNumber("");
-    setItems([{ type: "product", name: "", qty: "", price: "", productId: "", componentId: "" }]);
+    setItems([{ type: "product", name: "", qty: "", price: "", currency: "USD", productId: "", componentId: "" }]);
   };
 
   // Handle defaults when dialog opens
@@ -96,6 +96,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
           name: prod.name,
           qty: defaultQuantity ? String(defaultQuantity) : "1",
           price: prod.purchase_price?.toString() || "",
+          currency: prod.price_currency || "USD",
           productId: prod.id,
           componentId: ""
         }]);
@@ -112,7 +113,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
     setItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
 
   const addItemRow = () =>
-    setItems(prev => [...prev, { type: "product", name: "", qty: "", price: "", productId: "", componentId: "" }]);
+    setItems(prev => [...prev, { type: "product", name: "", qty: "", price: "", currency: "USD", productId: "", componentId: "" }]);
 
   const removeItemRow = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
 
@@ -120,7 +121,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
     const prod = products.find(p => p.id === productId);
     if (prod) {
       setItems(prev => prev.map((item, i) => i === idx
-        ? { ...item, productId, componentId: "", name: prod.name, price: prod.purchase_price?.toString() || "" }
+        ? { ...item, productId, componentId: "", name: prod.name, price: prod.purchase_price?.toString() || "", currency: prod.price_currency || "USD" }
         : item));
     }
   };
@@ -147,6 +148,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
         name: item.name,
         qty: Number(item.qty),
         unit_price: Number(item.price) || null,
+        currency: item.currency || "USD",
         product_id: item.productId || null,
         component_id: item.componentId || null,
       }));
@@ -188,6 +190,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
         name: item.name,
         qty: item.qty,
         price: item.unit_price ?? undefined,
+        currency: item.currency,
         product_id: item.product_id || undefined,
       })),
     });
@@ -310,7 +313,16 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
                     )}
                   </div>
                   <div className="w-20"><Input type="number" value={item.qty} onChange={e => updateItem(idx, "qty", e.target.value)} placeholder="כמות" className="h-8 text-sm" /></div>
-                  <div className="w-24"><Input type="number" value={item.price} onChange={e => updateItem(idx, "price", e.target.value)} placeholder="מחיר $" className="h-8 text-sm" /></div>
+                  <div className="flex gap-1 w-32">
+                    <Input type="number" value={item.price} onChange={e => updateItem(idx, "price", e.target.value)} placeholder="מחיר" className="h-8 text-sm flex-1 min-w-0" />
+                    <Select value={item.currency} onValueChange={v => updateItem(idx, "currency", v)}>
+                      <SelectTrigger className="h-8 w-14 shrink-0 text-xs px-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USD">$</SelectItem>
+                        <SelectItem value="ILS">₪</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
             ))}

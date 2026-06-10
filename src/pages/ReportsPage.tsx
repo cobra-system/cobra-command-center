@@ -16,7 +16,7 @@ const COLORS = [
 
 export default function ReportsPage() {
   const { products, orders, tasks, suppliers } = useData();
-  const { formatPrice, toDisplayAmount, displayCurrency } = useCurrency();
+  const { formatPrice, toDisplayAmount } = useCurrency();
   const [monthOffset, setMonthOffset] = useState(0);
   const [issues, setIssues] = useState<Record<string, unknown>[]>([]);
   const [allIssues, setAllIssues] = useState<Record<string, unknown>[]>([]);
@@ -140,8 +140,8 @@ export default function ReportsPage() {
 • ${issueData.openCount} עדיין פתוחות
 
 💳 תשלומים:
-• סה״כ שולם: ${formatPrice(supplierData.totalPaid, displayCurrency)}
-• ממתין לתשלום: ${formatPrice(supplierData.totalPending, displayCurrency)}`;
+• סה״כ שולם: ${formatPrice(supplierData.totalPaid, "USD")}
+• ממתין לתשלום: ${formatPrice(supplierData.totalPending, "USD")}`;
 
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -340,8 +340,8 @@ export default function ReportsPage() {
         <TabsContent value="suppliers" className="space-y-5">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <KpiCard icon={Users} label="סה״כ ספקים" value={suppliers.length} />
-            <KpiCard icon={DollarSign} label="שולם החודש" value={formatPrice(supplierData.totalPaid, displayCurrency)} color="text-success" />
-            <KpiCard icon={DollarSign} label="ממתין לתשלום" value={formatPrice(supplierData.totalPending, displayCurrency)} color={supplierData.totalPending > 0 ? "text-warning" : undefined} />
+            <KpiCard icon={DollarSign} label="שולם החודש" value={formatPrice(supplierData.totalPaid, "USD")} color="text-success" />
+            <KpiCard icon={DollarSign} label="ממתין לתשלום" value={formatPrice(supplierData.totalPending, "USD")} color={supplierData.totalPending > 0 ? "text-warning" : undefined} />
             <KpiCard icon={Truck} label="הזמנות פעילות" value={orders.filter(o => o.status !== "ARRIVED" && o.status !== "CANCELLED").length} />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
