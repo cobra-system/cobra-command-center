@@ -5,6 +5,14 @@
 
 ---
 
+## [2026-06-10]
+
+- Merge pull request #240 from cobra-system/claude/blissful-pasteur-fof02k (e285ba5)
+- feat(ux): complete currency-per-entry & search-in-dropdowns rollout (d051df7)
+- feat(ux): add search to all large dropdowns, improve duplicate product message (a713ea7)
+- refactor(currency): per-entry currency selection instead of global display toggle (851618b)
+
+<!-- last-commit: e285ba5c2349f6efb601b28af4ffa968d52dc868 -->
 ## [2026-06-09]
 
 - Merge pull request #238 from cobra-system/claude/blissful-pasteur-fof02k (52e2e32)
@@ -12,7 +20,6 @@
 - fix: update DocumentsSection test mock to include useCurrency (5145f32)
 - feat: add global ILS/USD currency display toggle (81a327f)
 
-<!-- last-commit: 52e2e329889bb3bb0bb40117b7f25d82685724e1 -->
 ## [2026-06-09]
 
 - Merge pull request #239 from cobra-system/claude/gracious-maxwell-t2B05 (62f5388)
