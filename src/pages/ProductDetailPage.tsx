@@ -249,6 +249,7 @@ export default function ProductDetailPage() {
         suppliers={suppliers}
         hasEdit={hasEdit}
         onInlineSave={handleInlineSave}
+        priceCurrency={product.price_currency}
       />
 
       {!consumption.loading && consumption.rawRows.length > 0 && (

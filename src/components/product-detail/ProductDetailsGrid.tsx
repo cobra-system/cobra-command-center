@@ -19,9 +19,10 @@ interface ProductDetailsGridProps {
   suppliers: Array<{ id: string; company: string }>;
   hasEdit: boolean;
   onInlineSave: (field: string, value: string) => Promise<void>;
+  priceCurrency?: string;
 }
 
-export function ProductDetailsGrid({ details, suppliers, hasEdit, onInlineSave }: ProductDetailsGridProps) {
+export function ProductDetailsGrid({ details, suppliers, hasEdit, onInlineSave, priceCurrency = "USD" }: ProductDetailsGridProps) {
   const navigate = useNavigate();
   const { formatPrice } = useCurrency();
 
@@ -52,7 +53,7 @@ export function ProductDetailsGrid({ details, suppliers, hasEdit, onInlineSave }
                     {d.value}
                   </button>
                 ) : d.field === "purchase_price" || d.field === "sale_price"
-                  ? (d.value ? formatPrice(Number(d.value)) : "—")
+                  ? (d.value ? formatPrice(Number(d.value), priceCurrency) : "—")
                   : undefined
               }
               type={
