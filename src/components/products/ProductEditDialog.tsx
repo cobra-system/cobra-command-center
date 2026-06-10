@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CategorySelect } from "@/components/ui/CategorySelect";
+import { Combobox } from "@/components/ui/combobox";
 import { type Product, divisions, useAuth } from "@/contexts/AppContext";
 import { canSeePrices } from "@/lib/permissions";
 import { supabase } from "@/lib/supabase";
@@ -168,12 +169,13 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">ספק</Label>
-                <Select value={fields.supplier || ""} onValueChange={v => set("supplier", v)}>
-                  <SelectTrigger><SelectValue placeholder="בחר ספק..." /></SelectTrigger>
-                  <SelectContent>
-                    {suppliers.map(s => <SelectItem key={s.id} value={s.company}>{s.company}{s.country ? ` (${s.country})` : ""}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  value={fields.supplier || ""}
+                  onValueChange={v => set("supplier", v)}
+                  options={[{ value: "", label: "ללא" }, ...suppliers.map(s => ({ value: s.company, label: s.country ? `${s.company} (${s.country})` : s.company }))]}
+                  placeholder="בחר ספק..."
+                  searchPlaceholder="חיפוש ספק..."
+                />
               </div>
 
               <div className="space-y-1">

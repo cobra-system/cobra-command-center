@@ -399,19 +399,21 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
     <AlertDialog open={!!existingPrompt} onOpenChange={(o) => { if (!o) setExistingPrompt(null); }}>
       <AlertDialogContent dir="rtl">
         <AlertDialogHeader>
-          <AlertDialogTitle>המוצר קיים במערכת</AlertDialogTitle>
+          <AlertDialogTitle>לא ניתן ליצור מוצר כפול</AlertDialogTitle>
           <AlertDialogDescription>
             {existingPrompt && (
               <>
-                המוצר &quot;{existingPrompt.name}&quot;{existingPrompt.sku ? ` (מק״ט ${existingPrompt.sku})` : ""} כבר קיים במערכת.
-                האם להוסיף אותו לחטיבה?
+                המוצר &quot;{existingPrompt.name}&quot;{existingPrompt.sku ? ` (מק״ט ${existingPrompt.sku})` : ""} כבר קיים במערכת — זו הסיבה שהיצירה לא הצליחה.
+                {presetDivision || form.division ? " ניתן לצרף את המוצר הקיים לחטיבה שלך במקום ליצור כפול." : " האם לנווט אל המוצר הקיים?"}
               </>
             )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setExistingPrompt(null)}>לא</AlertDialogCancel>
-          <AlertDialogAction onClick={handleAttachExistingToDivision}>כן, הוסף לחטיבה</AlertDialogAction>
+          <AlertDialogCancel onClick={() => setExistingPrompt(null)}>בטל</AlertDialogCancel>
+          {(presetDivision || form.division) && (
+            <AlertDialogAction onClick={handleAttachExistingToDivision}>צרף לחטיבה</AlertDialogAction>
+          )}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

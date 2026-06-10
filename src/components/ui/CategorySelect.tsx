@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Check, ChevronsUpDown, Plus, Pencil, Trash2, X } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, Pencil, Trash2, X, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -14,6 +14,7 @@ interface CategorySelectProps {
 
 export function CategorySelect({ value, onValueChange, className }: CategorySelectProps) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [editingName, setEditingName] = useState<string | null>(null);
@@ -78,8 +79,18 @@ export function CategorySelect({ value, onValueChange, className }: CategorySele
         dir="rtl"
         style={{ width: "var(--radix-popover-trigger-width)" }}
       >
-        <div className="max-h-60 overflow-y-auto space-y-0.5">
-          {allCategories.map(cat => {
+        <div className="flex items-center gap-1 px-1 pb-1 border-b mb-1">
+          <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <Input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="חיפוש..."
+            className="h-6 text-xs border-0 p-0 focus-visible:ring-0 bg-transparent"
+            autoFocus
+          />
+        </div>
+        <div className="max-h-56 overflow-y-auto space-y-0.5">
+          {allCategories.filter(cat => !search.trim() || cat.toLowerCase().includes(search.toLowerCase())).map(cat => {
             const isCustom = custom.includes(cat);
             const isEditing = editingName === cat;
             return (
@@ -116,7 +127,7 @@ export function CategorySelect({ value, onValueChange, className }: CategorySele
                         "flex-1 text-right text-sm px-2 py-1.5 rounded hover:bg-accent flex items-center gap-1.5",
                         value === cat && "text-primary font-medium"
                       )}
-                      onClick={() => { onValueChange(cat); setOpen(false); }}
+                      onClick={() => { onValueChange(cat); setSearch(""); setOpen(false); }}
                     >
                       <Check className={cn("h-3 w-3 shrink-0", value === cat ? "opacity-100" : "opacity-0")} />
                       {cat}
