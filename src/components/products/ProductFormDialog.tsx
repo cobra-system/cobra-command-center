@@ -69,6 +69,7 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
       shipping: p?.shipping || "",
       purchase_price: String(p?.purchase_price ?? ""),
       sale_price: String(p?.sale_price ?? ""),
+      price_currency: p?.price_currency || "USD",
       monthly_order: String(p?.monthly_order ?? ""),
       stock_qty: String(p?.stock_qty ?? 0),
       lead_time_days: String(p?.lead_time_days ?? ""),
@@ -158,6 +159,7 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
       shipping: form.shipping || null,
       purchase_price: numOrNull(form.purchase_price),
       sale_price: numOrNull(form.sale_price),
+      price_currency: form.price_currency,
       monthly_order: numOrNull(form.monthly_order),
       stock_qty: Number(form.stock_qty) || 0,
       lead_time_days: numOrNull(form.lead_time_days),
@@ -288,11 +290,25 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
               <>
                 <div className="space-y-1">
                   <Label>מחיר רכישה</Label>
-                  <Input type="number" value={form.purchase_price} onChange={e => setField("purchase_price", e.target.value)} />
+                  <div className="flex gap-1">
+                    <Input type="number" value={form.purchase_price} onChange={e => setField("purchase_price", e.target.value)} className="flex-1" />
+                    <Select value={form.price_currency} onValueChange={v => setField("price_currency", v)}>
+                      <SelectTrigger className="w-16 shrink-0"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USD">$</SelectItem>
+                        <SelectItem value="ILS">₪</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="space-y-1 col-span-2 sm:col-span-1">
                   <Label>מחיר מכירה</Label>
-                  <Input type="number" value={form.sale_price} onChange={e => setField("sale_price", e.target.value)} />
+                  <div className="flex gap-1">
+                    <Input type="number" value={form.sale_price} onChange={e => setField("sale_price", e.target.value)} className="flex-1" />
+                    <span className="flex items-center text-sm text-muted-foreground px-2 border rounded-md bg-muted/30 shrink-0">
+                      {form.price_currency === "ILS" ? "₪" : "$"}
+                    </span>
+                  </div>
                 </div>
               </>
             )}
@@ -383,19 +399,21 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
     <AlertDialog open={!!existingPrompt} onOpenChange={(o) => { if (!o) setExistingPrompt(null); }}>
       <AlertDialogContent dir="rtl">
         <AlertDialogHeader>
-          <AlertDialogTitle>המוצר קיים במערכת</AlertDialogTitle>
+          <AlertDialogTitle>לא ניתן ליצור מוצר כפול</AlertDialogTitle>
           <AlertDialogDescription>
             {existingPrompt && (
               <>
-                המוצר &quot;{existingPrompt.name}&quot;{existingPrompt.sku ? ` (מק״ט ${existingPrompt.sku})` : ""} כבר קיים במערכת.
-                האם להוסיף אותו לחטיבה?
+                המוצר &quot;{existingPrompt.name}&quot;{existingPrompt.sku ? ` (מק״ט ${existingPrompt.sku})` : ""} כבר קיים במערכת — זו הסיבה שהיצירה לא הצליחה.
+                {presetDivision || form.division ? " ניתן לצרף את המוצר הקיים לחטיבה שלך במקום ליצור כפול." : " האם לנווט אל המוצר הקיים?"}
               </>
             )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setExistingPrompt(null)}>לא</AlertDialogCancel>
-          <AlertDialogAction onClick={handleAttachExistingToDivision}>כן, הוסף לחטיבה</AlertDialogAction>
+          <AlertDialogCancel onClick={() => setExistingPrompt(null)}>בטל</AlertDialogCancel>
+          {(presetDivision || form.division) && (
+            <AlertDialogAction onClick={handleAttachExistingToDivision}>צרף לחטיבה</AlertDialogAction>
+          )}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

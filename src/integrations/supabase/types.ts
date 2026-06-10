@@ -384,6 +384,7 @@ export type Database = {
       }
       order_items: {
         Row: {
+          currency: string
           id: string
           name: string
           order_id: string
@@ -392,6 +393,7 @@ export type Database = {
           qty: number
         }
         Insert: {
+          currency?: string
           id?: string
           name: string
           order_id: string
@@ -400,6 +402,7 @@ export type Database = {
           qty: number
         }
         Update: {
+          currency?: string
           id?: string
           name?: string
           order_id?: string
@@ -631,6 +634,7 @@ export type Database = {
           name: string
           notes: string | null
           product_type: string
+          price_currency: string
           purchase_price: number | null
           reorder_point: number | null
           sale_price: number | null
@@ -657,6 +661,7 @@ export type Database = {
           monthly_sales_avg?: number | null
           name: string
           notes?: string | null
+          price_currency?: string
           product_type: string
           purchase_price?: number | null
           reorder_point?: number | null
@@ -684,6 +689,7 @@ export type Database = {
           monthly_sales_avg?: number | null
           name?: string
           notes?: string | null
+          price_currency?: string
           product_type?: string
           purchase_price?: number | null
           reorder_point?: number | null

@@ -1,24 +1,20 @@
 import React, { createContext, useContext, useCallback, type ReactNode } from "react";
 import { usePersistedState } from "@/hooks/usePersistedState";
 
-export type DisplayCurrency = "USD" | "ILS";
-
-/** Default rate — override via Settings → Account → שער חליפין */
+/** Default exchange rate — override via Settings → Account → שער חליפין */
 export const DEFAULT_ILS_PER_USD = 3.7;
 
 const CURRENCY_SYMBOLS: Record<string, string> = { USD: "$", EUR: "€", ILS: "₪" };
 
 interface CurrencyState {
-  displayCurrency: DisplayCurrency;
-  setDisplayCurrency: (c: DisplayCurrency) => void;
   ilsPerUsd: number;
   setIlsPerUsd: (rate: number) => void;
-  /** Convert amount (in sourceCurrency) → display currency number (not formatted) */
+  /** Convert amount (in sourceCurrency) → USD number, for aggregation across currencies */
   toDisplayAmount: (amount: number | null | undefined, sourceCurrency?: string) => number;
-  /** Format with display currency symbol, no conversion needed if already in display currency */
-  formatPrice: (amount: number | null | undefined, sourceCurrency?: string) => string;
-  /** Same as formatPrice but abbreviates large numbers (K / M) */
-  formatPriceCompact: (amount: number | null | undefined, sourceCurrency?: string) => string;
+  /** Format in the given currency (no conversion) */
+  formatPrice: (amount: number | null | undefined, currency?: string) => string;
+  /** Same as formatPrice but abbreviates large numbers (K / M) — assumes USD */
+  formatPriceCompact: (amount: number | null | undefined, currency?: string) => string;
 }
 
 const CurrencyContext = createContext<CurrencyState | null>(null);
@@ -30,10 +26,6 @@ export function useCurrency() {
 }
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {
-  const [displayCurrency, setDisplayCurrency] = usePersistedState<DisplayCurrency>(
-    "cobra-display-currency",
-    "ILS"
-  );
   const [ilsPerUsd, setIlsPerUsdRaw] = usePersistedState<number>(
     "cobra-ils-per-usd",
     DEFAULT_ILS_PER_USD
@@ -43,46 +35,43 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     if (rate > 0) setIlsPerUsdRaw(rate);
   }, [setIlsPerUsdRaw]);
 
+  /** Converts any currency to USD (for summing mixed-currency totals) */
   const toDisplayAmount = useCallback(
     (amount: number | null | undefined, sourceCurrency = "USD"): number => {
       if (amount == null || isNaN(amount)) return 0;
       const src = sourceCurrency.toUpperCase();
-      if (src === displayCurrency) return amount;
-      if (src === "ILS" && displayCurrency === "USD") return amount / ilsPerUsd;
-      if (src === "USD" && displayCurrency === "ILS") return amount * ilsPerUsd;
-      if (src === "EUR" && displayCurrency === "USD") return amount * 1.08;
-      if (src === "EUR" && displayCurrency === "ILS") return amount * 1.08 * ilsPerUsd;
+      if (src === "USD") return amount;
+      if (src === "ILS") return amount / ilsPerUsd;
+      if (src === "EUR") return amount * 1.08;
       return amount;
     },
-    [displayCurrency, ilsPerUsd]
+    [ilsPerUsd]
   );
 
+  /** Format a price in its own currency — no conversion */
   const formatPrice = useCallback(
-    (amount: number | null | undefined, sourceCurrency = "USD"): string => {
+    (amount: number | null | undefined, currency = "USD"): string => {
       if (amount == null || isNaN(amount)) return "—";
-      const converted = toDisplayAmount(amount, sourceCurrency);
-      const sym = CURRENCY_SYMBOLS[displayCurrency] ?? displayCurrency;
-      return `${sym}${Math.round(converted).toLocaleString()}`;
+      const sym = CURRENCY_SYMBOLS[currency.toUpperCase()] ?? currency;
+      return `${sym}${Math.round(amount).toLocaleString()}`;
     },
-    [displayCurrency, toDisplayAmount]
+    []
   );
 
   const formatPriceCompact = useCallback(
-    (amount: number | null | undefined, sourceCurrency = "USD"): string => {
+    (amount: number | null | undefined, currency = "USD"): string => {
       if (amount == null || isNaN(amount)) return "—";
-      const converted = toDisplayAmount(amount, sourceCurrency);
-      const sym = CURRENCY_SYMBOLS[displayCurrency] ?? displayCurrency;
-      const abs = Math.abs(converted);
-      if (abs >= 1_000_000) return `${sym}${(converted / 1_000_000).toFixed(1)}M`;
-      if (abs >= 1_000) return `${sym}${(converted / 1_000).toFixed(0)}K`;
-      return `${sym}${Math.round(converted).toLocaleString()}`;
+      const sym = CURRENCY_SYMBOLS[currency.toUpperCase()] ?? currency;
+      const abs = Math.abs(amount);
+      if (abs >= 1_000_000) return `${sym}${(amount / 1_000_000).toFixed(1)}M`;
+      if (abs >= 1_000) return `${sym}${(amount / 1_000).toFixed(0)}K`;
+      return `${sym}${Math.round(amount).toLocaleString()}`;
     },
-    [displayCurrency, toDisplayAmount]
+    []
   );
 
   return (
     <CurrencyContext.Provider value={{
-      displayCurrency, setDisplayCurrency,
       ilsPerUsd, setIlsPerUsd,
       toDisplayAmount, formatPrice, formatPriceCompact,
     }}>

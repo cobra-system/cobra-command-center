@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Upload, FileText, Loader2, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -221,23 +222,23 @@ export default function SimpleFileUploadDialog({
             <div className="space-y-3">
               <div className="space-y-1.5">
                 <Label>שיוך לספק</Label>
-                <Select value={supplierId} onValueChange={setSupplierId}>
-                  <SelectTrigger><SelectValue placeholder="ללא" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">ללא</SelectItem>
-                    {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.company}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  value={supplierId}
+                  onValueChange={setSupplierId}
+                  options={[{ value: "", label: "ללא" }, ...suppliers.map(s => ({ value: s.id, label: s.company }))]}
+                  placeholder="ללא"
+                  searchPlaceholder="חיפוש ספק..."
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>שיוך למוצר</Label>
-                <Select value={productId} onValueChange={setProductId}>
-                  <SelectTrigger><SelectValue placeholder="ללא" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">ללא</SelectItem>
-                    {products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  value={productId}
+                  onValueChange={setProductId}
+                  options={[{ value: "", label: "ללא" }, ...products.map(p => ({ value: p.id, label: p.name }))]}
+                  placeholder="ללא"
+                  searchPlaceholder="חיפוש מוצר..."
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>שיוך להזמנה</Label>

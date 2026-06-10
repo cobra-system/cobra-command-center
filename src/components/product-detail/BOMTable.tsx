@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { InlineEditField } from "@/components/InlineEditField";
 import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 import { toast } from "sonner";
@@ -237,13 +238,14 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
                           <Input value={editCompFields.sku} onChange={e => setEditCompFields(p => ({ ...p, sku: e.target.value.toUpperCase() }))} className="h-8 text-sm" dir="ltr" />
                         </td>
                         <td className="p-2">
-                          <Select value={editCompFields.supplier || "__none__"} onValueChange={v => setEditCompFields(p => ({ ...p, supplier: v === "__none__" ? "" : v }))}>
-                            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="בחר ספק" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">ללא</SelectItem>
-                              {suppliers.map(s => <SelectItem key={s.id} value={s.company}>{s.company}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                          <Combobox
+                            value={editCompFields.supplier || ""}
+                            onValueChange={v => setEditCompFields(p => ({ ...p, supplier: v }))}
+                            options={[{ value: "", label: "ללא" }, ...suppliers.map(s => ({ value: s.company, label: s.company }))]}
+                            placeholder="בחר ספק"
+                            searchPlaceholder="חיפוש ספק..."
+                            className="h-8 text-sm"
+                          />
                         </td>
                         <td className="p-2">
                           <Input value={editCompFields.origin} onChange={e => setEditCompFields(p => ({ ...p, origin: e.target.value }))} className="h-8 text-sm" placeholder="מוצא" />
@@ -359,13 +361,13 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">ספק</Label>
-                <Select value={newComp.supplier || "__none__"} onValueChange={v => setNewComp(p => ({ ...p, supplier: v === "__none__" ? "" : v }))}>
-                  <SelectTrigger><SelectValue placeholder="בחר ספק" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">ללא</SelectItem>
-                    {suppliers.map(s => <SelectItem key={s.id} value={s.company}>{s.company}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  value={newComp.supplier || ""}
+                  onValueChange={v => setNewComp(p => ({ ...p, supplier: v }))}
+                  options={[{ value: "", label: "ללא" }, ...suppliers.map(s => ({ value: s.company, label: s.company }))]}
+                  placeholder="בחר ספק"
+                  searchPlaceholder="חיפוש ספק..."
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">מוצא</Label>
@@ -409,13 +411,13 @@ export function BOMTable({ product, suppliers, hasEdit, canEditStock, onAddCompo
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">ספק</Label>
-                <Select value={mobileEditFields.supplier || "__none__"} onValueChange={v => setMobileEditFields(p => ({ ...p, supplier: v === "__none__" ? "" : v }))}>
-                  <SelectTrigger><SelectValue placeholder="בחר ספק" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">ללא</SelectItem>
-                    {suppliers.map(s => <SelectItem key={s.id} value={s.company}>{s.company}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  value={mobileEditFields.supplier || ""}
+                  onValueChange={v => setMobileEditFields(p => ({ ...p, supplier: v }))}
+                  options={[{ value: "", label: "ללא" }, ...suppliers.map(s => ({ value: s.company, label: s.company }))]}
+                  placeholder="בחר ספק"
+                  searchPlaceholder="חיפוש ספק..."
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">מוצא</Label>

@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CategorySelect } from "@/components/ui/CategorySelect";
+import { Combobox } from "@/components/ui/combobox";
 import { type Product, divisions, useAuth } from "@/contexts/AppContext";
 import { canSeePrices } from "@/lib/permissions";
 import { supabase } from "@/lib/supabase";
@@ -53,6 +54,7 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
         shipping: product.shipping || "",
         purchase_price: product.purchase_price ?? "",
         sale_price: product.sale_price ?? "",
+        price_currency: product.price_currency || "USD",
         monthly_order: product.monthly_order ?? "",
         monthly_sales_avg: product.monthly_sales_avg ?? "",
         stock_qty: product.stock_qty ?? 0,
@@ -71,7 +73,7 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
     try {
       const updates: Record<string, any> = {};
       const numericFields = ["purchase_price", "sale_price", "monthly_order", "monthly_sales_avg", "stock_qty", "lead_time_days"];
-      const textFields = ["name", "sku", "category", "division", "product_type", "description", "supplier", "shipping", "end_product_url", "end_product_image", "notes"];
+      const textFields = ["name", "sku", "category", "division", "product_type", "description", "supplier", "shipping", "end_product_url", "end_product_image", "notes", "price_currency"];
 
       for (const key of textFields) {
         updates[key] = fields[key] === "" ? null : fields[key];
@@ -168,12 +170,13 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">ספק</Label>
-                <Select value={fields.supplier || ""} onValueChange={v => set("supplier", v)}>
-                  <SelectTrigger><SelectValue placeholder="בחר ספק..." /></SelectTrigger>
-                  <SelectContent>
-                    {suppliers.map(s => <SelectItem key={s.id} value={s.company}>{s.company}{s.country ? ` (${s.country})` : ""}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  value={fields.supplier || ""}
+                  onValueChange={v => set("supplier", v)}
+                  options={[{ value: "", label: "ללא" }, ...suppliers.map(s => ({ value: s.company, label: s.country ? `${s.company} (${s.country})` : s.company }))]}
+                  placeholder="בחר ספק..."
+                  searchPlaceholder="חיפוש ספק..."
+                />
               </div>
 
               <div className="space-y-1">
@@ -194,8 +197,28 @@ export default function ProductEditDialog({ open, onOpenChange, product, onSave 
             <div>
               <h3 className="text-sm font-semibold text-foreground mb-2">מחירים</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {numField("purchase_price", "מחיר רכישה ($)")}
-                {numField("sale_price", "מחיר מכירה ($)")}
+                <div className="space-y-1">
+                  <Label className="text-xs">מחיר רכישה</Label>
+                  <div className="flex gap-1">
+                    <Input type="number" value={fields.purchase_price ?? ""} onChange={e => set("purchase_price", e.target.value)} className="flex-1" />
+                    <Select value={fields.price_currency || "USD"} onValueChange={v => set("price_currency", v)}>
+                      <SelectTrigger className="w-16 shrink-0"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USD">$</SelectItem>
+                        <SelectItem value="ILS">₪</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">מחיר מכירה</Label>
+                  <div className="flex gap-1">
+                    <Input type="number" value={fields.sale_price ?? ""} onChange={e => set("sale_price", e.target.value)} className="flex-1" />
+                    <span className="flex items-center text-sm text-muted-foreground px-2 border rounded-md bg-muted/30 shrink-0">
+                      {fields.price_currency === "ILS" ? "₪" : "$"}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           )}

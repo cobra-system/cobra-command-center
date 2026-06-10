@@ -9,7 +9,7 @@ interface Props {
 }
 
 export default function DocumentSummaryCards({ docs, payments }: Props) {
-  const { formatPrice, toDisplayAmount, displayCurrency } = useCurrency();
+  const { formatPrice, toDisplayAmount } = useCurrency();
   const totalOwed = payments
     .filter(p => p.status !== "שולם")
     .reduce((s, p) => s + toDisplayAmount(p.amount, p.currency || "USD"), 0);
@@ -27,7 +27,7 @@ export default function DocumentSummaryCards({ docs, payments }: Props) {
       </div>
       <div className="bg-card rounded-xl border p-4 text-center">
         <p className="text-xs text-muted-foreground mb-1">חוב פתוח</p>
-        <p className="text-2xl font-bold text-foreground">{formatPrice(totalOwed, displayCurrency)}</p>
+        <p className="text-2xl font-bold text-foreground">{formatPrice(totalOwed, "USD")}</p>
       </div>
       <div className="bg-card rounded-xl border p-4 text-center">
         <p className="text-xs text-muted-foreground mb-1">באיחור</p>

@@ -28,6 +28,7 @@ export interface Product {
   supplier_origin?: string | null;
   shipping?: string | null;
   purchase_price?: number | null;
+  price_currency?: string;
   monthly_order?: number | null;
   sale_price?: number | null;
   stock_qty: number;
@@ -254,6 +255,7 @@ export interface OrderItem {
   name: string;
   qty: number;
   price?: number | null;
+  currency?: string;
 }
 
 export interface Goal {

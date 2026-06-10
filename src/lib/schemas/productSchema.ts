@@ -17,6 +17,7 @@ export const productSchema = z.object({
   shipping: z.string().nullable().optional(),
   purchase_price: optionalNonNegative,
   sale_price: optionalNonNegative,
+  price_currency: z.enum(["USD", "ILS"]).default("USD"),
   monthly_sales: optionalNonNegative,
   monthly_order: optionalNonNegative,
   stock_qty: nonNegativeNumber.default(0),
