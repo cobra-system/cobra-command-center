@@ -21,6 +21,7 @@ import {
   fmtNum, fmtPct, urgencyClass, statusClass, STATUS_LABELS,
   utilizationColor, daysSince, ageBadge,
 } from "./orderRequestUtils";
+import { isDivisionManager } from "@/lib/permissions";
 
 type DeliveryStatus = "נשלחה" | "התקבלה" | "נקלטה";
 const DELIVERY_STATUS_OPTIONS: { value: DeliveryStatus; label: string }[] = [
@@ -94,6 +95,7 @@ export function RequestDetailPanel({
   const [newFileDesc, setNewFileDesc] = useState("");
   const [savingFile, setSavingFile] = useState(false);
   const isManager = currentUser?.role === "MANAGER";
+  const isDivMgr = isDivisionManager(currentUser);
   const [deliveryStatusSaving, setDeliveryStatusSaving] = useState(false);
   const [receivedQtyDraft, setReceivedQtyDraft] = useState<string>("");
   const [receivedQtyEditing, setReceivedQtyEditing] = useState(false);
@@ -477,79 +479,86 @@ export function RequestDetailPanel({
 
               {request.status === "ordered" && (
                 <Section title="סטטוס אספקה">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {DELIVERY_STATUS_OPTIONS.map(opt => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        disabled={deliveryStatusSaving || !isManager}
-                        onClick={() => isManager && updateDeliveryStatus(
-                          request.delivery_status === opt.value ? null : opt.value
-                        )}
-                        className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
-                          request.delivery_status === opt.value
-                            ? deliveryStatusClass(opt.value) + " ring-2 ring-offset-1 ring-current"
-                            : "bg-muted/40 text-muted-foreground border-border hover:bg-muted"
-                        } ${isManager ? "cursor-pointer" : "cursor-default"}`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                    {request.delivery_status && isManager && (
-                      <button
-                        type="button"
-                        disabled={deliveryStatusSaving}
-                        onClick={() => updateDeliveryStatus(null)}
-                        className="text-xs text-muted-foreground hover:text-destructive transition-colors"
-                        title="נקה סטטוס"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                  {(request.delivery_status === "התקבלה" || request.delivery_status === "נקלטה") && (
-                    <div className="mt-3 space-y-1">
-                      <div className="text-[11px] text-muted-foreground">
-                        כמות שהתקבלה
-                        {(() => {
-                          const total = request.required_to_order ?? request.quantity;
-                          if (!total) return null;
-                          return ` (מתוך ${fmtNum(total)})`;
-                        })()}
-                      </div>
-                      {receivedQtyEditing && isManager ? (
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            min={0}
-                            value={receivedQtyDraft}
-                            onChange={e => setReceivedQtyDraft(e.target.value)}
-                            className="h-7 w-28 text-sm"
-                            autoFocus
-                            onKeyDown={e => {
-                              if (e.key === "Enter") { e.preventDefault(); void commitReceivedQty(); }
-                              if (e.key === "Escape") setReceivedQtyEditing(false);
-                            }}
-                          />
-                          <button type="button" onClick={() => void commitReceivedQty()} className="text-xs text-primary hover:underline">שמור</button>
-                          <button type="button" onClick={() => setReceivedQtyEditing(false)} className="text-xs text-muted-foreground hover:text-foreground">ביטול</button>
+                  {(() => {
+                    const canEditDelivery = isManager || (isDivMgr && currentUser?.division === request.division);
+                    return (
+                      <>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {DELIVERY_STATUS_OPTIONS.map(opt => (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              disabled={deliveryStatusSaving || !canEditDelivery}
+                              onClick={() => canEditDelivery && updateDeliveryStatus(
+                                request.delivery_status === opt.value ? null : opt.value
+                              )}
+                              className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                                request.delivery_status === opt.value
+                                  ? deliveryStatusClass(opt.value) + " ring-2 ring-offset-1 ring-current"
+                                  : "bg-muted/40 text-muted-foreground border-border hover:bg-muted"
+                              } ${canEditDelivery ? "cursor-pointer" : "cursor-default"}`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                          {request.delivery_status && canEditDelivery && (
+                            <button
+                              type="button"
+                              disabled={deliveryStatusSaving}
+                              onClick={() => updateDeliveryStatus(null)}
+                              className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                              title="נקה סטטוס"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                         </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!isManager) return;
-                            setReceivedQtyDraft(request.received_qty != null ? String(request.received_qty) : "");
-                            setReceivedQtyEditing(true);
-                          }}
-                          className={`text-sm font-semibold tabular-nums ${isManager ? "hover:underline cursor-pointer" : "cursor-default"}`}
-                          title={isManager ? "לחץ לעריכה" : undefined}
-                        >
-                          {request.received_qty != null ? fmtNum(request.received_qty) : (isManager ? "הזן כמות" : "—")}
-                        </button>
-                      )}
-                    </div>
-                  )}
+                        {(request.delivery_status === "התקבלה" || request.delivery_status === "נקלטה") && (
+                          <div className="mt-3 space-y-1">
+                            <div className="text-[11px] text-muted-foreground">
+                              כמות שהתקבלה
+                              {(() => {
+                                const total = request.required_to_order ?? request.quantity;
+                                if (!total) return null;
+                                return ` (מתוך ${fmtNum(total)})`;
+                              })()}
+                            </div>
+                            {receivedQtyEditing && canEditDelivery ? (
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  value={receivedQtyDraft}
+                                  onChange={e => setReceivedQtyDraft(e.target.value)}
+                                  className="h-7 w-28 text-sm"
+                                  autoFocus
+                                  onKeyDown={e => {
+                                    if (e.key === "Enter") { e.preventDefault(); void commitReceivedQty(); }
+                                    if (e.key === "Escape") setReceivedQtyEditing(false);
+                                  }}
+                                />
+                                <button type="button" onClick={() => void commitReceivedQty()} className="text-xs text-primary hover:underline">שמור</button>
+                                <button type="button" onClick={() => setReceivedQtyEditing(false)} className="text-xs text-muted-foreground hover:text-foreground">ביטול</button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!canEditDelivery) return;
+                                  setReceivedQtyDraft(request.received_qty != null ? String(request.received_qty) : "");
+                                  setReceivedQtyEditing(true);
+                                }}
+                                className={`text-sm font-semibold tabular-nums ${canEditDelivery ? "hover:underline cursor-pointer" : "cursor-default"}`}
+                                title={canEditDelivery ? "לחץ לעריכה" : undefined}
+                              >
+                                {request.received_qty != null ? fmtNum(request.received_qty) : (canEditDelivery ? "הזן כמות" : "—")}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </Section>
               )}
 
