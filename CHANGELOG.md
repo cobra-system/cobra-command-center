@@ -5,6 +5,16 @@
 
 ---
 
+## [2026-06-11]
+
+- Fix "פתח הזמנה" button in RequestDetailPanel not navigating (f70a196)
+- Fix division manager product RLS: align is_division_manager() with frontend logic (ee2e92c)
+- docs: add reset-monthly-orders to README Edge Functions table (8bffba1)
+- Add monthly auto-reset for חודשית order requests (6ff08c4)
+- Add "התקבל חלקית" (partially received) delivery status (3a8cb80)
+- Allow division managers to set/change supply status on their ordered requests (4a9716a)
+
+<!-- last-commit: 820a98ed45ee9d08b09fcf092c4ec69537248088 -->
 ## [Unreleased]
 
 ### Added
@@ -17,7 +27,6 @@
 - feat(ux): add search to all large dropdowns, improve duplicate product message (a713ea7)
 - refactor(currency): per-entry currency selection instead of global display toggle (851618b)
 
-<!-- last-commit: e285ba5c2349f6efb601b28af4ffa968d52dc868 -->
 ## [2026-06-09]
 
 - Merge pull request #238 from cobra-system/claude/blissful-pasteur-fof02k (52e2e32)
