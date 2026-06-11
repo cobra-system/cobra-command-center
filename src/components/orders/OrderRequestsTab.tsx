@@ -903,6 +903,7 @@ export function OrderRequestsTab() {
                               <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${
                                 req.delivery_status === "נקלטה" ? "bg-green-50 text-green-700 border-green-200" :
                                 req.delivery_status === "התקבלה" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                req.delivery_status === "התקבל חלקית" ? "bg-orange-50 text-orange-700 border-orange-200" :
                                 "bg-amber-50 text-amber-700 border-amber-200"
                               }`}>
                                 {req.delivery_status}

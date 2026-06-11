@@ -23,15 +23,17 @@ import {
 } from "./orderRequestUtils";
 import { isDivisionManager } from "@/lib/permissions";
 
-type DeliveryStatus = "נשלחה" | "התקבלה" | "נקלטה";
+type DeliveryStatus = "נשלחה" | "התקבל חלקית" | "התקבלה" | "נקלטה";
 const DELIVERY_STATUS_OPTIONS: { value: DeliveryStatus; label: string }[] = [
   { value: "נשלחה", label: "נשלחה" },
+  { value: "התקבל חלקית", label: "התקבל חלקית" },
   { value: "התקבלה", label: "התקבלה" },
   { value: "נקלטה", label: "נקלטה" },
 ];
 function deliveryStatusClass(s?: DeliveryStatus | null): string {
   if (s === "נקלטה") return "bg-green-50 text-green-700 border-green-200";
   if (s === "התקבלה") return "bg-blue-50 text-blue-700 border-blue-200";
+  if (s === "התקבל חלקית") return "bg-orange-50 text-orange-700 border-orange-200";
   if (s === "נשלחה") return "bg-amber-50 text-amber-700 border-amber-200";
   return "bg-gray-50 text-gray-400 border-gray-200";
 }
@@ -513,7 +515,7 @@ export function RequestDetailPanel({
                             </button>
                           )}
                         </div>
-                        {(request.delivery_status === "התקבלה" || request.delivery_status === "נקלטה") && (
+                        {(request.delivery_status === "התקבל חלקית" || request.delivery_status === "התקבלה" || request.delivery_status === "נקלטה") && (
                           <div className="mt-3 space-y-1">
                             <div className="text-[11px] text-muted-foreground">
                               כמות שהתקבלה
