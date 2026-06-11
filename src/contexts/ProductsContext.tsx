@@ -12,6 +12,7 @@ interface ProductsState {
   /** Unfiltered list — every product the current user is allowed to read.
    *  Use this for cross-division pickers (e.g. purchase request creation). */
   allProducts: Product[];
+  isLoading: boolean;
   refreshProducts: () => Promise<void>;
   updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
   addProduct: (product: Omit<Product, "id" | "components">, components?: Omit<ProductComponent, "id" | "product_id">[]) => Promise<void>;
@@ -56,8 +57,9 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const { currentUser } = useAuth();
 
-  const { data: rawProducts = [] } = useQuery({
+  const { data: rawProducts = [], isLoading } = useQuery({
     queryKey: ["products"],
+    staleTime: 2 * 60 * 1000,
     queryFn: async () => {
       // Read through *_safe views so non-MANAGER callers receive null
       // for purchase_price / sale_price / component price columns. The
@@ -240,6 +242,7 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
     <ProductsContext.Provider value={{
       products,
       allProducts: rawProducts,
+      isLoading,
       refreshProducts,
       updateProduct,
       addProduct,

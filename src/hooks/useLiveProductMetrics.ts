@@ -44,6 +44,9 @@ export function useLiveProductMetrics(products: Product[]): {
 
     const productIds = prods.map(p => p.id);
     const activeStatusFilter = `(${[...ACTIVE_STATUSES].join(",")})`;
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const oneYearAgoISO = oneYearAgo.toISOString();
 
     // Two parallel queries — filtered to only our products and relevant statuses
     const [activeResult, priceResult] = await Promise.all([
@@ -57,7 +60,8 @@ export function useLiveProductMetrics(products: Product[]): {
         .select("product_id, price, orders!inner(created_at, status)")
         .in("product_id", productIds)
         .not("orders.status", "eq", "CANCELLED")
-        .not("price", "is", null),
+        .not("price", "is", null)
+        .gte("orders.created_at", oneYearAgoISO),
     ]);
 
     const incoming: Record<string, number> = {};
