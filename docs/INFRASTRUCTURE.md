@@ -87,7 +87,7 @@ All tables have RLS enabled. Key policies:
 
 ## Edge Functions
 
-16 Edge Functions deployed to Supabase:
+17 Edge Functions deployed to Supabase:
 
 | Function | Purpose | Auth | Rate Limit |
 |----------|---------|------|------------|
@@ -107,6 +107,7 @@ All tables have RLS enabled. Key policies:
 | `notify-daily-digest` | Send daily email digest (overdue orders + upcoming payments) | CRON_SECRET | — |
 | `sync-frisbee` | Sync פריזבי קרסו inspection data from Base44 (Bearer auth) | CRON_SECRET | — |
 | `sync-lubinski` | Sync לובינסקי inspection data from Base44 (api_key auth) | CRON_SECRET | — |
+| `reset-monthly-orders` | Reset fulfilled monthly order requests to pending on the 1st of each month | CRON_SECRET | — |
 
 ### Deploying Edge Functions
 ```bash
@@ -131,7 +132,8 @@ supabase functions deploy <function-name>
 2. **`supabase-migration.yml`** — Apply DB migrations and deploy Edge Functions
 3. **`advance-overdue-tasks.yml`** — Scheduled task advancement
 4. **`daily-notifications.yml`** — Daily digest email (08:00 IL, weekdays) — requires `SUPABASE_URL` + `CRON_SECRET` GitHub secrets
-5. **`changelog.yml`** — Changelog generation
+5. **`monthly-reset.yml`** — Monthly order reset (05:00 IL, 1st of each month) — requires `SUPABASE_URL` + `CRON_SECRET` GitHub secrets
+6. **`changelog.yml`** — Changelog generation
 
 ### Vercel Deployment
 - Automatic preview deployments on PRs

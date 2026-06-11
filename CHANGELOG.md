@@ -5,6 +5,11 @@
 
 ---
 
+## [Unreleased]
+
+### Added
+- Monthly auto-reset for חודשית order requests: on the 1st of each month, all fulfilled monthly requests revert to pending, accumulating waiting days from original creation. A system comment ("ההזמנה בוצעה לחודש X") and audit history entry are recorded per request. Division managers can set/change supply status (נשלחה / התקבל חלקית / התקבלה / נקלטה) on their own division's ordered requests.
+
 ## [2026-06-10]
 
 - Merge pull request #240 from cobra-system/claude/blissful-pasteur-fof02k (e285ba5)
