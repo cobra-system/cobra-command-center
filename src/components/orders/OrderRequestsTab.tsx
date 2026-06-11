@@ -1126,7 +1126,7 @@ export function OrderRequestsTab() {
         onDelete={(r) => { setDetailRequest(null); void handleDelete(r); }}
         onRevert={(r) => { setDetailRequest(null); void handleRevert(r); }}
         onRefresh={fetchRequests}
-        navigateToOrder={(id) => { navigate(`/orders?focus=${id}`); setDetailRequest(null); }}
+        navigateToOrder={(id) => navigate(`/orders?focus=${id}`)}
         navigateToProduct={(id) => { setDetailRequest(null); navigate(`/products/${id}`); }}
         navigateToSupplier={(name) => {
           const s = suppliers.find(s => s.company === name);
