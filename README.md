@@ -302,6 +302,7 @@ mcp-server/              # MCP Server לאינטגרציה עם Claude Code (30+
 | `sync-frisbee` | סינכרון בדיקות QA מ-Base44 לטבלאות `frisbee_inspections` + `frisbee_inspection_equipment` (פריזבי קרסו — Bearer auth) |
 | `sync-lubinski` | סינכרון נתוני אביזרים מ-Base44 לטבלאות frisbee_* (לובינסקי — api_key auth) |
 | `track-waste-return` | רענון סטטוס מעקב DHL עבור החזרת בלאי לספק לפי return_id |
+| `reset-monthly-orders` | איפוס חודשי של בקשות הזמנה חודשיות — חוזרות לממתין ב-1 לחודש עם הערת מערכת |
 
 ---
 

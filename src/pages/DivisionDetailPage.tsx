@@ -2653,7 +2653,7 @@ export default function DivisionDetailPage() {
           onDelete={(r) => { setDetailOrderRequest(null); void deleteRequest(r); }}
           onRevert={(r) => { setDetailOrderRequest(null); void revertRequest(r); }}
           onRefresh={fetchData}
-          navigateToOrder={(id) => { navigate(`/orders?focus=${id}`); setDetailOrderRequest(null); }}
+          navigateToOrder={(id) => navigate(`/orders?focus=${id}`)}
           navigateToProduct={(id) => { setDetailOrderRequest(null); navigate(`/products/${id}`); }}
           navigateToSupplier={() => { /* no-op: division view doesn't expose supplier nav */ }}
         />
