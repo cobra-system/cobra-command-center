@@ -42,35 +42,49 @@ export function useLiveProductMetrics(products: Product[]): {
 
     setLoading(true);
 
-    const { data } = await supabase
-      .from("order_items")
-      .select("product_id, qty, price, orders!inner(status, created_at)")
-      .not("product_id", "is", null)
-      .not("orders.status", "eq", "CANCELLED");
+    const productIds = prods.map(p => p.id);
+    const activeStatusFilter = `(${[...ACTIVE_STATUSES].join(",")})`;
+
+    // Two parallel queries — filtered to only our products and relevant statuses
+    const [activeResult, priceResult] = await Promise.all([
+      supabase
+        .from("order_items")
+        .select("product_id, qty, orders!inner(status)")
+        .in("product_id", productIds)
+        .filter("orders.status", "in", activeStatusFilter),
+      supabase
+        .from("order_items")
+        .select("product_id, price, orders!inner(created_at, status)")
+        .in("product_id", productIds)
+        .not("orders.status", "eq", "CANCELLED")
+        .not("price", "is", null),
+    ]);
 
     const incoming: Record<string, number> = {};
     const latestOrder: Record<string, { price: number; created_at: string }> = {};
 
-    if (data) {
-      for (const row of data as Array<{
+    if (activeResult.data) {
+      for (const row of activeResult.data as Array<{
         product_id: string;
         qty: number;
-        price: number | null;
-        orders: { status: string; created_at: string };
+        orders: { status: string };
       }>) {
         const pid = row.product_id;
-        const status = row.orders?.status;
+        incoming[pid] = (incoming[pid] ?? 0) + (row.qty ?? 0);
+      }
+    }
+
+    if (priceResult.data) {
+      for (const row of priceResult.data as Array<{
+        product_id: string;
+        price: number;
+        orders: { created_at: string; status: string };
+      }>) {
+        const pid = row.product_id;
         const createdAt = row.orders?.created_at ?? "";
-
-        if (ACTIVE_STATUSES.includes(status as (typeof ACTIVE_STATUSES)[number])) {
-          incoming[pid] = (incoming[pid] ?? 0) + (row.qty ?? 0);
-        }
-
-        if (row.price != null) {
-          const prev = latestOrder[pid];
-          if (!prev || createdAt > prev.created_at) {
-            latestOrder[pid] = { price: row.price, created_at: createdAt };
-          }
+        const prev = latestOrder[pid];
+        if (!prev || createdAt > prev.created_at) {
+          latestOrder[pid] = { price: row.price, created_at: createdAt };
         }
       }
     }

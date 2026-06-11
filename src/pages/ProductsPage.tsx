@@ -100,9 +100,10 @@ export default function ProductsPage() {
     const val = e.target.value;
     setSearch(val);
     clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => setDebouncedSearch(val), 200);
+    searchTimer.current = setTimeout(() => { setDebouncedSearch(val); setDisplayLimit(100); }, 200);
   }, []);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [displayLimit, setDisplayLimit] = useState(100);
   const [formOpen, setFormOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
@@ -274,6 +275,9 @@ export default function ProductsPage() {
     return Array.from(set).sort((a, b) => a.localeCompare(b, "he"));
   }, [products]);
 
+  const visibleProducts = useMemo(() => filtered.slice(0, displayLimit), [filtered, displayLimit]);
+  const hasMore = filtered.length > displayLimit;
+
   const SortIcon = ({ col }: { col: SortKey }) => {
     if (sortKey !== col) return <ArrowUpDown className="h-3 w-3 opacity-30" />;
     return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
@@ -335,7 +339,7 @@ export default function ProductsPage() {
       <div className="overflow-x-auto pb-1 -mx-1 px-1">
         <div className="flex gap-1.5 min-w-max">
           {categories.map(cat => (
-            <button key={cat} onClick={() => setCategory(cat)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            <button key={cat} onClick={() => { setCategory(cat); setDisplayLimit(100); }} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               category === cat ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
             }`}>{cat}</button>
           ))}
@@ -345,12 +349,12 @@ export default function ProductsPage() {
       <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 sm:items-center">
         <div className="flex bg-secondary rounded-lg p-1 self-start">
           {(["all", "מוגמר", "מורכב"] as const).map(t => (
-            <button key={t} onClick={() => prefs.setFilter("typeFilter", t)} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            <button key={t} onClick={() => { prefs.setFilter("typeFilter", t); setDisplayLimit(100); }} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
               typeFilter === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
             }`}>{t === "all" ? "הכל" : t}</button>
           ))}
         </div>
-        <Select value={supplierFilter} onValueChange={(v) => prefs.setFilter("supplierFilter", v)}>
+        <Select value={supplierFilter} onValueChange={(v) => { prefs.setFilter("supplierFilter", v); setDisplayLimit(100); }}>
           <SelectTrigger className="w-full sm:w-[160px]"><SelectValue placeholder="ספק" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">כל הספקים</SelectItem>
@@ -373,7 +377,7 @@ export default function ProductsPage() {
             <p className="text-sm font-medium text-foreground">לא נמצאו מוצרים</p>
             <p className="text-xs text-muted-foreground">נסה לחפש מונח אחר או לנקות את הסינון</p>
           </div>
-        ) : filtered.map(p => {
+        ) : visibleProducts.map(p => {
           const isComposite = p.product_type === "מורכב";
           const isExpanded = expandedId === p.id;
           const hasComponents = isComposite && p.components && p.components.length > 0;
@@ -510,6 +514,14 @@ export default function ProductsPage() {
             </div>
           );
         })}
+        {hasMore && (
+          <button
+            onClick={() => setDisplayLimit(prev => prev + 100)}
+            className="w-full py-3 text-sm text-muted-foreground hover:text-foreground transition-colors border rounded-xl bg-card hover:bg-muted/30"
+          >
+            הצג עוד ({filtered.length - displayLimit} נוספים)
+          </button>
+        )}
       </div>
 
       {/* Desktop table */}
@@ -539,7 +551,7 @@ export default function ProductsPage() {
                   <p className="text-sm text-muted-foreground">לא נמצאו מוצרים</p>
                 </div>
               </td></tr>
-            ) : filtered.map(p => {
+            ) : visibleProducts.map(p => {
               const isComposite = p.product_type === "מורכב";
               const isExpanded = expandedId === p.id;
               const hasComponents = isComposite && p.components && p.components.length > 0;
@@ -826,6 +838,18 @@ export default function ProductsPage() {
                 </Fragment>
               );
             })}
+            {hasMore && (
+              <tr>
+                <td colSpan={1 + visibleCount + (hasEdit ? 1 : 0)} className="p-0">
+                  <button
+                    onClick={() => setDisplayLimit(prev => prev + 100)}
+                    className="w-full py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+                  >
+                    הצג עוד ({filtered.length - displayLimit} נוספים)
+                  </button>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
