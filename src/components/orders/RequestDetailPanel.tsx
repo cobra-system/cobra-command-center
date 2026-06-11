@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -47,7 +48,7 @@ interface Props {
   onDelete: (req: OrderRequest) => void;
   onRevert: (req: OrderRequest) => void;
   onRefresh: () => void;
-  navigateToOrder: (orderId: string) => void;
+  getOrderUrl: (orderId: string) => string;
   navigateToProduct: (productId: string) => void;
   navigateToSupplier: (name: string) => void;
 }
@@ -80,7 +81,7 @@ export function RequestDetailPanel({
   onDelete,
   onRevert,
   onRefresh,
-  navigateToOrder,
+  getOrderUrl,
   navigateToProduct,
   navigateToSupplier,
 }: Props) {
@@ -160,6 +161,8 @@ export function RequestDetailPanel({
   useEffect(() => {
     if (!request) return;
     setTab("details");
+    setReceivedQtyEditing(false);
+    setReceivedQtyDraft(request.received_qty != null ? String(request.received_qty) : "");
     void fetchHistory(request.id);
     void fetchComments(request.id);
     void fetchAttachments(request.id);
@@ -314,8 +317,10 @@ export function RequestDetailPanel({
             };
             if (ids.length === 1) {
               return (
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => navigateToOrder(ids[0])}>
-                  <ExternalLink className="h-3.5 w-3.5" /> פתח הזמנה
+                <Button size="sm" variant="outline" className="gap-1.5" asChild>
+                  <Link to={getOrderUrl(ids[0])}>
+                    <ExternalLink className="h-3.5 w-3.5" /> פתח הזמנה
+                  </Link>
                 </Button>
               );
             }
@@ -328,8 +333,8 @@ export function RequestDetailPanel({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
                   {ids.map(id => (
-                    <DropdownMenuItem key={id} onClick={() => navigateToOrder(id)}>
-                      {labelFor(id)}
+                    <DropdownMenuItem key={id} asChild>
+                      <Link to={getOrderUrl(id)}>{labelFor(id)}</Link>
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
@@ -525,7 +530,23 @@ export function RequestDetailPanel({
                                 return ` (מתוך ${fmtNum(total)})`;
                               })()}
                             </div>
-                            {receivedQtyEditing && canEditDelivery ? (
+                            {canEditDelivery && request.delivery_status === "התקבל חלקית" ? (
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  value={receivedQtyDraft}
+                                  onChange={e => setReceivedQtyDraft(e.target.value)}
+                                  className="h-7 w-28 text-sm"
+                                  placeholder="הזן כמות"
+                                  onKeyDown={e => {
+                                    if (e.key === "Enter") { e.preventDefault(); void commitReceivedQty(); }
+                                  }}
+                                  onBlur={() => void commitReceivedQty()}
+                                />
+                                <button type="button" onClick={() => void commitReceivedQty()} className="text-xs text-primary hover:underline">שמור</button>
+                              </div>
+                            ) : receivedQtyEditing && canEditDelivery ? (
                               <div className="flex items-center gap-2">
                                 <Input
                                   type="number"
