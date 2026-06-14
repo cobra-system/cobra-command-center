@@ -7,9 +7,16 @@
 
 ## [2026-06-14]
 
+- Merge pull request #242 from cobra-system/claude/wonderful-knuth-9gjlnv (26bbbf3)
+- perf: speed up OrdersPage loading (0e553c3)
+- perf: additional ProductsPage optimizations (fbd1494)
+- perf: speed up ProductsPage loading (3e45e63)
+
+<!-- last-commit: 26bbbf3bd374e469c6af6a0e1d4c764f2485f679 -->
+## [2026-06-14]
+
 - Inline delivery status dropdown, fix order link navigation, always-open partial qty field (7ae3178)
 
-<!-- last-commit: 70aea0fd525701b30df33d9db19ae3b584cd2968 -->
 ## [2026-06-11]
 
 - Fix "פתח הזמנה" button in RequestDetailPanel not navigating (f70a196)
