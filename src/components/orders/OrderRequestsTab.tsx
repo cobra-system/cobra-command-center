@@ -116,6 +116,8 @@ export function OrderRequestsTab() {
   const canEditRow = (req: OrderRequest) =>
     isManager || (isDivMgr && req.division === userDivision && req.status === "pending");
   const canDeleteRow = canEditRow;
+  const canEditDelivery = (req: OrderRequest) =>
+    (isManager || (isDivMgr && req.division === userDivision)) && req.status === "ordered";
 
   const { isVisible, hide, show, hiddenCols } = useColumnVisibility(
     "manager-order-requests:hidden-columns",
@@ -266,6 +268,15 @@ export function OrderRequestsTab() {
   const navigateToOrder = (orderId?: string | null) => {
     if (orderId) navigate(`/orders/${orderId}`);
   };
+
+  const updateDeliveryStatus = useCallback(async (reqId: string, val: string | null) => {
+    const { error } = await supabase
+      .from("order_requests")
+      .update({ delivery_status: val })
+      .eq("id", reqId);
+    if (error) { toast.error("שגיאה בעדכון סטטוס אספקה"); return; }
+    await fetchRequests();
+  }, [fetchRequests]);
 
   // Resolve every order linked to a request. Falls back to the single order_id
   // for legacy rows where linked_order_ids hadn't been backfilled.
@@ -898,17 +909,55 @@ export function OrderRequestsTab() {
                           </td>
                         )}
                         {isVisible("delivery_status") && (
-                          <td className={cellPadding}>
-                            {req.delivery_status ? (
-                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${
-                                req.delivery_status === "נקלטה" ? "bg-green-50 text-green-700 border-green-200" :
-                                req.delivery_status === "התקבלה" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                                req.delivery_status === "התקבל חלקית" ? "bg-orange-50 text-orange-700 border-orange-200" :
-                                "bg-amber-50 text-amber-700 border-amber-200"
-                              }`}>
-                                {req.delivery_status}
-                              </span>
-                            ) : "—"}
+                          <td className={cellPadding} onClick={e => e.stopPropagation()}>
+                            {canEditDelivery(req) ? (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity ${
+                                    req.delivery_status === "נקלטה" ? "bg-green-50 text-green-700 border-green-200" :
+                                    req.delivery_status === "התקבלה" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                    req.delivery_status === "התקבל חלקית" ? "bg-orange-50 text-orange-700 border-orange-200" :
+                                    req.delivery_status === "נשלחה" ? "bg-amber-50 text-amber-700 border-amber-200" :
+                                    "bg-muted text-muted-foreground border-border"
+                                  }`}>
+                                    {req.delivery_status ?? "הגדר סטטוס"}
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {(["נשלחה", "התקבל חלקית", "התקבלה", "נקלטה"] as const).map(opt => (
+                                    <DropdownMenuItem
+                                      key={opt}
+                                      onClick={() => void updateDeliveryStatus(req.id, opt)}
+                                      className={req.delivery_status === opt ? "font-semibold" : ""}
+                                    >
+                                      {opt}
+                                    </DropdownMenuItem>
+                                  ))}
+                                  {req.delivery_status && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        onClick={() => void updateDeliveryStatus(req.id, null)}
+                                        className="text-muted-foreground"
+                                      >
+                                        נקה סטטוס
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            ) : (
+                              req.delivery_status ? (
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${
+                                  req.delivery_status === "נקלטה" ? "bg-green-50 text-green-700 border-green-200" :
+                                  req.delivery_status === "התקבלה" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                  req.delivery_status === "התקבל חלקית" ? "bg-orange-50 text-orange-700 border-orange-200" :
+                                  "bg-amber-50 text-amber-700 border-amber-200"
+                                }`}>
+                                  {req.delivery_status}
+                                </span>
+                              ) : "—"
+                            )}
                           </td>
                         )}
                         {isVisible("eta") && (
@@ -1126,7 +1175,7 @@ export function OrderRequestsTab() {
         onDelete={(r) => { setDetailRequest(null); void handleDelete(r); }}
         onRevert={(r) => { setDetailRequest(null); void handleRevert(r); }}
         onRefresh={fetchRequests}
-        navigateToOrder={(id) => navigate(`/orders?focus=${id}`)}
+        getOrderUrl={(id) => `/orders?focus=${id}`}
         navigateToProduct={(id) => { setDetailRequest(null); navigate(`/products/${id}`); }}
         navigateToSupplier={(name) => {
           const s = suppliers.find(s => s.company === name);
