@@ -5,6 +5,11 @@
 
 ---
 
+## [2026-06-14]
+
+- Inline delivery status dropdown, fix order link navigation, always-open partial qty field (7ae3178)
+
+<!-- last-commit: 70aea0fd525701b30df33d9db19ae3b584cd2968 -->
 ## [2026-06-11]
 
 - Fix "פתח הזמנה" button in RequestDetailPanel not navigating (f70a196)
@@ -14,7 +19,6 @@
 - Add "התקבל חלקית" (partially received) delivery status (3a8cb80)
 - Allow division managers to set/change supply status on their ordered requests (4a9716a)
 
-<!-- last-commit: 820a98ed45ee9d08b09fcf092c4ec69537248088 -->
 ## [Unreleased]
 
 ### Added
