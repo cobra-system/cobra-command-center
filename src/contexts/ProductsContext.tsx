@@ -12,6 +12,7 @@ interface ProductsState {
   /** Unfiltered list — every product the current user is allowed to read.
    *  Use this for cross-division pickers (e.g. purchase request creation). */
   allProducts: Product[];
+  isLoading: boolean;
   refreshProducts: () => Promise<void>;
   updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
   addProduct: (product: Omit<Product, "id" | "components">, components?: Omit<ProductComponent, "id" | "product_id">[]) => Promise<void>;
@@ -56,28 +57,33 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const { currentUser } = useAuth();
 
-  const { data: rawProducts = [] } = useQuery({
+  const { data: rawProducts = [], isLoading } = useQuery({
     queryKey: ["products"],
+    staleTime: 2 * 60 * 1000,
     queryFn: async () => {
       // Read through *_safe views so non-MANAGER callers receive null
       // for purchase_price / sale_price / component price columns. The
       // views have identical row shapes to the base tables, so the
       // table-name cast is purely to satisfy generated types.
-      const { data: prods } = await supabase
-        .from("products_safe" as "products")
-        .select("*")
-        .order("category")
-        .limit(500);
+      // Both queries run in parallel to halve round-trip time.
+      const [prodsResult, compsResult] = await Promise.all([
+        supabase
+          .from("products_safe" as "products")
+          .select("*")
+          .order("category")
+          .limit(500),
+        supabase
+          .from("product_components_safe" as "product_components")
+          .select("*"),
+      ]);
+
+      const prods = prodsResult.data;
       if (!prods || prods.length === 0) return [] as Product[];
 
-      const ids = prods.map(p => p.id);
-      const { data: comps } = await supabase
-        .from("product_components_safe" as "product_components")
-        .select("*")
-        .in("product_id", ids);
-
+      const productIdSet = new Set(prods.map(p => p.id));
       const compsByProduct = new Map<string, ProductComponent[]>();
-      (comps || []).forEach(c => {
+      (compsResult.data || []).forEach(c => {
+        if (!productIdSet.has(c.product_id)) return;
         const list = compsByProduct.get(c.product_id) || [];
         list.push(c as ProductComponent);
         compsByProduct.set(c.product_id, list);
@@ -236,6 +242,7 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
     <ProductsContext.Provider value={{
       products,
       allProducts: rawProducts,
+      isLoading,
       refreshProducts,
       updateProduct,
       addProduct,

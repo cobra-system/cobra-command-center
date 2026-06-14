@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CreditCard, Plus, Trash2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,11 @@ const statusColors: Record<string, string> = {
 export function OrderPaymentsSection({ orderId, orderTotal, hasEdit }: Props) {
   const { currentUser } = useAuth();
   const { formatPrice } = useCurrency();
+  const queryClient = useQueryClient();
+  const invalidatePaymentCaches = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["order-payment-statuses"] });
+    queryClient.invalidateQueries({ queryKey: ["order-payments-dashboard"] });
+  }, [queryClient]);
   const [payments, setPayments] = useState<OrderPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -168,6 +174,7 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit }: Props) {
     toast.success(editingPayment ? "תשלום עודכן" : "תשלום נוסף");
     setShowForm(false);
     fetchPayments();
+    invalidatePaymentCaches();
   };
 
   const markPaid = async (id: string) => {
@@ -178,7 +185,7 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit }: Props) {
       .eq("id", id);
     if (error) { toast.error("שגיאה"); return; }
     toast.success("תשלום סומן כשולם");
-    fetchPayments();
+    fetchPayments(); invalidatePaymentCaches();
   };
 
   const markPending = async (id: string) => {
@@ -188,14 +195,14 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit }: Props) {
       .eq("id", id);
     if (error) { toast.error("שגיאה"); return; }
     toast.success("תשלום סומן כממתין");
-    fetchPayments();
+    fetchPayments(); invalidatePaymentCaches();
   };
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("order_payments").delete().eq("id", id);
     if (error) { toast.error("שגיאה במחיקה"); return; }
     toast.success("תשלום נמחק");
-    fetchPayments();
+    fetchPayments(); invalidatePaymentCaches();
   };
 
   const updateSwift = async (id: string, swift: string) => {

@@ -3,6 +3,7 @@ const ProcurementMeetingTab = lazy(() =>
   import("@/components/meetings/ProcurementMeetingTab")
 );
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { Plus, Search, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -46,7 +47,6 @@ export default function OrdersPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [orderPaymentStatuses, setOrderPaymentStatuses] = useState<Record<string, string>>({});
   const { hasEdit } = usePermissions("orders");
   const hidePrices = !canSeePrices(currentUser);
   const isDivMgr = isDivisionManager(currentUser);
@@ -55,12 +55,12 @@ export default function OrdersPage() {
   const [defaultSupplierId, setDefaultSupplierId] = useState<string | undefined>();
   const [archiveSearch, setArchiveSearch] = useState("");
 
-  useEffect(() => {
-    const fetchPaymentStatuses = async () => {
-      const { data } = await supabase
-        .from("order_payments")
-        .select("order_id, status");
-      if (!data) return;
+  const { data: orderPaymentStatuses = {} } = useQuery({
+    queryKey: ["order-payment-statuses"],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await supabase.from("order_payments").select("order_id, status");
+      if (!data) return {} as Record<string, string>;
       const map: Record<string, { total: number; paid: number }> = {};
       for (const p of data) {
         if (!map[p.order_id]) map[p.order_id] = { total: 0, paid: 0 };
@@ -73,10 +73,9 @@ export default function OrdersPage() {
         else if (counts.paid === counts.total) result[orderId] = "שולם";
         else result[orderId] = "שולם חלקי";
       }
-      setOrderPaymentStatuses(result);
-    };
-    fetchPaymentStatuses();
-  }, [orders]);
+      return result;
+    },
+  });
 
   // Honour ?focus=<orderId> by setting the search filter to the order id
   // (table search matches order id) so the user lands on that single row.

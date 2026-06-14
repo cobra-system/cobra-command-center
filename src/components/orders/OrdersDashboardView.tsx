@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { type Order, type Supplier } from "@/contexts/AppContext";
 import { cn } from "@/lib/utils";
 import { Globe, MapPin, DollarSign, AlertCircle, Truck, Clock, ChevronDown, ChevronUp, CreditCard, RefreshCw } from "lucide-react";
@@ -52,43 +53,42 @@ export function OrdersDashboardView({ orders, orderPaymentStatuses, suppliers }:
   const navigate = useNavigate();
   const [timelineExpanded, setTimelineExpanded] = useState(false);
   const [paymentSupplierFilter, setPaymentSupplierFilter] = useState<string>("all");
-  const [upcomingPayments, setUpcomingPayments] = useState<OrderPayment[]>([]);
-  const [allPayments, setAllPayments] = useState<OrderPayment[]>([]);
   const [bulkTracking, setBulkTracking] = useState<{ running: boolean; done: number; total: number }>({ running: false, done: 0, total: 0 });
   const abortRef = useRef(false);
   const { refreshOrders } = useData();
 
-  useEffect(() => {
+  const { data: allPayments = [] } = useQuery({
+    queryKey: ["order-payments-dashboard"],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("order_payments")
+        .select("id, order_id, amount, currency, due_date, status, payment_type, orders(supplier_name, order_items(name))")
+        .order("due_date", { ascending: true });
+      if (!data) return [] as OrderPayment[];
+      return data.map((p: Record<string, unknown>) => {
+        const ord = p.orders as Record<string, unknown> | null;
+        const items = (ord?.order_items as { name: string }[] | null) ?? [];
+        return {
+          id: p.id as string,
+          order_id: p.order_id as string,
+          amount: p.amount as number,
+          currency: p.currency as OrderPayment["currency"],
+          due_date: p.due_date as string | null,
+          status: p.status as OrderPayment["status"],
+          payment_type: p.payment_type as OrderPayment["payment_type"],
+          supplier_name: (ord?.supplier_name as string) ?? undefined,
+          order_items: items.map(i => i.name).join(", ") || undefined,
+        } satisfies OrderPayment;
+      });
+    },
+  });
+
+  const upcomingPayments = useMemo(() => {
     const thirtyDays = new Date();
     thirtyDays.setDate(thirtyDays.getDate() + 30);
-
-    supabase
-      .from("order_payments")
-      .select("id, order_id, amount, currency, due_date, status, payment_type, orders(supplier_name, order_items(name))")
-      .order("due_date", { ascending: true })
-      .then(({ data }) => {
-        if (!data) return;
-        const flat = data.map((p: Record<string, unknown>) => {
-          const ord = p.orders as Record<string, unknown> | null;
-          const items = (ord?.order_items as { name: string }[] | null) ?? [];
-          return {
-            id: p.id as string,
-            order_id: p.order_id as string,
-            amount: p.amount as number,
-            currency: p.currency as OrderPayment["currency"],
-            due_date: p.due_date as string | null,
-            status: p.status as OrderPayment["status"],
-            payment_type: p.payment_type as OrderPayment["payment_type"],
-            supplier_name: (ord?.supplier_name as string) ?? undefined,
-            order_items: items.map(i => i.name).join(", ") || undefined,
-          } satisfies OrderPayment;
-        });
-        setAllPayments(flat);
-        setUpcomingPayments(
-          flat.filter(p => p.status === "ממתין" && p.due_date && new Date(p.due_date) <= thirtyDays)
-        );
-      });
-  }, []);
+    return allPayments.filter(p => p.status === "ממתין" && p.due_date && new Date(p.due_date) <= thirtyDays);
+  }, [allPayments]);
 
   const handleBulkRefreshTracking = async () => {
     const trackableOrders = activeOrders.filter(o => o.tracking_number && o.tracking_carrier === "dhl");

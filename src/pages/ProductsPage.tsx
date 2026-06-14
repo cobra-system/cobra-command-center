@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useMemo, useRef, Fragment, lazy, Suspense } from "react";
+import { useState, useCallback, useMemo, useRef, Fragment, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
-import { useData, useAuth, useCurrency, categories, type Product } from "@/contexts/AppContext";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useData, useAuth, useCurrency, useProducts, categories, type Product } from "@/contexts/AppContext";
 import { canSeePrices, isDivisionManager } from "@/lib/permissions";
 import { useProductScope } from "@/hooks/useProductScope";
 import { useLiveProductMetrics, type ProductMetrics } from "@/hooks/useLiveProductMetrics";
@@ -100,17 +101,16 @@ export default function ProductsPage() {
     const val = e.target.value;
     setSearch(val);
     clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => setDebouncedSearch(val), 200);
+    searchTimer.current = setTimeout(() => { setDebouncedSearch(val); setDisplayLimit(100); }, 200);
   }, []);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [displayLimit, setDisplayLimit] = useState(100);
   const [formOpen, setFormOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   // Division stock state
   interface DivStockEntry { division: string; stock: number; dpId: string; monthly_avg: number | null }
-  const [divStockByProduct, setDivStockByProduct] = useState<Map<string, DivStockEntry[]>>(new Map());
-  const [divConsumptionByProduct, setDivConsumptionByProduct] = useState<Map<string, number>>(new Map());
   const [expandedStockId, setExpandedStockId] = useState<string | null>(null);
 
   const currentMonth = useMemo(() => {
@@ -123,41 +123,50 @@ export default function ProductsPage() {
     filters: { category: "הכל", typeFilter: "all", supplierFilter: "all" },
   });
   const { currentUser } = useAuth();
+  const { isLoading: productsLoading } = useProducts();
+  const queryClient = useQueryClient();
   const divManager = isDivisionManager(currentUser);
   const userDivision = currentUser?.division ?? "";
   const isBondedDivMgr = divManager && BONDED_DIVISIONS.has(userDivision);
 
-  const fetchDivisionStock = useCallback(async () => {
-    let q = supabase.from("division_products").select("id, division, product_id, division_stock, monthly_avg");
-    if (divManager && userDivision) q = q.eq("division", userDivision);
-    const { data } = await q;
+  const { data: rawDivStockRows = [] } = useQuery({
+    queryKey: ["division-stock", divManager ? userDivision : "all"],
+    queryFn: async () => {
+      let q = supabase.from("division_products").select("id, division, product_id, division_stock, monthly_avg");
+      if (divManager && userDivision) q = q.eq("division", userDivision);
+      return ((await q).data ?? []) as { id: string; division: string; product_id: string; division_stock: number; monthly_avg: number | null }[];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: rawConsumptionRows = [] } = useQuery({
+    queryKey: ["division-consumption", userDivision, currentMonth],
+    queryFn: async () => {
+      return ((await supabase
+        .from("division_product_consumption")
+        .select("product_id, quantity")
+        .eq("division", userDivision)
+        .eq("month", currentMonth)).data ?? []) as { product_id: string; quantity: number }[];
+    },
+    enabled: divManager && !!userDivision,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const divStockByProduct = useMemo(() => {
     const map = new Map<string, DivStockEntry[]>();
-    for (const r of (data ?? []) as { id: string; division: string; product_id: string; division_stock: number; monthly_avg: number | null }[]) {
+    for (const r of rawDivStockRows) {
       const list = map.get(r.product_id) ?? [];
       list.push({ division: r.division, stock: r.division_stock ?? 0, dpId: r.id, monthly_avg: r.monthly_avg ?? null });
       map.set(r.product_id, list);
     }
-    setDivStockByProduct(map);
-  }, [divManager, userDivision]);
+    return map;
+  }, [rawDivStockRows]);
 
-  const fetchDivisionConsumption = useCallback(async () => {
-    if (!divManager || !userDivision) return;
-    const { data } = await supabase
-      .from("division_product_consumption")
-      .select("product_id, quantity")
-      .eq("division", userDivision)
-      .eq("month", currentMonth);
+  const divConsumptionByProduct = useMemo(() => {
     const map = new Map<string, number>();
-    for (const r of (data ?? []) as { product_id: string; quantity: number }[]) {
-      map.set(r.product_id, r.quantity);
-    }
-    setDivConsumptionByProduct(map);
-  }, [divManager, userDivision, currentMonth]);
-
-  useEffect(() => {
-    fetchDivisionStock();
-    fetchDivisionConsumption();
-  }, [fetchDivisionStock, fetchDivisionConsumption]);
+    for (const r of rawConsumptionRows) map.set(r.product_id, r.quantity);
+    return map;
+  }, [rawConsumptionRows]);
 
   const saveDivisionConsumption = useCallback(async (productId: string, quantity: number) => {
     await supabase
@@ -166,8 +175,8 @@ export default function ProductsPage() {
         { division: userDivision, product_id: productId, month: currentMonth, quantity },
         { onConflict: "division,product_id,month" }
       );
-    fetchDivisionConsumption();
-  }, [userDivision, currentMonth, fetchDivisionConsumption]);
+    queryClient.invalidateQueries({ queryKey: ["division-consumption"] });
+  }, [userDivision, currentMonth, queryClient]);
 
   // For admins: sum all divisions' monthly_avg. For division managers: their own division only.
   const divAvgByProduct = useMemo(() => {
@@ -274,6 +283,9 @@ export default function ProductsPage() {
     return Array.from(set).sort((a, b) => a.localeCompare(b, "he"));
   }, [products]);
 
+  const visibleProducts = useMemo(() => filtered.slice(0, displayLimit), [filtered, displayLimit]);
+  const hasMore = filtered.length > displayLimit;
+
   const SortIcon = ({ col }: { col: SortKey }) => {
     if (sortKey !== col) return <ArrowUpDown className="h-3 w-3 opacity-30" />;
     return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
@@ -335,7 +347,7 @@ export default function ProductsPage() {
       <div className="overflow-x-auto pb-1 -mx-1 px-1">
         <div className="flex gap-1.5 min-w-max">
           {categories.map(cat => (
-            <button key={cat} onClick={() => setCategory(cat)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            <button key={cat} onClick={() => { setCategory(cat); setDisplayLimit(100); }} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               category === cat ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
             }`}>{cat}</button>
           ))}
@@ -345,12 +357,12 @@ export default function ProductsPage() {
       <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 sm:items-center">
         <div className="flex bg-secondary rounded-lg p-1 self-start">
           {(["all", "מוגמר", "מורכב"] as const).map(t => (
-            <button key={t} onClick={() => prefs.setFilter("typeFilter", t)} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            <button key={t} onClick={() => { prefs.setFilter("typeFilter", t); setDisplayLimit(100); }} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
               typeFilter === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
             }`}>{t === "all" ? "הכל" : t}</button>
           ))}
         </div>
-        <Select value={supplierFilter} onValueChange={(v) => prefs.setFilter("supplierFilter", v)}>
+        <Select value={supplierFilter} onValueChange={(v) => { prefs.setFilter("supplierFilter", v); setDisplayLimit(100); }}>
           <SelectTrigger className="w-full sm:w-[160px]"><SelectValue placeholder="ספק" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">כל הספקים</SelectItem>
@@ -365,7 +377,20 @@ export default function ProductsPage() {
 
       {/* Mobile card list */}
       <div className="md:hidden space-y-3">
-        {filtered.length === 0 ? (
+        {productsLoading && visibleProducts.length === 0 ? (
+          [...Array(6)].map((_, i) => (
+            <div key={i} className="bg-card rounded-xl border shadow-sm p-4 animate-pulse">
+              <div className="flex items-start gap-3">
+                <div className="h-10 w-10 rounded bg-muted shrink-0" />
+                <div className="flex-1 space-y-2 py-1">
+                  <div className="h-4 bg-muted rounded w-3/4" />
+                  <div className="h-3 bg-muted rounded w-1/3" />
+                </div>
+                <div className="h-8 w-20 bg-muted rounded shrink-0" />
+              </div>
+            </div>
+          ))
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-14 gap-3 text-center">
             <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
               <Boxes className="h-6 w-6 text-muted-foreground" />
@@ -373,7 +398,7 @@ export default function ProductsPage() {
             <p className="text-sm font-medium text-foreground">לא נמצאו מוצרים</p>
             <p className="text-xs text-muted-foreground">נסה לחפש מונח אחר או לנקות את הסינון</p>
           </div>
-        ) : filtered.map(p => {
+        ) : visibleProducts.map(p => {
           const isComposite = p.product_type === "מורכב";
           const isExpanded = expandedId === p.id;
           const hasComponents = isComposite && p.components && p.components.length > 0;
@@ -429,7 +454,7 @@ export default function ProductsPage() {
                           type="number"
                           onCommit={async (val) => {
                             const res = await updateDivisionStock(userDivision, p.id, val as number | null);
-                            if (res.ok) { toast.success("מלאי עודכן"); fetchDivisionStock(); }
+                            if (res.ok) { toast.success("מלאי עודכן"); queryClient.invalidateQueries({ queryKey: ["division-stock"] }); }
                             else toast.error(res.error ?? "שגיאה בעדכון");
                           }}
                         />
@@ -510,6 +535,14 @@ export default function ProductsPage() {
             </div>
           );
         })}
+        {hasMore && (
+          <button
+            onClick={() => setDisplayLimit(prev => prev + 100)}
+            className="w-full py-3 text-sm text-muted-foreground hover:text-foreground transition-colors border rounded-xl bg-card hover:bg-muted/30"
+          >
+            הצג עוד ({filtered.length - displayLimit} נוספים)
+          </button>
+        )}
       </div>
 
       {/* Desktop table */}
@@ -532,14 +565,24 @@ export default function ProductsPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {filtered.length === 0 ? (
+            {productsLoading && visibleProducts.length === 0 ? (
+              [...Array(8)].map((_, i) => (
+                <tr key={i} className="animate-pulse border-b">
+                  <td className="p-3 w-8" />
+                  {COLUMN_DEFS.filter(c => isVisible(c.id)).map(col => (
+                    <td key={col.id} className="p-3"><div className="h-4 bg-muted rounded" /></td>
+                  ))}
+                  {hasEdit && <td className="p-3" />}
+                </tr>
+              ))
+            ) : filtered.length === 0 ? (
               <tr><td colSpan={1 + visibleCount + (hasEdit ? 1 : 0)} className="py-16 text-center">
                 <div className="flex flex-col items-center gap-2">
                   <Boxes className="h-8 w-8 text-muted-foreground/40" />
                   <p className="text-sm text-muted-foreground">לא נמצאו מוצרים</p>
                 </div>
               </td></tr>
-            ) : filtered.map(p => {
+            ) : visibleProducts.map(p => {
               const isComposite = p.product_type === "מורכב";
               const isExpanded = expandedId === p.id;
               const hasComponents = isComposite && p.components && p.components.length > 0;
@@ -619,7 +662,7 @@ export default function ProductsPage() {
                             type="number"
                             onCommit={async (val) => {
                               const res = await updateDivisionStock(userDivision, p.id, val as number | null);
-                              if (res.ok) { toast.success("מלאי עודכן"); fetchDivisionStock(); }
+                              if (res.ok) { toast.success("מלאי עודכן"); queryClient.invalidateQueries({ queryKey: ["division-stock"] }); }
                               else toast.error(res.error ?? "שגיאה בעדכון");
                             }}
                           />
@@ -657,7 +700,7 @@ export default function ProductsPage() {
                                           className="!text-[10px] !min-h-[20px] !py-0 max-w-[60px]"
                                           onCommit={async (val) => {
                                             const res = await updateDivisionStock(d.division, p.id, val as number | null);
-                                            if (res.ok) fetchDivisionStock();
+                                            if (res.ok) queryClient.invalidateQueries({ queryKey: ["division-stock"] });
                                             else toast.error(res.error ?? "שגיאה");
                                           }}
                                         />
@@ -826,6 +869,18 @@ export default function ProductsPage() {
                 </Fragment>
               );
             })}
+            {hasMore && (
+              <tr>
+                <td colSpan={1 + visibleCount + (hasEdit ? 1 : 0)} className="p-0">
+                  <button
+                    onClick={() => setDisplayLimit(prev => prev + 100)}
+                    className="w-full py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+                  >
+                    הצג עוד ({filtered.length - displayLimit} נוספים)
+                  </button>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

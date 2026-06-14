@@ -30,6 +30,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
 
   const { data: rawOrders = [] } = useQuery({
     queryKey: ["orders"],
+    staleTime: 2 * 60 * 1000,
     queryFn: async () => {
       const { data: ords } = await supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(500);
       if (ords) {
