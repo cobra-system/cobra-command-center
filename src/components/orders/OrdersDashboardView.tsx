@@ -165,11 +165,13 @@ export function OrdersDashboardView({ orders, orderPaymentStatuses, suppliers }:
   }, [orders, activeOrders, suppliers]);
 
   const statusChartData = useMemo(() => {
-    return Object.entries(stats.statusCounts).map(([status, count]) => ({
-      name: status,
-      value: count,
-      fill: STATUS_COLORS[status] || "#808080",
-    }));
+    return Object.entries(stats.statusCounts)
+      .filter(([status]) => status !== "ARRIVED" && status !== "CANCELLED")
+      .map(([status, count]) => ({
+        name: status,
+        value: count,
+        fill: STATUS_COLORS[status] || "#808080",
+      }));
   }, [stats]);
 
   const priorityChartData = useMemo(() => {
