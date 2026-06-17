@@ -7,9 +7,13 @@
 
 ## [2026-06-17]
 
+- Move orders search bar above all tabs, unify archive search with main search (95648b8)
+
+<!-- last-commit: 6bd8b2182cdcb6da29b13aefd6f64050e339716d -->
+## [2026-06-17]
+
 - Hide ARRIVED and CANCELLED from status pie chart (5ec5857)
 
-<!-- last-commit: 52812ec1a0ff69ecb394b5d3fcc3ec8a664144bf -->
 ## [2026-06-14]
 
 - Merge pull request #242 from cobra-system/claude/wonderful-knuth-9gjlnv (26bbbf3)
