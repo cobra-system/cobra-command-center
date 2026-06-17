@@ -1,5 +1,3 @@
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Priority } from "@/contexts/AppContext";
 
@@ -22,8 +20,6 @@ const priorities: { value: Priority; label: string }[] = [
 ];
 
 interface OrderFiltersProps {
-  search: string;
-  setSearch: (v: string) => void;
   statusFilter: string;
   setStatusFilter: (v: string) => void;
   priorityFilter: string;
@@ -38,8 +34,6 @@ interface OrderFiltersProps {
 }
 
 export function OrderFilters({
-  search,
-  setSearch,
   statusFilter,
   setStatusFilter,
   priorityFilter,
@@ -54,10 +48,6 @@ export function OrderFilters({
 }: OrderFiltersProps) {
   return (
     <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
-      <div className="relative flex-1 min-w-[150px] max-w-sm order-first w-full sm:w-auto sm:order-none">
-        <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="חיפוש לפי מוצר או ספק..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
-      </div>
       <div className="flex bg-secondary rounded-lg p-1 overflow-x-auto">
         {statusFilterOptions.map(s => {
           const count = s.value === "all"
