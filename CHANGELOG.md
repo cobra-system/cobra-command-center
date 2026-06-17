@@ -5,6 +5,11 @@
 
 ---
 
+## [2026-06-17]
+
+- Hide ARRIVED and CANCELLED from status pie chart (5ec5857)
+
+<!-- last-commit: 52812ec1a0ff69ecb394b5d3fcc3ec8a664144bf -->
 ## [2026-06-14]
 
 - Merge pull request #242 from cobra-system/claude/wonderful-knuth-9gjlnv (26bbbf3)
@@ -12,7 +17,6 @@
 - perf: additional ProductsPage optimizations (fbd1494)
 - perf: speed up ProductsPage loading (3e45e63)
 
-<!-- last-commit: 26bbbf3bd374e469c6af6a0e1d4c764f2485f679 -->
 ## [2026-06-14]
 
 - Inline delivery status dropdown, fix order link navigation, always-open partial qty field (7ae3178)
