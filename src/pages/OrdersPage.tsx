@@ -5,7 +5,7 @@ const ProcurementMeetingTab = lazy(() =>
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useData, type Priority, type OrderStatus } from "@/contexts/AppContext";
-import { Plus, Search, RefreshCw } from "lucide-react";
+import { Plus, Search, RefreshCw, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -53,7 +53,6 @@ export default function OrdersPage() {
   const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
   const [defaultProductId, setDefaultProductId] = useState<string | undefined>();
   const [defaultSupplierId, setDefaultSupplierId] = useState<string | undefined>();
-  const [archiveSearch, setArchiveSearch] = useState("");
 
   const { data: orderPaymentStatuses = {} } = useQuery({
     queryKey: ["order-payment-statuses"],
@@ -157,14 +156,19 @@ export default function OrdersPage() {
   }, []);
 
   const archivedOrders = useMemo(() => {
-    const q = archiveSearch.toLowerCase();
+    const q = search.toLowerCase();
     return orders
       .filter(o => {
         if (o.status !== "ARRIVED" && o.status !== "CANCELLED") return false;
         if (q) {
-          const itemNames = scopeOrderItems(o.items).map(i => i.name).join(" ").toLowerCase();
-          const supplier = (o.supplier_name || "").toLowerCase();
-          if (!itemNames.includes(q) && !supplier.includes(q)) return false;
+          const searchable = [
+            o.id,
+            scopeOrderItems(o.items).map(i => i.name).join(" "),
+            o.supplier_name,
+            o.pi_number,
+            o.tracking_number,
+          ].filter(Boolean).join(" ").toLowerCase();
+          if (!searchable.includes(q)) return false;
         }
         return true;
       })
@@ -173,7 +177,7 @@ export default function OrdersPage() {
         const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
         return dateB - dateA;
       });
-  }, [orders, archiveSearch, scopeOrderItems]);
+  }, [orders, search, scopeOrderItems]);
 
   const filtered = useMemo(() => {
     let result = orders.filter(o => {
@@ -342,22 +346,42 @@ export default function OrdersPage() {
       />
 
       <Tabs defaultValue={isDivMgr ? "order-requests" : "dashboard"} className="space-y-4">
-        <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-1" dir="rtl">
-          <TabsList className="w-max min-w-full">
-            {!isDivMgr && <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>}
-            {/* Table tab carries the division-manager-specific label for the bonded planning surface. */}
-            <TabsTrigger value="table">{isDivMgr ? "רכש מוצרי חטיבה" : "הזמנות פעילות"}</TabsTrigger>
-            <TabsTrigger value="archive" className="gap-1.5">
-              ארכיון הזמנות
-              {archivedOrders.length > 0 && (
-                <span className="bg-muted text-muted-foreground text-xs font-medium px-1.5 py-0.5 rounded-full">
-                  {archivedOrders.length}
-                </span>
-              )}
-            </TabsTrigger>
-            {!isDivMgr && <TabsTrigger value="meeting">ישיבת רכש</TabsTrigger>}
-            <TabsTrigger value="order-requests">בקשת רכש</TabsTrigger>
-          </TabsList>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+          <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-1 flex-1" dir="rtl">
+            <TabsList className="w-max min-w-full">
+              {!isDivMgr && <TabsTrigger value="dashboard">לוח בקרה</TabsTrigger>}
+              {/* Table tab carries the division-manager-specific label for the bonded planning surface. */}
+              <TabsTrigger value="table">{isDivMgr ? "רכש מוצרי חטיבה" : "הזמנות פעילות"}</TabsTrigger>
+              <TabsTrigger value="archive" className="gap-1.5">
+                ארכיון הזמנות
+                {archivedOrders.length > 0 && (
+                  <span className="bg-muted text-muted-foreground text-xs font-medium px-1.5 py-0.5 rounded-full">
+                    {archivedOrders.length}
+                  </span>
+                )}
+              </TabsTrigger>
+              {!isDivMgr && <TabsTrigger value="meeting">ישיבת רכש</TabsTrigger>}
+              <TabsTrigger value="order-requests">בקשת רכש</TabsTrigger>
+            </TabsList>
+          </div>
+          <div className="relative w-full sm:w-64 shrink-0">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="חיפוש לפי מוצר או ספק..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pr-9 pl-8"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="נקה חיפוש"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         <TabsContent value="dashboard" className="mt-0">
@@ -366,8 +390,6 @@ export default function OrdersPage() {
 
         <TabsContent value="table" className="mt-0 space-y-4">
           <OrderFilters
-            search={search}
-            setSearch={setSearch}
             statusFilter={statusFilter}
             setStatusFilter={setStatusFilter}
             priorityFilter={priorityFilter}
@@ -408,15 +430,6 @@ export default function OrdersPage() {
         </TabsContent>
 
         <TabsContent value="archive" className="mt-0 space-y-4">
-          <div className="relative max-w-sm">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="חיפוש לפי מוצר או ספק..."
-              value={archiveSearch}
-              onChange={e => setArchiveSearch(e.target.value)}
-              className="pr-9"
-            />
-          </div>
           <OrderTable
             filtered={archivedOrders}
             orderPaymentStatuses={orderPaymentStatuses}
