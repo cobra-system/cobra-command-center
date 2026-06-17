@@ -5,11 +5,12 @@ import { useAuth } from "@/contexts/AppContext";
 import { toast } from "sonner";
 
 const EVENT_TITLES: Record<string, string> = {
-  order_request_created: "בקשה חדשה",
-  order_request_urgent: "בקשה דחופה",
-  order_request_fulfilled: "הבקשה שלך הוזמנה",
+  order_request_created:  "בקשה חדשה",
+  order_request_urgent:   "בקשה דחופה",
+  order_request_received: "הבקשה שלך התקבלה",
+  order_request_fulfilled:"הבקשה שלך הוזמנה",
   order_request_rejected: "הבקשה שלך נדחתה",
-  order_request_commented: "תגובה חדשה",
+  order_request_commented:"תגובה חדשה",
 };
 
 interface QueueRow {
@@ -40,10 +41,12 @@ export function useOrderRequestToasts() {
         { event: "INSERT", schema: "public", table: "notification_queue" },
         (msg) => {
           const row = msg.new as QueueRow;
-          // Sanity gate (RLS would filter, but this avoids stale broadcast):
-          // managers always relevant; division managers only their division.
-          if (currentUser.role !== "MANAGER" && row.recipient_division
-              && row.recipient_division !== currentUser.division) return;
+          // Sanity gate (RLS filters, but realtime may lag):
+          // targeted rows (recipient_user_id) are always relevant to the recipient;
+          // managers see all role=MANAGER rows; division managers see their division.
+          if (row.recipient_user_id && row.recipient_user_id !== currentUser.id) return;
+          if (!row.recipient_user_id && currentUser.role !== "MANAGER"
+              && row.recipient_division && row.recipient_division !== currentUser.division) return;
 
           const title = EVENT_TITLES[row.event_type] ?? "התראה";
           const body = row.payload.product_name
