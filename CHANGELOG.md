@@ -7,10 +7,15 @@
 
 ## [2026-06-22]
 
+- Merge pull request #249 from cobra-system/claude/supplier-payment-chart-7y1ezd (128bab4)
+- feat: add SAP monthly payments section to supplier detail page (5cec5e4)
+
+<!-- last-commit: 128bab44849339682945e354c09f803ca47e27f0 -->
+## [2026-06-22]
+
 - Merge pull request #248 from cobra-system/claude/supplier-payment-chart-7y1ezd (e07a054)
 - feat: add supplier payment bar chart to supplier detail page (33740e6)
 
-<!-- last-commit: e07a054d32767579d1deede1558506314061b7db -->
 ## [2026-06-22]
 
 - Enhance product search in add-item modal to include SKU and supplier (f6e77b6)
