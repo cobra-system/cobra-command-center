@@ -13,6 +13,7 @@ import { ArrowRight, Pencil, Trash2, ExternalLink, Mail, Phone, Globe, TruckIcon
 import DocumentsSection from "@/components/DocumentsSection";
 import { SupplierReturnsSection } from "@/components/waste/SupplierReturnsSection";
 import { SupplierPaymentChart } from "@/components/supplier-detail/SupplierPaymentChart";
+import { SupplierSapPaymentSection } from "@/components/supplier-detail/SupplierSapPaymentSection";
 import ProductFormDialog from "@/components/products/ProductFormDialog";
 import { InlineEditField } from "@/components/InlineEditField";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -470,6 +471,14 @@ export default function SupplierDetailPage() {
 
       {/* Payment Chart */}
       {showPrices && <SupplierPaymentChart supplierId={supplier.id} />}
+
+      {/* SAP Monthly Payments */}
+      {showPrices && (
+        <SupplierSapPaymentSection
+          supplierId={supplier.id}
+          supplierNumber={supplier.supplier_number ?? null}
+        />
+      )}
 
       {/* Documents */}
       <DocumentsSection supplierId={supplier.id} />
