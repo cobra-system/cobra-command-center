@@ -588,7 +588,15 @@ export default function OrderDetailPage() {
                   const p = products.find(p => p.id === v);
                   if (p) { setItemName(p.name); setItemPrice(p.purchase_price?.toString() || ""); }
                 }}
-                options={[{ value: "", label: "ללא" }, ...products.map(p => ({ value: p.id, label: p.name }))]}
+                options={[{ value: "", label: "ללא" }, ...products.map(p => {
+                    const hint = [p.sku, p.supplier].filter(Boolean).join(" · ");
+                    return {
+                      value: p.id,
+                      label: p.name,
+                      hint: hint || undefined,
+                      keywords: [p.sku, p.supplier].filter((v): v is string => !!v),
+                    };
+                  })]}
                 placeholder="בחר מוצר (אופציונלי)"
                 searchPlaceholder="חיפוש מוצר..."
               />
