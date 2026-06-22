@@ -7,9 +7,14 @@
 
 ## [2026-06-22]
 
+- Merge pull request #248 from cobra-system/claude/supplier-payment-chart-7y1ezd (e07a054)
+- feat: add supplier payment bar chart to supplier detail page (33740e6)
+
+<!-- last-commit: e07a054d32767579d1deede1558506314061b7db -->
+## [2026-06-22]
+
 - Enhance product search in add-item modal to include SKU and supplier (f6e77b6)
 
-<!-- last-commit: ee39cd96c2f3425ba744793b81d2515afa2bdac9 -->
 ## [2026-06-17]
 
 - Move orders search bar above all tabs, unify archive search with main search (95648b8)
