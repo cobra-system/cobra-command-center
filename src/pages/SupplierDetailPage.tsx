@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ArrowRight, Pencil, Trash2, ExternalLink, Mail, Phone, Globe, TruckIcon, UserPlus, Users, X, Link2, Search, Plus } from "lucide-react";
 import DocumentsSection from "@/components/DocumentsSection";
 import { SupplierReturnsSection } from "@/components/waste/SupplierReturnsSection";
+import { SupplierPaymentChart } from "@/components/supplier-detail/SupplierPaymentChart";
 import ProductFormDialog from "@/components/products/ProductFormDialog";
 import { InlineEditField } from "@/components/InlineEditField";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -466,6 +467,9 @@ export default function SupplierDetailPage() {
           <p className="text-sm text-muted-foreground py-4 text-center">אין הזמנות קשורות לספק זה</p>
         )}
       </div>
+
+      {/* Payment Chart */}
+      {showPrices && <SupplierPaymentChart supplierId={supplier.id} />}
 
       {/* Documents */}
       <DocumentsSection supplierId={supplier.id} />
