@@ -1,0 +1,261 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CategorySelect } from "@/components/ui/CategorySelect";
+import { Combobox } from "@/components/ui/combobox";
+import { type Product, divisions, useAuth } from "@/contexts/AppContext";
+import { canSeePrices } from "@/lib/permissions";
+import { supabase } from "@/lib/supabase";
+const productTypes = ["מוגמר", "מורכב"];
+const shippingMethods = ["אוויר", "ים", "יבשה", "שילוב", "בין ספקים"];
+
+interface Supplier {
+  id: string;
+  company: string;
+  country: string | null;
+}
+
+interface ProductEditDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  product: Product;
+  onSave: (id: string, updates: Record<string, any>) => Promise<void>;
+}
+
+export default function ProductEditDialog({ open, onOpenChange, product, onSave }: ProductEditDialogProps) {
+  const { currentUser } = useAuth();
+  const showPrices = canSeePrices(currentUser);
+  const [fields, setFields] = useState<Record<string, any>>({});
+  const [saving, setSaving] = useState(false);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+
+  useEffect(() => {
+    supabase.from("suppliers").select("id, company, country").order("company").then(({ data }) => {
+      if (data) setSuppliers(data);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (open && product) {
+      setFields({
+        name: product.name || "",
+        sku: product.sku || "",
+        category: product.category || "",
+        division: product.division || "",
+        product_type: product.product_type || "",
+        description: product.description || "",
+        supplier: product.supplier || "",
+
+        shipping: product.shipping || "",
+        purchase_price: product.purchase_price ?? "",
+        sale_price: product.sale_price ?? "",
+        price_currency: product.price_currency || "USD",
+        monthly_order: product.monthly_order ?? "",
+        monthly_sales_avg: product.monthly_sales_avg ?? "",
+        stock_qty: product.stock_qty ?? 0,
+        lead_time_days: product.lead_time_days ?? "",
+        end_product_url: product.end_product_url || "",
+        end_product_image: product.end_product_image || "",
+        notes: product.notes || "",
+      });
+    }
+  }, [open, product]);
+
+  const set = (key: string, value: any) => setFields(prev => ({ ...prev, [key]: value }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const updates: Record<string, any> = {};
+      const numericFields = ["purchase_price", "sale_price", "monthly_order", "monthly_sales_avg", "stock_qty", "lead_time_days"];
+      const textFields = ["name", "sku", "category", "division", "product_type", "description", "supplier", "shipping", "end_product_url", "end_product_image", "notes", "price_currency"];
+
+      for (const key of textFields) {
+        updates[key] = fields[key] === "" ? null : fields[key];
+      }
+      // name, sku, category, product_type are required
+      updates.name = fields.name;
+      updates.sku = fields.sku;
+      updates.category = fields.category;
+      updates.product_type = fields.product_type;
+
+      for (const key of numericFields) {
+        const val = fields[key];
+        updates[key] = val === "" || val === null || val === undefined ? null : Number(val);
+      }
+      updates.stock_qty = updates.stock_qty ?? 0;
+
+      await onSave(product.id, updates);
+      onOpenChange(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const numField = (key: string, label: string) => (
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      <Input type="number" value={fields[key] ?? ""} onChange={e => set(key, e.target.value)} />
+    </div>
+  );
+
+  const textField = (key: string, label: string) => (
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      <Input value={fields[key] ?? ""} onChange={e => set(key, e.target.value)} />
+    </div>
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg md:max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>עריכת מוצר</DialogTitle></DialogHeader>
+        <div className="space-y-5 pt-2">
+          {/* Basic Info */}
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-2">פרטים בסיסיים</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {textField("name", "שם מוצר")}
+              {textField("sku", "מק״ט")}
+              <div className="space-y-1">
+                <Label className="text-xs">קטגוריה</Label>
+                <CategorySelect value={fields.category || ""} onValueChange={v => set("category", v)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">חטיבות</Label>
+                <div className="flex flex-wrap gap-1 p-2 border rounded-md min-h-[36px]">
+                  {divisions.map(d => {
+                    const current = (fields.division || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+                    const selected = current.includes(d);
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => {
+                          const newVals = selected ? current.filter((v: string) => v !== d) : [...current, d];
+                          set("division", newVals.join(", "));
+                        }}
+                        className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${selected ? "bg-primary text-primary-foreground border-primary" : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"}`}
+                      >
+                        {d}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">סוג מוצר</Label>
+                <Select value={fields.product_type || ""} onValueChange={v => set("product_type", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {productTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 col-span-2">
+                <Label className="text-xs">תיאור</Label>
+                <Textarea value={fields.description ?? ""} onChange={e => set("description", e.target.value)} rows={2} />
+              </div>
+            </div>
+          </div>
+
+          {/* Supplier & Shipping */}
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-2">ספק ומשלוח</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">ספק</Label>
+                <Combobox
+                  value={fields.supplier || ""}
+                  onValueChange={v => set("supplier", v)}
+                  options={[{ value: "", label: "ללא" }, ...suppliers.map(s => ({ value: s.company, label: s.country ? `${s.company} (${s.country})` : s.company }))]}
+                  placeholder="בחר ספק..."
+                  searchPlaceholder="חיפוש ספק..."
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">שיטת משלוח</Label>
+                <Select value={fields.shipping || ""} onValueChange={v => set("shipping", v)}>
+                  <SelectTrigger><SelectValue placeholder="בחר..." /></SelectTrigger>
+                  <SelectContent>
+                    {shippingMethods.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              {numField("lead_time_days", "זמן אספקה (ימים)")}
+            </div>
+          </div>
+
+          {/* Pricing — managers only */}
+          {showPrices && (
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-2">מחירים</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">מחיר רכישה</Label>
+                  <div className="flex gap-1">
+                    <Input type="number" value={fields.purchase_price ?? ""} onChange={e => set("purchase_price", e.target.value)} className="flex-1" />
+                    <Select value={fields.price_currency || "USD"} onValueChange={v => set("price_currency", v)}>
+                      <SelectTrigger className="w-16 shrink-0"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USD">$</SelectItem>
+                        <SelectItem value="ILS">₪</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">מחיר מכירה</Label>
+                  <div className="flex gap-1">
+                    <Input type="number" value={fields.sale_price ?? ""} onChange={e => set("sale_price", e.target.value)} className="flex-1" />
+                    <span className="flex items-center text-sm text-muted-foreground px-2 border rounded-md bg-muted/30 shrink-0">
+                      {fields.price_currency === "ILS" ? "₪" : "$"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Inventory */}
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-2">מלאי והזמנות</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {numField("stock_qty", "מלאי קיים")}
+              {numField("monthly_order", "הזמנה חודשית")}
+              {numField("monthly_sales_avg", "ממוצע צריכה שנתי (SAP)")}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              מלאי בדרך ומכירות חודשיות מחושבים אוטומטית מהזמנות ומהיסטוריית הוצאות המלאי.
+            </p>
+          </div>
+
+          {/* Links */}
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-2">קישורים</h3>
+            <div className="grid grid-cols-1 gap-3">
+              {textField("end_product_url", "קישור לאתר המוצר")}
+              {textField("end_product_image", "קישור לתמונת המוצר")}
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="space-y-1">
+            <Label className="text-xs">הערות</Label>
+            <Textarea value={fields.notes ?? ""} onChange={e => set("notes", e.target.value)} rows={2} />
+          </div>
+
+          <Button onClick={handleSave} className="w-full" disabled={saving}>
+            {saving ? "שומר..." : "שמור שינויים"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

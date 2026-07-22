@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "cobra": {
+      "command": "node",
+      "args": ["mcp-server/dist/index.js"],
+      "env": {
+        "SUPABASE_URL": "https://ljpdwezgahrrffnwajho.supabase.co",
+        "SUPABASE_SERVICE_ROLE_KEY": "YOUR_SUPABASE_SERVICE_ROLE_KEY"
+      }
+    }
+  }
+}

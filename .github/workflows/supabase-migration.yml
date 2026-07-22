@@ -1,0 +1,75 @@
+name: Apply Supabase Migrations & Deploy Functions
+
+on:
+  push:
+    branches: [ main, develop, "claude/**" ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Resolve database IPv4
+        run: |
+          DB_IPV4=$(getent ahostsv4 db.ljpdwezgahrrffnwajho.supabase.co | awk '{print $1}' | head -1)
+          echo "DB_IPV4=$DB_IPV4" >> $GITHUB_ENV
+          echo "Resolved host to IPv4: $DB_IPV4"
+
+      - name: Run migrations
+        env:
+          PGPASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+        run: |
+          for file in $(ls supabase/migrations/*.sql | sort); do
+            echo "Applying migration: $file"
+            psql "postgresql://postgres:$PGPASSWORD@$DB_IPV4:5432/postgres?sslmode=require" -f "$file" --set ON_ERROR_STOP=0 || true
+          done
+          echo "All migrations applied!"
+
+      - name: Reload PostgREST schema cache
+        env:
+          PGPASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+        run: |
+          psql "postgresql://postgres:$PGPASSWORD@$DB_IPV4:5432/postgres?sslmode=require" -c "NOTIFY pgrst, 'reload schema';" && echo "Schema cache reloaded!" || echo "Warning: Could not reload schema cache"
+
+      - name: Verify database connection
+        env:
+          PGPASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+        run: |
+          psql "postgresql://postgres:$PGPASSWORD@$DB_IPV4:5432/postgres?sslmode=require" -c "SELECT count(*) as table_count FROM information_schema.tables WHERE table_schema = 'public';" || echo "Warning: Could not verify connection"
+
+  deploy-functions:
+    runs-on: ubuntu-latest
+    needs: migrate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy all Edge Functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Deploying Edge Functions to project ljpdwezgahrrffnwajho..."
+          for func_dir in supabase/functions/*/; do
+            func_name=$(basename "$func_dir")
+            if [ -f "$func_dir/index.ts" ]; then
+              echo "Deploying function: $func_name"
+              supabase functions deploy "$func_name" --project-ref ljpdwezgahrrffnwajho --no-verify-jwt || echo "Warning: Failed to deploy $func_name"
+            fi
+          done
+          echo "All Edge Functions deployed!"

@@ -1,0 +1,2 @@
+npm test
+node scripts/check-docs.mjs

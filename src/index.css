@@ -1,0 +1,193 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 14% 96%;
+    --foreground: 220 20% 14%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 14%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 14%;
+
+    --primary: 211 100% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 92%;
+    --secondary-foreground: 220 20% 30%;
+
+    --muted: 220 14% 93%;
+    --muted-foreground: 220 10% 46%;
+
+    --accent: 211 80% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --warning: 32 95% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --success: 142 71% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --employee-header: 150 55% 23%;
+    --employee-header-foreground: 0 0% 100%;
+    --employee-glow: 150 55% 40%;
+
+    --border: 220 13% 90%;
+    --input: 220 13% 90%;
+    --ring: 211 100% 50%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 20% 14%;
+    --sidebar-primary: 211 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 211 100% 96%;
+    --sidebar-accent-foreground: 211 100% 42%;
+    --sidebar-border: 220 13% 92%;
+    --sidebar-ring: 211 100% 50%;
+    --sidebar-muted: 220 10% 46%;
+
+    --p0: 0 72% 51%;
+    --p1: 32 95% 50%;
+    --p2: 211 80% 55%;
+    --p3: 220 10% 62%;
+
+    --status-pending: 220 10% 62%;
+    --status-ordered: 211 80% 55%;
+    --status-shipped: 32 95% 50%;
+    --status-arrived: 142 71% 40%;
+    --status-cancelled: 0 72% 51%;
+
+    --todo: 220 14% 95%;
+    --in-progress: 211 80% 94%;
+    --done: 142 60% 93%;
+    --blocked: 0 60% 95%;
+  }
+
+  .dark {
+    --background: 220 20% 10%;
+    --foreground: 220 14% 93%;
+
+    --card: 220 20% 13%;
+    --card-foreground: 220 14% 93%;
+
+    --popover: 220 20% 15%;
+    --popover-foreground: 220 14% 93%;
+
+    --primary: 211 100% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 20% 20%;
+    --secondary-foreground: 220 14% 85%;
+
+    --muted: 220 20% 18%;
+    --muted-foreground: 220 10% 55%;
+
+    --accent: 211 80% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --warning: 32 95% 55%;
+    --warning-foreground: 0 0% 100%;
+
+    --success: 142 60% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --border: 220 20% 22%;
+    --input: 220 20% 22%;
+    --ring: 211 100% 55%;
+
+    --sidebar-background: 220 20% 11%;
+    --sidebar-foreground: 220 14% 90%;
+    --sidebar-primary: 211 100% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 211 100% 20%;
+    --sidebar-accent-foreground: 211 100% 70%;
+    --sidebar-border: 220 20% 20%;
+    --sidebar-ring: 211 100% 55%;
+    --sidebar-muted: 220 10% 50%;
+
+    --todo: 220 20% 18%;
+    --in-progress: 211 80% 18%;
+    --done: 142 50% 15%;
+    --blocked: 0 50% 18%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-heebo antialiased;
+    direction: rtl;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Smooth scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(220 13% 82%);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(220 13% 70%);
+  }
+}
+
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@layer utilities {
+  .page-fade-in {
+    animation: page-fade-in 0.18s ease-out;
+  }
+
+  .priority-urgent {
+    @apply bg-[hsl(var(--p0))] text-[hsl(var(--destructive-foreground))];
+  }
+  .priority-high {
+    @apply bg-[hsl(var(--p1))] text-[hsl(var(--warning-foreground))];
+  }
+  .priority-medium {
+    @apply bg-[hsl(var(--p2))] text-[hsl(var(--accent-foreground))];
+  }
+  .priority-low {
+    @apply bg-[hsl(var(--p3))] text-[hsl(var(--foreground))];
+  }
+
+  .stock-warning {
+    @apply bg-[hsl(45_100%_92%)];
+  }
+  .stock-danger {
+    @apply bg-[hsl(0_80%_95%)];
+  }
+
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-xl border border-border/60 shadow-sm;
+  }
+}
+
+@keyframes loading {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}

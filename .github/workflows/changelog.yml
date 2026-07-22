@@ -1,0 +1,84 @@
+name: Auto-update Changelog
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update CHANGELOG
+        run: |
+          # Get the last recorded commit hash from CHANGELOG
+          LAST_HASH=$(grep -m1 "<!-- last-commit:" CHANGELOG.md | sed 's/.*<!-- last-commit: //;s/ -->//' | tr -d '[:space:]' || echo "")
+
+          if [ -z "$LAST_HASH" ]; then
+            echo "No last-commit marker found, using last 20 commits"
+            NEW_COMMITS=$(git log --pretty=format:"- %s (%h)" -20)
+          else
+            echo "Collecting commits since $LAST_HASH"
+            NEW_COMMITS=$(git log "${LAST_HASH}..HEAD" --pretty=format:"- %s (%h)" -- . ':!CHANGELOG.md')
+          fi
+
+          if [ -z "$NEW_COMMITS" ]; then
+            echo "No new commits to log, skipping"
+            exit 0
+          fi
+
+          DATE=$(date '+%Y-%m-%d')
+          CURRENT_HASH=$(git rev-parse HEAD)
+
+          python3 << PYEOF
+          import re
+
+          date = "$DATE"
+          current_hash = "$CURRENT_HASH"
+          new_commits = """$NEW_COMMITS"""
+
+          new_section = f"## [{date}]\n\n{new_commits}\n\n<!-- last-commit: {current_hash} -->"
+
+          with open('CHANGELOG.md', 'r', encoding='utf-8') as f:
+              content = f.read()
+
+          # Remove existing last-commit markers
+          content = re.sub(r'\n<!-- last-commit: [a-f0-9]+ -->', '', content)
+
+          # Insert after the "## [Unreleased]\n\n---" block
+          insert_after = '## [Unreleased]\n\n---'
+          if insert_after in content:
+              content = content.replace(
+                  insert_after,
+                  insert_after + '\n\n' + new_section,
+                  1
+              )
+          else:
+              # Fallback: insert after first ---
+              content = content.replace('\n---\n', '\n---\n\n' + new_section, 1)
+
+          with open('CHANGELOG.md', 'w', encoding='utf-8') as f:
+              f.write(content)
+
+          print("CHANGELOG.md updated successfully")
+          PYEOF
+
+      - name: Commit updated CHANGELOG
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "docs: auto-update CHANGELOG [skip ci]"
+            git push origin main
+          fi

@@ -1,0 +1,19 @@
+# Warehouse Lock QR Codes — Cobra Tel Aviv
+# Generated: 2026-04-30T16:33:42.103Z
+#
+# Print each PNG on a waterproof sticker (~5×5 cm) and stick it next to
+# the matching physical lock. Scanning toggles the lock's open/closed status
+# at /lock-control in the app.
+#
+# id  barcode               filename                              name
+# ──  ────────────────────  ───────────────────────────────────  ─────────────
+   1  COBRA-TLV-LOCK-01     lock-01-shaar-rashi.png               שער ראשי
+   2  COBRA-TLV-LOCK-02     lock-02-knisa-rashit.png              כניסה ראשית
+   3  COBRA-TLV-LOCK-03     lock-03-merkaz-sherut-logisti.png     מרכז שירות לוגיסטי
+   4  COBRA-TLV-LOCK-04     lock-04-misrad-menahel-logistika.png  משרד מנהל לוגיסטיקה
+   5  COBRA-TLV-LOCK-05     lock-05-delet-hitsonit-merkaz-akhsana.png  דלת חיצונית מרכז אכסנה
+   6  COBRA-TLV-LOCK-06     lock-06-delet-pnimit-merkaz-akhsana.png  דלת פנימית מרכז אכסנה
+   7  COBRA-TLV-LOCK-07     lock-07-halon-merkaz-akhsana.png      חלון מרכז אכסנה
+   8  COBRA-TLV-LOCK-08     lock-08-mahsan-hashmada.png           מחסן השמדה
+   9  COBRA-TLV-LOCK-09     lock-09-delet-mazkirut.png            דלת מזכירות
+  10  COBRA-TLV-LOCK-10     lock-10-maabada.png                   מעבדה
