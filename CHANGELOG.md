@@ -5,6 +5,13 @@
 
 ---
 
+## [Unreleased]
+
+### Changed
+- Deployment pipeline smoke test — verify the `claude/**` branch build & deploy flow (Brussels).
+
+---
+
 ## [2026-06-22]
 
 - Merge pull request #249 from cobra-system/claude/supplier-payment-chart-7y1ezd (128bab4)
