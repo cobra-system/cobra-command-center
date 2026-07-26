@@ -28,6 +28,8 @@ const OrderDetailPage = lazy(() => import("@/pages/OrderDetailPage"));
 const SuppliersPage = lazy(() => import("@/pages/SuppliersPage"));
 const SupplierDetailPage = lazy(() => import("@/pages/SupplierDetailPage"));
 const TasksPage = lazy(() => import("@/pages/TasksPage"));
+const ProjectsPage = lazy(() => import("@/pages/ProjectsPage"));
+const ProjectDetailPage = lazy(() => import("@/pages/ProjectDetailPage"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
 const DocumentsPage = lazy(() => import("@/pages/DocumentsPage"));
 const DocumentDetailPage = lazy(() => import("@/pages/DocumentDetailPage"));
@@ -149,6 +151,8 @@ function AppRoutes() {
         <Route path="/suppliers" element={<SuppliersPage />} />
         <Route path="/suppliers/:id" element={<SupplierDetailPage />} />
         <Route path="/tasks" element={<TasksPage />} />
+        <Route path="/projects" element={<ProjectsPage />} />
+        <Route path="/projects/:id" element={<ProjectDetailPage />} />
         <Route path="/recurring-tasks" element={<Navigate to="/tasks" replace />} />
         <Route path="/issues" element={<IssuesPage />} />
         <Route path="/issues/:id" element={<IssueDetailPage />} />

@@ -10,6 +10,7 @@ import {
   ShoppingCart,
   Truck,
   ListTodo,
+  FolderKanban,
   LogOut,
   Menu,
   Search,
@@ -49,6 +50,7 @@ const defaultNavItems = [
   { to: "/orders", icon: "ShoppingCart", label: "רכש" },
   { to: "/equipment", icon: "Boxes", label: "חטיבות" },
   { to: "/tasks", icon: "ListTodo", label: "משימות" },
+  { to: "/projects", icon: "FolderKanban", label: "פרויקטים" },
   { to: "/documents", icon: "FileText", label: "מסמכים" },
   { to: "/suppliers", icon: "Truck", label: "ספקים" },
   { to: "/issues", icon: "Wrench", label: "תקלות" },
@@ -62,7 +64,7 @@ const defaultNavItems = [
 ];
 
 const iconMap: Record<string, LucideIcon> = {
-  LayoutDashboard, Package, ShoppingCart, Truck, ListTodo,
+  LayoutDashboard, Package, ShoppingCart, Truck, ListTodo, FolderKanban,
   Settings, FileText, Calendar, CalendarClock, BarChart3, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Recycle, Boxes, Map, Lock, Trash2,
 };
 

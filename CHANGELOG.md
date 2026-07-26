@@ -51,6 +51,7 @@
 ## [Unreleased]
 
 ### Added
+- **Projects module** (`/projects`): lightweight project & task tracking accessible from the sidebar. Project cards show status, priority, progress bar and due date with search + status filtering. Each project has a detail page (`/projects/:id`) with a simple three-column task board (לביצוע / בביצוע / הושלם) supporting add, status advancement and delete. Backed by new `projects` and `project_tasks` tables with authenticated RLS.
 - Monthly auto-reset for חודשית order requests: on the 1st of each month, all fulfilled monthly requests revert to pending, accumulating waiting days from original creation. A system comment ("ההזמנה בוצעה לחודש X") and audit history entry are recorded per request. Division managers can set/change supply status (נשלחה / התקבל חלקית / התקבלה / נקלטה) on their own division's ordered requests.
 
 ## [2026-06-10]
