@@ -29,6 +29,7 @@ export type SortDir = "asc" | "desc" | null;
 const COLUMN_DEFS: ColDef[] = [
   { id: "priority",        label: "עדיפות",        sortField: "priority" },
   { id: "product",         label: "מוצר",           sortField: "product" },
+  { id: "sku",             label: "מק״ט" },
   { id: "qty",             label: "כמות",           sortField: "qty" },
   { id: "supplier",        label: "ספק",            sortField: "supplier" },
   { id: "shipping",        label: "משלוח",          sortField: "shipping" },
@@ -236,13 +237,17 @@ export function OrderTable({
                     className="text-right p-3 font-semibold text-foreground"
                     onContextMenu={colThContextMenu(col, setColMenu)}
                   >
-                    <button
-                      onClick={() => toggleSort(col.sortField)}
-                      className="flex items-center gap-1 hover:text-primary transition-colors"
-                    >
-                      {col.label}
-                      <SortIcon field={col.sortField} sortField={sortField} sortDir={sortDir} />
-                    </button>
+                    {col.sortField ? (
+                      <button
+                        onClick={() => toggleSort(col.sortField!)}
+                        className="flex items-center gap-1 hover:text-primary transition-colors"
+                      >
+                        {col.label}
+                        <SortIcon field={col.sortField} sortField={sortField} sortDir={sortDir} />
+                      </button>
+                    ) : (
+                      col.label
+                    )}
                   </th>
                 );
               })}
@@ -305,30 +310,33 @@ export function OrderTable({
                       <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
                     )}
                     {isVisible("product") && (
-                      <td className="p-3 font-medium text-foreground max-w-[220px]" onClick={e => e.stopPropagation()}>
+                      <td className="p-3 font-medium text-foreground max-w-[200px] truncate" onClick={e => e.stopPropagation()}>
                         {(() => {
                           const visibleItems = scopeOrderItems(order.items);
                           return visibleItems.length === 0 ? (
                             <span className="text-muted-foreground italic text-xs">ללא פריטים</span>
-                          ) : (
-                            <div className="flex flex-col gap-0.5">
-                              {visibleItems.map((i, idx) => {
-                                const sku = i.product_id ? skuByProductId[i.product_id] : undefined;
-                                return (
-                                  <div key={idx} className="truncate">
-                                    {i.product_id ? (
-                                      <button onClick={(e) => navigateToProduct(i.product_id!, e)} className="text-primary hover:underline text-sm">
-                                        {i.name}
-                                      </button>
-                                    ) : (
-                                      <span className="text-sm">{i.name}</span>
-                                    )}
-                                    {sku && <span className="text-xs text-muted-foreground font-mono ms-1.5">מק״ט {sku}</span>}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          );
+                          ) : visibleItems.map((i, idx) => (
+                            <span key={idx}>
+                              {i.product_id ? (
+                                <button onClick={(e) => navigateToProduct(i.product_id!, e)} className="text-primary hover:underline text-sm">
+                                  {i.name}
+                                </button>
+                              ) : (
+                                <span>{i.name}</span>
+                              )}
+                              {idx < visibleItems.length - 1 && <span>, </span>}
+                            </span>
+                          ));
+                        })()}
+                      </td>
+                    )}
+                    {isVisible("sku") && (
+                      <td className="p-3 text-muted-foreground text-xs font-mono" onClick={e => e.stopPropagation()}>
+                        {(() => {
+                          const skus = scopeOrderItems(order.items)
+                            .map(i => (i.product_id ? skuByProductId[i.product_id] : undefined))
+                            .filter((s): s is string => !!s);
+                          return skus.length ? skus.join(", ") : "—";
                         })()}
                       </td>
                     )}
