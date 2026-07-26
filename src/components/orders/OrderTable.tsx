@@ -1,5 +1,6 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { type Order, type OrderStatus, useCurrency } from "@/contexts/AppContext";
+import { type Order, type OrderStatus, useCurrency, useProducts } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { Trash2, Copy, ArrowUpDown, ArrowUp, ArrowDown, Eye, RefreshCw, Truck, ShoppingCart } from "lucide-react";
@@ -92,7 +93,13 @@ export function OrderTable({
   hidePrices,
 }: OrderTableProps) {
   const { formatPrice } = useCurrency();
+  const { products } = useProducts();
   const navigate = useNavigate();
+  const skuByProductId = useMemo(() => {
+    const map: Record<string, string> = {};
+    products.forEach(p => { if (p.id && p.sku) map[p.id] = p.sku; });
+    return map;
+  }, [products]);
   const colVis = useColumnVisibility("orders:hidden-columns", COLUMN_DEFS, ["total_price", "pi_number"]);
   const isVisible = (id: string) => hidePrices && PRICE_COLS.has(id) ? false : colVis.isVisible(id);
   const { hide, show, hiddenCols, visibleCount } = colVis;
@@ -298,23 +305,30 @@ export function OrderTable({
                       <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
                     )}
                     {isVisible("product") && (
-                      <td className="p-3 font-medium text-foreground max-w-[200px] truncate" onClick={e => e.stopPropagation()}>
+                      <td className="p-3 font-medium text-foreground max-w-[220px]" onClick={e => e.stopPropagation()}>
                         {(() => {
                           const visibleItems = scopeOrderItems(order.items);
                           return visibleItems.length === 0 ? (
                             <span className="text-muted-foreground italic text-xs">ללא פריטים</span>
-                          ) : visibleItems.map((i, idx) => (
-                            <span key={idx}>
-                              {i.product_id ? (
-                                <button onClick={(e) => navigateToProduct(i.product_id!, e)} className="text-primary hover:underline text-sm">
-                                  {i.name}
-                                </button>
-                              ) : (
-                                <span>{i.name}</span>
-                              )}
-                              {idx < visibleItems.length - 1 && <span>, </span>}
-                            </span>
-                          ));
+                          ) : (
+                            <div className="flex flex-col gap-0.5">
+                              {visibleItems.map((i, idx) => {
+                                const sku = i.product_id ? skuByProductId[i.product_id] : undefined;
+                                return (
+                                  <div key={idx} className="truncate">
+                                    {i.product_id ? (
+                                      <button onClick={(e) => navigateToProduct(i.product_id!, e)} className="text-primary hover:underline text-sm">
+                                        {i.name}
+                                      </button>
+                                    ) : (
+                                      <span className="text-sm">{i.name}</span>
+                                    )}
+                                    {sku && <span className="text-xs text-muted-foreground font-mono ms-1.5">מק״ט {sku}</span>}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
                         })()}
                       </td>
                     )}

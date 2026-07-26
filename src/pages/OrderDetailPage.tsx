@@ -459,6 +459,7 @@ export default function OrderDetailPage() {
           <thead>
             <tr className="border-b bg-muted/50">
               <th className="text-right p-3 font-semibold text-foreground">מוצר</th>
+              <th className="text-right p-3 font-semibold text-foreground">מק״ט</th>
               <th className="text-right p-3 font-semibold text-foreground">כמות</th>
               {showPrices && <th className="text-right p-3 font-semibold text-foreground">מחיר יחידה</th>}
               {showPrices && <th className="text-right p-3 font-semibold text-foreground">סה״כ</th>}
@@ -473,6 +474,7 @@ export default function OrderDetailPage() {
                   <td className="p-3 font-medium text-foreground">
                     {linkedProduct ? <span className="text-primary hover:underline">{item.name}</span> : item.name}
                   </td>
+                  <td className="p-3 text-muted-foreground font-mono text-xs">{linkedProduct?.sku || "—"}</td>
                   <td className="p-3 text-muted-foreground">{item.qty}</td>
                   {showPrices && <td className="p-3 text-muted-foreground">{item.price ? formatPrice(item.price) : "—"}</td>}
                   {showPrices && <td className="p-3 text-muted-foreground">{item.price ? formatPrice(item.price * item.qty) : "—"}</td>}
