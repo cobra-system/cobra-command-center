@@ -310,38 +310,66 @@ export function OrderTable({
                       <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
                     )}
                     {isVisible("product") && (
-                      <td className="p-3 font-medium text-foreground max-w-[200px] truncate" onClick={e => e.stopPropagation()}>
+                      <td className="p-3 font-medium text-foreground max-w-[220px] align-top" onClick={e => e.stopPropagation()}>
                         {(() => {
                           const visibleItems = scopeOrderItems(order.items);
                           return visibleItems.length === 0 ? (
                             <span className="text-muted-foreground italic text-xs">ללא פריטים</span>
-                          ) : visibleItems.map((i, idx) => (
-                            <span key={idx}>
-                              {i.product_id ? (
-                                <button onClick={(e) => navigateToProduct(i.product_id!, e)} className="text-primary hover:underline text-sm">
-                                  {i.name}
-                                </button>
-                              ) : (
-                                <span>{i.name}</span>
-                              )}
-                              {idx < visibleItems.length - 1 && <span>, </span>}
-                            </span>
-                          ));
+                          ) : (
+                            <div className="flex flex-col">
+                              {visibleItems.map((i, idx) => (
+                                <div key={idx} className="h-6 flex items-center truncate">
+                                  {i.product_id ? (
+                                    <button onClick={(e) => navigateToProduct(i.product_id!, e)} className="text-primary hover:underline text-sm truncate">
+                                      {i.name}
+                                    </button>
+                                  ) : (
+                                    <span className="text-sm truncate">{i.name}</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          );
                         })()}
                       </td>
                     )}
                     {isVisible("sku") && (
-                      <td className="p-3 text-muted-foreground text-xs font-mono" onClick={e => e.stopPropagation()}>
+                      <td className="p-3 text-muted-foreground text-xs font-mono align-top" onClick={e => e.stopPropagation()}>
                         {(() => {
-                          const skus = scopeOrderItems(order.items)
-                            .map(i => (i.product_id ? skuByProductId[i.product_id] : undefined))
-                            .filter((s): s is string => !!s);
-                          return skus.length ? skus.join(", ") : "—";
+                          const visibleItems = scopeOrderItems(order.items);
+                          return visibleItems.length === 0 ? (
+                            <span>—</span>
+                          ) : (
+                            <div className="flex flex-col">
+                              {visibleItems.map((i, idx) => {
+                                const sku = i.product_id ? skuByProductId[i.product_id] : undefined;
+                                return <div key={idx} className="h-6 flex items-center">{sku || "—"}</div>;
+                              })}
+                            </div>
+                          );
                         })()}
                       </td>
                     )}
                     {isVisible("qty") && (
-                      <td className="p-3 text-muted-foreground">{scopeOrderItems(order.items).reduce((s, i) => s + i.qty, 0) || "—"}</td>
+                      <td className="p-3 text-muted-foreground align-top" onClick={e => e.stopPropagation()}>
+                        {(() => {
+                          const visibleItems = scopeOrderItems(order.items);
+                          if (visibleItems.length === 0) return "—";
+                          const total = visibleItems.reduce((s, i) => s + i.qty, 0);
+                          return (
+                            <div className="flex flex-col">
+                              {visibleItems.map((i, idx) => (
+                                <div key={idx} className="h-6 flex items-center tabular-nums">{i.qty}</div>
+                              ))}
+                              {visibleItems.length > 1 && (
+                                <div className="h-6 flex items-center border-t mt-0.5 pt-0.5 text-xs font-semibold text-foreground tabular-nums">
+                                  סה״כ {total}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </td>
                     )}
                     {isVisible("supplier") && (
                       <td className="p-3">
