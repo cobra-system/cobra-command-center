@@ -7,6 +7,13 @@
 
 ## [2026-07-29]
 
+- feat: show per-item SKUs stacked in order table rows (6ea4c83)
+- feat: SKU search + last-used price in new order dialog (ba366e6)
+- feat: filter orders by supplier origin (Israel / abroad) (7ddad0d)
+
+<!-- last-commit: 9071a600618f301d84140d9448773436682582c0 -->
+## [2026-07-29]
+
 - Orders table: each order row now lists its items stacked one per line, showing the product SKU (מק״ט) beside each name and per-item quantities with a total
 - New order dialog: search products/components by SKU (מק״ט) in addition to name, with the SKU shown beside each result
 - New order dialog: pre-fill an item's price with the last price actually used for that product (from the most recent order), falling back to the catalog purchase price
@@ -17,7 +24,6 @@
 - Merge pull request #249 from cobra-system/claude/supplier-payment-chart-7y1ezd (128bab4)
 - feat: add SAP monthly payments section to supplier detail page (5cec5e4)
 
-<!-- last-commit: 128bab44849339682945e354c09f803ca47e27f0 -->
 ## [2026-06-22]
 
 - Merge pull request #248 from cobra-system/claude/supplier-payment-chart-7y1ezd (e07a054)
