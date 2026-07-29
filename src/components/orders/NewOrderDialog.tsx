@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { type Priority, type Order, type OrderItem, type Supplier, type Product, type ProductComponent } from "@/contexts/AppContext";
+import { useOrders } from "@/contexts/AppContext";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,13 +61,49 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
   const [tracking_number, setTrackingNumber] = useState("");
   const [items, setItems] = useState<ItemRow[]>([{ type: "product", name: "", qty: "", price: "", currency: "USD", productId: "", componentId: "" }]);
 
+  const { orders } = useOrders();
+
   const allComponents: FlatComponent[] = products.flatMap(p =>
     (p.components || []).map(c => ({ ...c, productName: p.name }))
   );
 
+  // Last price actually used per product, taken from the most recent order that
+  // included it (by order date). Lets us pre-fill the price the user paid last
+  // time instead of only the catalog purchase price.
+  const lastPriceByProduct = useMemo(() => {
+    const map = new Map<string, { price: number; currency: string }>();
+    const sorted = [...orders].sort((a, b) => (b.order_date || "").localeCompare(a.order_date || ""));
+    for (const o of sorted) {
+      for (const it of o.items || []) {
+        if (it.product_id && it.price != null && !map.has(it.product_id)) {
+          map.set(it.product_id, { price: it.price, currency: it.currency || "USD" });
+        }
+      }
+    }
+    return map;
+  }, [orders]);
+
+  // Resolve the price to pre-fill for a product: last used price if we have one,
+  // otherwise fall back to the product's catalog purchase price.
+  const priceForProduct = useCallback((prod: Product): { price: string; currency: string } => {
+    const last = lastPriceByProduct.get(prod.id);
+    if (last) return { price: String(last.price), currency: last.currency };
+    return { price: prod.purchase_price?.toString() || "", currency: prod.price_currency || "USD" };
+  }, [lastPriceByProduct]);
+
   const supplierOptions = suppliers.map(s => ({ value: s.id, label: `${s.company} — ${s.contact_name}` }));
-  const productOptions = products.map(p => ({ value: p.id, label: p.name }));
-  const componentOptions = allComponents.map(c => ({ value: c.id, label: `${c.name} — ${c.productName}` }));
+  const productOptions = products.map(p => ({
+    value: p.id,
+    label: p.name,
+    keywords: p.sku ? [p.sku] : undefined,
+    hint: p.sku || undefined,
+  }));
+  const componentOptions = allComponents.map(c => ({
+    value: c.id,
+    label: `${c.name} — ${c.productName}`,
+    keywords: c.sku ? [c.sku] : undefined,
+    hint: c.sku || undefined,
+  }));
 
   const resetForm = () => {
     setPriority("בינוני"); setSupplierId(""); setShipping(""); setDestinationSupplierId(""); setNotes("");
@@ -91,12 +128,13 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
     if (defaultProductId) {
       const prod = products.find(p => p.id === defaultProductId);
       if (prod) {
+        const { price, currency } = priceForProduct(prod);
         setItems([{
           type: "product",
           name: prod.name,
           qty: defaultQuantity ? String(defaultQuantity) : "1",
-          price: prod.purchase_price?.toString() || "",
-          currency: prod.price_currency || "USD",
+          price,
+          currency,
           productId: prod.id,
           componentId: ""
         }]);
@@ -107,7 +145,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
         }
       }
     }
-  }, [open, defaultProductId, defaultSupplierId, defaultNotes, defaultPriority, products, suppliers]);
+  }, [open, defaultProductId, defaultSupplierId, defaultNotes, defaultPriority, defaultQuantity, products, suppliers, priceForProduct]);
 
   const updateItem = (idx: number, field: keyof ItemRow, value: string) =>
     setItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
@@ -120,8 +158,9 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
   const selectProduct = (idx: number, productId: string) => {
     const prod = products.find(p => p.id === productId);
     if (prod) {
+      const { price, currency } = priceForProduct(prod);
       setItems(prev => prev.map((item, i) => i === idx
-        ? { ...item, productId, componentId: "", name: prod.name, price: prod.purchase_price?.toString() || "", currency: prod.price_currency || "USD" }
+        ? { ...item, productId, componentId: "", name: prod.name, price, currency }
         : item));
     }
   };
