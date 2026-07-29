@@ -7,6 +7,7 @@
 
 ## [2026-07-29]
 
+- Orders table: each order row now lists its items stacked one per line, showing the product SKU (מק״ט) beside each name and per-item quantities with a total
 - New order dialog: search products/components by SKU (מק״ט) in addition to name, with the SKU shown beside each result
 - New order dialog: pre-fill an item's price with the last price actually used for that product (from the most recent order), falling back to the catalog purchase price
 - Add supplier-origin filter to active orders (ישראל / חו״ל) so local and imported orders can be viewed separately

@@ -1,5 +1,6 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { type Order, type OrderStatus, useCurrency } from "@/contexts/AppContext";
+import { type Order, type OrderStatus, useCurrency, useProducts } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { Trash2, Copy, ArrowUpDown, ArrowUp, ArrowDown, Eye, RefreshCw, Truck, ShoppingCart } from "lucide-react";
@@ -98,6 +99,14 @@ export function OrderTable({
   const { hide, show, hiddenCols, visibleCount } = colVis;
   const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
   const { scopeOrderItems } = useProductScope();
+  const { products } = useProducts();
+  // Resolve each order item's SKU (מק״ט) from its linked product — order items
+  // store only product_id + name, so we look the SKU up here for display.
+  const productSkuById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of products) if (p.sku) m.set(p.id, p.sku);
+    return m;
+  }, [products]);
 
   const totalColSpan = visibleCount + 2 + (hasEdit ? 1 : 0) + (selection ? 1 : 0);
   const allFilteredIds = filtered.map(o => o.id);
@@ -298,28 +307,56 @@ export function OrderTable({
                       <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
                     )}
                     {isVisible("product") && (
-                      <td className="p-3 font-medium text-foreground max-w-[200px] truncate" onClick={e => e.stopPropagation()}>
+                      <td className="p-3 font-medium text-foreground align-top" onClick={e => e.stopPropagation()}>
                         {(() => {
                           const visibleItems = scopeOrderItems(order.items);
-                          return visibleItems.length === 0 ? (
-                            <span className="text-muted-foreground italic text-xs">ללא פריטים</span>
-                          ) : visibleItems.map((i, idx) => (
-                            <span key={idx}>
-                              {i.product_id ? (
-                                <button onClick={(e) => navigateToProduct(i.product_id!, e)} className="text-primary hover:underline text-sm">
-                                  {i.name}
-                                </button>
-                              ) : (
-                                <span>{i.name}</span>
-                              )}
-                              {idx < visibleItems.length - 1 && <span>, </span>}
-                            </span>
-                          ));
+                          if (visibleItems.length === 0) {
+                            return <span className="text-muted-foreground italic text-xs">ללא פריטים</span>;
+                          }
+                          return (
+                            <div className="space-y-0.5">
+                              {visibleItems.map((i, idx) => {
+                                const sku = i.product_id ? productSkuById.get(i.product_id) : undefined;
+                                return (
+                                  <div key={idx} className="flex items-center gap-2 h-6">
+                                    {i.product_id ? (
+                                      <button onClick={(e) => navigateToProduct(i.product_id!, e)} className="text-primary hover:underline text-sm truncate max-w-[200px] text-start">
+                                        {i.name}
+                                      </button>
+                                    ) : (
+                                      <span className="text-sm truncate max-w-[200px]">{i.name}</span>
+                                    )}
+                                    {sku && (
+                                      <span className="text-xs font-mono text-muted-foreground shrink-0" dir="ltr">{sku}</span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
                         })()}
                       </td>
                     )}
                     {isVisible("qty") && (
-                      <td className="p-3 text-muted-foreground">{scopeOrderItems(order.items).reduce((s, i) => s + i.qty, 0) || "—"}</td>
+                      <td className="p-3 text-muted-foreground align-top">
+                        {(() => {
+                          const visibleItems = scopeOrderItems(order.items);
+                          if (visibleItems.length === 0) return "—";
+                          const total = visibleItems.reduce((s, i) => s + i.qty, 0);
+                          return (
+                            <div className="space-y-0.5">
+                              {visibleItems.map((i, idx) => (
+                                <div key={idx} className="h-6 flex items-center tabular-nums">{i.qty}</div>
+                              ))}
+                              {visibleItems.length > 1 && (
+                                <div className="mt-1 pt-1 border-t flex items-center gap-1 font-semibold text-foreground tabular-nums">
+                                  <span className="text-[10px] font-normal text-muted-foreground">סה״כ</span>{total}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </td>
                     )}
                     {isVisible("supplier") && (
                       <td className="p-3">
