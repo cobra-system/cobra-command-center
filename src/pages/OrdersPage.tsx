@@ -120,6 +120,7 @@ export default function OrdersPage() {
   const paymentFilter = searchParams.get("payment") || "all";
   const carrierFilter = searchParams.get("carrier") || "all";
   const trackingStateFilter = searchParams.get("tracking_state") || "all";
+  const originFilter = searchParams.get("origin") || "all";
 
   const setSearch = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v) { n.set("q", v); } else { n.delete("q"); } return n; }, { replace: true }), [setSearchParams]);
   const setStatusFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("status"); } else { n.set("status", v); } return n; }, { replace: true }), [setSearchParams]);
@@ -127,6 +128,18 @@ export default function OrdersPage() {
   const setPaymentFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("payment"); } else { n.set("payment", v); } return n; }, { replace: true }), [setSearchParams]);
   const setCarrierFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("carrier"); } else { n.set("carrier", v); } return n; }, { replace: true }), [setSearchParams]);
   const setTrackingStateFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("tracking_state"); } else { n.set("tracking_state", v); } return n; }, { replace: true }), [setSearchParams]);
+  const setOriginFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("origin"); } else { n.set("origin", v); } return n; }, { replace: true }), [setSearchParams]);
+
+  // Map each order to "local" (Israeli supplier) or "import" (foreign supplier)
+  // by resolving the supplier's country. "ישראל" → local, any other country →
+  // import; an unresolved/empty country stays null so it only shows under "all".
+  const orderOrigin = useCallback((o: (typeof orders)[number]): "local" | "import" | null => {
+    let country: string | null | undefined;
+    if (o.supplier_id) country = suppliers.find(s => s.id === o.supplier_id)?.country;
+    if (country == null && o.supplier_name) country = suppliers.find(s => s.company === o.supplier_name)?.country;
+    if (!country) return null;
+    return country === "ישראל" ? "local" : "import";
+  }, [suppliers]);
 
   // Sort — localStorage only (personal preference, no need to pollute the URL)
   const [sortField, setSortField] = useState<SortField | null>(() => {
@@ -184,6 +197,7 @@ export default function OrdersPage() {
       if (o.status === "ARRIVED" || o.status === "CANCELLED") return false;
       if (statusFilter !== "all" && o.status !== statusFilter) return false;
       if (priorityFilter !== "all" && o.priority !== priorityFilter) return false;
+      if (originFilter !== "all" && orderOrigin(o) !== originFilter) return false;
       if (paymentFilter !== "all" && orderPaymentStatuses[o.id] !== paymentFilter) return false;
       if (carrierFilter !== "all") {
         if (carrierFilter === "none") {
@@ -263,7 +277,7 @@ export default function OrdersPage() {
     }
 
     return result;
-  }, [orders, statusFilter, priorityFilter, paymentFilter, carrierFilter, trackingStateFilter, search, sortField, sortDir, orderPaymentStatuses, scopeOrderItems]);
+  }, [orders, statusFilter, priorityFilter, originFilter, orderOrigin, paymentFilter, carrierFilter, trackingStateFilter, search, sortField, sortDir, orderPaymentStatuses, scopeOrderItems]);
 
   const orderCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -400,6 +414,8 @@ export default function OrdersPage() {
             setCarrierFilter={setCarrierFilter}
             trackingStateFilter={trackingStateFilter}
             setTrackingStateFilter={setTrackingStateFilter}
+            originFilter={originFilter}
+            setOriginFilter={setOriginFilter}
             orderCounts={orderCounts}
           />
           <OrderTable

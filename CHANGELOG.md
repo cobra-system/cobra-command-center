@@ -5,6 +5,10 @@
 
 ---
 
+## [2026-07-29]
+
+- Add supplier-origin filter to active orders (ישראל / חו״ל) so local and imported orders can be viewed separately
+
 ## [2026-06-22]
 
 - Merge pull request #249 from cobra-system/claude/supplier-payment-chart-7y1ezd (128bab4)

@@ -30,6 +30,8 @@ interface OrderFiltersProps {
   setCarrierFilter: (v: string) => void;
   trackingStateFilter: string;
   setTrackingStateFilter: (v: string) => void;
+  originFilter: string;
+  setOriginFilter: (v: string) => void;
   orderCounts: Record<string, number>;
 }
 
@@ -44,6 +46,8 @@ export function OrderFilters({
   setCarrierFilter,
   trackingStateFilter,
   setTrackingStateFilter,
+  originFilter,
+  setOriginFilter,
   orderCounts,
 }: OrderFiltersProps) {
   return (
@@ -72,6 +76,14 @@ export function OrderFilters({
         <SelectContent>
           <SelectItem value="all">כל העדיפויות</SelectItem>
           {priorities.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Select value={originFilter} onValueChange={setOriginFilter}>
+        <SelectTrigger className="w-[110px] sm:w-[130px]"><SelectValue placeholder="מקור" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">כל המקורות</SelectItem>
+          <SelectItem value="local">ישראל</SelectItem>
+          <SelectItem value="import">חו״ל</SelectItem>
         </SelectContent>
       </Select>
       <Select value={paymentFilter} onValueChange={setPaymentFilter}>
