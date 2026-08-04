@@ -5,6 +5,16 @@
 
 ---
 
+## [Unreleased]
+
+### Added
+- **SAP purchase-order import (Cowork)** — upload a SAP purchase-order PDF and it is parsed, matched to the live supplier and products, previewed, and (after approval) created as an order.
+  - `scripts/sap-po/extract_po.py` — parser that turns the Hebrew RTL SAP PO PDF into structured JSON (PO number, supplier + VAT, line items with code/qty/price, totals), with arithmetic validation warnings.
+  - `.claude/skills/sap-order-import/` — Skill that runs the full parse → match → preview → confirm → `create_order` flow, including duplicate-import guard via `get_order_by_reference`.
+
+### Changed
+- `create_order` MCP tool now accepts `sap_doc_entry` (the SAP purchase-order document number, the SAP anchor resolvable via `get_order_by_reference`) and `division`.
+
 ## [2026-07-29]
 
 - feat: show per-item SKUs stacked in order table rows (6ea4c83)

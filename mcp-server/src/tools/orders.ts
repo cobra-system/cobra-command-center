@@ -124,6 +124,8 @@ export function registerOrderTools(server: McpServer) {
       vessel_name: z.string().optional().describe("Vessel/ship name (e.g. MSC ISABELLA)"),
       booking_number: z.string().optional().describe("Shipping line booking number or BL number"),
       tclog_reference: z.string().optional().describe("tclog freight forwarder reference number"),
+      sap_doc_entry: z.string().optional().describe("SAP purchase-order document number (e.g. 315721) — the SAP anchor, resolvable via get_order_by_reference"),
+      division: z.string().optional().describe("Division / branch this order belongs to"),
       shipment_group_id: z.string().uuid().optional().describe("Shipment group UUID to link this order to a shared shipment"),
       destination_supplier_id: z.string().uuid().optional().describe("Destination supplier UUID for supplier-to-supplier transfers"),
       destination_supplier_name: z.string().optional().describe("Destination supplier display name"),
@@ -136,7 +138,7 @@ export function registerOrderTools(server: McpServer) {
     },
     async ({ supplier_id, supplier_name, status, priority, order_date, total_price, contact_name,
              notes, eta, etd, tracking_number, pi_number, vessel_name,
-             booking_number, tclog_reference, shipment_group_id,
+             booking_number, tclog_reference, sap_doc_entry, division, shipment_group_id,
              destination_supplier_id, destination_supplier_name, items }) => {
       let resolvedSupplierName = supplier_name || null;
       if (supplier_id && !supplier_name) {
@@ -162,6 +164,8 @@ export function registerOrderTools(server: McpServer) {
           vessel_name: vessel_name || null,
           booking_number: booking_number || null,
           tclog_reference: tclog_reference || null,
+          sap_doc_entry: sap_doc_entry || null,
+          division: division || null,
           shipment_group_id: shipment_group_id || null,
           destination_supplier_id: destination_supplier_id || null,
           destination_supplier_name: destination_supplier_name || null,
