@@ -5,6 +5,11 @@
 
 ---
 
+## [2026-08-04]
+
+- feat: SAP purchase-order import (parse → match → create order) (4856982)
+
+<!-- last-commit: a770b6c68fa6e017886c1aebf9335ee9e0d93256 -->
 ## [Unreleased]
 
 ### Added
@@ -21,7 +26,6 @@
 - feat: SKU search + last-used price in new order dialog (ba366e6)
 - feat: filter orders by supplier origin (Israel / abroad) (7ddad0d)
 
-<!-- last-commit: 9071a600618f301d84140d9448773436682582c0 -->
 ## [2026-07-29]
 
 - Orders table: each order row now lists its items stacked one per line, showing the product SKU (מק״ט) beside each name and per-item quantities with a total
