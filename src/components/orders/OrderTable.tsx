@@ -19,6 +19,7 @@ import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 import { detectCarrier, carrierLabel } from "@/lib/trackingCarrierDetect";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { TableScrollArea } from "@/components/ui/TableScrollArea";
 import type { TableSelectionState } from "@/hooks/useTableSelection";
 
 import { format } from "date-fns";
@@ -214,11 +215,16 @@ export function OrderTable({
 
       {/* ── Desktop table (hidden on mobile) ─────────────────────────────── */}
       <div className="hidden md:block">
-      <div className="bg-card rounded-xl border shadow-sm overflow-x-auto" dir="rtl">
+      {/* bottomGap leaves room for the sticky bulk-actions bar that appears under the table. */}
+      <TableScrollArea
+        className="bg-card rounded-xl border shadow-sm"
+        dir="rtl"
+        bottomGap={selection && selection.selectedCount > 0 ? 96 : 24}
+      >
         <table className="w-full text-sm min-w-[700px]">
-          <thead>
+          <thead className="sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
             <tr
-              className="border-b bg-muted/50"
+              className="border-b"
               onContextMenu={trContextMenu(hiddenCols, setColMenu)}
             >
               {selection && (
@@ -515,7 +521,7 @@ export function OrderTable({
             })}
           </tbody>
         </table>
-      </div>
+      </TableScrollArea>
       </div>{/* end hidden md:block */}
 
       {colMenu && (

@@ -19,6 +19,7 @@
 
 ### Changed
 - `create_order` MCP tool now accepts `sap_doc_entry` (the SAP purchase-order document number, the SAP anchor resolvable via `get_order_by_reference`) and `division`.
+- **רכש — wide tables stay usable** — the orders table and the purchase-requests table now scroll inside a viewport-height box (`TableScrollArea`) with a sticky header, so the horizontal scrollbar is reachable from the top of the page instead of only after scrolling past the last row, and the column headers stay visible while scrolling rows.
 
 ## [2026-07-29]
 
