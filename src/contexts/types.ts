@@ -22,6 +22,8 @@ export interface Product {
   name: string;
   description?: string | null;
   sku: string;
+  /** Item code in SAP — used to match products when importing an order file. */
+  sap_code?: string | null;
   product_type: string;
   supplier?: string | null;
   supplier_id?: string | null;
@@ -97,6 +99,8 @@ export interface Supplier {
   backup_supplier_id?: string | null;
   website?: string | null;
   supplier_number?: string | null;
+  /** Vendor code in SAP — used to match the supplier when importing an order file. */
+  sap_code?: string | null;
   contacts?: SupplierContact[];
 }
 
@@ -138,6 +142,8 @@ export interface Order {
   destination_supplier_name?: string | null;
   updated_at?: string | null;
   order_image?: string | null;
+  /** SAP purchase-order number this order was imported from. */
+  sap_doc_entry?: string | null;
   items: OrderItem[];
 }
 

@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { isOrderActive } from "@/lib/orderStatus";
 
 const priorityOrder: Record<string, number> = { "דחוף": 0, "גבוה": 1, "בינוני": 2, "נמוך": 3 };
 
@@ -60,14 +61,14 @@ export default function DashboardPage() {
     fetchDashboardData();
   }, []);
 
-  const openOrdersCount = orders.filter(o => o.status !== "ARRIVED" && o.status !== "CANCELLED").length;
+  const openOrdersCount = orders.filter(o => isOrderActive(o.status)).length;
   const shippedCount = orders.filter(o => o.status === "SHIPPED").length;
   const openTasksCount = tasks.filter(t => t.status !== "DONE").length;
   const lowStockCount = products.filter(p => p.reorder_point && p.stock_qty <= p.reorder_point).length;
 
   const topOrders = useMemo(() =>
     orders
-      .filter(o => o.status !== "ARRIVED" && o.status !== "CANCELLED")
+      .filter(o => isOrderActive(o.status))
       .sort((a, b) => (priorityOrder[a.priority] ?? 9) - (priorityOrder[b.priority] ?? 9))
       .slice(0, 5),
     [orders]

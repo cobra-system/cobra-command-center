@@ -13,11 +13,16 @@
 ## [Unreleased]
 
 ### Added
+- **ייבוא הזמנה מקובץ ישירות מהאתר** — בטופס "הזמנה חדשה" נוסף "ייבוא מקובץ (SAP / הזמנה מחו״ל)": מעלים הזמנת רכש מ-SAP (PDF) או קובץ הזמנה/PI מספק בחו״ל (Excel/CSV), הקובץ מנותח בדפדפן, הספק והפריטים מותאמים למידע החי, ומוצגת תצוגה מקדימה עם אזהרות לפני טעינה לטופס.
+  - `src/lib/orderImport/` — ניתוח SAP PDF (פורט דפדפן של `scripts/sap-po/extract_po.py` מעל pdfjs), ניתוח Excel/CSV עם זיהוי שורת כותרות בעברית/אנגלית, והתאמת ספק/מוצרים (קוד SAP → מק״ט → שם; התאמה דו-משמעית נחשבת "לא זוהה" ולא מנחשת).
+  - `src/components/orders/OrderFileImportDialog.tsx` — דיאלוג העלאה + תצוגה מקדימה; הכל נשאר לעריכה בטופס, שום דבר לא נשמר עד "צור הזמנה".
+  - הזמנה שיובאה מ-SAP נוצרת בסטטוס "הוזמן" עם `sap_doc_entry`, והקובץ המקורי נשמר אוטומטית במסמכי ההזמנה (`purchase_documents`).
 - **SAP purchase-order import (Cowork)** — upload a SAP purchase-order PDF and it is parsed, matched to the live supplier and products, previewed, and (after approval) created as an order.
   - `scripts/sap-po/extract_po.py` — parser that turns the Hebrew RTL SAP PO PDF into structured JSON (PO number, supplier + VAT, line items with code/qty/price, totals), with arithmetic validation warnings.
   - `.claude/skills/sap-order-import/` — Skill that runs the full parse → match → preview → confirm → `create_order` flow, including duplicate-import guard via `get_order_by_reference`.
 
 ### Changed
+- **הזמנה בסטטוס "נמסר" יוצאת מההזמנות הפעילות** — `DELIVERED` נחשב סטטוס סגור (כמו `ARRIVED`/`CANCELLED`): ההזמנה עוברת לטאב "ארכיון הזמנות", ואינה נספרת ב"הזמנות פעילות" בדשבורד, בדוחות, בגרף הסטטוסים ובישיבת הרכש. הלוגיקה רוכזה ב-`src/lib/orderStatus.ts`.
 - `create_order` MCP tool now accepts `sap_doc_entry` (the SAP purchase-order document number, the SAP anchor resolvable via `get_order_by_reference`) and `division`.
 
 ## [2026-07-29]

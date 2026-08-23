@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3, Download, Package, Truck, ClipboardList, Wrench, Users, DollarSign } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { isOrderActive, isOrderCompleted } from "@/lib/orderStatus";
 
 const COLORS = [
   "hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--warning))",
@@ -53,8 +54,8 @@ export default function ReportsPage() {
   // Operations report data
   const opsData = useMemo(() => {
     const ordersOpened = orders.filter(o => inRange(o.order_date || null)).length;
-    const ordersCompleted = orders.filter(o => o.status === "ARRIVED" && inRange(o.eta || null)).length;
-    const ordersDelayed = orders.filter(o => o.status !== "ARRIVED" && o.status !== "CANCELLED" && o.eta && new Date(o.eta) < new Date()).length;
+    const ordersCompleted = orders.filter(o => isOrderCompleted(o.status) && inRange(o.eta || null)).length;
+    const ordersDelayed = orders.filter(o => isOrderActive(o.status) && o.eta && new Date(o.eta) < new Date()).length;
     const tasksInRange = tasks.filter(t => inRange(t.due_date || null));
     const tasksClosed = tasksInRange.filter(t => t.status === "DONE").length;
     const tasksStillOpen = tasksInRange.filter(t => t.status !== "DONE").length;
@@ -342,7 +343,7 @@ export default function ReportsPage() {
             <KpiCard icon={Users} label="סה״כ ספקים" value={suppliers.length} />
             <KpiCard icon={DollarSign} label="שולם החודש" value={formatPrice(supplierData.totalPaid, "USD")} color="text-success" />
             <KpiCard icon={DollarSign} label="ממתין לתשלום" value={formatPrice(supplierData.totalPending, "USD")} color={supplierData.totalPending > 0 ? "text-warning" : undefined} />
-            <KpiCard icon={Truck} label="הזמנות פעילות" value={orders.filter(o => o.status !== "ARRIVED" && o.status !== "CANCELLED").length} />
+            <KpiCard icon={Truck} label="הזמנות פעילות" value={orders.filter(o => isOrderActive(o.status)).length} />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {supplierData.countryChart.length > 0 && (

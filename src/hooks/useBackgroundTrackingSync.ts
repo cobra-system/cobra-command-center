@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Order, OrderStatus } from "@/contexts/types";
+import { CLOSED_ORDER_STATUSES } from "@/lib/orderStatus";
 
 const STALE_HOURS = 24;
 const SESSION_FLAG = "tracking:syncedAt";
 const CHUNK_SIZE = 25;
 
-const INACTIVE_STATUSES: OrderStatus[] = ["DELIVERED", "ARRIVED", "CANCELLED"];
+const INACTIVE_STATUSES: OrderStatus[] = CLOSED_ORDER_STATUSES;
 
 interface SyncState {
   syncing: boolean;

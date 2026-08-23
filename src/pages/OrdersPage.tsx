@@ -22,6 +22,7 @@ import { OrderTable, type SortField, type SortDir } from "@/components/orders/Or
 import { OrderRequestsTab } from "@/components/orders/OrderRequestsTab";
 import { useAuth } from "@/contexts/AppContext";
 import { canSeePrices, isDivisionManager } from "@/lib/permissions";
+import { isOrderActive, isOrderClosed } from "@/lib/orderStatus";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -172,7 +173,7 @@ export default function OrdersPage() {
     const q = search.toLowerCase();
     return orders
       .filter(o => {
-        if (o.status !== "ARRIVED" && o.status !== "CANCELLED") return false;
+        if (isOrderActive(o.status)) return false;
         if (q) {
           const searchable = [
             o.id,
@@ -194,7 +195,7 @@ export default function OrdersPage() {
 
   const filtered = useMemo(() => {
     let result = orders.filter(o => {
-      if (o.status === "ARRIVED" || o.status === "CANCELLED") return false;
+      if (isOrderClosed(o.status)) return false;
       if (statusFilter !== "all" && o.status !== statusFilter) return false;
       if (priorityFilter !== "all" && o.priority !== priorityFilter) return false;
       if (originFilter !== "all" && orderOrigin(o) !== originFilter) return false;
@@ -282,12 +283,22 @@ export default function OrdersPage() {
   const orderCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     orders.forEach(o => {
-      if (o.status !== "ARRIVED" && o.status !== "CANCELLED") {
+      if (isOrderActive(o.status)) {
         counts[o.status] = (counts[o.status] || 0) + 1;
       }
     });
     return counts;
   }, [orders]);
+
+  // Moving an order to a closed status (נמסר / הגיע / בוטל) drops it out of the
+  // active table — say where it went so the row doesn't just vanish.
+  const handleStatusChange = useCallback(async (orderId: string, status: OrderStatus) => {
+    const wasActive = isOrderActive(orders.find(o => o.id === orderId)?.status);
+    await updateOrderStatus(orderId, status);
+    if (wasActive && isOrderClosed(status)) {
+      toast.info("ההזמנה הועברה לארכיון ההזמנות");
+    }
+  }, [orders, updateOrderStatus]);
 
   const navigateToSupplier = (supplierName: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -431,7 +442,7 @@ export default function OrdersPage() {
             navigateToProduct={navigateToProduct}
             handleDeleteOrder={handleDeleteOrder}
             handleDuplicateOrder={handleDuplicateOrder}
-            updateOrderStatus={updateOrderStatus}
+            updateOrderStatus={handleStatusChange}
             updateOrder={updateOrder}
             selection={hasEdit ? selection : undefined}
             hidePrices={hidePrices}
@@ -460,7 +471,7 @@ export default function OrdersPage() {
             navigateToProduct={navigateToProduct}
             handleDeleteOrder={handleDeleteOrder}
             handleDuplicateOrder={handleDuplicateOrder}
-            updateOrderStatus={updateOrderStatus}
+            updateOrderStatus={handleStatusChange}
             updateOrder={updateOrder}
           />
         </TabsContent>

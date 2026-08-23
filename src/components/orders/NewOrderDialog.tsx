@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { type Priority, type Order, type OrderItem, type Supplier, type Product, type ProductComponent } from "@/contexts/AppContext";
 import { useOrders } from "@/contexts/AppContext";
-import { Plus, Trash2 } from "lucide-react";
+import { FileUp, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { DateInput } from "@/components/ui/date-input";
 import { toast } from "sonner";
 import { orderSchema } from "@/lib/schemas/orderSchema";
+import { OrderFileImportDialog, type OrderImportResult } from "@/components/orders/OrderFileImportDialog";
+import { attachOrderDocument } from "@/lib/orderImport/attachDocument";
 
 const priorities: { value: Priority; label: string }[] = [
   { value: "דחוף", label: "דחוף" },
@@ -21,7 +23,7 @@ const priorities: { value: Priority; label: string }[] = [
 ];
 
 type ItemType = "product" | "component";
-interface ItemRow { type: ItemType; name: string; qty: string; price: string; currency: string; productId: string; componentId: string; }
+interface ItemRow { type: ItemType; name: string; qty: string; price: string; currency: string; productId: string; componentId: string; /** true when the row holds a name imported from a file with no matching product */ freeText?: boolean; }
 
 interface FlatComponent extends ProductComponent { productName: string; }
 
@@ -60,6 +62,12 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
   const [eta, setEta] = useState<Date>();
   const [tracking_number, setTrackingNumber] = useState("");
   const [items, setItems] = useState<ItemRow[]>([{ type: "product", name: "", qty: "", price: "", currency: "USD", productId: "", componentId: "" }]);
+  // Order imported from a file (SAP PDF / supplier Excel): the parsed metadata is
+  // carried onto the created order, and the file itself is attached to its documents.
+  const [showImport, setShowImport] = useState(false);
+  const [importedFile, setImportedFile] = useState<File | null>(null);
+  const [importInfo, setImportInfo] = useState<OrderImportResult["doc"] | null>(null);
+  const [attaching, setAttaching] = useState(false);
 
   const { orders } = useOrders();
 
@@ -109,6 +117,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
     setPriority("בינוני"); setSupplierId(""); setShipping(""); setDestinationSupplierId(""); setNotes("");
     setEtd(undefined); setEta(undefined); setTrackingNumber("");
     setItems([{ type: "product", name: "", qty: "", price: "", currency: "USD", productId: "", componentId: "" }]);
+    setImportedFile(null); setImportInfo(null);
   };
 
   // Handle defaults when dialog opens
@@ -180,6 +189,45 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
       : item));
   };
 
+  // Load a parsed file into the form. Everything stays editable — the user still
+  // presses "צור הזמנה" — and the file is remembered so it can be filed under the
+  // order's documents once it exists.
+  const applyImport = ({ doc, supplierId: matchedSupplierId, items: matchedItems, file }: OrderImportResult) => {
+    setImportedFile(file);
+    setImportInfo(doc);
+    if (matchedSupplierId) setSupplierId(matchedSupplierId);
+
+    const rows: ItemRow[] = matchedItems.map(m => ({
+      type: "product",
+      name: m.product?.name || m.parsed.description || m.parsed.code || "",
+      qty: m.parsed.qty != null ? String(m.parsed.qty) : "",
+      price: m.parsed.unitPrice != null ? String(m.parsed.unitPrice) : "",
+      currency: m.parsed.currency || doc.currency || "USD",
+      productId: m.product?.id || "",
+      componentId: "",
+      freeText: !m.product,
+    }));
+    if (rows.length) setItems(rows);
+
+    const noteParts = [
+      doc.poNumber ? `הזמנת רכש SAP ${doc.poNumber}` : null,
+      doc.piNumber ? `PI ${doc.piNumber}` : null,
+      doc.agent ? `סוכן: ${doc.agent}` : null,
+      doc.paymentTerms ? `תנאי תשלום: ${doc.paymentTerms}` : null,
+      doc.notes,
+      doc.vatRate != null && doc.total != null ? `מע"מ ${doc.vatRate}% · סה"כ כולל ${doc.total}` : null,
+    ].filter(Boolean) as string[];
+    if (noteParts.length) {
+      setNotes(prev => [prev.trim(), noteParts.join(" · ")].filter(Boolean).join("\n"));
+    }
+
+    const unmatched = matchedItems.filter(m => !m.product).length;
+    toast.success(
+      `נטענו ${matchedItems.length} פריטים מהקובץ` +
+      (unmatched ? ` · ${unmatched} ללא שיוך למוצר — השלם ידנית` : "")
+    );
+  };
+
   const handleSubmit = async () => {
     const rawItems = items
       .filter(i => i.name.trim() && Number(i.qty) > 0)
@@ -211,6 +259,9 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
     const supplier = suppliers.find(s => s.id === supplierId);
     const destSupplier = destinationSupplierId ? suppliers.find(s => s.id === destinationSupplierId) : undefined;
 
+    // A SAP purchase order was already issued to the supplier, so it opens as "הוזמן".
+    const importedFromSap = importInfo?.source === "sap-pdf" && !!importInfo.poNumber;
+
     const newOrderId = await addOrder({
       priority,
       supplier_id: supplierId || undefined,
@@ -218,8 +269,10 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
       shipping: shipping || undefined,
       destination_supplier_id: destinationSupplierId || undefined,
       destination_supplier_name: destSupplier?.company || undefined,
-      status: "PENDING",
-      order_date: new Date().toISOString(),
+      status: importedFromSap ? "ORDERED" : "PENDING",
+      sap_doc_entry: importInfo?.poNumber || undefined,
+      pi_number: importInfo?.piNumber || undefined,
+      order_date: importInfo?.orderDate ? new Date(importInfo.orderDate).toISOString() : new Date().toISOString(),
       etd: etd?.toISOString(),
       eta: eta?.toISOString(),
       total_price: rawItems.reduce((s, i) => s + (i.unit_price || 0) * i.qty, 0) || undefined,
@@ -233,6 +286,30 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
         product_id: item.product_id || undefined,
       })),
     });
+    // File the imported source file under the new order's documents.
+    if (newOrderId && importedFile) {
+      setAttaching(true);
+      const docType = importInfo?.source === "sap-pdf" ? "PO" : importInfo?.piNumber ? "PI" : "כללי";
+      const error = await attachOrderDocument({
+        file: importedFile,
+        orderId: newOrderId,
+        supplierId,
+        documentName: importInfo?.poNumber
+          ? `הזמנת רכש SAP ${importInfo.poNumber}`
+          : importInfo?.piNumber
+            ? `PI ${importInfo.piNumber}`
+            : importedFile.name.replace(/\.[^/.]+$/, ""),
+        documentNumber: importInfo?.poNumber || importInfo?.piNumber || null,
+        type: docType,
+        totalPrice: importInfo?.total ?? importInfo?.subtotal ?? null,
+        currency: importInfo?.currency || undefined,
+        notes: "יובא אוטומטית ביצירת ההזמנה",
+      });
+      setAttaching(false);
+      if (error) toast.error("ההזמנה נוצרה, אך שמירת הקובץ במסמכים נכשלה: " + error);
+      else toast.success("הקובץ נשמר במסמכי ההזמנה");
+    }
+
     if (newOrderId && onOrderCreated) onOrderCreated(newOrderId);
     resetForm();
     setOpen(false);
@@ -248,6 +325,34 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader><DialogTitle>יצירת הזמנה חדשה</DialogTitle></DialogHeader>
         <div className="space-y-4 pt-2">
+          {importInfo ? (
+            <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                  <FileUp className="h-4 w-4 text-primary" />
+                  יובא מקובץ: {importedFile?.name}
+                </span>
+                <Button
+                  type="button" variant="ghost" size="icon" className="h-6 w-6"
+                  onClick={() => { setImportedFile(null); setImportInfo(null); }}
+                  aria-label="בטל ייבוא"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {importInfo.poNumber ? `הזמנת רכש SAP ${importInfo.poNumber} · תיווצר בסטטוס "הוזמן" · ` : ""}
+                {importInfo.piNumber ? `PI ${importInfo.piNumber} · ` : ""}
+                הקובץ יישמר במסמכי ההזמנה לאחר היצירה
+              </p>
+            </div>
+          ) : (
+            <Button type="button" variant="outline" className="w-full" onClick={() => setShowImport(true)}>
+              <FileUp className="h-4 w-4 me-2" />
+              ייבוא מקובץ (SAP / הזמנה מחו"ל)
+            </Button>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>עדיפות</Label>
@@ -330,7 +435,24 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
                 </div>
                 <div className="flex gap-2 items-center">
                   <div className="flex-1">
-                    {item.type === "product" ? (
+                    {item.type === "product" && item.freeText ? (
+                      // Imported line with no matching product — keep the name from the
+                      // file as free text, with a way back to the product picker.
+                      <div className="flex gap-1">
+                        <Input
+                          value={item.name}
+                          onChange={e => updateItem(idx, "name", e.target.value)}
+                          placeholder="שם פריט מהקובץ"
+                          className="h-8 text-sm flex-1 min-w-0"
+                        />
+                        <Button
+                          type="button" variant="ghost" size="sm" className="h-8 text-xs px-2 shrink-0"
+                          onClick={() => setItems(prev => prev.map((it, i) => i === idx ? { ...it, freeText: false, name: "", productId: "" } : it))}
+                        >
+                          שייך מוצר
+                        </Button>
+                      </div>
+                    ) : item.type === "product" ? (
                       <Combobox
                         value={item.productId}
                         onValueChange={v => selectProduct(idx, v)}
@@ -373,9 +495,19 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
           </div>
 
           <div className="space-y-2"><Label>הערות</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="הערות להזמנה..." rows={2} /></div>
-          <Button onClick={handleSubmit} disabled={!items.some(i => i.name && Number(i.qty) > 0)} className="w-full">צור הזמנה</Button>
+          <Button onClick={handleSubmit} disabled={attaching || !items.some(i => i.name && Number(i.qty) > 0)} className="w-full">
+            {attaching ? "שומר קובץ במסמכים..." : "צור הזמנה"}
+          </Button>
         </div>
       </DialogContent>
+
+      <OrderFileImportDialog
+        open={showImport}
+        onOpenChange={setShowImport}
+        suppliers={suppliers}
+        products={products}
+        onApply={applyImport}
+      />
     </Dialog>
   );
 }
