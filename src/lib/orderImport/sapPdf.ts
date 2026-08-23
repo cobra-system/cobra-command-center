@@ -52,6 +52,44 @@ export function fixHebrew(s: string): string {
   return HEBREW.test(repaired) ? [...repaired].reverse().join("") : repaired;
 }
 
+/** Repair the נ→ð font glitch without touching character order. */
+export const repairGlyphs = (s: string): string => s.replace(/ð/g, "נ");
+
+/** Hebrew letters that only ever appear at the end of a word. */
+const HEBREW_FINALS = "ךםןףץ";
+
+/**
+ * Decide whether a PDF's Hebrew comes out in visual order (pdfminer, raw content
+ * streams) or already in logical order (pdfjs applies bidi itself).
+ *
+ * Final-form letters can only end a word, so if they show up at the *start* of
+ * words more often than at the end, the text is reversed. Decided once per
+ * document — a single token rarely carries enough signal.
+ */
+export function looksVisuallyReversed(texts: string[]): boolean {
+  let atStart = 0;
+  let atEnd = 0;
+  for (const text of texts) {
+    for (const word of text.split(/\s+/)) {
+      const core = word.replace(/^[^֐-׿]+/, "").replace(/[^֐-׿]+$/, "");
+      if (core.length < 2) continue;
+      if (HEBREW_FINALS.includes(core[0])) atStart++;
+      if (HEBREW_FINALS.includes(core[core.length - 1])) atEnd++;
+    }
+  }
+  return atStart > atEnd;
+}
+
+/**
+ * Attach the logical-order `norm` to positioned tokens. pdfjs normally hands back
+ * logical order already; some PDFs still come out visually reversed, so the
+ * direction is decided once for the whole document and applied to every token.
+ */
+export function normalizeTokens(tokens: Omit<PdfTextLine, "norm">[]): PdfTextLine[] {
+  const reversed = looksVisuallyReversed(tokens.map(t => t.raw));
+  return tokens.map(t => ({ ...t, norm: reversed ? fixHebrew(t.raw) : repairGlyphs(t.raw) }));
+}
+
 /** DD/MM/YY(YY) → YYYY-MM-DD (SAP prints day/month/year). */
 export function isoDate(d?: string | null): string | null {
   if (!d) return null;
@@ -73,8 +111,18 @@ export function toNumber(s?: string | null): number | null {
 const labelY = (lines: PdfTextLine[], needle: string): number | null =>
   lines.find(l => l.norm.includes(needle))?.y ?? null;
 
+/** y of a row whose label is exactly `needle` (ignoring the trailing colon). */
+const exactLabelY = (lines: PdfTextLine[], needle: string): number | null =>
+  lines.find(l => l.norm.replace(/[:\s]/g, "") === needle)?.y ?? null;
+
 const rowTokens = (lines: PdfTextLine[], y: number, tol = 4): PdfTextLine[] =>
   lines.filter(l => Math.abs(l.y - y) <= tol);
+
+/** Row tokens in reading order for a right-to-left document (rightmost first). */
+const rtlOrder = (tokens: PdfTextLine[]): PdfTextLine[] =>
+  [...tokens].sort((a, b) => b.x1 - a.x1 || b.x0 - a.x0);
+
+const DATE_TOKEN = /^\d{1,2}\/\d{1,2}\/\d{2,4}$/;
 
 /**
  * Turn positioned PDF text into a parsed order. Pure — `extractPdfTextLines`
@@ -105,28 +153,63 @@ export function parseSapPoLines(lines: PdfTextLine[], fileName: string): ParsedO
     if (hit) out.poNumber = hit.raw.trim();
   }
 
-  const dateY = labelY(lines, "תאריך");
+  // SAP vendor account number — the short code in the left column above the item
+  // table. Kept apart from the 9-digit VAT id so both can be tried when matching.
+  const tableTopY = labelY(lines, "קוד פריט");
+  const codeCand = lines.find(l =>
+    /^\d{4,6}$/.test(l.raw.trim()) &&
+    l.raw.trim() !== out.poNumber &&
+    l.x0 < 150 &&
+    (tableTopY == null || l.y > tableTopY) &&
+    (poY == null || Math.abs(l.y - poY) > 4)
+  );
+  if (codeCand) out.supplierCode = codeCand.raw.trim();
+
+  // "תאריך:" — the exact label, so the table's "תאריך אספקה" column never wins.
+  const dateY = exactLabelY(lines, "תאריך") ?? labelY(lines, "תאריך");
   if (dateY != null) {
-    const hit = rowTokens(lines, dateY).find(l => /^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(l.raw.trim()));
+    const hit = rowTokens(lines, dateY).find(l => DATE_TOKEN.test(l.raw.trim()));
     if (hit) out.orderDate = isoDate(hit.raw);
+  }
+
+  // Requested delivery date printed under the table (not the column header).
+  for (const l of lines.filter(l => l.norm.includes("תאריך אספקה"))) {
+    const hit = rowTokens(lines, l.y).find(t => DATE_TOKEN.test(t.raw.trim()));
+    if (hit) { out.deliveryDate = isoDate(hit.raw); break; }
   }
 
   const termsY = labelY(lines, "תנאי תשלום");
   if (termsY != null) {
-    const parts = rowTokens(lines, termsY).filter(l => !l.norm.includes("תנאי")).map(l => l.norm);
-    if (parts.length) out.paymentTerms = parts.reverse().join("").replace(/\s+/g, "");
+    // SAP splits "שוטף+60" into two tokens; join them right-to-left.
+    const parts = rtlOrder(rowTokens(lines, termsY)).filter(l => !l.norm.includes("תנאי")).map(l => l.norm);
+    if (parts.length) out.paymentTerms = parts.join("").replace(/\s+/g, "");
   }
 
   const agentY = labelY(lines, "סוכן");
   if (agentY != null) {
-    const parts = rowTokens(lines, agentY)
-      .filter(l => !l.norm.includes("סוכן") && HEBREW.test(l.norm))
-      .map(l => l.norm);
-    if (parts.length) out.agent = parts.join(" ");
+    const parts = rtlOrder(rowTokens(lines, agentY))
+      .filter(l => !/^סוכן:?$/.test(l.norm.trim()) && HEBREW.test(l.norm))
+      .map(l => l.norm.trim());
+    const agent = parts.join(" ").trim();
+    // "-ללא סוכן-" is SAP's placeholder for "no agent" — not worth carrying over.
+    if (agent && !agent.includes("ללא סוכן")) out.agent = agent;
   }
 
-  const comment = lines.find(l => l.norm.startsWith("הזמנה עבור") || (l.norm.includes("עבור") && l.norm.includes("הזמנה")));
-  if (comment) out.notes = comment.norm;
+  // Free-text comment SAP prints above the totals ("הזמנה לתל אביב תוצרת הארץ 15",
+  // "הזמנה עבור מחסן מרכזי"…). Every token on that row, right-to-left.
+  const commentLine = lines.find(l =>
+    l.norm.trim().startsWith("הזמנה") && !l.norm.includes("הזמנת רכש") && !l.norm.includes("מספר הזמנה")
+  );
+  if (commentLine) {
+    // Keep to the comment's own row and to the right-hand text area, so the
+    // nearby totals column (מע"מ / סה"כ) never bleeds into the note.
+    out.notes = rtlOrder(rowTokens(lines, commentLine.y, 3).filter(l => l.x0 >= COLUMN_BANDS.desc))
+      .map(l => l.norm.trim())
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
 
   // --- totals -----------------------------------------------------------
   const subtotalY = labelY(lines, 'חייב מע"מ');
@@ -177,8 +260,10 @@ export function parseSapPoLines(lines: PdfTextLine[], fileName: string): ParsedO
         case "mfrSku": item.mfrSku = t.raw.trim(); break;
         case "desc": desc.push(t.norm); break;
         case "delivOrQty": mid.push(t); break;
-        case "price": item.unitPrice = toNumber(t.raw); break;
-        case "total": item.lineTotal = toNumber(t.raw); break;
+        // A currency sign can sit in its own token beside the number — keep the
+        // first real number in the band instead of letting "₪" overwrite it.
+        case "price": item.unitPrice = item.unitPrice ?? toNumber(t.raw); break;
+        case "total": item.lineTotal = item.lineTotal ?? toNumber(t.raw); break;
         default: break;
       }
     }
@@ -217,7 +302,7 @@ export async function extractPdfTextLines(data: ArrayBuffer): Promise<PdfTextLin
   ).toString();
 
   const pdf = await pdfjsLib.getDocument({ data }).promise;
-  const lines: PdfTextLine[] = [];
+  const raw: Omit<PdfTextLine, "norm">[] = [];
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
     const page = await pdf.getPage(pageNum);
     const content = await page.getTextContent();
@@ -230,16 +315,16 @@ export async function extractPdfTextLines(data: ArrayBuffer): Promise<PdfTextLin
       if (!text) continue;
       const x0 = item.transform[4] as number;
       const y = item.transform[5] as number;
-      lines.push({
+      raw.push({
         x0: Math.round(x0),
         x1: Math.round(x0 + (item.width || 0)),
         y: Math.round(y) - pageOffset,
         raw: text,
-        norm: fixHebrew(text),
       });
     }
   }
-  return lines;
+
+  return normalizeTokens(raw);
 }
 
 export async function parseSapPoPdf(file: File): Promise<ParsedOrderDoc> {

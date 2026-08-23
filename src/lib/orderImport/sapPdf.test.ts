@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { fixHebrew, isoDate, parseSapPoLines, toNumber, type PdfTextLine } from "./sapPdf";
+import { fixHebrew, isoDate, looksVisuallyReversed, normalizeTokens, parseSapPoLines, toNumber, type PdfTextLine } from "./sapPdf";
 
 const HEBREW = /[֐-׿]/;
 
@@ -63,6 +63,27 @@ describe("fixHebrew / isoDate / toNumber", () => {
     expect(toNumber("₪99.00")).toBe(99);
     expect(toNumber("abc")).toBeNull();
     expect(toNumber("")).toBeNull();
+  });
+});
+
+describe("bidi direction detection", () => {
+  const logical = ["תאריך:", "תנאי תשלום", "הזמנה לתל אביב תוצרת הארץ", 'די.סי.פאק בע"מ'];
+  const visual = logical.map(t => [...t].reverse().join(""));
+
+  it("leaves logical-order Hebrew (what pdfjs returns) untouched", () => {
+    expect(looksVisuallyReversed(logical)).toBe(false);
+    const [first] = normalizeTokens(logical.map((raw, i) => ({ x0: 0, x1: 10, y: 100 - i, raw })));
+    expect(first.norm).toBe("תאריך:");
+  });
+
+  it("de-reverses visually-ordered Hebrew", () => {
+    expect(looksVisuallyReversed(visual)).toBe(true);
+    const [first] = normalizeTokens(visual.map((raw, i) => ({ x0: 0, x1: 10, y: 100 - i, raw })));
+    expect(first.norm).toBe("תאריך:");
+  });
+
+  it("assumes logical order when there is no Hebrew signal", () => {
+    expect(looksVisuallyReversed(["ABC-123", "1,000", "16/08/26"])).toBe(false);
   });
 });
 

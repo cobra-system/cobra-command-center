@@ -24,9 +24,14 @@ export interface ParsedOrderDoc {
   /** PI / invoice number on a foreign order — stored on orders.pi_number. */
   piNumber?: string | null;
   supplierName?: string | null;
+  /** 9-digit company/VAT id (מספר ע.מ). */
   supplierVat?: string | null;
+  /** Short SAP vendor account number printed on the document. */
+  supplierCode?: string | null;
   /** ISO date (YYYY-MM-DD). */
   orderDate?: string | null;
+  /** Requested delivery date for the whole document, ISO (YYYY-MM-DD). */
+  deliveryDate?: string | null;
   paymentTerms?: string | null;
   agent?: string | null;
   notes?: string | null;

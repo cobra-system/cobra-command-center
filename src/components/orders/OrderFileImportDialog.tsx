@@ -59,7 +59,8 @@ export function OrderFileImportDialog({ open, onOpenChange, suppliers, products,
     () => (doc ? matchItems(doc.items, products) : []),
     [doc, products]
   );
-  const unmatchedCount = matched.filter(m => !m.product).length;
+  const genericCount = matched.filter(m => m.generic && !m.product).length;
+  const unmatchedCount = matched.filter(m => !m.product).length - genericCount;
 
   const reset = useCallback(() => {
     setFile(null);
@@ -179,6 +180,8 @@ export function OrderFileImportDialog({ open, onOpenChange, suppliers, products,
                 <Summary label="מס' הזמנה" value={doc.poNumber || doc.piNumber || "—"} ltr />
                 <Summary label="תאריך" value={doc.orderDate || "—"} ltr />
                 <Summary label="תנאי תשלום" value={doc.paymentTerms || "—"} />
+                {doc.deliveryDate && <Summary label="תאריך אספקה" value={doc.deliveryDate} ltr />}
+                {doc.notes && <Summary label="הערה בקובץ" value={doc.notes} />}
               </div>
 
               {/* Supplier */}
@@ -204,8 +207,9 @@ export function OrderFileImportDialog({ open, onOpenChange, suppliers, products,
                 <div className="flex items-center justify-between">
                   <Label>פריטים ({doc.items.length})</Label>
                   <span className={cn("text-xs", unmatchedCount ? "text-amber-700" : "text-emerald-700")}>
-                    {unmatchedCount
-                      ? `${doc.items.length - unmatchedCount} מתוך ${doc.items.length} שויכו למוצר במערכת`
+                    {unmatchedCount || genericCount
+                      ? `${matched.filter(m => m.product).length} מתוך ${doc.items.length} שויכו למוצר` +
+                        (genericCount ? ` · ${genericCount} מק״ט כללי` : "")
                       : "כל הפריטים שויכו למוצרים במערכת"}
                   </span>
                 </div>
@@ -226,7 +230,7 @@ export function OrderFileImportDialog({ open, onOpenChange, suppliers, products,
                         <tr><td colSpan={6} className="p-3 text-center text-muted-foreground text-xs">לא זוהו פריטים בקובץ</td></tr>
                       )}
                       {matched.map((m, i) => (
-                        <tr key={i} className={cn(!m.product && "bg-amber-50/60")}>
+                        <tr key={i} className={cn(!m.product && (m.generic ? "bg-sky-50/60" : "bg-amber-50/60"))}>
                           <td className="p-2 font-mono text-xs" dir="ltr">{m.parsed.code || "—"}</td>
                           <td className="p-2">{m.parsed.description || "—"}</td>
                           <td className="p-2">
@@ -235,6 +239,11 @@ export function OrderFileImportDialog({ open, onOpenChange, suppliers, products,
                                 <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                                 {m.product.name}
                                 {m.reason && <span className="text-muted-foreground text-xs">({matchReasonLabel[m.reason]})</span>}
+                              </span>
+                            ) : m.generic ? (
+                              <span className="inline-flex items-center gap-1 text-sky-700">
+                                <HelpCircle className="h-3.5 w-3.5 shrink-0" />
+                                מק״ט כללי ({m.parsed.code}) — התיאור הוא הפריט
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 text-amber-700">

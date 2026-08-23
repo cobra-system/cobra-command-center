@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Product, Supplier } from "@/contexts/types";
-import { matchItems, matchProduct, matchSupplier, normalizeCode } from "./match";
+import { isGenericItemCode, matchItems, matchProduct, matchSupplier, normalizeCode } from "./match";
 import { emptyParsedDoc } from "./types";
 
 const supplier = (over: Partial<Supplier>): Supplier => ({
@@ -66,6 +66,21 @@ describe("matchSupplier", () => {
   });
 });
 
+describe("isGenericItemCode", () => {
+  it("recognises SAP's catch-all codes", () => {
+    expect(isGenericItemCode("9999")).toBe(true);
+    expect(isGenericItemCode("999")).toBe(true);
+    expect(isGenericItemCode(" 99999 ")).toBe(true);
+  });
+
+  it("leaves real codes alone", () => {
+    expect(isGenericItemCode("99")).toBe(false);
+    expect(isGenericItemCode("9998")).toBe(false);
+    expect(isGenericItemCode("ABC-999")).toBe(false);
+    expect(isGenericItemCode(null)).toBe(false);
+  });
+});
+
 describe("matchProduct", () => {
   const products = [
     product({ id: "p1", name: "מצלמת אבטחה", sku: "ABC-123" }),
@@ -100,6 +115,18 @@ describe("matchProduct", () => {
     const m = matchProduct({ code: "NOPE-1", description: "פריט לא מוכר" }, products);
     expect(m.product).toBeNull();
     expect(m.reason).toBeNull();
+  });
+
+  it("does not fuzzy-match a generic 9999 line, and flags it", () => {
+    const [line] = matchItems([{ code: "9999", description: "מצלמת אבטחה חיצונית מיוחדת" }], products);
+    expect(line.generic).toBe(true);
+    expect(line.product).toBeNull();
+  });
+
+  it("matches a generic line when its description is an exact product name", () => {
+    const [line] = matchItems([{ code: "9999", description: "כבל רשת" }], products);
+    expect(line.generic).toBe(true);
+    expect(line.product?.id).toBe("p2");
   });
 
   it("matchItems keeps the parsed line next to its match", () => {

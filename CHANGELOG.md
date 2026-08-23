@@ -17,6 +17,9 @@
   - `src/lib/orderImport/` — ניתוח SAP PDF (פורט דפדפן של `scripts/sap-po/extract_po.py` מעל pdfjs), ניתוח Excel/CSV עם זיהוי שורת כותרות בעברית/אנגלית, והתאמת ספק/מוצרים (קוד SAP → מק״ט → שם; התאמה דו-משמעית נחשבת "לא זוהה" ולא מנחשת).
   - `src/components/orders/OrderFileImportDialog.tsx` — דיאלוג העלאה + תצוגה מקדימה; הכל נשאר לעריכה בטופס, שום דבר לא נשמר עד "צור הזמנה".
   - הזמנה שיובאה מ-SAP נוצרת בסטטוס "הוזמן" עם `sap_doc_entry`, והקובץ המקורי נשמר אוטומטית במסמכי ההזמנה (`purchase_documents`).
+  - מספר ההזמנה, ההערה החופשית שבמסמך, תנאי התשלום ופירוט השורות נכנסים אוטומטית להערות ההזמנה; תאריך האספקה שבמסמך ממלא את ה-ETA.
+  - **מק״ט כללי (9999)** — שורות עם קוד הפריט הכללי של SAP לעולם לא משויכות למוצר לפי הקוד; הן נכנסות כשורה חופשית שהתיאור שבה הוא הפריט (אלא אם התיאור עצמו הוא מק״ט מוכר).
+- **שורת פריט חופשית בטופס ההזמנה** — לכל שורה יש עכשיו מצב "חופשי" לצד "מוצר"/"רכיב", לכתיבת פריט שעדיין לא קיים בקטלוג. גם מתוך בורר המוצרים אפשר לבחור "פריט חדש (טקסט חופשי)" ולשמור את מה שהוקלד במקום להיאלץ לבחור מוצר קיים.
 - **SAP purchase-order import (Cowork)** — upload a SAP purchase-order PDF and it is parsed, matched to the live supplier and products, previewed, and (after approval) created as an order.
   - `scripts/sap-po/extract_po.py` — parser that turns the Hebrew RTL SAP PO PDF into structured JSON (PO number, supplier + VAT, line items with code/qty/price, totals), with arithmetic validation warnings.
   - `.claude/skills/sap-order-import/` — Skill that runs the full parse → match → preview → confirm → `create_order` flow, including duplicate-import guard via `get_order_by_reference`.

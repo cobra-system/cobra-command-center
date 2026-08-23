@@ -22,8 +22,10 @@ const priorities: { value: Priority; label: string }[] = [
   { value: "נמוך", label: "נמוך" },
 ];
 
-type ItemType = "product" | "component";
-interface ItemRow { type: ItemType; name: string; qty: string; price: string; currency: string; productId: string; componentId: string; /** true when the row holds a name imported from a file with no matching product */ freeText?: boolean; }
+// "free" = a line typed by hand: a product that does not exist in the catalog yet,
+// or a SAP line with the generic 9999 item code where the description is the item.
+type ItemType = "product" | "component" | "free";
+interface ItemRow { type: ItemType; name: string; qty: string; price: string; currency: string; productId: string; componentId: string; }
 
 interface FlatComponent extends ProductComponent { productName: string; }
 
@@ -184,9 +186,13 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
   };
 
   const setItemType = (idx: number, type: ItemType) => {
-    setItems(prev => prev.map((item, i) => i === idx
-      ? { ...item, type, name: "", productId: "", componentId: "", price: "" }
-      : item));
+    setItems(prev => prev.map((item, i) => {
+      if (i !== idx) return item;
+      // Switching to free text keeps whatever name the row already carries, so a
+      // picked product can be turned into an editable line without retyping it.
+      const name = type === "free" ? item.name : "";
+      return { ...item, type, name, productId: "", componentId: "", price: type === "free" ? item.price : "" };
+    }));
   };
 
   // Load a parsed file into the form. Everything stays editable — the user still
@@ -198,32 +204,70 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
     if (matchedSupplierId) setSupplierId(matchedSupplierId);
 
     const rows: ItemRow[] = matchedItems.map(m => ({
-      type: "product",
+      type: m.product ? "product" : "free",
       name: m.product?.name || m.parsed.description || m.parsed.code || "",
       qty: m.parsed.qty != null ? String(m.parsed.qty) : "",
       price: m.parsed.unitPrice != null ? String(m.parsed.unitPrice) : "",
       currency: m.parsed.currency || doc.currency || "USD",
       productId: m.product?.id || "",
       componentId: "",
-      freeText: !m.product,
     }));
     if (rows.length) setItems(rows);
 
-    const noteParts = [
-      doc.poNumber ? `הזמנת רכש SAP ${doc.poNumber}` : null,
-      doc.piNumber ? `PI ${doc.piNumber}` : null,
-      doc.agent ? `סוכן: ${doc.agent}` : null,
-      doc.paymentTerms ? `תנאי תשלום: ${doc.paymentTerms}` : null,
-      doc.notes,
-      doc.vatRate != null && doc.total != null ? `מע"מ ${doc.vatRate}% · סה"כ כולל ${doc.total}` : null,
-    ].filter(Boolean) as string[];
-    if (noteParts.length) {
-      setNotes(prev => [prev.trim(), noteParts.join(" · ")].filter(Boolean).join("\n"));
+    // Delivery date from the document (SAP prints one under the item table), with the
+    // latest per-line date as a fallback — only when the user has not set an ETA.
+    const lineDates = matchedItems.map(m => m.parsed.deliveryDate).filter(Boolean) as string[];
+    const deliveryDate = doc.deliveryDate || (lineDates.length ? lineDates.sort().at(-1) : null);
+    if (deliveryDate && !eta) {
+      const parsedEta = new Date(deliveryDate);
+      if (!Number.isNaN(parsedEta.getTime())) setEta(parsedEta);
     }
 
-    const unmatched = matchedItems.filter(m => !m.product).length;
+    // Notes carry everything the document says that the form has no field for —
+    // the order number, the free-text comment, and the item descriptions themselves,
+    // which matters most for generic (9999) lines where the description IS the item.
+    const headLine = [
+      doc.poNumber ? `הזמנת רכש SAP ${doc.poNumber}` : null,
+      doc.piNumber ? `PI ${doc.piNumber}` : null,
+      doc.orderDate ? `תאריך: ${doc.orderDate}` : null,
+      doc.paymentTerms ? `תנאי תשלום: ${doc.paymentTerms}` : null,
+      doc.agent ? `סוכן: ${doc.agent}` : null,
+    ].filter(Boolean).join(" · ");
+
+    const MAX_NOTE_LINES = 15;
+    const described = matchedItems
+      .map(m => {
+        const parts = [
+          m.parsed.code ? m.parsed.code : null,
+          m.parsed.description || null,
+        ].filter(Boolean).join(" — ");
+        if (!parts) return null;
+        return `• ${parts}${m.parsed.qty != null ? ` × ${m.parsed.qty}` : ""}`;
+      })
+      .filter(Boolean) as string[];
+    const itemLines = described.slice(0, MAX_NOTE_LINES);
+    if (described.length > MAX_NOTE_LINES) itemLines.push(`• ועוד ${described.length - MAX_NOTE_LINES} שורות`);
+
+    const totalsLine = doc.total != null
+      ? `סה"כ ${doc.subtotal ?? ""}${doc.vatRate != null ? ` · מע"מ ${doc.vatRate}%` : ""} · סה"כ כולל ${doc.total}`
+      : null;
+
+    const noteBlock = [
+      headLine || null,
+      doc.notes || null,
+      itemLines.length ? `פירוט מהקובץ:\n${itemLines.join("\n")}` : null,
+      totalsLine,
+    ].filter(Boolean).join("\n");
+
+    if (noteBlock) {
+      setNotes(prev => [prev.trim(), noteBlock].filter(Boolean).join("\n"));
+    }
+
+    const generic = matchedItems.filter(m => m.generic && !m.product).length;
+    const unmatched = matchedItems.filter(m => !m.product).length - generic;
     toast.success(
       `נטענו ${matchedItems.length} פריטים מהקובץ` +
+      (generic ? ` · ${generic} עם מק״ט כללי נכנסו כטקסט חופשי` : "") +
       (unmatched ? ` · ${unmatched} ללא שיוך למוצר — השלם ידנית` : "")
     );
   };
@@ -427,6 +471,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
                 <div className="flex gap-1 mb-1">
                   <Button type="button" size="sm" variant={item.type === "product" ? "default" : "outline"} className="h-6 text-xs px-2" onClick={() => setItemType(idx, "product")}>מוצר</Button>
                   <Button type="button" size="sm" variant={item.type === "component" ? "default" : "outline"} className="h-6 text-xs px-2" onClick={() => setItemType(idx, "component")}>רכיב</Button>
+                  <Button type="button" size="sm" variant={item.type === "free" ? "default" : "outline"} className="h-6 text-xs px-2" onClick={() => setItemType(idx, "free")} title="פריט חדש / כללי — כתיבה חופשית">חופשי</Button>
                   {items.length > 1 && (
                     <Button type="button" variant="ghost" size="icon" className="h-6 w-6 mr-auto" onClick={() => removeItemRow(idx)}>
                       <Trash2 className="h-3 w-3 text-destructive" />
@@ -435,30 +480,26 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
                 </div>
                 <div className="flex gap-2 items-center">
                   <div className="flex-1">
-                    {item.type === "product" && item.freeText ? (
-                      // Imported line with no matching product — keep the name from the
-                      // file as free text, with a way back to the product picker.
-                      <div className="flex gap-1">
-                        <Input
-                          value={item.name}
-                          onChange={e => updateItem(idx, "name", e.target.value)}
-                          placeholder="שם פריט מהקובץ"
-                          className="h-8 text-sm flex-1 min-w-0"
-                        />
-                        <Button
-                          type="button" variant="ghost" size="sm" className="h-8 text-xs px-2 shrink-0"
-                          onClick={() => setItems(prev => prev.map((it, i) => i === idx ? { ...it, freeText: false, name: "", productId: "" } : it))}
-                        >
-                          שייך מוצר
-                        </Button>
-                      </div>
+                    {item.type === "free" ? (
+                      <Input
+                        value={item.name}
+                        onChange={e => updateItem(idx, "name", e.target.value)}
+                        placeholder="תיאור הפריט (מוצר חדש / מק״ט כללי)"
+                        className="h-8 text-sm"
+                      />
                     ) : item.type === "product" ? (
                       <Combobox
                         value={item.productId}
                         onValueChange={v => selectProduct(idx, v)}
                         options={productOptions}
                         placeholder="בחר מוצר"
-                        searchPlaceholder="חיפוש מוצר..."
+                        searchPlaceholder="חיפוש מוצר או מק״ט..."
+                        // Product not in the catalog: keep what was typed and turn the
+                        // row into a free-text line instead of forcing a wrong pick.
+                        onCreateNew={term => setItems(prev => prev.map((it, i) => i === idx
+                          ? { ...it, type: "free", name: term, productId: "", componentId: "" }
+                          : it))}
+                        createNewLabel="פריט חדש (טקסט חופשי)"
                         className="h-8 text-sm"
                       />
                     ) : (
@@ -494,7 +535,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
             <Input value={tracking_number} onChange={e => setTrackingNumber(e.target.value)} placeholder="מספר עקיבות שיחה..." />
           </div>
 
-          <div className="space-y-2"><Label>הערות</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="הערות להזמנה..." rows={2} /></div>
+          <div className="space-y-2"><Label>הערות</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="הערות להזמנה..." rows={importInfo ? 6 : 2} /></div>
           <Button onClick={handleSubmit} disabled={attaching || !items.some(i => i.name && Number(i.qty) > 0)} className="w-full">
             {attaching ? "שומר קובץ במסמכים..." : "צור הזמנה"}
           </Button>

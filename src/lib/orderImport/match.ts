@@ -10,6 +10,14 @@ import type { ParsedOrderDoc, ParsedOrderItem } from "./types";
 
 export type MatchReason = "sap_code" | "supplier_number" | "sku" | "exact_name" | "fuzzy_name" | null;
 
+/**
+ * SAP's catch-all item code (9999 and friends): the line carries no real product,
+ * everything meaningful is written in the description. Never matched to a product —
+ * such a line becomes a free-text row the user can complete or leave as is.
+ */
+export const isGenericItemCode = (code?: string | null): boolean =>
+  /^9{3,}$/.test((code ?? "").trim());
+
 export interface SupplierMatch {
   supplier: Supplier | null;
   reason: MatchReason;
@@ -19,6 +27,8 @@ export interface MatchedImportItem {
   parsed: ParsedOrderItem;
   product: Product | null;
   reason: MatchReason;
+  /** The line used SAP's generic item code — the description is the item. */
+  generic: boolean;
 }
 
 /** Codes compare without case, spaces, dashes, slashes or dots. */
@@ -35,16 +45,16 @@ export const normalizeName = (v?: string | null): string =>
 
 export function matchSupplier(doc: ParsedOrderDoc, suppliers: Supplier[]): SupplierMatch {
   const none: SupplierMatch = { supplier: null, reason: null };
-  const vat = normalizeCode(doc.supplierVat);
+  const codes = [doc.supplierVat, doc.supplierCode].map(normalizeCode).filter(Boolean);
   const name = normalizeName(doc.supplierName);
-  if (!vat && !name) return none;
+  if (!codes.length && !name) return none;
 
-  if (vat) {
+  for (const code of codes) {
     const byCode = suppliers.find(
-      s => normalizeCode(s.sap_code) === vat || normalizeCode(s.supplier_number) === vat
+      s => normalizeCode(s.sap_code) === code || normalizeCode(s.supplier_number) === code
     );
     if (byCode) {
-      return { supplier: byCode, reason: normalizeCode(byCode.sap_code) === vat ? "sap_code" : "supplier_number" };
+      return { supplier: byCode, reason: normalizeCode(byCode.sap_code) === code ? "sap_code" : "supplier_number" };
     }
   }
 
@@ -65,7 +75,14 @@ export function matchSupplier(doc: ParsedOrderDoc, suppliers: Supplier[]): Suppl
 
 export function matchProduct(item: ParsedOrderItem, products: Product[]): { product: Product | null; reason: MatchReason } {
   const none = { product: null as Product | null, reason: null as MatchReason };
-  const codes = [item.code, item.mfrSku].map(normalizeCode).filter(Boolean);
+  const generic = isGenericItemCode(item.code);
+
+  // On a generic line the description is free text, so it is the only thing worth
+  // matching on — and only exactly (a code written into the description, or the
+  // product's exact name). No fuzzy guessing.
+  const codes = generic
+    ? [item.description].map(normalizeCode).filter(Boolean)
+    : [item.code, item.mfrSku].map(normalizeCode).filter(Boolean);
 
   for (const code of codes) {
     const bySku = products.find(p => normalizeCode(p.sku) === code);
@@ -79,7 +96,7 @@ export function matchProduct(item: ParsedOrderItem, products: Product[]): { prod
 
   const exact = products.filter(p => normalizeName(p.name) === name);
   if (exact.length === 1) return { product: exact[0], reason: "exact_name" };
-  if (exact.length > 1) return none;
+  if (exact.length > 1 || generic) return none;
 
   const fuzzy = products.filter(p => {
     const pname = normalizeName(p.name);
@@ -93,7 +110,7 @@ export function matchProduct(item: ParsedOrderItem, products: Product[]): { prod
 export function matchItems(items: ParsedOrderItem[], products: Product[]): MatchedImportItem[] {
   return items.map(parsed => {
     const { product, reason } = matchProduct(parsed, products);
-    return { parsed, product, reason };
+    return { parsed, product, reason, generic: isGenericItemCode(parsed.code) };
   });
 }
 
