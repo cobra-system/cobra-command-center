@@ -78,18 +78,22 @@ export default function OrdersPage() {
   });
 
   // Honour ?focus=<orderId> by setting the search filter to the order id
-  // (table search matches order id) so the user lands on that single row.
+  // (table search matches order id) so the user lands on that single row, on the
+  // tab that actually holds it — a delivered/cancelled order lives in the archive.
   useEffect(() => {
     const focus = searchParams.get("focus");
-    if (focus) {
-      setSearchParams(prev => {
-        const next = new URLSearchParams(prev);
-        next.delete("focus");
-        next.set("q", focus);
-        return next;
-      }, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
+    if (!focus) return;
+    // Wait for the orders to load before deciding which tab holds this one.
+    if (orders.length === 0) return;
+    const target = orders.find(o => o.id === focus);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.delete("focus");
+      next.set("q", focus);
+      next.set("tab", target && isOrderClosed(target.status) ? "archive" : "table");
+      return next;
+    }, { replace: true });
+  }, [searchParams, setSearchParams, orders]);
 
   // Handle create-from-URL params (one-time, not persisted as filter state)
   useEffect(() => {
@@ -130,6 +134,16 @@ export default function OrdersPage() {
   const setCarrierFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("carrier"); } else { n.set("carrier", v); } return n; }, { replace: true }), [setSearchParams]);
   const setTrackingStateFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("tracking_state"); } else { n.set("tracking_state", v); } return n; }, { replace: true }), [setSearchParams]);
   const setOriginFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("origin"); } else { n.set("origin", v); } return n; }, { replace: true }), [setSearchParams]);
+
+  // The open tab is URL state too, so coming back from an order detail (or a
+  // shared link) lands on the tab you were on instead of the default dashboard.
+  const defaultTab = isDivMgr ? "order-requests" : "dashboard";
+  const activeTab = searchParams.get("tab") || defaultTab;
+  const setActiveTab = useCallback((v: string) => setSearchParams(prev => {
+    const n = new URLSearchParams(prev);
+    if (v === defaultTab) { n.delete("tab"); } else { n.set("tab", v); }
+    return n;
+  }, { replace: true }), [setSearchParams, defaultTab]);
 
   // Map each order to "local" (Israeli supplier) or "import" (foreign supplier)
   // by resolving the supplier's country. "ישראל" → local, any other country →
@@ -370,7 +384,7 @@ export default function OrdersPage() {
         onShowFailed={() => setTrackingStateFilter("error")}
       />
 
-      <Tabs defaultValue={isDivMgr ? "order-requests" : "dashboard"} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-1 flex-1" dir="rtl">
             <TabsList className="w-max min-w-full">

@@ -24,6 +24,9 @@
   - `scripts/sap-po/extract_po.py` — parser that turns the Hebrew RTL SAP PO PDF into structured JSON (PO number, supplier + VAT, line items with code/qty/price, totals), with arithmetic validation warnings.
   - `.claude/skills/sap-order-import/` — Skill that runs the full parse → match → preview → confirm → `create_order` flow, including duplicate-import guard via `get_order_by_reference`.
 
+### Fixed
+- **חזרה מתיק הזמנה חוזרת לטאב שממנו הגעת** — הטאב הפעיל בעמוד הרכש נשמר ב-URL (`?tab=table`), וכפתור החזרה בתיק ההזמנה חוזר בהיסטוריה במקום לנווט מחדש ל-`/orders`. כך חוזרים ל"הזמנות פעילות" עם החיפוש והסינון ששימשו, ולא ללוח הבקרה. קישור `?focus=<orderId>` נוחת בטאב שמכיל את ההזמנה (ארכיון עבור הזמנה שנמסרה/בוטלה).
+
 ### Changed
 - **הזמנה בסטטוס "נמסר" יוצאת מההזמנות הפעילות** — `DELIVERED` נחשב סטטוס סגור (כמו `ARRIVED`/`CANCELLED`): ההזמנה עוברת לטאב "ארכיון הזמנות", ואינה נספרת ב"הזמנות פעילות" בדשבורד, בדוחות, בגרף הסטטוסים ובישיבת הרכש. הלוגיקה רוכזה ב-`src/lib/orderStatus.ts`.
 - `create_order` MCP tool now accepts `sap_doc_entry` (the SAP purchase-order document number, the SAP anchor resolvable via `get_order_by_reference`) and `division`.
