@@ -13,6 +13,12 @@
 ## [Unreleased]
 
 ### Added
+- **העלאת אישורי SWIFT מתוך תזמון התשלומים** — כל שורת תשלום בהזמנה קיבלה עמודת "מסמך SWIFT": אפשר להעלות (או לגרור) את אישור ההעברה ישירות מהשורה, והוא נשמר אוטומטית במודול המסמכים ומקושר לאותו תשלום.
+  - מיגרציה `20260824000001_link_swift_documents_to_order_payments.sql` — `purchase_documents.order_payment_id` (FK ל-`order_payments`) + התאמת ה-CHECK על `type` למצב בפועל (`PI`/`PO`/`כללי`).
+  - `src/lib/swiftDocuments.ts` — לוגיקה משותפת להעלאת SWIFT (storage + רשומת מסמך, כולל rollback לקובץ אם השמירה נכשלה) ולשמות ברירת מחדל ("SWIFT מקדמה 70,000 USD").
+  - דיאלוג הוספת/עריכת תשלום מאפשר לצרף קובץ SWIFT יחד עם התשלום; מסמכי SWIFT של ההזמנה שאינם משויכים מוצגים מתחת לטבלה וניתן לשייכם לתשלום.
+  - מודול המסמכים: תיקיה חכמה "אישורי SWIFT", תג תת-סוג בטבלאות המסמכים, ואפשרות לבחור "SWIFT — אישור העברה בנקאית" בדיאלוג ההעלאה (כולל שיוך לתשלום של ההזמנה).
+  - כלי MCP חדשים: `upload_swift_document` (העלאת קובץ SWIFT מהדיסק, שיוך לתשלום, עדכון אסמכתא/סימון כשולם) ו-`link_swift_document_to_payment`; `list_order_payments` מחזיר כעת גם את מסמכי ה-SWIFT לכל תשלום.
 - **SAP purchase-order import (Cowork)** — upload a SAP purchase-order PDF and it is parsed, matched to the live supplier and products, previewed, and (after approval) created as an order.
   - `scripts/sap-po/extract_po.py` — parser that turns the Hebrew RTL SAP PO PDF into structured JSON (PO number, supplier + VAT, line items with code/qty/price, totals), with arithmetic validation warnings.
   - `.claude/skills/sap-order-import/` — Skill that runs the full parse → match → preview → confirm → `create_order` flow, including duplicate-import guard via `get_order_by_reference`.
