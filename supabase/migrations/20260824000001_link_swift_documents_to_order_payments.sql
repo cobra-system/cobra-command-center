@@ -27,6 +27,15 @@ CREATE INDEX IF NOT EXISTS idx_purchase_documents_order_payment_id
 -- among them) for a long time. Re-state the constraint to match reality.
 -- NOT VALID: only new/updated rows are checked, so any legacy row with an
 -- unexpected type value does not block this migration.
+-- Before the constraint goes on: older SWIFT confirmations were filed as
+-- type='SWIFT' (the subtype column did not exist yet). They are the same thing
+-- as today's type='כללי' + document_subtype='SWIFT', so normalise them —
+-- otherwise the CHECK below would reject any future edit of those rows.
+UPDATE public.purchase_documents
+   SET type = 'כללי',
+       document_subtype = 'SWIFT'
+ WHERE type = 'SWIFT';
+
 ALTER TABLE public.purchase_documents
   DROP CONSTRAINT IF EXISTS purchase_documents_type_check;
 
