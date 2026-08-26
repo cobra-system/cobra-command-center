@@ -102,6 +102,8 @@ export interface Supplier {
 
 export interface Order {
   id: string;
+  /** Internal Cobra order number (CO-YYYY-NNNN), assigned by the DB on insert. */
+  order_number?: string | null;
   priority: string;
   supplier_id?: string | null;
   supplier_name?: string | null;

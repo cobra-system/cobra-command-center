@@ -358,6 +358,7 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
                       <SelectTrigger className="h-8 w-14 shrink-0 text-xs px-1"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="USD">$</SelectItem>
+                        <SelectItem value="EUR">€</SelectItem>
                         <SelectItem value="ILS">₪</SelectItem>
                       </SelectContent>
                     </Select>

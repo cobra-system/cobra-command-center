@@ -101,7 +101,8 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 - `supplier_price_quotes` — הצעות מחיר מספקים
 
 ### הזמנות ומסמכים
-- `orders` — הזמנות רכש
+- `orders` — הזמנות רכש (כולל `order_number` — מספר הזמנה פנימי בפורמט `CO-YYYY-NNNN`, מוקצה אוטומטית)
+- `order_number_counters` — מונה הקצאת מספרי הזמנה, שורה לכל שנה
 - `order_items` — פריטים בהזמנה
 - `purchase_documents` — מסמכי PI/PO עם שיוך לספק/מוצר
 - `supplier_payments` — תשלומים לספקים

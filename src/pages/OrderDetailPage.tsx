@@ -250,6 +250,7 @@ export default function OrderDetailPage() {
   };
 
   const allDetails: { label: string; field: string; value: string | number | null | undefined; options?: { value: string; label: string }[]; isDate?: boolean; isSupplierLink?: boolean; icon?: any; isReadOnly?: boolean; priceGated?: boolean; managerOnly?: boolean }[] = [
+    { label: "מספר הזמנה", field: "order_number", value: order.order_number, icon: Hash, isReadOnly: true },
     { label: "סטטוס", field: "status", value: order.status, options: statusOptions, icon: Check },
     { label: "עדיפות", field: "priority", value: order.priority, options: priorityOptions, icon: Hash },
     { label: "ספק", field: "supplier_id", value: order.supplier_id, options: supplierOptions, isSupplierLink: true, icon: Truck },
@@ -283,7 +284,12 @@ export default function OrderDetailPage() {
           <ArrowRight className="h-5 w-5" />
         </Button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold text-foreground">תיק הזמנה</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-bold text-foreground">תיק הזמנה</h1>
+            {order.order_number && (
+              <span className="font-mono text-sm px-2 py-0.5 rounded-md bg-muted text-muted-foreground">{order.order_number}</span>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground line-clamp-2">
             {visibleItems.map((i, idx) => {
               const linkedProduct = i.product_id ? products.find(p => p.id === i.product_id) : products.find(p => p.name === i.name);

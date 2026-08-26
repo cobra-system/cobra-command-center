@@ -176,6 +176,7 @@ export default function OrdersPage() {
         if (q) {
           const searchable = [
             o.id,
+            o.order_number,
             scopeOrderItems(o.items).map(i => i.name).join(" "),
             o.supplier_name,
             o.pi_number,
@@ -221,6 +222,7 @@ export default function OrdersPage() {
         // string avoids leaking note contents via search (value oracle).
         const searchable = [
           o.id,
+          o.order_number,
           scopeOrderItems(o.items).map(i => i.name).join(" "),
           o.supplier_name,
           o.pi_number,
@@ -257,6 +259,7 @@ export default function OrdersPage() {
           case "tracking_number": cmp = (a.tracking_number || "").localeCompare(b.tracking_number || "", "he"); break;
           case "tracking_carrier": cmp = (a.tracking_carrier || "zz").localeCompare(b.tracking_carrier || "zz", "he"); break;
           case "pi_number": cmp = (a.pi_number || "").localeCompare(b.pi_number || "", "he"); break;
+          case "order_number": cmp = (a.order_number || "").localeCompare(b.order_number || "", "en"); break;
           case "updated_at": {
             const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
             const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
@@ -381,7 +384,7 @@ export default function OrdersPage() {
           <div className="relative w-full sm:w-64 shrink-0">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
-              placeholder="חיפוש לפי מוצר או ספק..."
+              placeholder="חיפוש לפי מספר הזמנה, מוצר או ספק..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="pr-9 pl-8"

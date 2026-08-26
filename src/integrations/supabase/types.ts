@@ -439,6 +439,7 @@ export type Database = {
           notes: string | null
           order_date: string | null
           order_image: string | null
+          order_number: string | null
           payment_date: string | null
           payment_status: string
           priority: string
@@ -461,6 +462,7 @@ export type Database = {
           notes?: string | null
           order_date?: string | null
           order_image?: string | null
+          order_number?: string | null
           payment_date?: string | null
           payment_status?: string
           priority?: string
@@ -483,6 +485,7 @@ export type Database = {
           notes?: string | null
           order_date?: string | null
           order_image?: string | null
+          order_number?: string | null
           payment_date?: string | null
           payment_status?: string
           priority?: string

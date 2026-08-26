@@ -83,6 +83,7 @@ Use this to find which module(s) to update when a table's schema changes.
 | `order_notes_history` | orders, shipping |
 | `order_payments` | order-payments, orders, procurement-agenda, procurement-inventory, procurement-meeting, shipping |
 | `orders` | orders, analytics, bulk-ops, finance, notifications, order-payments, payments, procurement-agenda, procurement-inventory, procurement-meeting, reminders, search, shipping |
+| `order_number_counters` | — (write path is the DB trigger `set_order_number()`; no tool touches it directly) |
 | `product_categories` | products |
 | `product_components` | products, search |
 | `product_issues` | issues, analytics, notifications, products, reminders, search |

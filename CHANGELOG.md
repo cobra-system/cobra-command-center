@@ -13,11 +13,19 @@
 ## [Unreleased]
 
 ### Added
+- **מספר הזמנה (order number) on every order** — each order now carries an internal `CO-YYYY-NNNN` number, assigned by the database on insert and unique across the system. Until now an order had no number of its own: SAP orders carried `sap_doc_entry`, foreign orders the supplier's `pi_number`, and manually created orders nothing at all.
+  - `orders.order_number` + `order_number_counters` (one row per year, bumped atomically) + `next_order_number()` / `set_order_number()` trigger. Existing orders are backfilled per year in creation order.
+  - Shown as the first column of the orders table (hideable like any column), on the order card in mobile view, and in the order-detail header; searchable from the orders search box; sortable.
+  - MCP: `list_orders` filters by `order_number`, `get_order_by_reference` resolves it, and global `search` matches it.
+- **Foreign supplier order import (Cowork)** — upload whatever an overseas supplier sent (proforma invoice, order confirmation, sales contract, quotation) as a text PDF, a scan, a photo, an Excel sheet or plain text, and it is read, matched to the live supplier and products, previewed, and — after approval — created as an order.
+  - `scripts/foreign-po/extract_doc.py` — template-free extractor: text/scan/spreadsheet readers, page rendering for a visual read, multilingual field candidates (document number, dates, currency, incoterm, payment terms, bank details, totals) and line items recovered by reconciling qty × unit price against the line amount, which also resolves `1.234,56` vs `1,234.56`.
+  - `.claude/skills/foreign-order-import/` — Skill running extract → read → normalise → match → preview → confirm → `create_order`, with a duplicate-import guard and rules for telling an order apart from a quotation or a packing list.
 - **SAP purchase-order import (Cowork)** — upload a SAP purchase-order PDF and it is parsed, matched to the live supplier and products, previewed, and (after approval) created as an order.
   - `scripts/sap-po/extract_po.py` — parser that turns the Hebrew RTL SAP PO PDF into structured JSON (PO number, supplier + VAT, line items with code/qty/price, totals), with arithmetic validation warnings.
   - `.claude/skills/sap-order-import/` — Skill that runs the full parse → match → preview → confirm → `create_order` flow, including duplicate-import guard via `get_order_by_reference`.
 
 ### Changed
+- `create_order` MCP tool now accepts a per-item `currency`, so a supplier invoicing in EUR is no longer stored as USD; the new-order dialog offers € alongside $ and ₪.
 - `create_order` MCP tool now accepts `sap_doc_entry` (the SAP purchase-order document number, the SAP anchor resolvable via `get_order_by_reference`) and `division`.
 
 ## [2026-07-29]

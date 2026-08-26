@@ -22,11 +22,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import type { TableSelectionState } from "@/hooks/useTableSelection";
 
 import { format } from "date-fns";
-export type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment" | "tracking_number" | "tracking_status" | "tracking_carrier" | "updated_at" | "pi_number";
+export type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment" | "tracking_number" | "tracking_status" | "tracking_carrier" | "updated_at" | "pi_number" | "order_number";
 export type SortDir = "asc" | "desc" | null;
 
 // ─── Column configuration ────────────────────────────────────────────────────
 const COLUMN_DEFS: ColDef[] = [
+  { id: "order_number",    label: "מספר הזמנה",     sortField: "order_number" },
   { id: "priority",        label: "עדיפות",        sortField: "priority" },
   { id: "product",         label: "מוצר",           sortField: "product" },
   { id: "qty",             label: "כמות",           sortField: "qty" },
@@ -140,6 +141,9 @@ export function OrderTable({
               {/* Items + status */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
+                  {order.order_number && (
+                    <p className="text-xs font-mono text-muted-foreground mb-0.5">{order.order_number}</p>
+                  )}
                   <p className="font-medium text-foreground text-sm line-clamp-2">
                     {(() => {
                       const visibleItems = scopeOrderItems(order.items);
@@ -302,6 +306,9 @@ export function OrderTable({
                           onCheckedChange={() => selection.toggle(order.id)}
                         />
                       </td>
+                    )}
+                    {isVisible("order_number") && (
+                      <td className="p-3 font-mono text-xs text-foreground whitespace-nowrap">{order.order_number || "—"}</td>
                     )}
                     {isVisible("priority") && (
                       <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
