@@ -790,6 +790,86 @@ export type Database = {
         }
         Relationships: []
       }
+      projects: {
+        Row: {
+          color: string
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          name: string
+          priority: string
+          sort_order: number
+          start_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          name: string
+          priority?: string
+          sort_order?: number
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          name?: string
+          priority?: string
+          sort_order?: number
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      project_tasks: {
+        Row: {
+          created_at: string
+          due_date: string | null
+          id: string
+          project_id: string
+          sort_order: number
+          status: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          project_id: string
+          sort_order?: number
+          status?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          project_id?: string
+          sort_order?: number
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchase_documents: {
         Row: {
           approval_date: string | null

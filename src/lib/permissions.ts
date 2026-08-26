@@ -15,6 +15,7 @@ export const MODULES: ModuleDefinition[] = [
   { key: "inventory", label: "מלאי", route: "/inventory", category: "Core" },
   { key: "suppliers", label: "ספקים", route: "/suppliers", category: "Core" },
   { key: "tasks", label: "משימות", route: "/tasks", category: "Tasks" },
+  { key: "projects", label: "פרויקטים", route: "/projects", category: "Tasks" },
   { key: "reorder", label: "תכנון רכש", route: "/reorder", category: "Tasks" },
   { key: "reports", label: "דוחות", route: "/reports", category: "Tasks" },
   { key: "documents", label: "מסמכים", route: "/documents", category: "Documents" },

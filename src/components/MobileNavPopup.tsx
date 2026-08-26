@@ -7,6 +7,7 @@ import {
   ShoppingCart,
   Truck,
   ListTodo,
+  FolderKanban,
   Settings,
   FileText,
   CalendarClock,
@@ -21,7 +22,7 @@ import {
 import cobraLogo from "@/assets/cobra-logo.png";
 
 const iconMap: Record<string, LucideIcon> = {
-  LayoutDashboard, Package, ShoppingCart, Truck, ListTodo,
+  LayoutDashboard, Package, ShoppingCart, Truck, ListTodo, FolderKanban,
   Settings, FileText, CalendarClock, BarChart3, Wrench, Recycle, Boxes, Bell, Map,
 };
 

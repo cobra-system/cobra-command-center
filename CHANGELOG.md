@@ -13,6 +13,7 @@
 ## [Unreleased]
 
 ### Added
+- **Projects module** (`/projects`): lightweight project & task tracking accessible from the sidebar. Project cards show status, priority, progress bar and due date with search + status filtering. Each project has a detail page (`/projects/:id`) with a simple three-column task board (לביצוע / בביצוע / הושלם) supporting add, status advancement and delete. Backed by new `projects` and `project_tasks` tables with authenticated RLS.
 - **העלאת אישורי SWIFT מתוך תזמון התשלומים** — כל שורת תשלום בהזמנה קיבלה עמודת "מסמך SWIFT": אפשר להעלות (או לגרור) את אישור ההעברה ישירות מהשורה, והוא נשמר אוטומטית במודול המסמכים ומקושר לאותו תשלום.
   - מיגרציה `20260824000001_link_swift_documents_to_order_payments.sql` — `purchase_documents.order_payment_id` (FK ל-`order_payments`) + התאמת ה-CHECK על `type` למצב בפועל (`PI`/`PO`/`כללי`).
   - `src/lib/swiftDocuments.ts` — לוגיקה משותפת להעלאת SWIFT (storage + רשומת מסמך, כולל rollback לקובץ אם השמירה נכשלה) ולשמות ברירת מחדל ("SWIFT מקדמה 70,000 USD").
