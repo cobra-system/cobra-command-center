@@ -21,6 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
+import { TableScrollArea } from "@/components/ui/TableScrollArea";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
@@ -673,9 +674,9 @@ export function OrderRequestsTab() {
           </div>
 
           {/* Desktop: table */}
-          <div className="hidden md:block bg-card rounded-xl border shadow-sm overflow-x-auto" dir="rtl">
+          <TableScrollArea className="hidden md:block bg-card rounded-xl border shadow-sm" dir="rtl">
             <table className="w-full text-sm">
-              <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
+              <thead className="sticky top-0 z-10 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
                 <tr className="border-b" onContextMenu={trContextMenu(hiddenCols, setMenu)}>
                   {canFulfill && (
                     <th className="p-3 w-8">
@@ -1062,7 +1063,7 @@ export function OrderRequestsTab() {
                 })}
               </tbody>
             </table>
-          </div>
+          </TableScrollArea>
         </>
       )}
 
