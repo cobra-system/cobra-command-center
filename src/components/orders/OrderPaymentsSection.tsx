@@ -22,6 +22,7 @@ import { SWIFT_FILE_ACCEPT, SWIFT_SUBTYPE, uploadSwiftDocument } from "@/lib/swi
 import { parseSwiftFile, type ParsedSwift } from "@/lib/swiftImport/parseSwift";
 import { matchSwiftToPayment, paymentUpdateFromSwift } from "@/lib/swiftImport/matchPayment";
 import { findOrderForSwift, swiftBelongsToOrder } from "@/lib/swiftImport/findOrder";
+import { useFileDropPaste } from "@/hooks/useFileDropPaste";
 
 import { format } from "date-fns";
 const COLUMN_DEFS: ColDef[] = [
@@ -265,6 +266,13 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit, supplierId,
     });
     return true;
   };
+
+  // Drag a SWIFT onto the dialog, or paste one straight out of the bank's site
+  // or a mail client — the file picker is no longer the only way in.
+  const { isDragging: swiftDragging, dropProps: swiftDropProps } = useFileDropPaste(
+    file => { void handleFormSwiftFile(file); },
+    { disabled: !showForm }
+  );
 
   const handleSave = async () => {
     if (!formAmount || isNaN(Number(formAmount))) {
@@ -825,9 +833,20 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit, supplierId,
                   <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => handleFormSwiftFile(null)}>הסר</Button>
                 </div>
               ) : (
-                <Button variant="outline" className="w-full justify-start font-normal" onClick={() => formSwiftInputRef.current?.click()}>
-                  <Upload className="h-3.5 w-3.5 ml-2" />העלה SWIFT — הפרטים יתמלאו לבד
-                </Button>
+                <div
+                  {...swiftDropProps}
+                  onClick={() => formSwiftInputRef.current?.click()}
+                  className={cn(
+                    "border-2 border-dashed rounded-lg px-3 py-4 text-center cursor-pointer transition-colors",
+                    swiftDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50"
+                  )}
+                >
+                  <div className="flex flex-col items-center gap-1">
+                    <Upload className="h-5 w-5 text-muted-foreground" />
+                    <p className="text-sm text-foreground">גרור SWIFT לכאן, הדבק (Ctrl+V) או לחץ לבחירה</p>
+                    <p className="text-xs text-muted-foreground">הסכום, המטבע, תאריך הערך והאסמכתא יתמלאו לבד</p>
+                  </div>
+                </div>
               )}
 
               {parsingSwift && (
