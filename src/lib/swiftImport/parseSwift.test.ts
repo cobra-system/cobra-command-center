@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { parseSwiftText, mt103Date, swiftAmount, documentReference } from "./parseSwift";
 import { matchSwiftToPayment, paymentUpdateFromSwift, totalsAfterSwift } from "./matchPayment";
+import { swiftBelongsToOrder } from "./findOrder";
 import type { OrderPayment } from "@/contexts/types";
 
 const MT103 = `
@@ -235,5 +236,24 @@ describe("applying the SWIFT", () => {
     const payments = [payment({ id: "a", amount: 70000 }), payment({ id: "b", amount: 30000, payment_type: "Balance" })];
     expect(totalsAfterSwift(payments, swift, "a")).toEqual({ paid: 70000, remaining: 30000 });
     expect(totalsAfterSwift(payments, swift)).toEqual({ paid: 0, remaining: 100000 });
+  });
+});
+
+describe("swiftBelongsToOrder", () => {
+  const swift = parseSwiftText(LEUMI_CONFIRMATION, "swift.pdf");
+
+  it("recognises the order whose invoice number the SWIFT quotes", () => {
+    expect(swiftBelongsToOrder(swift, "DA20260007")).toBe(true);
+    expect(swiftBelongsToOrder(swift, "da-2026-0007")).toBe(true);   // separators and case vary
+    expect(swiftBelongsToOrder(swift, "DA20260007rev1")).toBe(true); // revisions keep the root
+  });
+
+  it("flags a SWIFT uploaded onto a different order", () => {
+    expect(swiftBelongsToOrder(swift, "DA20260008")).toBe(false);
+  });
+
+  it("says nothing when either side has no number — that is not a mismatch", () => {
+    expect(swiftBelongsToOrder(swift, null)).toBeNull();
+    expect(swiftBelongsToOrder(parseSwiftText(["אישור העברה"]), "DA20260007")).toBeNull();
   });
 });

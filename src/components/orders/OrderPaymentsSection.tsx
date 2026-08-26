@@ -21,6 +21,7 @@ import { canSeePrices } from "@/lib/permissions";
 import { SWIFT_FILE_ACCEPT, SWIFT_SUBTYPE, uploadSwiftDocument } from "@/lib/swiftDocuments";
 import { parseSwiftFile, type ParsedSwift } from "@/lib/swiftImport/parseSwift";
 import { matchSwiftToPayment, paymentUpdateFromSwift } from "@/lib/swiftImport/matchPayment";
+import { findOrderForSwift, swiftBelongsToOrder } from "@/lib/swiftImport/findOrder";
 
 import { format } from "date-fns";
 const COLUMN_DEFS: ColDef[] = [
@@ -45,6 +46,8 @@ interface Props {
   hasEdit: boolean;
   /** Supplier of the order — copied onto SWIFT documents so they file correctly. */
   supplierId?: string | null;
+  /** The order's PI / invoice number — a SWIFT quotes it, so it catches a file uploaded onto the wrong order. */
+  orderPiNumber?: string | null;
 }
 
 /** SWIFT confirmation attached to this order (optionally to one installment). */
@@ -75,7 +78,7 @@ const statusColors: Record<string, string> = {
   "ממתין": "bg-warning/15 text-warning",
 };
 
-export function OrderPaymentsSection({ orderId, orderTotal, hasEdit, supplierId }: Props) {
+export function OrderPaymentsSection({ orderId, orderTotal, hasEdit, supplierId, orderPiNumber }: Props) {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { formatPrice } = useCurrency();
@@ -222,6 +225,8 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit, supplierId 
     setParsingSwift(false);
     setParsedSwift(parsed);
 
+    void warnIfDifferentOrder(parsed);
+
     if (parsed.amount != null) setFormAmount(String(parsed.amount));
     if (parsed.currency === "USD" || parsed.currency === "EUR" || parsed.currency === "ILS") {
       setFormCurrency(parsed.currency);
@@ -237,6 +242,28 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit, supplierId 
         if (match.payment.percentage) setFormPct(String(match.payment.percentage));
       }
     }
+  };
+
+  /**
+   * Warn when the SWIFT quotes an invoice number that is not this order's.
+   *
+   * Returns true when the document belongs somewhere else, so the caller can
+   * stop short of marking anything paid. "Cannot tell" is not a mismatch: plenty
+   * of transfers quote nothing, and plenty of orders have no PI recorded.
+   */
+  const warnIfDifferentOrder = async (parsed: ParsedSwift): Promise<boolean> => {
+    if (swiftBelongsToOrder(parsed, orderPiNumber) !== false) return false;
+    const other = await findOrderForSwift(parsed);
+    toast.warning(`ה-SWIFT מפנה לחשבונית ${parsed.referencedDocument}, וההזמנה הזו היא ${orderPiNumber}`, {
+      description: other && other.id !== orderId
+        ? `נראה שההעברה שייכת להזמנה של ${other.supplier_name || "ספק אחר"} (${other.pi_number || "ללא מספר"})`
+        : "המסמך נשמר, אך שום תשלום לא סומן — בדוק שההעברה אכן שייכת להזמנה הזו",
+      action: other && other.id !== orderId
+        ? { label: "פתח את ההזמנה", onClick: () => navigate(`/orders/${other.id}`) }
+        : undefined,
+      duration: 14000,
+    });
+    return true;
   };
 
   const handleSave = async () => {
@@ -354,6 +381,8 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit, supplierId 
       });
       return;
     }
+
+    if (await warnIfDifferentOrder(parsed)) return;
 
     const rowAmount = Number(payment.amount) || 0;
     const difference = rowAmount > 0 ? Math.abs(rowAmount - parsed.amount) / rowAmount : 1;

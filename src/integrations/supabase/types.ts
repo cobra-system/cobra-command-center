@@ -499,6 +499,14 @@ export type Database = {
           order_date: string | null
           order_image: string | null
           order_number: string | null
+          deleted_at: string | null
+          division: string | null
+          pi_number: string | null
+          shipment_group_id: string | null
+          tracking_number: string | null
+          booking_number: string | null
+          tclog_reference: string | null
+          vessel_name: string | null
           payment_date: string | null
           payment_status: string
           priority: string
@@ -522,6 +530,14 @@ export type Database = {
           order_date?: string | null
           order_image?: string | null
           order_number?: string | null
+          deleted_at?: string | null
+          division?: string | null
+          pi_number?: string | null
+          shipment_group_id?: string | null
+          tracking_number?: string | null
+          booking_number?: string | null
+          tclog_reference?: string | null
+          vessel_name?: string | null
           payment_date?: string | null
           payment_status?: string
           priority?: string
@@ -545,6 +561,14 @@ export type Database = {
           order_date?: string | null
           order_image?: string | null
           order_number?: string | null
+          deleted_at?: string | null
+          division?: string | null
+          pi_number?: string | null
+          shipment_group_id?: string | null
+          tracking_number?: string | null
+          booking_number?: string | null
+          tclog_reference?: string | null
+          vessel_name?: string | null
           payment_date?: string | null
           payment_status?: string
           priority?: string
