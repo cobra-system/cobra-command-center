@@ -129,7 +129,7 @@ supabase functions deploy <function-name>
 
 ### GitHub Actions Workflows
 1. **`ci.yml`** — Lint, type-check, test, build (on PR and push)
-2. **`supabase-migration.yml`** — Apply DB migrations and deploy Edge Functions
+2. **`supabase-migration.yml`** — Apply DB migrations and deploy Edge Functions — requires the `SUPABASE_DB_URL` secret (Supabase dashboard → Project → Connect → **Session pooler**, port 5432). The direct `db.<ref>.supabase.co` host is IPv6-only and GitHub runners are IPv4-only, so the pooler is the only way in; the workflow now fails loudly when it cannot connect instead of reporting success while applying nothing
 3. **`advance-overdue-tasks.yml`** — Scheduled task advancement
 4. **`daily-notifications.yml`** — Daily digest email (08:00 IL, weekdays) — requires `SUPABASE_URL` + `CRON_SECRET` GitHub secrets
 5. **`monthly-reset.yml`** — Monthly order reset (05:00 IL, 1st of each month) — requires `SUPABASE_URL` + `CRON_SECRET` GitHub secrets
