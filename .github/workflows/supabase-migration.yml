@@ -36,6 +36,11 @@ jobs:
       - name: Check the database is reachable
         env:
           DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          # Fail fast instead of hanging: without a connect timeout psql waits
+          # forever on an unreachable endpoint, and without -w it stops to prompt
+          # for a password when the URL carries none — on a runner that prompt is
+          # never answered and the job burns until the six-hour limit.
+          PGCONNECT_TIMEOUT: "15"
         run: |
           if [ -z "$DB_URL" ]; then
             echo "::error::SUPABASE_DB_URL is not set. Add it as a repository secret —"
@@ -44,13 +49,23 @@ jobs:
             echo "::error::check here would mean nothing."
             exit 1
           fi
+          # A connection string whose password is missing is the easiest one to
+          # paste by accident (the dashboard hands out a [YOUR-PASSWORD]
+          # placeholder). Say so plainly rather than letting psql fail on it.
+          if ! printf '%s' "$DB_URL" | grep -qE '^postgres(ql)?://[^:/@]+:[^@]+@'; then
+            echo "::error::SUPABASE_DB_URL has no password in it. Expected the form"
+            echo "::error::postgresql://postgres.<project-ref>:<password>@<host>:5432/postgres"
+            exit 1
+          fi
+
           # Connect before doing anything: a failure here must fail the workflow,
           # never be reported as a successful run that applied no migrations.
-          psql "$DB_URL" -c "select current_database(), current_user;"
+          psql -w "$DB_URL" -c "select current_database(), current_user;"
 
       - name: Run migrations
         env:
           DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PGCONNECT_TIMEOUT: "15"
         run: |
           # Every migration is replayed on each run, so they are written to be
           # idempotent (IF NOT EXISTS / OR REPLACE). An individual file that
@@ -60,7 +75,7 @@ jobs:
           failed=""
           for file in $(ls supabase/migrations/*.sql | sort); do
             echo "::group::$file"
-            if psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$file"; then
+            if psql -w "$DB_URL" -v ON_ERROR_STOP=1 -f "$file"; then
               echo "ok"
             else
               echo "::warning::migration failed: $file"
@@ -81,14 +96,14 @@ jobs:
         run: |
           # New columns stay invisible to the API until PostgREST re-reads the
           # schema, so a successful migration can still look like nothing changed.
-          psql "$DB_URL" -c "NOTIFY pgrst, 'reload schema';"
+          psql -w "$DB_URL" -c "NOTIFY pgrst, 'reload schema';"
           echo "Schema cache reloaded."
 
       - name: Report schema state
         env:
           DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          psql "$DB_URL" -c "SELECT count(*) AS public_tables FROM information_schema.tables WHERE table_schema = 'public';"
+          psql -w "$DB_URL" -c "SELECT count(*) AS public_tables FROM information_schema.tables WHERE table_schema = 'public';"
 
   deploy-functions:
     runs-on: ubuntu-latest
