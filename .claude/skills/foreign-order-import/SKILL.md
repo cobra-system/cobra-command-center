@@ -220,6 +220,27 @@ Give the user:
 Then offer to attach the source document to the order (`upload_document` /
 Documents section) so the original stays with the record.
 
+## SWIFT confirmations
+
+A bank's SWIFT confirmation is not an order — it settles one. The app reads text
+PDFs of them itself (`src/lib/swiftImport/`), fills the payment in and marks it
+paid; a **scan or screenshot** it cannot read, and it tells the user to send it
+here. When that happens:
+
+1. Read the document (visually if it is a scan) and pull out: amount, currency,
+   value date, sender's reference (`:20:`), beneficiary (`:59:`), and the
+   remittance line (`:70:`) — which usually quotes the PI number.
+2. Find the order: `get_order_by_pi` with the PI from the remittance line, else
+   `get_order_by_reference`, else the beneficiary name via `list_suppliers`.
+3. `list_order_payments` and identify the installment by amount + currency. A gap
+   of a percent or two is bank fees, not a different payment; anything larger,
+   ask rather than assume.
+4. Show what you read and which installment it settles, get approval, then
+   `upload_swift_document` (it files the document, links it to the installment,
+   records the reference and can mark it paid).
+
+Never mark an installment paid off a document you could not read in full.
+
 ## Notes on robustness
 
 - Codes, quantities, prices and dates extract reliably; free-text descriptions in

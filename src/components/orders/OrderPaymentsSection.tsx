@@ -19,6 +19,8 @@ import type { OrderPayment } from "@/contexts/types";
 import { useAuth, useCurrency } from "@/contexts/AppContext";
 import { canSeePrices } from "@/lib/permissions";
 import { SWIFT_FILE_ACCEPT, SWIFT_SUBTYPE, uploadSwiftDocument } from "@/lib/swiftDocuments";
+import { parseSwiftFile, type ParsedSwift } from "@/lib/swiftImport/parseSwift";
+import { matchSwiftToPayment, paymentUpdateFromSwift } from "@/lib/swiftImport/matchPayment";
 
 import { format } from "date-fns";
 const COLUMN_DEFS: ColDef[] = [
@@ -98,6 +100,9 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit, supplierId 
   const [formSwift, setFormSwift] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [formSwiftFile, setFormSwiftFile] = useState<File | null>(null);
+  // What the attached SWIFT confirmation says — read from the file, not typed.
+  const [parsedSwift, setParsedSwift] = useState<ParsedSwift | null>(null);
+  const [parsingSwift, setParsingSwift] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // SWIFT documents attached to this order, grouped by installment
@@ -184,6 +189,7 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit, supplierId 
     setFormSwift("");
     setFormNotes("");
     setFormSwiftFile(null);
+    setParsedSwift(null);
     setShowForm(true);
   };
 
@@ -198,6 +204,39 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit, supplierId 
     setFormNotes(p.notes || "");
     setFormSwiftFile(null);
     setShowForm(true);
+  };
+
+  /**
+   * Read an attached SWIFT confirmation and fill the form from it.
+   *
+   * The bank document is the source of truth for what was actually paid, so its
+   * amount, currency and reference overwrite whatever is in the form; the due
+   * date is left alone because that is a term of the order, not of the transfer.
+   */
+  const handleFormSwiftFile = async (file: File | null) => {
+    setFormSwiftFile(file);
+    setParsedSwift(null);
+    if (!file) return;
+    setParsingSwift(true);
+    const parsed = await parseSwiftFile(file);
+    setParsingSwift(false);
+    setParsedSwift(parsed);
+
+    if (parsed.amount != null) setFormAmount(String(parsed.amount));
+    if (parsed.currency === "USD" || parsed.currency === "EUR" || parsed.currency === "ILS") {
+      setFormCurrency(parsed.currency);
+    }
+    if (parsed.reference) setFormSwift(parsed.reference);
+
+    // Adding a new payment: if the transfer settles an installment already in the
+    // schedule, say so rather than letting the user create a duplicate row.
+    if (!editingPayment) {
+      const match = matchSwiftToPayment(parsed, payments);
+      if (match) {
+        setFormType(match.payment.payment_type);
+        if (match.payment.percentage) setFormPct(String(match.payment.percentage));
+      }
+    }
   };
 
   const handleSave = async () => {
@@ -215,7 +254,11 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit, supplierId 
       due_date: formDueDate ? formDueDate.toISOString().split("T")[0] : null,
       swift_reference: formSwift || null,
       notes: formNotes || null,
-      status: editingPayment?.status || "ממתין",
+      // A SWIFT confirmation is proof the money left — the installment is paid,
+      // dated by the transfer's value date rather than by when it was entered.
+      ...(parsedSwift && parsedSwift.amount != null
+        ? { status: "שולם", paid_date: paymentUpdateFromSwift(parsedSwift).paid_date }
+        : { status: editingPayment?.status || "ממתין" }),
     };
     const { data: savedRow, error } = editingPayment
       ? await supabase.from("order_payments").update(payload).eq("id", editingPayment.id).select("*").single()
@@ -235,9 +278,14 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit, supplierId 
     }
 
     setSaving(false);
-    toast.success(editingPayment ? "תשלום עודכן" : "תשלום נוסף");
+    toast.success(
+      parsedSwift && parsedSwift.amount != null
+        ? `${editingPayment ? "תשלום עודכן" : "תשלום נוסף"} וסומן כשולם לפי ה-SWIFT`
+        : editingPayment ? "תשלום עודכן" : "תשלום נוסף"
+    );
     setShowForm(false);
     setFormSwiftFile(null);
+    setParsedSwift(null);
     fetchPayments();
     invalidatePaymentCaches();
   };
@@ -280,19 +328,80 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit, supplierId 
     fetchPayments();
   };
 
-  /** Upload a SWIFT file straight from a payment row — it lands in the documents module. */
+  /**
+   * Upload a SWIFT file straight from a payment row: the file lands in the
+   * documents module, and what it says settles the row — reference, payment date
+   * and status, without the user retyping the bank's own numbers.
+   */
   const handleSwiftUpload = async (payment: OrderPayment, file: File) => {
     setUploadingFor(payment.id);
-    const { error } = await uploadSwiftDocument({ file, orderId, payment, supplierId });
+    const [{ error }, parsed] = await Promise.all([
+      uploadSwiftDocument({ file, orderId, payment, supplierId }),
+      parseSwiftFile(file),
+    ]);
     setUploadingFor(null);
     if (error) { toast.error("שגיאה בהעלאת ה-SWIFT: " + error); return; }
     await fetchSwiftDocs();
-    toast.success(
-      "מסמך SWIFT נשמר במסמכים",
-      payment.status === "ממתין"
-        ? { action: { label: "סמן כשולם", onClick: () => markPaid(payment.id) } }
-        : undefined
-    );
+
+    if (parsed.amount == null) {
+      // Nothing readable (a scan, or a layout the parser does not know) — the
+      // file is still filed; the row is left exactly as it was.
+      toast.success("מסמך SWIFT נשמר במסמכים", {
+        description: parsed.warnings[0],
+        action: payment.status === "ממתין"
+          ? { label: "סמן כשולם", onClick: () => markPaid(payment.id) }
+          : undefined,
+      });
+      return;
+    }
+
+    const rowAmount = Number(payment.amount) || 0;
+    const difference = rowAmount > 0 ? Math.abs(rowAmount - parsed.amount) / rowAmount : 1;
+    const currencyClash = Boolean(parsed.currency && payment.currency && parsed.currency !== payment.currency);
+    const money = `${parsed.amount.toLocaleString("en-US")} ${parsed.currency || ""}`.trim();
+
+    if (difference > 0.02 || currencyClash) {
+      // The transfer is not this installment. Say so and leave the row untouched —
+      // silently marking the wrong installment paid is the expensive mistake here.
+      const suggestion = matchSwiftToPayment(parsed, payments);
+      toast.warning(`ה-SWIFT הוא על ${money}, והתשלום בשורה הוא ${rowAmount.toLocaleString("en-US")} ${payment.currency || ""}`, {
+        description: suggestion
+          ? `המסמך נשמר. נראה שהוא שייך לתשלום אחר: ${suggestion.reason}`
+          : "המסמך נשמר, אך התשלום לא סומן כשולם — בדוק לאיזה תשלום ההעברה שייכת",
+        action: { label: "סמן כשולם בכל זאת", onClick: () => applySwiftToPayment(payment, parsed) },
+        duration: 12000,
+      });
+      return;
+    }
+
+    await applySwiftToPayment(payment, parsed);
+  };
+
+  /** Write what the SWIFT says onto the installment it settles. */
+  const applySwiftToPayment = async (payment: OrderPayment, parsed: ParsedSwift) => {
+    const update = paymentUpdateFromSwift(parsed);
+    const { error } = await supabase
+      .from("order_payments")
+      .update({
+        status: update.status,
+        paid_date: update.paid_date,
+        // Never blank an existing reference with a SWIFT that had none.
+        swift_reference: update.swift_reference || payment.swift_reference || null,
+      })
+      .eq("id", payment.id);
+    if (error) { toast.error("המסמך נשמר, אך עדכון התשלום נכשל"); return; }
+
+    const money = parsed.amount != null
+      ? `${parsed.amount.toLocaleString("en-US")} ${parsed.currency || ""}`.trim()
+      : "";
+    toast.success(`התשלום סומן כשולם${money ? ` — ${money}` : ""}`, {
+      description: [
+        `תאריך ערך: ${update.paid_date}`,
+        update.swift_reference ? `אסמכתא: ${update.swift_reference}` : null,
+      ].filter(Boolean).join(" · "),
+    });
+    fetchPayments();
+    invalidatePaymentCaches();
   };
 
   const handleDeleteSwiftDoc = async (docId: string) => {
@@ -678,18 +787,47 @@ export function OrderPaymentsSection({ orderId, orderTotal, hasEdit, supplierId 
                 type="file"
                 accept={SWIFT_FILE_ACCEPT}
                 className="hidden"
-                onChange={e => setFormSwiftFile(e.target.files?.[0] || null)}
+                onChange={e => handleFormSwiftFile(e.target.files?.[0] || null)}
               />
               {formSwiftFile ? (
                 <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
                   <Paperclip className="h-3.5 w-3.5 text-success flex-shrink-0" />
                   <span className="truncate flex-1">{formSwiftFile.name}</span>
-                  <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => setFormSwiftFile(null)}>הסר</Button>
+                  <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => handleFormSwiftFile(null)}>הסר</Button>
                 </div>
               ) : (
                 <Button variant="outline" className="w-full justify-start font-normal" onClick={() => formSwiftInputRef.current?.click()}>
-                  <Upload className="h-3.5 w-3.5 ml-2" />בחר קובץ SWIFT — ייכנס אוטומטית למסמכים
+                  <Upload className="h-3.5 w-3.5 ml-2" />העלה SWIFT — הפרטים יתמלאו לבד
                 </Button>
+              )}
+
+              {parsingSwift && (
+                <p className="text-xs text-muted-foreground">קורא את ה-SWIFT…</p>
+              )}
+
+              {/* What the bank document says — shown so the user checks the
+                  parser rather than trusting it. */}
+              {parsedSwift && !parsingSwift && (
+                <div className="rounded-md border bg-muted/20 p-2.5 space-y-1 text-xs">
+                  <div className="font-semibold text-foreground">
+                    {parsedSwift.amount != null ? "זוהה מתוך ה-SWIFT" : "לא הצלחתי לקרוא את ה-SWIFT"}
+                  </div>
+                  {parsedSwift.amount != null && (
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-muted-foreground">
+                      <span>סכום: <span className="text-foreground font-medium">{parsedSwift.amount.toLocaleString("en-US")} {parsedSwift.currency || ""}</span></span>
+                      {parsedSwift.valueDate && <span>תאריך ערך: <span className="text-foreground font-medium">{parsedSwift.valueDate}</span></span>}
+                      {parsedSwift.reference && <span className="col-span-2 truncate">אסמכתא: <span className="text-foreground font-mono">{parsedSwift.reference}</span></span>}
+                      {parsedSwift.beneficiary && <span className="col-span-2 truncate">מוטב: <span className="text-foreground">{parsedSwift.beneficiary}</span></span>}
+                      {parsedSwift.referencedDocument && <span className="col-span-2 truncate">מסמך מקושר: <span className="text-foreground font-mono">{parsedSwift.referencedDocument}</span></span>}
+                    </div>
+                  )}
+                  {parsedSwift.amount != null && (
+                    <p className="text-success">התשלום יסומן כשולם בתאריך {paymentUpdateFromSwift(parsedSwift).paid_date}</p>
+                  )}
+                  {parsedSwift.warnings.map((w, i) => (
+                    <p key={i} className="text-warning">{w}</p>
+                  ))}
+                </div>
               )}
             </div>
             <div className="space-y-1.5">

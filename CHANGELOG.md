@@ -13,6 +13,10 @@
 ## [Unreleased]
 
 ### Added
+- **SWIFT מולא אוטומטית מהמסמך** — העלאת אישור SWIFT כבר לא רק מצרפת קובץ: המערכת קוראת אותו וממלאת את התשלום. מתוך שורת תשלום — הסכום מושווה לשורה, והתשלום מסומן כשולם בתאריך הערך עם האסמכתא של הבנק; מתוך דיאלוג הוספת תשלום — הסכום, המטבע והאסמכתא נכנסים לטופס והתשלום נשמר כשולם. הסיכומים (שולם / יתרה) מתעדכנים מאליהם.
+  - `src/lib/swiftImport/parseSwift.ts` — קורא גם הודעת MT103 גולמית לפי תגיות התקן (`:20:`, `:32A:`, `:59:`, `:70:`) וגם אישור העברה של בנק בעברית או באנגלית לפי תוויות, כולל מספר ה-PI שמופיע בפרטי ההעברה.
+  - `src/lib/swiftImport/matchPayment.ts` — התאמת ההעברה לתשלום הנכון לפי סכום ומטבע, עם סובלנות של 2% לעמלות בנק והעדפה לתשלום שעדיין ממתין. אם ההעברה לא מתאימה לשורה שעליה הועלתה — המערכת אומרת זאת, מציעה את התשלום הנכון, ולא מסמנת כלום מעצמה.
+  - סריקה או צילום מסך של SWIFT מזוהים ככאלה: הקובץ נשמר, השדות לא מולאו, והמשתמש מופנה לקרוא אותו בצ׳אט (הסקיל `foreign-order-import` מכסה את המסלול הזה).
 - **Projects module** (`/projects`): lightweight project & task tracking accessible from the sidebar. Project cards show status, priority, progress bar and due date with search + status filtering. Each project has a detail page (`/projects/:id`) with a simple three-column task board (לביצוע / בביצוע / הושלם) supporting add, status advancement and delete. Backed by new `projects` and `project_tasks` tables with authenticated RLS.
 - **העלאת אישורי SWIFT מתוך תזמון התשלומים** — כל שורת תשלום בהזמנה קיבלה עמודת "מסמך SWIFT": אפשר להעלות (או לגרור) את אישור ההעברה ישירות מהשורה, והוא נשמר אוטומטית במודול המסמכים ומקושר לאותו תשלום.
   - מיגרציה `20260824000001_link_swift_documents_to_order_payments.sql` — `purchase_documents.order_payment_id` (FK ל-`order_payments`) + התאמת ה-CHECK על `type` למצב בפועל (`PI`/`PO`/`כללי`).
