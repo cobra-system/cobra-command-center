@@ -58,6 +58,22 @@ jobs:
             exit 1
           fi
 
+          # Print the shape of the string with the password blanked. "password
+          # authentication failed" cannot tell a wrong password from a wrong
+          # username: the pooler splits postgres.<ref> into user + tenant and
+          # reports the failure against "postgres" either way. Seeing the user
+          # and host is what distinguishes them.
+          printf '%s' "$DB_URL" | sed -E 's#://([^:]+):[^@]+@#://\1:***@#' \
+            | sed -E 's#^#connecting as: #'
+
+          if ! printf '%s' "$DB_URL" | grep -qE '://postgres\.[a-z0-9]{20}:'; then
+            echo "::error::The username in SUPABASE_DB_URL is not postgres.<project-ref>."
+            echo "::error::The session pooler needs the project reference in the user name —"
+            echo "::error::postgres.ljpdwezgahrrffnwajho — or it cannot tell which project to"
+            echo "::error::route to, and reports that as a password failure."
+            exit 1
+          fi
+
           # Connect before doing anything: a failure here must fail the workflow,
           # never be reported as a successful run that applied no migrations.
           psql -w "$DB_URL" -c "select current_database(), current_user;"
