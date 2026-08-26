@@ -62,25 +62,71 @@ const CURRENCY_WORDS: [RegExp, string][] = [
 
 const SYMBOL_CURRENCY: Record<string, string> = { $: "USD", "€": "EUR", "₪": "ILS", "£": "GBP" };
 
+/** A SWIFT/BIC code: 6 letters, then 2, optionally a 3-character branch. */
+const BIC = /\b([A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)\b/;
+
 // ─── MT103 ───────────────────────────────────────────────────────────────────
 
-/** `:32A:260315USD70000,00` — value date, currency and amount in one field. */
-const TAG_32A = /:32A:\s*(\d{6})\s*([A-Z]{3})\s*([\d.,]+)/i;
-/** `:33B:USD70000,00` — instructed amount, used when :32A: is absent. */
-const TAG_33B = /:33B:\s*([A-Z]{3})\s*([\d.,]+)/i;
+/** `260315USD70000,00` — value date, currency and amount, as :32A: carries them. */
+const VALUE_DATE_AMOUNT = /(\d{6})\s*([A-Z]{3})\s*([\d][\d.,]*)/;
+/** `USD70000,00` — currency and amount, as :33B: (and Leumi's "CURR + AMT") carry them. */
+const CURRENCY_AMOUNT = /\b([A-Z]{3})\s*([\d][\d.,]*)/;
 
-const tagValue = (text: string, tag: string): string | null => {
-  // A field runs to the next ":NN…:" tag, the end of the message block ("-}"),
-  // or the end of the text — the last field must not swallow the trailer.
+/**
+ * The raw body of a field: everything from its tag to the next one.
+ *
+ * A field runs to the next ":NN…:" tag, the end of the message block ("-}"),
+ * or the end of the text — the last field must not swallow the trailer.
+ */
+const tagBody = (text: string, tag: string): string | null => {
   const re = new RegExp(`:${tag}:\\s*([\\s\\S]*?)(?=\\n\\s*:\\d{2}[A-Z]?:|\\n?\\s*-?\\}|$)`, "i");
   const m = re.exec(text);
   if (!m) return null;
+  // Line structure is kept: for a party field the name is the first line and
+  // the address the rest, which a flattened string could not tell apart.
   const value = m[1]
     .split("\n")
-    .map(l => l.replace(/-?\}\s*$/, "").trim())
-    .filter(Boolean)
-    .join(" ")
+    .map(l => l.replace(/-?\}\s*$/, "").replace(/\s{2,}/g, " ").trim())
+    // Banks print footer annotations ("* DRR = … * MT103 -- ISS 000") after the
+    // last field; without this the final field swallows them.
+    .filter(l => l && !l.startsWith("*"))
+    .join("\n")
     .trim();
+  return value || null;
+};
+
+/**
+ * Strip the caption a bank prints beside the tag.
+ *
+ * A raw MT103 puts the value straight after the tag, but a bank's printed
+ * confirmation labels each one first — ":59: BENEFICIARY CUSTOMER :" then the
+ * name, ":20: TRANSACTION REFERENCE NUMBER: DATE: 260824" then the reference.
+ * Captions carry no digits, so digit-free text ending in a colon is dropped
+ * until something that could be a value is left.
+ */
+const stripCaption = (body: string): string => {
+  let value = body;
+  for (let i = 0; i < 4; i++) {
+    const m = /^([^:]{0,60}):\s*/.exec(value);
+    if (!m || /\d/.test(m[1])) break;
+    value = value.slice(m[0].length);
+  }
+  return value.trim();
+};
+
+/** A field's value as one line — for references, charges and remittance info. */
+const tagValue = (text: string, tag: string): string | null => {
+  const body = tagBody(text, tag);
+  if (!body) return null;
+  const value = stripCaption(body).replace(/\s*\n\s*/g, " ").trim();
+  return value || null;
+};
+
+/** A field's value keeping its line breaks — for the party fields. */
+const tagBlock = (text: string, tag: string): string | null => {
+  const body = tagBody(text, tag);
+  if (!body) return null;
+  const value = stripCaption(body);
   return value || null;
 };
 
@@ -101,31 +147,68 @@ export function swiftAmount(raw: string): number | null {
   return value ?? null;
 }
 
-/** Strip the leading /account-number line banks put before a party's name. */
+/**
+ * A party's name, without the account number banks print above it.
+ *
+ * The account appears either as "/123456789" (raw MT103) or as "123456789/"
+ * (Leumi's confirmation); either way the name is what follows, and only its
+ * first line — the rest is the street address.
+ */
 const partyName = (value: string | null): string | null => {
   if (!value) return null;
-  const cleaned = value.replace(/^\/[A-Z0-9]+\s*/i, "").trim();
-  return cleaned || null;
+  const lines = value
+    .split("\n")
+    .map(l => l.trim())
+    .filter(l => l && !/^\/?[A-Z0-9]{6,}\/?$/i.test(l));   // drop the account-number line
+  const first = lines[0]?.replace(/^\/[A-Z0-9]+\s*/i, "").replace(/^[A-Z0-9]{6,}\/\s*/i, "").trim();
+  return first || null;
+};
+
+/**
+ * The bank's own transaction reference out of the :20: field.
+ *
+ * The field may still carry caption leftovers ("DATE: 260824"), so the value is
+ * the token that looks like a reference: it has digits, and it is not the bare
+ * six-digit date sitting next to it.
+ */
+const transactionReference = (value: string | null): string | null => {
+  if (!value) return null;
+  const tokens = value.split(/\s+/).filter(t => /\d/.test(t) && !/^\d{6}$/.test(t));
+  if (!tokens.length) return null;
+  // Prefer a structured reference (hyphens, mixed letters and digits) over a plain number.
+  const structured = tokens.find(t => /[A-Za-z]/.test(t) || t.includes("-"));
+  return (structured ?? tokens[0]).replace(/[.,;]+$/, "");
 };
 
 function parseMt103(text: string, doc: ParsedSwift): boolean {
-  const m32 = TAG_32A.exec(text);
-  const m33 = TAG_33B.exec(text);
-  if (!m32 && !m33 && !/:20:/i.test(text)) return false;
-
+  if (!/:20:/i.test(text) && !/:32A:/i.test(text)) return false;
   doc.isMt103 = true;
+
+  // The money lives in :32A:, but a bank's printout puts a caption between the
+  // tag and the value — so search the field's body rather than the tag's heels.
+  const body32 = tagBody(text, "32A");
+  const m32 = body32 ? VALUE_DATE_AMOUNT.exec(body32) : null;
   if (m32) {
     doc.valueDate = mt103Date(m32[1]);
     doc.currency = m32[2].toUpperCase();
     doc.amount = swiftAmount(m32[3]);
-  } else if (m33) {
-    doc.currency = m33[1].toUpperCase();
-    doc.amount = swiftAmount(m33[2]);
+  } else {
+    const body33 = tagBody(text, "33B");
+    const m33 = body33 ? CURRENCY_AMOUNT.exec(body33) : null;
+    if (m33) {
+      doc.currency = m33[1].toUpperCase();
+      doc.amount = swiftAmount(m33[2]);
+    }
   }
-  doc.reference = tagValue(text, "20");
-  doc.ordering = partyName(tagValue(text, "50K") ?? tagValue(text, "50F") ?? tagValue(text, "50A"));
-  doc.beneficiary = partyName(tagValue(text, "59") ?? tagValue(text, "59A") ?? tagValue(text, "59F"));
-  doc.beneficiaryBank = tagValue(text, "57A") ?? tagValue(text, "57D") ?? tagValue(text, "57");
+
+  doc.reference = transactionReference(tagValue(text, "20"));
+  doc.ordering = partyName(tagBlock(text, "50K") ?? tagBlock(text, "50F") ?? tagBlock(text, "50A"));
+  doc.beneficiary = partyName(tagBlock(text, "59") ?? tagBlock(text, "59A") ?? tagBlock(text, "59F"));
+
+  const bankField = tagBlock(text, "57A") ?? tagBlock(text, "57D") ?? tagBlock(text, "57");
+  // :57A: is a BIC followed by the bank's name and address — keep the BIC.
+  doc.beneficiaryBank = bankField ? (BIC.exec(bankField)?.[1] ?? partyName(bankField)) : null;
+
   doc.remittanceInfo = tagValue(text, "70");
   doc.charges = tagValue(text, "71A");
   return true;
@@ -141,8 +224,6 @@ const LABELS = {
   beneficiaryBank: /(?:^|\s)(בנק המוטב|בנק מוטב|beneficiary bank|receiving bank)\s*[:：]?\s*(.{2,60})/i,
   charges: /(?:^|\s)(עמלה|עמלות|charges?|charge bearer)\s*[:：]?\s*(.{0,30})/i,
 } as const;
-
-const BIC = /\b([A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)\b/;
 
 function labelled(lines: string[], pattern: RegExp): string | null {
   for (const line of lines) {
@@ -192,6 +273,11 @@ function parseLabelled(lines: string[], doc: ParsedSwift): void {
  * This is what ties a SWIFT to an order without the user typing anything.
  */
 export function documentReference(...texts: (string | null)[]): string | null {
+  // ":70: DETAILS OF PAYMENT" is often the bare reference with no label at all
+  // ("DA20260007") — check that field on its own before scanning everything.
+  const remittance = texts[0]?.trim();
+  if (remittance && /^[A-Za-z]{0,4}\d[A-Za-z0-9\-/_.]{4,29}$/.test(remittance)) return remittance;
+
   const haystack = texts.filter(Boolean).join(" ");
   const patterns = [
     /\b(?:p\s*\/?\s*i|proforma(?:\s+invoice)?|invoice|inv|contract|order|p\s*\/?\s*o)\s*(?:no\.?|number|#)?\s*[:.#]?\s*([A-Za-z0-9][A-Za-z0-9\-/_.]{3,29})/i,

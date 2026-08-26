@@ -33,6 +33,54 @@ const HEBREW_CONFIRMATION = `
 עמלה: SHA
 `.trim().split("\n");
 
+/**
+ * A real Bank Leumi "תשלום בסוויפט" confirmation, as pdf text — the layout this
+ * parser has to get right. Note what differs from a raw MT103: every tag is
+ * followed by a printed caption, and the value sits on the next line.
+ * Account numbers are masked; everything that drives the parse is verbatim.
+ */
+const LEUMI_CONFIRMATION = `
+תשלום בסוויפט
+תאריך: 24.08.26
+848-05-1265335GA
+103 02       CURR + AMT : USD2258,96
+UETR :
+TYPE   : 001
+NUMBER : 2741082b-8369-47a9-9bc5-f51c2394ba65
+S  E  N  D  E  R :
+BANK LEUMI LE ISRAEL BM , MERCAZ BITZUIIM ISKI , NESHER 3668034
+R E C E I V E R  :
+CHASUS33XXX
+* JPMORGAN CHASE BANK, N.A.
+:20:  TRANSACTION REFERENCE NUMBER:              DATE: 260824
+848-05-1265335GA
+:23B: BANK OPERATION CODE         :
+CRED
+:32A: VALUE DATE, CURRENCY CODE, AMOUNT:
+260824USD2258,96
+:50K: CUSTOMER :
+81703040011/
+L.D. ISRAEL AUTO EQUIPMENT(1990)LTD
+15TH TOZERET HA'ARETS ST.
+TEL AVIV CITY 6789109
+ISRAEL
+:57A: 'ACCOUNT WITH' BANK   :
+DHBKHKHHXXX
+DBS BANK (HONG KONG) LIMITED
+FLOOR 11, THE CENTER
+HONG KONG ISLAND HONG KONG
+:59: BENEFICIARY CUSTOMER   :
+79969001030875/
+THL CONSULTING AND SOURCING CO.,LTD
+ONE TIME SQUARE,1 MATHESON ST
+CAUSEWAY
+HONG KONG
+:70: DETAILS OF PAYMENT     :
+DA20260007
+:71A: DETAILS OF CHARGES   :
+OUR
+`.trim().split("\n");
+
 const payment = (over: Partial<OrderPayment>): OrderPayment => ({
   id: "p1", order_id: "o1", payment_type: "Deposit", amount: 70000, currency: "USD",
   status: "ממתין", percentage: 30, due_date: "2026-03-20", paid_date: null,
@@ -89,6 +137,46 @@ describe("parseSwiftText — a bank's Hebrew confirmation", () => {
     expect(doc.beneficiary).toContain("NINGBO SUNRISE");
     expect(doc.beneficiaryBank).toContain("BANK OF CHINA");
     expect(doc.referencedDocument).toBe("SR-PI-26031");
+  });
+});
+
+describe("parseSwiftText — a real Bank Leumi confirmation", () => {
+  const doc = parseSwiftText(LEUMI_CONFIRMATION, "swift.pdf");
+
+  it("reads the money and the value date through the printed captions", () => {
+    expect(doc.isMt103).toBe(true);
+    expect(doc.amount).toBe(2258.96);
+    expect(doc.currency).toBe("USD");
+    expect(doc.valueDate).toBe("2026-08-24");
+  });
+
+  it("takes the transaction reference, not the date printed beside it", () => {
+    expect(doc.reference).toBe("848-05-1265335GA");
+  });
+
+  it("reads the parties without their account numbers or addresses", () => {
+    expect(doc.beneficiary).toBe("THL CONSULTING AND SOURCING CO.,LTD");
+    expect(doc.ordering).toBe("L.D. ISRAEL AUTO EQUIPMENT(1990)LTD");
+    expect(doc.beneficiaryBank).toBe("DHBKHKHHXXX");
+  });
+
+  it("picks up the payment reference and the charge bearer", () => {
+    expect(doc.referencedDocument).toBe("DA20260007");
+    expect(doc.charges).toBe("OUR");
+  });
+
+  it("has nothing to warn about", () => {
+    expect(doc.warnings).toEqual([]);
+  });
+
+  it("settles the installment it matches", () => {
+    const match = matchSwiftToPayment(doc, [payment({ id: "dep", amount: 2258.96, currency: "USD" })]);
+    expect(match?.payment.id).toBe("dep");
+    expect(paymentUpdateFromSwift(doc)).toEqual({
+      status: "שולם",
+      paid_date: "2026-08-24",
+      swift_reference: "848-05-1265335GA",
+    });
   });
 });
 
