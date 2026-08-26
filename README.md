@@ -104,7 +104,8 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 - `orders` — הזמנות רכש (כולל `order_number` — מספר הזמנה פנימי בפורמט `CO-YYYY-NNNN`, מוקצה אוטומטית)
 - `order_number_counters` — מונה הקצאת מספרי הזמנה, שורה לכל שנה
 - `order_items` — פריטים בהזמנה
-- `purchase_documents` — מסמכי PI/PO עם שיוך לספק/מוצר
+- `purchase_documents` — מסמכי PI/PO עם שיוך לספק/מוצר; `document_subtype` מסמן תת-סוג (SWIFT, שטר מטען, חשבונית…) ו-`order_payment_id` מקשר אישור SWIFT לתשלום בתזמון התשלומים
+- `order_payments` — תזמון תשלומים לכל הזמנה (מקדמה/יתרה/מלא, מועד פירעון, אסמכתת SWIFT)
 - `supplier_payments` — תשלומים לספקים
 
 ### מלאי
@@ -192,7 +193,7 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 | Toasts | Sonner |
 | טפסים | React Hook Form + Zod |
 | PDF | PDF.js + pdf-lib + mammoth |
-| אוטומציה | MCP Server — 278 כלים ב-34 מודולים לאינטגרציה עם Claude Code |
+| אוטומציה | MCP Server — 303 כלים ב-34 מודולים לאינטגרציה עם Claude Code |
 | בדיקות E2E | Playwright |
 
 ---
@@ -309,16 +310,16 @@ mcp-server/              # MCP Server לאינטגרציה עם Claude Code (30+
 
 ## MCP Tools
 
-שרת MCP מאפשר ל-Claude Code גישה ישירה לכל מסד הנתונים ללא ממשק גרפי — **258 כלים** ב-**34 מודולים**.
+שרת MCP מאפשר ל-Claude Code גישה ישירה לכל מסד הנתונים ללא ממשק גרפי — **303 כלים** ב-**34 מודולים**.
 
 | מודול | Domain | כלים |
 |-------|--------|-----:|
 | `analytics` | Analytics & KPIs | 6 |
 | `audit-logs` | Audit trail | 2 |
-| `bulk-ops` | Bulk operations | 5 |
+| `bulk-ops` | Bulk operations | 6 |
 | `compliance` | Compliance & licensing | 7 |
 | `daily-reports` | Daily reports | 5 |
-| `divisions` | Division management | 7 |
+| `divisions` | Division management | 30 |
 | `documents` | Documents (PI/PO) | 10 |
 | `equipment` | Equipment & installers | 36 |
 | `finance` | Finance summary | 4 |
@@ -328,23 +329,23 @@ mcp-server/              # MCP Server לאינטגרציה עם Claude Code (30+
 | `learning-journal` | Learning journal | 5 |
 | `meetings` | Meetings & decisions | 14 |
 | `notifications` | Notifications | 3 |
-| `order-payments` | Order payments | 5 |
+| `order-payments` | Order payments | 7 |
 | `orders` | Orders lifecycle | 13 |
 | `payments` | Supplier payments | 4 |
 | `procurement-agenda` | Procurement agenda | 2 |
 | `procurement-inventory` | Procurement inventory | 6 |
 | `procurement-meeting` | Procurement meetings | 7 |
-| `products` | Products & components | 13 |
+| `products` | Products & components | 17 |
 | `reminders` | Reminders | 3 |
 | `search` | Global search | 4 |
 | `shipping` | Shipping & logistics | 9 |
-| `suppliers` | Suppliers | 13 |
+| `suppliers` | Suppliers | 11 |
 | `tasks` | Tasks | 7 |
 | `team` | Team & permissions | 9 |
 | `user-preferences` | User preferences | 3 |
 | `warehouse` | Warehouse zones | 6 |
 | `warehouse-locks` | Lock control & scan log | 5 |
-| `waste` | Waste tracking | 5 |
+| `waste` | Waste tracking | 13 |
 | `workflows` | Workflows | 4 |
 | `frisbee` | Base44 QA sync & consumption | 5 |
 

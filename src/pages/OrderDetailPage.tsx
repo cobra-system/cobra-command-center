@@ -512,7 +512,7 @@ export default function OrderDetailPage() {
 
       {/* Payment Schedule — pricing is hidden from division managers */}
       {showPrices && (
-        <OrderPaymentsSection orderId={order.id} orderTotal={order.total_price} hasEdit={hasEdit} />
+        <OrderPaymentsSection orderId={order.id} orderTotal={order.total_price} hasEdit={hasEdit} supplierId={order.supplier_id} />
       )}
 
       {/* Documents */}

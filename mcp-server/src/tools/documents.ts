@@ -23,10 +23,12 @@ export function registerDocumentTools(server: McpServer) {
     "העלאת מסמך — Upload a file from the local filesystem and create a purchase document record (PI/PO)",
     {
       file_path: z.string().describe("Absolute path to the file on the local filesystem (e.g. /home/user/downloads/invoice.pdf)"),
-      type: z.enum(["PI", "PO"]).describe("Document type: PI (Proforma Invoice) or PO (Purchase Order)"),
+      type: z.enum(["PI", "PO", "כללי"]).describe("Document type: PI (Proforma Invoice), PO (Purchase Order) or כללי (general — use for SWIFT confirmations and other attachments)"),
+      document_subtype: z.enum(["PI", "PO", "SWIFT", "BL", "PACKING_LIST", "INVOICE", "COA", "CUSTOMS", "OTHER"]).optional().describe("Finer-grained kind within the type. Use SWIFT for a wire-transfer confirmation (with type=כללי)."),
       document_name: z.string().optional().describe("Display name for the document. Defaults to the filename."),
       supplier_id: z.string().uuid().optional().describe("Supplier UUID"),
       order_id: z.string().uuid().optional().describe("Order UUID"),
+      order_payment_id: z.string().uuid().optional().describe("Payment installment (order_payments) this document settles — use for SWIFT confirmations so they appear on the order's payment schedule"),
       product_id: z.string().uuid().optional().describe("Product UUID"),
       quantity: z.number().int().default(0).describe("Quantity referenced in document"),
       unit_price: z.number().optional().describe("Unit price"),
@@ -35,7 +37,7 @@ export function registerDocumentTools(server: McpServer) {
       status: z.enum(["ממתין לאישור", "אושר", "נשלח לספק", "בוצע"]).default("ממתין לאישור").describe("Document status: ממתין לאישור (pending), אושר (approved), נשלח לספק (sent to supplier), בוצע (done)"),
       notes: z.string().optional().describe("Additional notes"),
     },
-    async ({ file_path, type, document_name, supplier_id, order_id, product_id,
+    async ({ file_path, type, document_subtype, document_name, supplier_id, order_id, order_payment_id, product_id,
              quantity, unit_price, total_price, currency, status, notes }) => {
       // 1. Read file from disk
       let fileBuffer: Buffer;
@@ -69,10 +71,12 @@ export function registerDocumentTools(server: McpServer) {
         .from("purchase_documents")
         .insert({
           type,
+          document_subtype: document_subtype ?? null,
           document_name: document_name ?? originalName,
           supplier_id: supplier_id ?? null,
           product_id: product_id ?? null,
           order_id: order_id ?? null,
+          order_payment_id: order_payment_id ?? null,
           quantity,
           unit_price: unit_price ?? null,
           total_price: total_price ?? null,
@@ -98,14 +102,15 @@ export function registerDocumentTools(server: McpServer) {
     "list_documents",
     "רשימת מסמכים — List purchase documents with optional filters",
     {
-      type: z.enum(["PI", "PO"]).optional().describe("Filter by document type"),
+      type: z.enum(["PI", "PO", "כללי"]).optional().describe("Filter by document type"),
+      document_subtype: z.enum(["PI", "PO", "SWIFT", "BL", "PACKING_LIST", "INVOICE", "COA", "CUSTOMS", "OTHER"]).optional().describe("Filter by subtype — e.g. SWIFT to list wire-transfer confirmations"),
       status: z.enum(["ממתין לאישור", "אושר", "נשלח לספק", "בוצע"]).optional().describe("Filter by status: ממתין לאישור (pending), אושר (approved), נשלח לספק (sent), בוצע (done)"),
       supplier_id: z.string().uuid().optional().describe("Filter by supplier UUID"),
       order_id: z.string().uuid().optional().describe("Filter by order UUID"),
       product_id: z.string().uuid().optional().describe("Filter by product UUID"),
       limit: z.number().default(50).describe("Max results"),
     },
-    async ({ type, status, supplier_id, order_id, product_id, limit }) => {
+    async ({ type, document_subtype, status, supplier_id, order_id, product_id, limit }) => {
       let query = supabase
         .from("purchase_documents")
         .select("*")
@@ -113,6 +118,7 @@ export function registerDocumentTools(server: McpServer) {
         .limit(limit);
 
       if (type) query = query.eq("type", type);
+      if (document_subtype) query = query.eq("document_subtype", document_subtype);
       if (status) query = query.eq("status", status);
       if (supplier_id) query = query.eq("supplier_id", supplier_id);
       if (order_id) query = query.eq("order_id", order_id);

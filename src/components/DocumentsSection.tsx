@@ -10,6 +10,7 @@ import { useAuth, useCurrency } from "@/contexts/AppContext";
 import { canSeeDocuments } from "@/lib/permissions";
 import type { PurchaseDocument, Payment } from "@/components/documents/types";
 import { docStatusFlow, docStatusColors, payStatusColors, currencySymbol, paymentTypeLabels } from "@/components/documents/constants";
+import { DocSubtypeBadge } from "@/components/documents/DocStatusBadge";
 import SimpleFileUploadDialog from "@/components/documents/SimpleFileUploadDialog";
 
 interface Props {
@@ -116,6 +117,7 @@ export default function DocumentsSection({ supplierId, productId, orderId }: Pro
                       <div className="flex items-center gap-1.5">
                         {doc.file_url && <Paperclip className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />}
                         <span>{doc.document_name || doc.notes || "ללא שם"}</span>
+                        <DocSubtypeBadge type={doc.type} subtype={doc.document_subtype} />
                       </div>
                     </td>
                     <td className="p-3" onClick={e => e.stopPropagation()}>

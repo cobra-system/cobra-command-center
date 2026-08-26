@@ -32,7 +32,7 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import type { PurchaseDocument, DocumentFolder } from "./types";
 import { docStatusFlow, docStatusColors, currencySymbol } from "./constants";
-import { DocStatusBadge } from "./DocStatusBadge";
+import { DocStatusBadge, DocSubtypeBadge } from "./DocStatusBadge";
 import { usePermissions } from "@/hooks/usePermissions";
 import CreateFolderDialog from "./CreateFolderDialog";
 import DocumentPdfViewerDialog from "./DocumentPdfViewerDialog";
@@ -55,8 +55,20 @@ function folderColors(color: string) {
 const SMART_FOLDERS = [
   { id: "PI",    label: "חשבוניות PI",       description: "Proforma Invoice", color: "blue" },
   { id: "PO",    label: "הזמנות רכש PO",    description: "Purchase Order",   color: "green" },
+  { id: "SWIFT", label: "אישורי SWIFT",      description: "Wire transfers",   color: "purple" },
   { id: "כללי", label: "מסמכים כלליים",     description: "General",          color: "orange" },
 ] as const;
+
+/**
+ * SWIFT confirmations are general documents (type=כללי) marked with
+ * document_subtype=SWIFT, so they get their own smart folder and are kept out
+ * of the general one.
+ */
+function matchesSmartFolder(doc: PurchaseDocument, folderId: string): boolean {
+  if (folderId === "SWIFT") return doc.document_subtype === "SWIFT";
+  if (folderId === "כללי") return doc.type === "כללי" && doc.document_subtype !== "SWIFT";
+  return doc.type === folderId;
+}
 
 // ── view types ─────────────────────────────────────────────────────────────────
 type FolderView =
@@ -185,7 +197,7 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
     let result: PurchaseDocument[] = [];
 
     if (view.kind === "root") return [];
-    if (view.kind === "smart")   result = docs.filter(d => d.type === view.typeId);
+    if (view.kind === "smart")   result = docs.filter(d => matchesSmartFolder(d, view.typeId));
     if (view.kind === "real")    result = docs.filter(d => d.folder_id === view.folder.id);
     if (view.kind === "starred") result = docs.filter(d => d.is_starred);
 
@@ -203,7 +215,7 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
   }, [docs, view, statusFilter, search, supplierName, productName]);
 
   const smartCounts  = useMemo(() => Object.fromEntries(
-    SMART_FOLDERS.map(f => [f.id, docs.filter(d => d.type === f.id).length])
+    SMART_FOLDERS.map(f => [f.id, docs.filter(d => matchesSmartFolder(d, f.id)).length])
   ), [docs]);
   const realCounts   = useMemo(() => Object.fromEntries(
     folders.map(f => [f.id, docs.filter(d => d.folder_id === f.id).length])
@@ -748,7 +760,10 @@ export default function DocumentsDriveView({ docs, search, onRefresh, onAnnotate
                         <div className="flex items-center gap-2">
                           {getFileIcon(doc, "h-5 w-5")}
                           <div>
-                            <p className="font-medium truncate max-w-[200px]" dir="auto">{docName}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-medium truncate max-w-[200px]" dir="auto">{docName}</p>
+                              <DocSubtypeBadge type={doc.type} subtype={doc.document_subtype} />
+                            </div>
                             {doc.document_number && (
                               <p className="text-[10px] text-primary/80 font-mono">{doc.document_number}</p>
                             )}

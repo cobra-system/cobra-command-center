@@ -427,6 +427,65 @@ export type Database = {
           },
         ]
       }
+      order_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          deleted_at: string | null
+          due_date: string | null
+          id: string
+          notes: string | null
+          order_id: string
+          paid_date: string | null
+          payment_type: string
+          percentage: number | null
+          status: string
+          swift_reference: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          deleted_at?: string | null
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          order_id: string
+          paid_date?: string | null
+          payment_type: string
+          percentage?: number | null
+          status?: string
+          swift_reference?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          deleted_at?: string | null
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string
+          paid_date?: string | null
+          payment_type?: string
+          percentage?: number | null
+          status?: string
+          swift_reference?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           contact_name: string | null
@@ -747,6 +806,7 @@ export type Database = {
           is_starred: boolean
           notes: string | null
           order_id: string | null
+          order_payment_id: string | null
           product_id: string | null
           quantity: number
           status: string
@@ -771,6 +831,7 @@ export type Database = {
           is_starred?: boolean
           notes?: string | null
           order_id?: string | null
+          order_payment_id?: string | null
           product_id?: string | null
           quantity?: number
           status?: string
@@ -795,6 +856,7 @@ export type Database = {
           is_starred?: boolean
           notes?: string | null
           order_id?: string | null
+          order_payment_id?: string | null
           product_id?: string | null
           quantity?: number
           status?: string
@@ -817,6 +879,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_documents_order_payment_id_fkey"
+            columns: ["order_payment_id"]
+            isOneToOne: false
+            referencedRelation: "order_payments"
             referencedColumns: ["id"]
           },
           {

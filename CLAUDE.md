@@ -120,16 +120,16 @@ grep -r "\"TABLE_NAME\"" mcp-server/src/tools/
 cd mcp-server && npm run build
 ```
 
-### Module inventory (34 modules · 278 tools)
+### Module inventory (34 modules · 303 tools)
 
 | Module | Domain | Key tables | Tools |
 |--------|--------|------------|------:|
 | `analytics` | Analytics & KPIs | orders, products, tasks, suppliers | 6 |
 | `audit-logs` | Audit trail | inventory_change_log, task_advancement_log | 2 |
-| `bulk-ops` | Bulk operations | orders, products, tasks | 5 |
+| `bulk-ops` | Bulk operations | orders, products, tasks | 6 |
 | `compliance` | Compliance items | compliance_items, compliance_product_links | 7 |
 | `daily-reports` | Daily reports | daily_reports, tasks | 5 |
-| `divisions` | Division management | division_products, division_product_items, division_product_consumption, order_requests, profiles | 14 |
+| `divisions` | Division management | division_products, division_product_items, division_product_consumption, order_requests, profiles | 30 |
 | `documents` | Documents | documents, purchase_documents | 10 |
 | `equipment` | Equipment tracking | installers, equipment_pickups, equipment_returns | 36 |
 | `finance` | Finance & payments | orders, supplier_payments | 4 |
@@ -139,7 +139,7 @@ cd mcp-server && npm run build
 | `learning-journal` | Learning journal | learning_journal | 5 |
 | `meetings` | Meetings & decisions | meetings, meeting_action_items | 14 |
 | `notifications` | Notifications | orders, tasks, compliance_items | 3 |
-| `order-payments` | Order payments | order_payments, orders | 5 |
+| `order-payments` | Order payments | order_payments, orders | 7 |
 | `orders` | Orders | orders, order_items, purchase_documents | 13 |
 | `payments` | Supplier payments | supplier_payments | 4 |
 | `procurement-agenda` | Procurement agenda | orders | 2 |
@@ -149,7 +149,7 @@ cd mcp-server && npm run build
 | `reminders` | Reminders | compliance_items, orders, tasks | 3 |
 | `search` | Global search | (multi-table) | 4 |
 | `shipping` | Shipping & logistics | orders, shipment_groups | 9 |
-| `suppliers` | Suppliers | suppliers, supplier_contacts, supplier_bank_details | 13 |
+| `suppliers` | Suppliers | suppliers, supplier_contacts, supplier_bank_details | 11 |
 | `tasks` | Tasks | tasks | 7 |
 | `team` | Team & permissions | profiles, user_roles, role_permissions | 9 |
 | `user-preferences` | User preferences | user_preferences | 3 |

@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-ה-MCP Server של Cobra Command Center מספק **278 כלים** ב-**34 מודולים** לשימוש Claude Code — גישה ישירה לכל ה-DB ללא דרישת ממשק גרפי.
+ה-MCP Server של Cobra Command Center מספק **303 כלים** ב-**34 מודולים** לשימוש Claude Code — גישה ישירה לכל ה-DB ללא דרישת ממשק גרפי.
 
 - **Server entry point:** `mcp-server/src/index.ts`
 - **Tool modules:** `mcp-server/src/tools/`
@@ -15,10 +15,10 @@
 |--------|--------|------:|------------|
 | `analytics` | Analytics & KPIs | 6 | orders, products, tasks, suppliers, center_inventory, compliance_items, supplier_payments |
 | `audit-logs` | Audit trail | 2 | inventory_change_log, task_advancement_log |
-| `bulk-ops` | Bulk operations | 5 | orders, products, tasks |
+| `bulk-ops` | Bulk operations | 6 | orders, products, tasks |
 | `compliance` | Compliance & licensing | 7 | compliance_items, compliance_product_links |
 | `daily-reports` | Daily reports | 5 | daily_reports, tasks |
-| `divisions` | Division management | 11 | division_products, division_product_consumption, order_requests, profiles |
+| `divisions` | Division management | 30 | division_products, division_product_consumption, order_requests, profiles |
 | `documents` | Documents (PI/PO) | 10 | documents, document_products, purchase_documents |
 | `equipment` | Equipment & installers | 36 | installers, equipment_pickups, equipment_pickup_items, equipment_returns, equipment_return_items, division_contacts, center_inventory, waste_items |
 | `finance` | Finance summary | 4 | orders, supplier_payments, suppliers |
@@ -28,7 +28,7 @@
 | `learning-journal` | Learning journal | 5 | learning_journal |
 | `meetings` | Meetings & decisions | 14 | meetings, meeting_action_items, meeting_documents, meeting_participants |
 | `notifications` | Notifications | 3 | orders, tasks, compliance_items, product_issues, supplier_payments |
-| `order-payments` | Order payments | 5 | order_payments, orders |
+| `order-payments` | Order payments | 7 | order_payments, orders, purchase_documents |
 | `orders` | Orders lifecycle | 13 | orders, order_items, order_payments, order_notes_history, purchase_documents |
 | `payments` | Supplier payments | 4 | supplier_payments, orders |
 | `procurement-agenda` | Procurement agenda | 2 | orders, order_payments |
@@ -38,13 +38,13 @@
 | `reminders` | Reminders | 3 | compliance_items, orders, tasks, daily_reports, product_issues, supplier_payments |
 | `search` | Global search | 4 | products, orders, suppliers, tasks, compliance_items, center_inventory, purchase_documents, product_components, product_issues, order_items, supplier_contacts, supplier_payments |
 | `shipping` | Shipping & logistics | 9 | orders, order_payments, order_notes_history, shipment_groups |
-| `suppliers` | Suppliers | 13 | suppliers, supplier_contacts, supplier_bank_details, supplier_price_quotes |
+| `suppliers` | Suppliers | 11 | suppliers, supplier_contacts, supplier_bank_details, supplier_price_quotes |
 | `tasks` | Tasks | 7 | tasks, profiles |
 | `team` | Team & permissions | 9 | profiles, user_roles, role_definitions, role_permissions |
 | `user-preferences` | User preferences | 3 | user_preferences |
 | `warehouse` | Warehouse zones | 6 | warehouse_zones, warehouse_zone_products, warehouse_zone_log |
 | `warehouse-locks` | Lock control & scan log | 5 | warehouse_locks, warehouse_lock_scans |
-| `waste` | Waste tracking | 11 | waste_items, supplier_returns |
+| `waste` | Waste tracking | 13 | waste_items, supplier_returns |
 | `quarterly-planning` | Quarterly procurement planning | 13 | vehicle_models, quarterly_vehicle_forecasts, product_model_mappings, quarterly_procurement_plans, quarterly_plan_snapshots |
 
 ---
@@ -90,7 +90,7 @@ Use this to find which module(s) to update when a table's schema changes.
 | `products` | products, analytics, bulk-ops, equipment, issues, notifications, reminders, search |
 | `procurement_meeting_orders` | procurement-meeting, procurement-inventory |
 | `profiles` | divisions, tasks, team |
-| `purchase_documents` | documents, orders, procurement-inventory, search |
+| `purchase_documents` | documents, order-payments, orders, procurement-inventory, search |
 | `role_definitions` | team |
 | `role_permissions` | team |
 | `shipment_groups` | shipping |

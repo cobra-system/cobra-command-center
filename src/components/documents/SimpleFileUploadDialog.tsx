@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useFileDropPaste } from "@/hooks/useFileDropPaste";
 import { useData } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,27 @@ import { Upload, FileText, Loader2, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { SWIFT_DOC_TYPE, SWIFT_SUBTYPE } from "@/lib/swiftDocuments";
+
+/** Installment of the selected order, offered as the target of a SWIFT upload. */
+interface OrderPaymentOption {
+  id: string;
+  payment_type: string;
+  amount: number | null;
+  currency: string | null;
+  due_date: string | null;
+  status: string | null;
+}
+
+/** Radix Select rejects an empty item value, so "no link" needs a sentinel. */
+const NO_PAYMENT = "__none__";
+
+const paymentOptionLabel = (p: OrderPaymentOption) => {
+  const type = { Deposit: "מקדמה", Balance: "יתרה", Full: "מלא" }[p.payment_type] || p.payment_type;
+  const amount = p.amount ? ` · ${Number(p.amount).toLocaleString("en-US")} ${p.currency || ""}`.trimEnd() : "";
+  const due = p.due_date ? ` · ${p.due_date}` : "";
+  return `${type}${amount}${due}`;
+};
 
 interface Props {
   open: boolean;
@@ -36,8 +57,12 @@ export default function SimpleFileUploadDialog({
   const [supplierId, setSupplierId] = useState(defaultSupplierId || "");
   const [productId, setProductId] = useState(defaultProductId || "");
   const [orderId, setOrderId] = useState(defaultOrderId || "");
+  const [paymentId, setPaymentId] = useState("");
+  const [orderPayments, setOrderPayments] = useState<OrderPaymentOption[]>([]);
   const [saving, setSaving] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+
+  const isSwift = docType === SWIFT_SUBTYPE;
 
   const hasContext = !!(defaultSupplierId || defaultProductId || defaultOrderId);
 
@@ -50,7 +75,23 @@ export default function SimpleFileUploadDialog({
     setSupplierId(defaultSupplierId || "");
     setProductId(defaultProductId || "");
     setOrderId(defaultOrderId || "");
+    setPaymentId("");
   };
+
+  // Payment schedule of the selected order — only needed to link a SWIFT
+  useEffect(() => {
+    if (!open || !isSwift || !orderId) { setOrderPayments([]); return; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("order_payments")
+        .select("id, payment_type, amount, currency, due_date, status")
+        .eq("order_id", orderId)
+        .order("created_at", { ascending: true });
+      if (!cancelled) setOrderPayments((data as OrderPaymentOption[] | null) || []);
+    })();
+    return () => { cancelled = true; };
+  }, [open, isSwift, orderId]);
 
   const handleDroppedFile = useCallback((f: File) => {
     setFile(f);
@@ -101,15 +142,20 @@ export default function SimpleFileUploadDialog({
 
     const { error } = await supabase.from("purchase_documents").insert({
       document_name: docName.trim(),
-      type: docType,
+      // SWIFT is a subtype of a general document, not a document type of its own
+      type: isSwift ? SWIFT_DOC_TYPE : docType,
+      document_subtype: isSwift ? SWIFT_SUBTYPE : (docType === "PI" || docType === "PO" ? docType : null),
       file_url: fileUrl,
       supplier_id: supplierId || null,
       product_id: productId || null,
       order_id: orderId || null,
+      order_payment_id: isSwift && paymentId ? paymentId : null,
       document_number: documentNumber.trim() || null,
       expiry_date: expiryDate || null,
+      // A bank confirmation records something that already happened — no approval flow
+      status: isSwift ? "בוצע" : undefined,
       quantity: 0,
-    } as Record<string, unknown>);
+    });
 
     if (error) {
       // Rollback: delete uploaded file if DB insert failed
@@ -190,10 +236,32 @@ export default function SimpleFileUploadDialog({
               <SelectContent>
                 <SelectItem value="PI">PI — הצעת מחיר</SelectItem>
                 <SelectItem value="PO">PO — הזמנת רכש</SelectItem>
+                <SelectItem value="SWIFT">SWIFT — אישור העברה בנקאית</SelectItem>
                 <SelectItem value="כללי">כללי</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {/* SWIFT → link to a payment installment of the selected order */}
+          {isSwift && orderId && (
+            <div className="space-y-1.5">
+              <Label>שיוך לתשלום בתזמון התשלומים</Label>
+              <Select value={paymentId || NO_PAYMENT} onValueChange={v => setPaymentId(v === NO_PAYMENT ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="ללא שיוך" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_PAYMENT}>ללא שיוך</SelectItem>
+                  {orderPayments.map(p => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {paymentOptionLabel(p)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {orderPayments.length === 0 && (
+                <p className="text-xs text-muted-foreground">אין תשלומים מתוזמנים להזמנה זו</p>
+              )}
+            </div>
+          )}
 
           {/* Document number + expiry */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

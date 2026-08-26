@@ -13,6 +13,12 @@
 ## [Unreleased]
 
 ### Added
+- **העלאת אישורי SWIFT מתוך תזמון התשלומים** — כל שורת תשלום בהזמנה קיבלה עמודת "מסמך SWIFT": אפשר להעלות (או לגרור) את אישור ההעברה ישירות מהשורה, והוא נשמר אוטומטית במודול המסמכים ומקושר לאותו תשלום.
+  - מיגרציה `20260824000001_link_swift_documents_to_order_payments.sql` — `purchase_documents.order_payment_id` (FK ל-`order_payments`) + התאמת ה-CHECK על `type` למצב בפועל (`PI`/`PO`/`כללי`).
+  - `src/lib/swiftDocuments.ts` — לוגיקה משותפת להעלאת SWIFT (storage + רשומת מסמך, כולל rollback לקובץ אם השמירה נכשלה) ולשמות ברירת מחדל ("SWIFT מקדמה 70,000 USD").
+  - דיאלוג הוספת/עריכת תשלום מאפשר לצרף קובץ SWIFT יחד עם התשלום; מסמכי SWIFT של ההזמנה שאינם משויכים מוצגים מתחת לטבלה וניתן לשייכם לתשלום.
+  - מודול המסמכים: תיקיה חכמה "אישורי SWIFT", תג תת-סוג בטבלאות המסמכים, ואפשרות לבחור "SWIFT — אישור העברה בנקאית" בדיאלוג ההעלאה (כולל שיוך לתשלום של ההזמנה).
+  - כלי MCP חדשים: `upload_swift_document` (העלאת קובץ SWIFT מהדיסק, שיוך לתשלום, עדכון אסמכתא/סימון כשולם) ו-`link_swift_document_to_payment`; `list_order_payments` מחזיר כעת גם את מסמכי ה-SWIFT לכל תשלום.
 - **מספר הזמנה (order number) on every order** — each order now carries an internal `CO-YYYY-NNNN` number, assigned by the database on insert and unique across the system. Until now an order had no number of its own: SAP orders carried `sap_doc_entry`, foreign orders the supplier's `pi_number`, and manually created orders nothing at all.
   - `orders.order_number` + `order_number_counters` (one row per year, bumped atomically) + `next_order_number()` / `set_order_number()` trigger. Existing orders are backfilled per year in creation order.
   - Shown as the first column of the orders table (hideable like any column), on the order card in mobile view, and in the order-detail header; searchable from the orders search box; sortable.
