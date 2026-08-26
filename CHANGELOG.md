@@ -5,11 +5,34 @@
 
 ---
 
+## [2026-08-26]
+
+- fix(ci): the migration workflow reported success without applying anything (2444f1a)
+- fix(migrations): two that would have failed on the production data (cb7a2fc)
+- feat(payments): drag or paste a SWIFT into the payment dialog (3bf2532)
+- feat(swift): catch a confirmation uploaded onto the wrong order (9889ef8)
+- fix(swift): read the bank's printed layout, not just a raw MT103 (58b0e77)
+- feat(payments): read the SWIFT confirmation instead of just filing it (e9c2790)
+- Merge the Projects module, keeping the SKU rendering that already ships (9a23eab)
+- Merge the wide-table horizontal scroll fix (1c9e53d)
+- Merge the SWIFT confirmation upload into this branch (ce67bb2)
+- Merge the in-app file import, and teach it foreign documents (5628b9e)
+- feat: order numbers on every order + foreign supplier document import (13b8eb3)
+- feat(payments): upload SWIFT confirmations from the order payment schedule (909e7aa)
+- fix(orders): return to the tab you came from when leaving an order detail (a71514e)
+- fix(orders): correct SAP PDF parsing in the browser, generic 9999 lines, free-text items (40fa1e1)
+- feat(orders): archive delivered orders + import an order from a SAP/Excel file (cf66cab)
+- fix(orders): keep wide purchase tables inside the viewport (72abf75)
+- fix: align multi-item orders row-by-row in orders table (d0e35ea)
+- feat: move SKU to its own column in the orders table (35a05ba)
+- feat: show product SKU in orders table and order detail items (f606585)
+- feat: add Projects module to sidebar for lightweight project & task tracking (01ceec7)
+
+<!-- last-commit: 4ca5065c8f84247eb52286d633229f69a4f6443e -->
 ## [2026-08-04]
 
 - feat: SAP purchase-order import (parse → match → create order) (4856982)
 
-<!-- last-commit: a770b6c68fa6e017886c1aebf9335ee9e0d93256 -->
 ## [Unreleased]
 
 ### Added
