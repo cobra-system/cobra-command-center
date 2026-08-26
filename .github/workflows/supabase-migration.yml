@@ -58,13 +58,20 @@ jobs:
             exit 1
           fi
 
-          # Print the shape of the string with the password blanked. "password
-          # authentication failed" cannot tell a wrong password from a wrong
-          # username: the pooler splits postgres.<ref> into user + tenant and
-          # reports the failure against "postgres" either way. Seeing the user
-          # and host is what distinguishes them.
-          printf '%s' "$DB_URL" | sed -E 's#://([^:]+):[^@]+@#://\1:***@#' \
-            | sed -E 's#^#connecting as: #'
+          # Pasting into a web form picks up trailing whitespace and newlines
+          # more often than anyone expects, and a password with a stray space is
+          # rejected exactly like a wrong one. Strip it rather than debug it.
+          DB_URL="$(printf '%s' "$DB_URL" | tr -d '\r\n' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+
+          # Report facts about the string rather than the string itself: GitHub
+          # masks any substring of a secret, so an echo of the URL comes back as
+          # *** and tells nobody anything. "password authentication failed"
+          # cannot tell a wrong password from a wrong username on its own — the
+          # pooler splits postgres.<ref> into user + tenant and blames
+          # "postgres" either way — so these are what distinguish the cases.
+          echo "host: $(printf '%s' "$DB_URL" | sed -E 's#.*@([^/]+)/.*#\1#')"
+          echo "user carries the project reference: $(printf '%s' "$DB_URL" | grep -qE '://postgres\.[a-z0-9]{20}:' && echo yes || echo no)"
+          echo "password length: $(printf '%s' "$DB_URL" | sed -E 's#^[^:]+://[^:]+:##; s#@[^@]*$##' | wc -c) characters (a trailing space would show up here)"
 
           if ! printf '%s' "$DB_URL" | grep -qE '://postgres\.[a-z0-9]{20}:'; then
             echo "::error::The username in SUPABASE_DB_URL is not postgres.<project-ref>."
@@ -80,9 +87,12 @@ jobs:
 
       - name: Run migrations
         env:
+          # Trimmed the same way as the check above — a secret with a stray
+          # newline must not pass one step and fail the next.
           DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           PGCONNECT_TIMEOUT: "15"
         run: |
+          DB_URL="$(printf '%s' "$DB_URL" | tr -d '\r\n' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
           # Every migration is replayed on each run, so they are written to be
           # idempotent (IF NOT EXISTS / OR REPLACE). An individual file that
           # errors is reported and collected rather than aborting the rest, but
@@ -110,6 +120,7 @@ jobs:
         env:
           DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
+          DB_URL="$(printf '%s' "$DB_URL" | tr -d '\r\n' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
           # New columns stay invisible to the API until PostgREST re-reads the
           # schema, so a successful migration can still look like nothing changed.
           psql -w "$DB_URL" -c "NOTIFY pgrst, 'reload schema';"
@@ -119,6 +130,7 @@ jobs:
         env:
           DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
+          DB_URL="$(printf '%s' "$DB_URL" | tr -d '\r\n' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
           psql -w "$DB_URL" -c "SELECT count(*) AS public_tables FROM information_schema.tables WHERE table_schema = 'public';"
 
   deploy-functions:
