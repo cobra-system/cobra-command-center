@@ -80,7 +80,9 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   const addOrder = useCallback(async (order: Omit<Order, "id" | "items"> & { items: Omit<OrderItem, "id" | "order_id">[] }): Promise<string | undefined> => {
     try {
       const { items, ...orderData } = order;
-      const { data: newOrder, error: orderError } = await supabase.from("orders").insert(orderData).select("id").single();
+      // order_number is assigned by a DB trigger — read it back so the toast can
+      // tell the user the number their new order got.
+      const { data: newOrder, error: orderError } = await supabase.from("orders").insert(orderData).select("id, order_number").single();
       if (orderError) {
         handleError(orderError, "שגיאה ביצירת הזמנה: " + (orderError.message || "נסה שוב"));
         return undefined;
@@ -93,7 +95,8 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
           return undefined;
         }
         await queryClient.refetchQueries({ queryKey: ["orders"] });
-        toast.success("הזמנה נוצרה בהצלחה");
+        const orderNumber = (newOrder as { order_number?: string | null }).order_number;
+        toast.success(orderNumber ? `הזמנה ${orderNumber} נוצרה בהצלחה` : "הזמנה נוצרה בהצלחה");
         logActivity({ action: "order.create", entityType: "order", entityId: newOrder.id });
         return newOrder.id;
       }

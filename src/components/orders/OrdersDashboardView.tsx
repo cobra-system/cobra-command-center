@@ -10,6 +10,7 @@ import { useData, useCurrency } from "@/contexts/AppContext";
 import { toast } from "sonner";
 
 import { format } from "date-fns";
+import { ACTIVE_ORDER_STATUSES, isOrderActive, isOrderCompleted } from "@/lib/orderStatus";
 interface OrderPayment {
   id: string;
   order_id: string;
@@ -46,7 +47,7 @@ const PRIORITY_COLORS: Record<string, string> = {
   "נמוך": "#9ca3af",
 };
 
-const ACTIVE_STATUSES = ["PENDING", "ORDERED", "SHIPPED", "ARRIVED_PORT", "CUSTOMS_CLEARANCE", "DELIVERED"];
+const ACTIVE_STATUSES: string[] = ACTIVE_ORDER_STATUSES;
 
 export function OrdersDashboardView({ orders, orderPaymentStatuses, suppliers }: OrdersDashboardViewProps) {
   const { formatPrice, formatPriceCompact } = useCurrency();
@@ -166,7 +167,7 @@ export function OrdersDashboardView({ orders, orderPaymentStatuses, suppliers }:
 
   const statusChartData = useMemo(() => {
     return Object.entries(stats.statusCounts)
-      .filter(([status]) => status !== "ARRIVED" && status !== "CANCELLED")
+      .filter(([status]) => isOrderActive(status))
       .map(([status, count]) => ({
         name: status,
         value: count,
@@ -258,7 +259,7 @@ export function OrdersDashboardView({ orders, orderPaymentStatuses, suppliers }:
       }
       const s = map.get(o.supplier_id)!;
       if (ACTIVE_STATUSES.includes(o.status)) s.active++;
-      if (o.status === "ARRIVED" && o.eta && o.updated_at) {
+      if (isOrderCompleted(o.status) && o.eta && o.updated_at) {
         const etaDate = new Date(o.eta);
         const arrivedDate = new Date(o.updated_at);
         const delayDays = Math.round((arrivedDate.getTime() - etaDate.getTime()) / (1000 * 60 * 60 * 24));

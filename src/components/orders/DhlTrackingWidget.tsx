@@ -14,8 +14,9 @@ import {
   type TrackingLevel,
 } from "@/lib/dhlStatusMap";
 import type { Order } from "@/contexts/types";
+import { CLOSED_ORDER_STATUSES } from "@/lib/orderStatus";
 
-const INACTIVE_STATUSES = ["DELIVERED", "ARRIVED", "CANCELLED"];
+const INACTIVE_STATUSES: string[] = CLOSED_ORDER_STATUSES;
 
 interface DhlTrackingWidgetProps {
   order: Order;

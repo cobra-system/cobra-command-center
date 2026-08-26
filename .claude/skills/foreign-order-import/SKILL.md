@@ -28,6 +28,14 @@ The flow is **extract → read → normalise → match → preview → confirm �
 Never create an order without showing the preview and getting explicit approval
 — this writes to production data.
 
+**The app can do the easy cases without you.** "ייבוא מקובץ" in the new-order
+dialog parses a text PDF or a spreadsheet in the browser (`src/lib/orderImport/`)
+and drops the result into the form. Use this skill when that is not enough: a
+scan or a photo (the browser cannot read one), a document the in-app reader
+returned warnings on, several files at once, or anything needing judgement about
+what the document actually is. If the user's document is a clean PDF/Excel and
+they are in front of the app, say so — it is faster than a chat round-trip.
+
 ## 0. One-time setup (per session/container)
 
 ```bash

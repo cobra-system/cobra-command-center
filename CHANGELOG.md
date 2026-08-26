@@ -20,12 +20,24 @@
 - **Foreign supplier order import (Cowork)** — upload whatever an overseas supplier sent (proforma invoice, order confirmation, sales contract, quotation) as a text PDF, a scan, a photo, an Excel sheet or plain text, and it is read, matched to the live supplier and products, previewed, and — after approval — created as an order.
   - `scripts/foreign-po/extract_doc.py` — template-free extractor: text/scan/spreadsheet readers, page rendering for a visual read, multilingual field candidates (document number, dates, currency, incoterm, payment terms, bank details, totals) and line items recovered by reconciling qty × unit price against the line amount, which also resolves `1.234,56` vs `1,234.56`.
   - `.claude/skills/foreign-order-import/` — Skill running extract → read → normalise → match → preview → confirm → `create_order`, with a duplicate-import guard and rules for telling an order apart from a quotation or a packing list.
+- **ייבוא מקובץ קורא גם מסמכים מספקים בחו״ל שאינם בתבנית קבועה** — `src/lib/orderImport/foreignDoc.ts`: PDF שאינו הזמנת SAP נקרא עכשיו בקורא כללי — שורות פריטים משוחזרות לפי `כמות × מחיר = סכום` (מה שגם מכריע אם `1.234,56` הוא 1234.56), ומספר מסמך/תאריכים/מטבע/אינקוטרמס/תנאי תשלום/סה״כ מזוהים בתוויות רב-לשוניות. גיליון בלי שורת כותרות מזוהה נופל לאותו מנגנון, ומספרים בפורמט אירופי נקראים נכון. סריקה, צילום או PDF בלי שכבת טקסט מזוהים ככאלה והמשתמש מופנה לקרוא אותם בצ׳אט במקום לקבל תוצאה שגויה בשקט.
+- **ייבוא הזמנה מקובץ ישירות מהאתר** — בטופס "הזמנה חדשה" נוסף "ייבוא מקובץ (SAP / הזמנה מחו״ל)": מעלים הזמנת רכש מ-SAP (PDF) או קובץ הזמנה/PI מספק בחו״ל (Excel/CSV), הקובץ מנותח בדפדפן, הספק והפריטים מותאמים למידע החי, ומוצגת תצוגה מקדימה עם אזהרות לפני טעינה לטופס.
+  - `src/lib/orderImport/` — ניתוח SAP PDF (פורט דפדפן של `scripts/sap-po/extract_po.py` מעל pdfjs), ניתוח Excel/CSV עם זיהוי שורת כותרות בעברית/אנגלית, והתאמת ספק/מוצרים (קוד SAP → מק״ט → שם; התאמה דו-משמעית נחשבת "לא זוהה" ולא מנחשת).
+  - `src/components/orders/OrderFileImportDialog.tsx` — דיאלוג העלאה + תצוגה מקדימה; הכל נשאר לעריכה בטופס, שום דבר לא נשמר עד "צור הזמנה".
+  - הזמנה שיובאה מ-SAP נוצרת בסטטוס "הוזמן" עם `sap_doc_entry`, והקובץ המקורי נשמר אוטומטית במסמכי ההזמנה (`purchase_documents`).
+  - מספר ההזמנה, ההערה החופשית שבמסמך, תנאי התשלום ופירוט השורות נכנסים אוטומטית להערות ההזמנה; תאריך האספקה שבמסמך ממלא את ה-ETA.
+  - **מק״ט כללי (9999)** — שורות עם קוד הפריט הכללי של SAP לעולם לא משויכות למוצר לפי הקוד; הן נכנסות כשורה חופשית שהתיאור שבה הוא הפריט (אלא אם התיאור עצמו הוא מק״ט מוכר).
+- **שורת פריט חופשית בטופס ההזמנה** — לכל שורה יש עכשיו מצב "חופשי" לצד "מוצר"/"רכיב", לכתיבת פריט שעדיין לא קיים בקטלוג. גם מתוך בורר המוצרים אפשר לבחור "פריט חדש (טקסט חופשי)" ולשמור את מה שהוקלד במקום להיאלץ לבחור מוצר קיים.
 - **SAP purchase-order import (Cowork)** — upload a SAP purchase-order PDF and it is parsed, matched to the live supplier and products, previewed, and (after approval) created as an order.
   - `scripts/sap-po/extract_po.py` — parser that turns the Hebrew RTL SAP PO PDF into structured JSON (PO number, supplier + VAT, line items with code/qty/price, totals), with arithmetic validation warnings.
   - `.claude/skills/sap-order-import/` — Skill that runs the full parse → match → preview → confirm → `create_order` flow, including duplicate-import guard via `get_order_by_reference`.
 
+### Fixed
+- **חזרה מתיק הזמנה חוזרת לטאב שממנו הגעת** — הטאב הפעיל בעמוד הרכש נשמר ב-URL (`?tab=table`), וכפתור החזרה בתיק ההזמנה חוזר בהיסטוריה במקום לנווט מחדש ל-`/orders`. כך חוזרים ל"הזמנות פעילות" עם החיפוש והסינון ששימשו, ולא ללוח הבקרה. קישור `?focus=<orderId>` נוחת בטאב שמכיל את ההזמנה (ארכיון עבור הזמנה שנמסרה/בוטלה).
+
 ### Changed
 - `create_order` MCP tool now accepts a per-item `currency`, so a supplier invoicing in EUR is no longer stored as USD; the new-order dialog offers € alongside $ and ₪.
+- **הזמנה בסטטוס "נמסר" יוצאת מההזמנות הפעילות** — `DELIVERED` נחשב סטטוס סגור (כמו `ARRIVED`/`CANCELLED`): ההזמנה עוברת לטאב "ארכיון הזמנות", ואינה נספרת ב"הזמנות פעילות" בדשבורד, בדוחות, בגרף הסטטוסים ובישיבת הרכש. הלוגיקה רוכזה ב-`src/lib/orderStatus.ts`.
 - `create_order` MCP tool now accepts `sap_doc_entry` (the SAP purchase-order document number, the SAP anchor resolvable via `get_order_by_reference`) and `division`.
 
 ## [2026-07-29]

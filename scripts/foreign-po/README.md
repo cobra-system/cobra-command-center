@@ -42,6 +42,15 @@ row reconcile is the right one.
 Numbers that belong to a part code (`SR-4410`) or a fraction (`3/8"`) are skipped
 by looking at the character before them.
 
+## The browser twin
+
+`src/lib/orderImport/foreignDoc.ts` is the same method in TypeScript, behind
+"ייבוא מקובץ" in the app's new-order dialog: same qty × price = amount
+reconciliation, same multilingual label matching. It handles text PDFs and
+spreadsheets on the spot; scans and photos it cannot read, and it says so and
+points the user here. Keep the two in step when either one's heuristics change —
+`src/lib/orderImport/foreignDoc.test.ts` covers the shared cases.
+
 ## Deliberate limits
 
 - The script is **not** the source of truth. It gets the document readable and

@@ -88,6 +88,15 @@ export default function OrderDetailPage() {
 
   if (!order) return <div className="p-8 text-center text-muted-foreground">הזמנה לא נמצאה</div>;
 
+  // Go back where the user actually came from (orders table with its tab, filters
+  // and scroll, a supplier or product page…). Only when this page was opened
+  // directly — a deep link or a refresh — fall back to the active orders tab.
+  const goBack = () => {
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+    if (idx > 0) navigate(-1);
+    else navigate("/orders?tab=table");
+  };
+
   const handleDelete = async () => {
     await deleteOrder(order.id);
     toast.success("ההזמנה נמחקה");
@@ -280,7 +289,7 @@ export default function OrderDetailPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3 flex-wrap">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/orders")} className="shrink-0">
+        <Button variant="ghost" size="icon" onClick={goBack} className="shrink-0">
           <ArrowRight className="h-5 w-5" />
         </Button>
         <div className="flex-1 min-w-0">

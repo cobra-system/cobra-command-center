@@ -123,10 +123,16 @@ def parse(pdf_path):
         if parts:
             out['agent'] = ' '.join(parts)
 
-    # free-text comment line "הזמנה עבור ..."
+    # free-text comment line SAP prints above the totals: "הזמנה עבור מחסן מרכזי",
+    # "הזמנה לתל אביב תוצרת הארץ 15". Join the whole row right-to-left so a trailing
+    # house number in its own token is not lost, and stay out of the totals columns.
     for l in lines:
-        if l['norm'].startswith('הזמנה עבור') or ('עבור' in l['norm'] and 'הזמנה' in l['norm']):
-            out['notes'] = l['norm']; break
+        n = l['norm'].strip()
+        if n.startswith('הזמנה') and 'הזמנת רכש' not in n:
+            row = [t for t in row_tokens(lines, l['y'], tol=3) if t['x0'] >= 258]
+            row.sort(key=lambda t: -t['x1'])
+            out['notes'] = ' '.join(t['norm'].strip() for t in row if t['norm'].strip())
+            break
 
     # totals
     def total_near(label):
