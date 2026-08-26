@@ -21,11 +21,12 @@ export function registerOrderTools(server: McpServer) {
       status: ORDER_STATUS_ENUM.optional().describe("Filter by status: PENDING, ORDERED, SHIPPED, ARRIVED_PORT, CUSTOMS_CLEARANCE, DELIVERED, ARRIVED, CANCELLED"),
       supplier_id: z.string().uuid().optional().describe("Filter by supplier UUID"),
       supplier_name: z.string().optional().describe("Filter by supplier name (partial match)"),
+      order_number: z.string().optional().describe("Filter by internal Cobra order number, e.g. CO-2026-0007 (partial match)"),
       priority: z.enum(["דחוף", "גבוה", "בינוני", "נמוך"]).optional().describe("Filter by priority: דחוף (urgent), גבוה (high), בינוני (medium), נמוך (low)"),
       shipment_group_id: z.string().uuid().optional().describe("Filter by shipment group UUID"),
       limit: z.number().default(50).describe("Max results"),
     },
-    async ({ status, supplier_id, supplier_name, priority, shipment_group_id, limit }) => {
+    async ({ status, supplier_id, supplier_name, order_number, priority, shipment_group_id, limit }) => {
       let query = supabase
         .from("orders")
         .select("*")
@@ -36,6 +37,7 @@ export function registerOrderTools(server: McpServer) {
       if (status) query = query.eq("status", status);
       if (supplier_id) query = query.eq("supplier_id", supplier_id);
       if (supplier_name) query = query.ilike("supplier_name", `%${supplier_name}%`);
+      if (order_number) query = query.ilike("order_number", `%${order_number}%`);
       if (priority) query = query.eq("priority", priority);
       if (shipment_group_id) query = query.eq("shipment_group_id", shipment_group_id);
 
@@ -107,7 +109,7 @@ export function registerOrderTools(server: McpServer) {
 
   server.tool(
     "create_order",
-    "יצירת הזמנה חדשה — Create a new order",
+    "יצירת הזמנה חדשה — Create a new order. The internal order number (order_number, CO-YYYY-NNNN) is assigned automatically by the database and comes back in the response — never pass or invent one.",
     {
       supplier_id: z.string().uuid().optional().describe("Supplier UUID"),
       supplier_name: z.string().optional().describe("Supplier name (auto-filled from supplier_id if omitted)"),
@@ -134,6 +136,7 @@ export function registerOrderTools(server: McpServer) {
         qty: z.number().describe("Quantity"),
         product_id: z.string().uuid().optional().describe("Product UUID"),
         price: z.number().optional().describe("Unit price"),
+        currency: z.string().optional().describe("Currency the unit price is quoted in (USD, EUR, ILS, …). Defaults to USD — always set it for a foreign supplier invoicing in anything else"),
       })).optional().describe("Order line items"),
     },
     async ({ supplier_id, supplier_name, status, priority, order_date, total_price, contact_name,
@@ -182,6 +185,7 @@ export function registerOrderTools(server: McpServer) {
           qty: item.qty,
           product_id: item.product_id || null,
           price: item.price || null,
+          currency: item.currency || "USD",
         }));
 
         const { error: itemsError } = await supabase
@@ -403,11 +407,21 @@ export function registerOrderTools(server: McpServer) {
 
   server.tool(
     "get_order_by_reference",
-    "משיכת הזמנה לפי הפניה — Find an order by PI number, tracking number, booking number, or reference string",
+    "משיכת הזמנה לפי הפניה — Find an order by Cobra order number, PI number, tracking number, booking number, or reference string",
     {
-      reference: z.string().describe("PI number, tracking number, booking number, or reference string to search for"),
+      reference: z.string().describe("Cobra order number (CO-2026-0007), PI number, tracking number, booking number, or reference string to search for"),
     },
     async ({ reference }) => {
+      // Strategy 0: exact match on the internal Cobra order number (CO-YYYY-NNNN)
+      const { data: byOrderNumber } = await supabase
+        .from("orders")
+        .select("*")
+        .ilike("order_number", reference);
+
+      if (byOrderNumber && byOrderNumber.length > 0) {
+        return { content: [{ type: "text" as const, text: JSON.stringify(byOrderNumber, null, 2) }] };
+      }
+
       // Strategy 1: exact match on pi_number
       const { data: byPi } = await supabase
         .from("orders")

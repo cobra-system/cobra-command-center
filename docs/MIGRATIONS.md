@@ -3,7 +3,7 @@
 ## Overview
 This project uses PostgreSQL migrations managed through Supabase. All migration files are stored in `supabase/migrations/`.
 
-**Total migrations: 141** (last: `20260607000001_add_delivery_status_to_order_requests.sql`)
+**Total migrations: 153** (last: `20260824000001_link_swift_documents_to_order_payments.sql`)
 
 ## How to Apply Migrations
 
@@ -99,4 +99,4 @@ GitHub Actions automatically:
 
 ## References
 - [Supabase Migrations Documentation](https://supabase.com/docs/guides/database/managing-migrations)
-- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
+- [PostgreSQL Documentation](https://www.postgresql.org/docs/)

@@ -88,6 +88,15 @@ export default function OrderDetailPage() {
 
   if (!order) return <div className="p-8 text-center text-muted-foreground">הזמנה לא נמצאה</div>;
 
+  // Go back where the user actually came from (orders table with its tab, filters
+  // and scroll, a supplier or product page…). Only when this page was opened
+  // directly — a deep link or a refresh — fall back to the active orders tab.
+  const goBack = () => {
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+    if (idx > 0) navigate(-1);
+    else navigate("/orders?tab=table");
+  };
+
   const handleDelete = async () => {
     await deleteOrder(order.id);
     toast.success("ההזמנה נמחקה");
@@ -250,6 +259,7 @@ export default function OrderDetailPage() {
   };
 
   const allDetails: { label: string; field: string; value: string | number | null | undefined; options?: { value: string; label: string }[]; isDate?: boolean; isSupplierLink?: boolean; icon?: any; isReadOnly?: boolean; priceGated?: boolean; managerOnly?: boolean }[] = [
+    { label: "מספר הזמנה", field: "order_number", value: order.order_number, icon: Hash, isReadOnly: true },
     { label: "סטטוס", field: "status", value: order.status, options: statusOptions, icon: Check },
     { label: "עדיפות", field: "priority", value: order.priority, options: priorityOptions, icon: Hash },
     { label: "ספק", field: "supplier_id", value: order.supplier_id, options: supplierOptions, isSupplierLink: true, icon: Truck },
@@ -279,11 +289,16 @@ export default function OrderDetailPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3 flex-wrap">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/orders")} className="shrink-0">
+        <Button variant="ghost" size="icon" onClick={goBack} className="shrink-0">
           <ArrowRight className="h-5 w-5" />
         </Button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold text-foreground">תיק הזמנה</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-bold text-foreground">תיק הזמנה</h1>
+            {order.order_number && (
+              <span className="font-mono text-sm px-2 py-0.5 rounded-md bg-muted text-muted-foreground">{order.order_number}</span>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground line-clamp-2">
             {visibleItems.map((i, idx) => {
               const linkedProduct = i.product_id ? products.find(p => p.id === i.product_id) : products.find(p => p.name === i.name);
@@ -459,6 +474,7 @@ export default function OrderDetailPage() {
           <thead>
             <tr className="border-b bg-muted/50">
               <th className="text-right p-3 font-semibold text-foreground">מוצר</th>
+              <th className="text-right p-3 font-semibold text-foreground">מק״ט</th>
               <th className="text-right p-3 font-semibold text-foreground">כמות</th>
               {showPrices && <th className="text-right p-3 font-semibold text-foreground">מחיר יחידה</th>}
               {showPrices && <th className="text-right p-3 font-semibold text-foreground">סה״כ</th>}
@@ -473,6 +489,7 @@ export default function OrderDetailPage() {
                   <td className="p-3 font-medium text-foreground">
                     {linkedProduct ? <span className="text-primary hover:underline">{item.name}</span> : item.name}
                   </td>
+                  <td className="p-3 text-muted-foreground font-mono text-xs">{linkedProduct?.sku || "—"}</td>
                   <td className="p-3 text-muted-foreground">{item.qty}</td>
                   {showPrices && <td className="p-3 text-muted-foreground">{item.price ? formatPrice(item.price) : "—"}</td>}
                   {showPrices && <td className="p-3 text-muted-foreground">{item.price ? formatPrice(item.price * item.qty) : "—"}</td>}
@@ -497,7 +514,7 @@ export default function OrderDetailPage() {
 
       {/* Payment Schedule — pricing is hidden from division managers */}
       {showPrices && (
-        <OrderPaymentsSection orderId={order.id} orderTotal={order.total_price} hasEdit={hasEdit} />
+        <OrderPaymentsSection orderId={order.id} orderTotal={order.total_price} hasEdit={hasEdit} supplierId={order.supplier_id} orderPiNumber={order.pi_number} />
       )}
 
       {/* Documents */}

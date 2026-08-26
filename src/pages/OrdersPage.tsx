@@ -22,6 +22,7 @@ import { OrderTable, type SortField, type SortDir } from "@/components/orders/Or
 import { OrderRequestsTab } from "@/components/orders/OrderRequestsTab";
 import { useAuth } from "@/contexts/AppContext";
 import { canSeePrices, isDivisionManager } from "@/lib/permissions";
+import { isOrderActive, isOrderClosed } from "@/lib/orderStatus";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -77,18 +78,22 @@ export default function OrdersPage() {
   });
 
   // Honour ?focus=<orderId> by setting the search filter to the order id
-  // (table search matches order id) so the user lands on that single row.
+  // (table search matches order id) so the user lands on that single row, on the
+  // tab that actually holds it — a delivered/cancelled order lives in the archive.
   useEffect(() => {
     const focus = searchParams.get("focus");
-    if (focus) {
-      setSearchParams(prev => {
-        const next = new URLSearchParams(prev);
-        next.delete("focus");
-        next.set("q", focus);
-        return next;
-      }, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
+    if (!focus) return;
+    // Wait for the orders to load before deciding which tab holds this one.
+    if (orders.length === 0) return;
+    const target = orders.find(o => o.id === focus);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.delete("focus");
+      next.set("q", focus);
+      next.set("tab", target && isOrderClosed(target.status) ? "archive" : "table");
+      return next;
+    }, { replace: true });
+  }, [searchParams, setSearchParams, orders]);
 
   // Handle create-from-URL params (one-time, not persisted as filter state)
   useEffect(() => {
@@ -129,6 +134,16 @@ export default function OrdersPage() {
   const setCarrierFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("carrier"); } else { n.set("carrier", v); } return n; }, { replace: true }), [setSearchParams]);
   const setTrackingStateFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("tracking_state"); } else { n.set("tracking_state", v); } return n; }, { replace: true }), [setSearchParams]);
   const setOriginFilter = useCallback((v: string) => setSearchParams(prev => { const n = new URLSearchParams(prev); if (v === "all") { n.delete("origin"); } else { n.set("origin", v); } return n; }, { replace: true }), [setSearchParams]);
+
+  // The open tab is URL state too, so coming back from an order detail (or a
+  // shared link) lands on the tab you were on instead of the default dashboard.
+  const defaultTab = isDivMgr ? "order-requests" : "dashboard";
+  const activeTab = searchParams.get("tab") || defaultTab;
+  const setActiveTab = useCallback((v: string) => setSearchParams(prev => {
+    const n = new URLSearchParams(prev);
+    if (v === defaultTab) { n.delete("tab"); } else { n.set("tab", v); }
+    return n;
+  }, { replace: true }), [setSearchParams, defaultTab]);
 
   // Map each order to "local" (Israeli supplier) or "import" (foreign supplier)
   // by resolving the supplier's country. "ישראל" → local, any other country →
@@ -172,10 +187,11 @@ export default function OrdersPage() {
     const q = search.toLowerCase();
     return orders
       .filter(o => {
-        if (o.status !== "ARRIVED" && o.status !== "CANCELLED") return false;
+        if (isOrderActive(o.status)) return false;
         if (q) {
           const searchable = [
             o.id,
+            o.order_number,
             scopeOrderItems(o.items).map(i => i.name).join(" "),
             o.supplier_name,
             o.pi_number,
@@ -194,7 +210,7 @@ export default function OrdersPage() {
 
   const filtered = useMemo(() => {
     let result = orders.filter(o => {
-      if (o.status === "ARRIVED" || o.status === "CANCELLED") return false;
+      if (isOrderClosed(o.status)) return false;
       if (statusFilter !== "all" && o.status !== statusFilter) return false;
       if (priorityFilter !== "all" && o.priority !== priorityFilter) return false;
       if (originFilter !== "all" && orderOrigin(o) !== originFilter) return false;
@@ -221,6 +237,7 @@ export default function OrdersPage() {
         // string avoids leaking note contents via search (value oracle).
         const searchable = [
           o.id,
+          o.order_number,
           scopeOrderItems(o.items).map(i => i.name).join(" "),
           o.supplier_name,
           o.pi_number,
@@ -257,6 +274,7 @@ export default function OrdersPage() {
           case "tracking_number": cmp = (a.tracking_number || "").localeCompare(b.tracking_number || "", "he"); break;
           case "tracking_carrier": cmp = (a.tracking_carrier || "zz").localeCompare(b.tracking_carrier || "zz", "he"); break;
           case "pi_number": cmp = (a.pi_number || "").localeCompare(b.pi_number || "", "he"); break;
+          case "order_number": cmp = (a.order_number || "").localeCompare(b.order_number || "", "en"); break;
           case "updated_at": {
             const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
             const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
@@ -282,12 +300,22 @@ export default function OrdersPage() {
   const orderCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     orders.forEach(o => {
-      if (o.status !== "ARRIVED" && o.status !== "CANCELLED") {
+      if (isOrderActive(o.status)) {
         counts[o.status] = (counts[o.status] || 0) + 1;
       }
     });
     return counts;
   }, [orders]);
+
+  // Moving an order to a closed status (נמסר / הגיע / בוטל) drops it out of the
+  // active table — say where it went so the row doesn't just vanish.
+  const handleStatusChange = useCallback(async (orderId: string, status: OrderStatus) => {
+    const wasActive = isOrderActive(orders.find(o => o.id === orderId)?.status);
+    await updateOrderStatus(orderId, status);
+    if (wasActive && isOrderClosed(status)) {
+      toast.info("ההזמנה הועברה לארכיון ההזמנות");
+    }
+  }, [orders, updateOrderStatus]);
 
   const navigateToSupplier = (supplierName: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -359,7 +387,7 @@ export default function OrdersPage() {
         onShowFailed={() => setTrackingStateFilter("error")}
       />
 
-      <Tabs defaultValue={isDivMgr ? "order-requests" : "dashboard"} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-1 flex-1" dir="rtl">
             <TabsList className="w-max min-w-full">
@@ -381,7 +409,7 @@ export default function OrdersPage() {
           <div className="relative w-full sm:w-64 shrink-0">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
-              placeholder="חיפוש לפי מוצר או ספק..."
+              placeholder="חיפוש לפי מספר הזמנה, מוצר או ספק..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="pr-9 pl-8"
@@ -431,7 +459,7 @@ export default function OrdersPage() {
             navigateToProduct={navigateToProduct}
             handleDeleteOrder={handleDeleteOrder}
             handleDuplicateOrder={handleDuplicateOrder}
-            updateOrderStatus={updateOrderStatus}
+            updateOrderStatus={handleStatusChange}
             updateOrder={updateOrder}
             selection={hasEdit ? selection : undefined}
             hidePrices={hidePrices}
@@ -460,7 +488,7 @@ export default function OrdersPage() {
             navigateToProduct={navigateToProduct}
             handleDeleteOrder={handleDeleteOrder}
             handleDuplicateOrder={handleDuplicateOrder}
-            updateOrderStatus={updateOrderStatus}
+            updateOrderStatus={handleStatusChange}
             updateOrder={updateOrder}
           />
         </TabsContent>

@@ -32,9 +32,9 @@ export function registerSearchTools(server: McpServer) {
       if (searchModules.includes("orders")) {
         promises.push(
           supabase.from("orders")
-            .select("id, supplier_name, status, notes, priority")
+            .select("id, order_number, supplier_name, status, notes, priority")
             .is("deleted_at", null)
-            .or(`supplier_name.ilike.%${query}%,notes.ilike.%${query}%`)
+            .or(`order_number.ilike.%${query}%,supplier_name.ilike.%${query}%,notes.ilike.%${query}%`)
             .limit(limit)
             .then(({ data }) => { results.orders = data || []; })
         );

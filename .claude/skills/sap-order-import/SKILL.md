@@ -70,7 +70,13 @@ Before anything else, check whether this PO is already in the system:
 
 ## 4. Match each line item to a product
 
-For every `items[]` entry, resolve `product_id`:
+**`9999` (and `999` / `99999`) is SAP's generic item code** — it is written on lines
+that have no catalogue item, and the whole item lives in the description. Never
+resolve such a line by its code: leave `product_id` unset and keep the description
+as the line name (only bind a product if the *description* itself is a known SKU or
+an exact product name). Say so in the preview rather than flagging it as "unmatched".
+
+For every other `items[]` entry, resolve `product_id`:
 
 1. `get_product_by_sku` with `items[].code` (SAP item code often equals the SKU).
 2. If not found, `search_products` by code / `sap_code` / description.
@@ -101,7 +107,7 @@ Only after approval, call `create_order`:
 | `total_price` | `subtotal` (goods value, pre-VAT) |
 | `status` | `ORDERED` (the PO is already issued in SAP) |
 | `priority` | `בינוני` unless the user says otherwise |
-| `notes` | compose: parsed `notes` + `agent` + payment terms + VAT/total summary |
+| `notes` | compose: parsed `notes` (the document's free-text comment) + `agent` + payment terms + VAT/total summary + the line descriptions (they are the only record of a generic `9999` line) |
 | `items[]` | `{ product_id?, name: description, qty, price: unit_price }` per line |
 
 Report the created order's id and a one-line summary. If any item was unmatched,

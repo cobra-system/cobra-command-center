@@ -13,12 +13,48 @@
 ## [Unreleased]
 
 ### Added
+- **SWIFT מולא אוטומטית מהמסמך** — העלאת אישור SWIFT כבר לא רק מצרפת קובץ: המערכת קוראת אותו וממלאת את התשלום. מתוך שורת תשלום — הסכום מושווה לשורה, והתשלום מסומן כשולם בתאריך הערך עם האסמכתא של הבנק; מתוך דיאלוג הוספת תשלום — הסכום, המטבע והאסמכתא נכנסים לטופס והתשלום נשמר כשולם. הסיכומים (שולם / יתרה) מתעדכנים מאליהם.
+  - `src/lib/swiftImport/parseSwift.ts` — קורא גם הודעת MT103 גולמית לפי תגיות התקן (`:20:`, `:32A:`, `:59:`, `:70:`) וגם אישור העברה של בנק בעברית או באנגלית לפי תוויות, כולל מספר ה-PI שמופיע בפרטי ההעברה.
+  - `src/lib/swiftImport/matchPayment.ts` — התאמת ההעברה לתשלום הנכון לפי סכום ומטבע, עם סובלנות של 2% לעמלות בנק והעדפה לתשלום שעדיין ממתין. אם ההעברה לא מתאימה לשורה שעליה הועלתה — המערכת אומרת זאת, מציעה את התשלום הנכון, ולא מסמנת כלום מעצמה.
+  - `src/lib/swiftImport/findOrder.ts` — הבנק מדפיס בשדה פרטי ההעברה (`:70:`) את מספר החשבונית של הספק, שהוא אותו מספר ששמור על ההזמנה כ-`pi_number`. לכן העלאת SWIFT על ההזמנה הלא נכונה נתפסת: המערכת אומרת לאיזו חשבונית ההעברה מפנה, מציעה קישור להזמנה הנכונה, ולא מסמנת שום תשלום כשולם.
+  - סריקה או צילום מסך של SWIFT מזוהים ככאלה: הקובץ נשמר, השדות לא מולאו, והמשתמש מופנה לקרוא אותו בצ׳אט (הסקיל `foreign-order-import` מכסה את המסלול הזה).
+- **Projects module** (`/projects`): lightweight project & task tracking accessible from the sidebar. Project cards show status, priority, progress bar and due date with search + status filtering. Each project has a detail page (`/projects/:id`) with a simple three-column task board (לביצוע / בביצוע / הושלם) supporting add, status advancement and delete. Backed by new `projects` and `project_tasks` tables with authenticated RLS.
+- **העלאת אישורי SWIFT מתוך תזמון התשלומים** — כל שורת תשלום בהזמנה קיבלה עמודת "מסמך SWIFT": אפשר להעלות (או לגרור) את אישור ההעברה ישירות מהשורה, והוא נשמר אוטומטית במודול המסמכים ומקושר לאותו תשלום.
+  - מיגרציה `20260824000001_link_swift_documents_to_order_payments.sql` — `purchase_documents.order_payment_id` (FK ל-`order_payments`) + התאמת ה-CHECK על `type` למצב בפועל (`PI`/`PO`/`כללי`).
+  - `src/lib/swiftDocuments.ts` — לוגיקה משותפת להעלאת SWIFT (storage + רשומת מסמך, כולל rollback לקובץ אם השמירה נכשלה) ולשמות ברירת מחדל ("SWIFT מקדמה 70,000 USD").
+  - דיאלוג הוספת/עריכת תשלום מאפשר לצרף קובץ SWIFT יחד עם התשלום; מסמכי SWIFT של ההזמנה שאינם משויכים מוצגים מתחת לטבלה וניתן לשייכם לתשלום.
+  - מודול המסמכים: תיקיה חכמה "אישורי SWIFT", תג תת-סוג בטבלאות המסמכים, ואפשרות לבחור "SWIFT — אישור העברה בנקאית" בדיאלוג ההעלאה (כולל שיוך לתשלום של ההזמנה).
+  - כלי MCP חדשים: `upload_swift_document` (העלאת קובץ SWIFT מהדיסק, שיוך לתשלום, עדכון אסמכתא/סימון כשולם) ו-`link_swift_document_to_payment`; `list_order_payments` מחזיר כעת גם את מסמכי ה-SWIFT לכל תשלום.
+- **מספר הזמנה (order number) on every order** — each order now carries an internal `CO-YYYY-NNNN` number, assigned by the database on insert and unique across the system. Until now an order had no number of its own: SAP orders carried `sap_doc_entry`, foreign orders the supplier's `pi_number`, and manually created orders nothing at all.
+  - `orders.order_number` + `order_number_counters` (one row per year, bumped atomically) + `next_order_number()` / `set_order_number()` trigger. Existing orders are backfilled per year in creation order.
+  - Shown as the first column of the orders table (hideable like any column), on the order card in mobile view, and in the order-detail header; searchable from the orders search box; sortable.
+  - MCP: `list_orders` filters by `order_number`, `get_order_by_reference` resolves it, and global `search` matches it.
+- **Foreign supplier order import (Cowork)** — upload whatever an overseas supplier sent (proforma invoice, order confirmation, sales contract, quotation) as a text PDF, a scan, a photo, an Excel sheet or plain text, and it is read, matched to the live supplier and products, previewed, and — after approval — created as an order.
+  - `scripts/foreign-po/extract_doc.py` — template-free extractor: text/scan/spreadsheet readers, page rendering for a visual read, multilingual field candidates (document number, dates, currency, incoterm, payment terms, bank details, totals) and line items recovered by reconciling qty × unit price against the line amount, which also resolves `1.234,56` vs `1,234.56`.
+  - `.claude/skills/foreign-order-import/` — Skill running extract → read → normalise → match → preview → confirm → `create_order`, with a duplicate-import guard and rules for telling an order apart from a quotation or a packing list.
+- **ייבוא מקובץ קורא גם מסמכים מספקים בחו״ל שאינם בתבנית קבועה** — `src/lib/orderImport/foreignDoc.ts`: PDF שאינו הזמנת SAP נקרא עכשיו בקורא כללי — שורות פריטים משוחזרות לפי `כמות × מחיר = סכום` (מה שגם מכריע אם `1.234,56` הוא 1234.56), ומספר מסמך/תאריכים/מטבע/אינקוטרמס/תנאי תשלום/סה״כ מזוהים בתוויות רב-לשוניות. גיליון בלי שורת כותרות מזוהה נופל לאותו מנגנון, ומספרים בפורמט אירופי נקראים נכון. סריקה, צילום או PDF בלי שכבת טקסט מזוהים ככאלה והמשתמש מופנה לקרוא אותם בצ׳אט במקום לקבל תוצאה שגויה בשקט.
+- **ייבוא הזמנה מקובץ ישירות מהאתר** — בטופס "הזמנה חדשה" נוסף "ייבוא מקובץ (SAP / הזמנה מחו״ל)": מעלים הזמנת רכש מ-SAP (PDF) או קובץ הזמנה/PI מספק בחו״ל (Excel/CSV), הקובץ מנותח בדפדפן, הספק והפריטים מותאמים למידע החי, ומוצגת תצוגה מקדימה עם אזהרות לפני טעינה לטופס.
+  - `src/lib/orderImport/` — ניתוח SAP PDF (פורט דפדפן של `scripts/sap-po/extract_po.py` מעל pdfjs), ניתוח Excel/CSV עם זיהוי שורת כותרות בעברית/אנגלית, והתאמת ספק/מוצרים (קוד SAP → מק״ט → שם; התאמה דו-משמעית נחשבת "לא זוהה" ולא מנחשת).
+  - `src/components/orders/OrderFileImportDialog.tsx` — דיאלוג העלאה + תצוגה מקדימה; הכל נשאר לעריכה בטופס, שום דבר לא נשמר עד "צור הזמנה".
+  - הזמנה שיובאה מ-SAP נוצרת בסטטוס "הוזמן" עם `sap_doc_entry`, והקובץ המקורי נשמר אוטומטית במסמכי ההזמנה (`purchase_documents`).
+  - מספר ההזמנה, ההערה החופשית שבמסמך, תנאי התשלום ופירוט השורות נכנסים אוטומטית להערות ההזמנה; תאריך האספקה שבמסמך ממלא את ה-ETA.
+  - **מק״ט כללי (9999)** — שורות עם קוד הפריט הכללי של SAP לעולם לא משויכות למוצר לפי הקוד; הן נכנסות כשורה חופשית שהתיאור שבה הוא הפריט (אלא אם התיאור עצמו הוא מק״ט מוכר).
+- **שורת פריט חופשית בטופס ההזמנה** — לכל שורה יש עכשיו מצב "חופשי" לצד "מוצר"/"רכיב", לכתיבת פריט שעדיין לא קיים בקטלוג. גם מתוך בורר המוצרים אפשר לבחור "פריט חדש (טקסט חופשי)" ולשמור את מה שהוקלד במקום להיאלץ לבחור מוצר קיים.
 - **SAP purchase-order import (Cowork)** — upload a SAP purchase-order PDF and it is parsed, matched to the live supplier and products, previewed, and (after approval) created as an order.
   - `scripts/sap-po/extract_po.py` — parser that turns the Hebrew RTL SAP PO PDF into structured JSON (PO number, supplier + VAT, line items with code/qty/price, totals), with arithmetic validation warnings.
   - `.claude/skills/sap-order-import/` — Skill that runs the full parse → match → preview → confirm → `create_order` flow, including duplicate-import guard via `get_order_by_reference`.
 
+### Fixed
+- **חזרה מתיק הזמנה חוזרת לטאב שממנו הגעת** — הטאב הפעיל בעמוד הרכש נשמר ב-URL (`?tab=table`), וכפתור החזרה בתיק ההזמנה חוזר בהיסטוריה במקום לנווט מחדש ל-`/orders`. כך חוזרים ל"הזמנות פעילות" עם החיפוש והסינון ששימשו, ולא ללוח הבקרה. קישור `?focus=<orderId>` נוחת בטאב שמכיל את ההזמנה (ארכיון עבור הזמנה שנמסרה/בוטלה).
+
+### Fixed
+- **CI המיגרציות דיווח הצלחה בלי להריץ כלום** — `supabase-migration.yml` פתר כתובת IPv4 עבור `db.<ref>.supabase.co`, אבל המארח הזה הוא IPv6 בלבד ולראנרים של GitHub אין IPv6. התוצאה הייתה מחרוזת חיבור ריקה, psql שנפל לסוקט מקומי שלא קיים, וכל שגיאה נבלעה ב-`|| true` — כלומר ריצה ירוקה שלא החילה שום מיגרציה, לאורך חודשים. עכשיו החיבור נעשה דרך ה-Session pooler (סוד `SUPABASE_DB_URL`), נכשלות נכשלת במפורש, ו-`ON_ERROR_STOP=1` מדווח בדיוק איזו מיגרציה לא עברה.
+
 ### Changed
+- `create_order` MCP tool now accepts a per-item `currency`, so a supplier invoicing in EUR is no longer stored as USD; the new-order dialog offers € alongside $ and ₪.
+- **הזמנה בסטטוס "נמסר" יוצאת מההזמנות הפעילות** — `DELIVERED` נחשב סטטוס סגור (כמו `ARRIVED`/`CANCELLED`): ההזמנה עוברת לטאב "ארכיון הזמנות", ואינה נספרת ב"הזמנות פעילות" בדשבורד, בדוחות, בגרף הסטטוסים ובישיבת הרכש. הלוגיקה רוכזה ב-`src/lib/orderStatus.ts`.
 - `create_order` MCP tool now accepts `sap_doc_entry` (the SAP purchase-order document number, the SAP anchor resolvable via `get_order_by_reference`) and `division`.
+- **רכש — wide tables stay usable** — the orders table and the purchase-requests table now scroll inside a viewport-height box (`TableScrollArea`) with a sticky header, so the horizontal scrollbar is reachable from the top of the page instead of only after scrolling past the last row, and the column headers stay visible while scrolling rows.
 
 ## [2026-07-29]
 

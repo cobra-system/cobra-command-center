@@ -427,6 +427,65 @@ export type Database = {
           },
         ]
       }
+      order_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          deleted_at: string | null
+          due_date: string | null
+          id: string
+          notes: string | null
+          order_id: string
+          paid_date: string | null
+          payment_type: string
+          percentage: number | null
+          status: string
+          swift_reference: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          deleted_at?: string | null
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          order_id: string
+          paid_date?: string | null
+          payment_type: string
+          percentage?: number | null
+          status?: string
+          swift_reference?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          deleted_at?: string | null
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string
+          paid_date?: string | null
+          payment_type?: string
+          percentage?: number | null
+          status?: string
+          swift_reference?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           contact_name: string | null
@@ -439,6 +498,15 @@ export type Database = {
           notes: string | null
           order_date: string | null
           order_image: string | null
+          order_number: string | null
+          deleted_at: string | null
+          division: string | null
+          pi_number: string | null
+          shipment_group_id: string | null
+          tracking_number: string | null
+          booking_number: string | null
+          tclog_reference: string | null
+          vessel_name: string | null
           payment_date: string | null
           payment_status: string
           priority: string
@@ -461,6 +529,15 @@ export type Database = {
           notes?: string | null
           order_date?: string | null
           order_image?: string | null
+          order_number?: string | null
+          deleted_at?: string | null
+          division?: string | null
+          pi_number?: string | null
+          shipment_group_id?: string | null
+          tracking_number?: string | null
+          booking_number?: string | null
+          tclog_reference?: string | null
+          vessel_name?: string | null
           payment_date?: string | null
           payment_status?: string
           priority?: string
@@ -483,6 +560,15 @@ export type Database = {
           notes?: string | null
           order_date?: string | null
           order_image?: string | null
+          order_number?: string | null
+          deleted_at?: string | null
+          division?: string | null
+          pi_number?: string | null
+          shipment_group_id?: string | null
+          tracking_number?: string | null
+          booking_number?: string | null
+          tclog_reference?: string | null
+          vessel_name?: string | null
           payment_date?: string | null
           payment_status?: string
           priority?: string
@@ -728,6 +814,86 @@ export type Database = {
         }
         Relationships: []
       }
+      projects: {
+        Row: {
+          color: string
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          name: string
+          priority: string
+          sort_order: number
+          start_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          name: string
+          priority?: string
+          sort_order?: number
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          name?: string
+          priority?: string
+          sort_order?: number
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      project_tasks: {
+        Row: {
+          created_at: string
+          due_date: string | null
+          id: string
+          project_id: string
+          sort_order: number
+          status: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          project_id: string
+          sort_order?: number
+          status?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          project_id?: string
+          sort_order?: number
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchase_documents: {
         Row: {
           approval_date: string | null
@@ -744,6 +910,7 @@ export type Database = {
           is_starred: boolean
           notes: string | null
           order_id: string | null
+          order_payment_id: string | null
           product_id: string | null
           quantity: number
           status: string
@@ -768,6 +935,7 @@ export type Database = {
           is_starred?: boolean
           notes?: string | null
           order_id?: string | null
+          order_payment_id?: string | null
           product_id?: string | null
           quantity?: number
           status?: string
@@ -792,6 +960,7 @@ export type Database = {
           is_starred?: boolean
           notes?: string | null
           order_id?: string | null
+          order_payment_id?: string | null
           product_id?: string | null
           quantity?: number
           status?: string
@@ -814,6 +983,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_documents_order_payment_id_fkey"
+            columns: ["order_payment_id"]
+            isOneToOne: false
+            referencedRelation: "order_payments"
             referencedColumns: ["id"]
           },
           {

@@ -252,8 +252,7 @@ export default function ProcurementMeetingTab() {
         .from("orders")
         .select("*")
         .in("id", allOrderIds)
-        .not("status", "eq", "CANCELLED")
-        .not("status", "eq", "ARRIVED"),
+        .not("status", "in", '("ARRIVED","DELIVERED","CANCELLED")'),
       supabase
         .from("procurement_meeting_orders")
         .select("order_id")

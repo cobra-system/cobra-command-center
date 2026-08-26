@@ -29,3 +29,7 @@ vite.config.ts.timestamp-*
 *.njsproj
 *.sln
 *.sw?
+
+# Python
+__pycache__/
+*.pyc

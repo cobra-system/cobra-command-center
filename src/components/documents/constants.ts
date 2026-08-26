@@ -24,3 +24,26 @@ export const paymentTypeLabels: Record<string, string> = {
   Deposit: "מקדמה",
   Balance: "יתרה",
 };
+
+/** Labels for purchase_documents.document_subtype (see the add_document_subtype migration). */
+export const docSubtypeLabels: Record<string, string> = {
+  PI: "PI",
+  PO: "PO",
+  SWIFT: "SWIFT",
+  BL: "שטר מטען",
+  PACKING_LIST: "רשימת אריזה",
+  INVOICE: "חשבונית",
+  COA: "תעודת איכות",
+  CUSTOMS: "מכס",
+  OTHER: "אחר",
+};
+
+export const docSubtypeColors: Record<string, string> = {
+  SWIFT: "bg-success/15 text-success",
+  BL: "bg-accent/15 text-accent",
+  PACKING_LIST: "bg-muted text-muted-foreground",
+  INVOICE: "bg-primary/15 text-primary",
+  COA: "bg-warning/15 text-warning",
+  CUSTOMS: "bg-warning/15 text-warning",
+  OTHER: "bg-muted text-muted-foreground",
+};

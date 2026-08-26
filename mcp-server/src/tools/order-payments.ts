@@ -1,6 +1,21 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { supabase } from "../supabase.js";
+import { readFile } from "node:fs/promises";
+import { basename, extname } from "node:path";
+
+const SWIFT_MIME: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xls": "application/vnd.ms-excel",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+};
+
+const PAYMENT_TYPE_HE: Record<string, string> = { Deposit: "מקדמה", Balance: "יתרה", Full: "מלא" };
 
 export function registerOrderPaymentTools(server: McpServer) {
   server.tool(
@@ -49,14 +64,23 @@ export function registerOrderPaymentTools(server: McpServer) {
       order_id: z.string().uuid().describe("Order UUID"),
     },
     async ({ order_id }) => {
-      const [orderRes, paymentsRes] = await Promise.all([
+      const [orderRes, paymentsRes, docsRes] = await Promise.all([
         supabase.from("orders").select("id, supplier_name, total_price, pi_number").eq("id", order_id).single(),
         supabase.from("order_payments").select("*").eq("order_id", order_id).order("created_at", { ascending: true }),
+        supabase
+          .from("purchase_documents")
+          .select("id, document_name, file_url, order_payment_id, created_at")
+          .eq("order_id", order_id)
+          .eq("document_subtype", "SWIFT"),
       ]);
 
       if (orderRes.error) return { content: [{ type: "text" as const, text: `Error fetching order: ${orderRes.error.message}` }] };
 
-      const payments = paymentsRes.data || [];
+      const swiftDocs = (docsRes.data || []) as Record<string, unknown>[];
+      const payments = ((paymentsRes.data || []) as Record<string, unknown>[]).map((p) => ({
+        ...p,
+        swift_documents: swiftDocs.filter((d) => d.order_payment_id === p.id),
+      }));
       const totalPaid = payments
         .filter((p: Record<string, unknown>) => p.status === "שולם" || p.paid_date)
         .reduce((sum: number, p: Record<string, unknown>) => sum + (Number(p.amount) || 0), 0);
@@ -67,6 +91,7 @@ export function registerOrderPaymentTools(server: McpServer) {
       const result = {
         order: orderRes.data,
         payment_schedule: payments,
+        unlinked_swift_documents: swiftDocs.filter((d) => !d.order_payment_id),
         summary: {
           total_installments: payments.length,
           total_paid: totalPaid,
@@ -284,6 +309,131 @@ export function registerOrderPaymentTools(server: McpServer) {
       }
 
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+    }
+  );
+  server.tool(
+    "upload_swift_document",
+    "העלאת אישור SWIFT — Upload a SWIFT/wire-transfer confirmation file and attach it to an order payment installment (it appears in the documents module and on the order's payment schedule)",
+    {
+      file_path: z.string().describe("Absolute path to the SWIFT file on the local filesystem (PDF, image or Office file)"),
+      order_payment_id: z.string().uuid().optional().describe("Payment installment the SWIFT settles. Omit to attach the SWIFT to the order only (it then shows as unlinked on the payment schedule)."),
+      order_id: z.string().uuid().optional().describe("Order UUID — required when order_payment_id is not given; otherwise taken from the installment"),
+      document_name: z.string().optional().describe("Display name. Defaults to 'SWIFT <type> <amount> <currency>' from the installment, or the filename."),
+      swift_reference: z.string().optional().describe("SWIFT reference from the bank — also written to the installment's swift_reference"),
+      mark_paid: z.boolean().default(false).describe("Also mark the installment as paid (status=שולם, paid_date=today if not already set)"),
+    },
+    async ({ file_path, order_payment_id, order_id, document_name, swift_reference, mark_paid }) => {
+      // 1. Resolve the installment (and the order it belongs to)
+      let payment: Record<string, unknown> | null = null;
+      if (order_payment_id) {
+        const { data, error } = await supabase.from("order_payments").select("*").eq("id", order_payment_id).single();
+        if (error) return { content: [{ type: "text" as const, text: `Error fetching payment: ${error.message}` }] };
+        payment = data as Record<string, unknown>;
+        order_id = payment.order_id as string;
+      }
+      if (!order_id) {
+        return { content: [{ type: "text" as const, text: "Error: order_id is required when order_payment_id is not provided" }] };
+      }
+
+      // 2. Read the file
+      let fileBuffer: Buffer;
+      try {
+        fileBuffer = await readFile(file_path);
+      } catch (err) {
+        return { content: [{ type: "text" as const, text: `Error reading file at "${file_path}": ${(err as Error).message}` }] };
+      }
+
+      // 3. Upload to the documents bucket, mirroring the UI's swift/<order>/ layout
+      const originalName = basename(file_path);
+      const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, "_").replace(/_{2,}/g, "_");
+      const storagePath = `swift/${order_id}/${Date.now()}_${safeName}`;
+      const contentType = SWIFT_MIME[extname(originalName).toLowerCase()] ?? "application/octet-stream";
+
+      const { error: uploadError } = await supabase.storage
+        .from("documents")
+        .upload(storagePath, fileBuffer, { contentType, upsert: false });
+      if (uploadError) return { content: [{ type: "text" as const, text: `Error uploading to storage: ${uploadError.message}` }] };
+
+      const { data: urlData } = supabase.storage.from("documents").getPublicUrl(storagePath);
+
+      // 4. Default name from the installment: "SWIFT מקדמה 70,000 USD"
+      let defaultName = originalName.replace(/\.[^/.]+$/, "");
+      if (payment) {
+        const typeLabel = PAYMENT_TYPE_HE[payment.payment_type as string] || (payment.payment_type as string);
+        const amount = payment.amount ? ` ${Number(payment.amount).toLocaleString("en-US")} ${payment.currency || ""}`.trimEnd() : "";
+        defaultName = `SWIFT ${typeLabel}${amount}`;
+      }
+
+      // 5. Create the document row
+      const { data: doc, error } = await supabase
+        .from("purchase_documents")
+        .insert({
+          document_name: document_name ?? defaultName,
+          type: "כללי",
+          document_subtype: "SWIFT",
+          order_id,
+          order_payment_id: order_payment_id ?? null,
+          supplier_id: null,
+          document_number: swift_reference ?? (payment?.swift_reference as string) ?? null,
+          total_price: (payment?.amount as number) ?? null,
+          currency: (payment?.currency as string) ?? "USD",
+          status: "בוצע",
+          quantity: 0,
+          file_url: urlData.publicUrl,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        await supabase.storage.from("documents").remove([storagePath]);
+        return { content: [{ type: "text" as const, text: `File uploaded but DB insert failed (file removed): ${error.message}` }] };
+      }
+
+      // 6. Optionally update the installment itself
+      let updatedPayment: unknown = null;
+      if (order_payment_id && (swift_reference || mark_paid)) {
+        const updates: Record<string, unknown> = {};
+        if (swift_reference) updates.swift_reference = swift_reference;
+        if (mark_paid) {
+          updates.status = "שולם";
+          if (!payment?.paid_date) updates.paid_date = new Date().toISOString().split("T")[0];
+        }
+        const { data: updated, error: updateErr } = await supabase
+          .from("order_payments").update(updates).eq("id", order_payment_id).select().single();
+        if (updateErr) return { content: [{ type: "text" as const, text: `Document saved, but updating the payment failed: ${updateErr.message}\n${JSON.stringify(doc, null, 2)}` }] };
+        updatedPayment = updated;
+      }
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: `SWIFT document uploaded:\n${JSON.stringify({ document: doc, payment: updatedPayment }, null, 2)}`,
+        }],
+      };
+    }
+  );
+
+  server.tool(
+    "link_swift_document_to_payment",
+    "שיוך מסמך SWIFT לתשלום — Attach an existing document to a payment installment (or detach it with order_payment_id omitted)",
+    {
+      document_id: z.string().uuid().describe("Purchase document UUID"),
+      order_payment_id: z.string().uuid().optional().describe("Payment installment to attach to. Omit to detach the document from its installment."),
+      mark_as_swift: z.boolean().default(true).describe("Also set document_subtype=SWIFT on the document"),
+    },
+    async ({ document_id, order_payment_id, mark_as_swift }) => {
+      const updates: Record<string, unknown> = { order_payment_id: order_payment_id ?? null };
+      if (mark_as_swift) updates.document_subtype = "SWIFT";
+
+      const { data, error } = await supabase
+        .from("purchase_documents")
+        .update(updates)
+        .eq("id", document_id)
+        .select()
+        .single();
+
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: `Document updated:\n${JSON.stringify(data, null, 2)}` }] };
     }
   );
 }

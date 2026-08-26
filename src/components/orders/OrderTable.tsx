@@ -19,14 +19,16 @@ import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 import { detectCarrier, carrierLabel } from "@/lib/trackingCarrierDetect";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { TableScrollArea } from "@/components/ui/TableScrollArea";
 import type { TableSelectionState } from "@/hooks/useTableSelection";
 
 import { format } from "date-fns";
-export type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment" | "tracking_number" | "tracking_status" | "tracking_carrier" | "updated_at" | "pi_number";
+export type SortField = "priority" | "product" | "qty" | "supplier" | "shipping" | "status" | "order_date" | "etd" | "eta" | "total_price" | "payment" | "tracking_number" | "tracking_status" | "tracking_carrier" | "updated_at" | "pi_number" | "order_number";
 export type SortDir = "asc" | "desc" | null;
 
 // ─── Column configuration ────────────────────────────────────────────────────
 const COLUMN_DEFS: ColDef[] = [
+  { id: "order_number",    label: "מספר הזמנה",     sortField: "order_number" },
   { id: "priority",        label: "עדיפות",        sortField: "priority" },
   { id: "product",         label: "מוצר",           sortField: "product" },
   { id: "qty",             label: "כמות",           sortField: "qty" },
@@ -140,6 +142,9 @@ export function OrderTable({
               {/* Items + status */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
+                  {order.order_number && (
+                    <p className="text-xs font-mono text-muted-foreground mb-0.5">{order.order_number}</p>
+                  )}
                   <p className="font-medium text-foreground text-sm line-clamp-2">
                     {(() => {
                       const visibleItems = scopeOrderItems(order.items);
@@ -214,11 +219,16 @@ export function OrderTable({
 
       {/* ── Desktop table (hidden on mobile) ─────────────────────────────── */}
       <div className="hidden md:block">
-      <div className="bg-card rounded-xl border shadow-sm overflow-x-auto" dir="rtl">
+      {/* bottomGap leaves room for the sticky bulk-actions bar that appears under the table. */}
+      <TableScrollArea
+        className="bg-card rounded-xl border shadow-sm"
+        dir="rtl"
+        bottomGap={selection && selection.selectedCount > 0 ? 96 : 24}
+      >
         <table className="w-full text-sm min-w-[700px]">
-          <thead>
+          <thead className="sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
             <tr
-              className="border-b bg-muted/50"
+              className="border-b"
               onContextMenu={trContextMenu(hiddenCols, setColMenu)}
             >
               {selection && (
@@ -238,13 +248,17 @@ export function OrderTable({
                     className="text-right p-3 font-semibold text-foreground"
                     onContextMenu={colThContextMenu(col, setColMenu)}
                   >
-                    <button
-                      onClick={() => toggleSort(col.sortField)}
-                      className="flex items-center gap-1 hover:text-primary transition-colors"
-                    >
-                      {col.label}
-                      <SortIcon field={col.sortField} sortField={sortField} sortDir={sortDir} />
-                    </button>
+                    {col.sortField ? (
+                      <button
+                        onClick={() => toggleSort(col.sortField as SortField)}
+                        className="flex items-center gap-1 hover:text-primary transition-colors"
+                      >
+                        {col.label}
+                        <SortIcon field={col.sortField as SortField} sortField={sortField} sortDir={sortDir} />
+                      </button>
+                    ) : (
+                      col.label
+                    )}
                   </th>
                 );
               })}
@@ -302,6 +316,9 @@ export function OrderTable({
                           onCheckedChange={() => selection.toggle(order.id)}
                         />
                       </td>
+                    )}
+                    {isVisible("order_number") && (
+                      <td className="p-3 font-mono text-xs text-foreground whitespace-nowrap">{order.order_number || "—"}</td>
                     )}
                     {isVisible("priority") && (
                       <td className="p-3"><PriorityBadge priority={order.priority as Priority} /></td>
@@ -515,7 +532,7 @@ export function OrderTable({
             })}
           </tbody>
         </table>
-      </div>
+      </TableScrollArea>
       </div>{/* end hidden md:block */}
 
       {colMenu && (

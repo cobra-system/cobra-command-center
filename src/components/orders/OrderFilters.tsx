@@ -8,7 +8,6 @@ const statusFilterOptions = [
   { value: "SHIPPED",           label: "נשלח" },
   { value: "ARRIVED_PORT",      label: "הגיע לנמל" },
   { value: "CUSTOMS_CLEARANCE", label: "שחרור מכס" },
-  { value: "DELIVERED",         label: "נמסר" },
   { value: "CANCELLED",         label: "בוטל" },
 ];
 

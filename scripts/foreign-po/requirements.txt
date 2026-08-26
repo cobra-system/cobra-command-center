@@ -1,0 +1,5 @@
+pdfminer.six>=20221105
+openpyxl>=3.1.0
+# Optional — only needed to render scanned PDFs into page images for a visual read.
+# poppler-utils (pdftoppm) works as a substitute if it is already installed.
+pymupdf>=1.24.0

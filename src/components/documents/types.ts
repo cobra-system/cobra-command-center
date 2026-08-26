@@ -1,10 +1,14 @@
 export interface PurchaseDocument {
   id: string;
   type: string;
+  /** Finer-grained kind within `type` — e.g. SWIFT, BL, INVOICE (see purchase_documents.document_subtype) */
+  document_subtype?: string | null;
   document_name: string | null;
   supplier_id: string | null;
   product_id: string | null;
   order_id: string | null;
+  /** Payment installment (order_payments) this document settles — SWIFT confirmations */
+  order_payment_id?: string | null;
   quantity: number;
   unit_price: number | null;
   total_price: number | null;

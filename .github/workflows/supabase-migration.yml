@@ -7,6 +7,21 @@ on:
     branches: [ main, develop ]
   workflow_dispatch:
 
+# How this connects, and why it is not the obvious way:
+#
+# db.<ref>.supabase.co resolves to IPv6 only, and GitHub-hosted runners have no
+# IPv6. The old version of this workflow resolved an IPv4 address for that host,
+# got an empty string, and handed psql "postgresql://postgres:pw@:5432/..." —
+# which quietly falls back to a local unix socket that does not exist. Every
+# psql call failed, every failure was swallowed by "|| true", and the workflow
+# reported success while applying nothing at all, for months.
+#
+# The fix is the pooler, which does have IPv4. Set the SUPABASE_DB_URL secret to
+# the "Session pooler" connection string from the Supabase dashboard
+# (Project → Connect → Session pooler; it looks like
+# postgresql://postgres.<ref>:<password>@aws-N-<region>.pooler.supabase.com:5432/postgres).
+# Session mode — not the 6543 transaction pooler — because migrations run DDL.
+
 jobs:
   migrate:
     runs-on: ubuntu-latest
@@ -18,33 +33,62 @@ jobs:
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
-      - name: Resolve database IPv4
+      - name: Check the database is reachable
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          DB_IPV4=$(getent ahostsv4 db.ljpdwezgahrrffnwajho.supabase.co | awk '{print $1}' | head -1)
-          echo "DB_IPV4=$DB_IPV4" >> $GITHUB_ENV
-          echo "Resolved host to IPv4: $DB_IPV4"
+          if [ -z "$DB_URL" ]; then
+            echo "::error::SUPABASE_DB_URL is not set. Add it as a repository secret —"
+            echo "::error::Supabase dashboard → Project → Connect → Session pooler (port 5432)."
+            echo "::error::Without it these migrations cannot reach the database, and a green"
+            echo "::error::check here would mean nothing."
+            exit 1
+          fi
+          # Connect before doing anything: a failure here must fail the workflow,
+          # never be reported as a successful run that applied no migrations.
+          psql "$DB_URL" -c "select current_database(), current_user;"
 
       - name: Run migrations
         env:
-          PGPASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
+          # Every migration is replayed on each run, so they are written to be
+          # idempotent (IF NOT EXISTS / OR REPLACE). An individual file that
+          # errors is reported and collected rather than aborting the rest, but
+          # the step fails at the end if anything errored — a red check is the
+          # only honest outcome when a migration did not apply.
+          failed=""
           for file in $(ls supabase/migrations/*.sql | sort); do
-            echo "Applying migration: $file"
-            psql "postgresql://postgres:$PGPASSWORD@$DB_IPV4:5432/postgres?sslmode=require" -f "$file" --set ON_ERROR_STOP=0 || true
+            echo "::group::$file"
+            if psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$file"; then
+              echo "ok"
+            else
+              echo "::warning::migration failed: $file"
+              failed="$failed $file"
+            fi
+            echo "::endgroup::"
           done
-          echo "All migrations applied!"
+
+          if [ -n "$failed" ]; then
+            echo "::error::These migrations did not apply:$failed"
+            exit 1
+          fi
+          echo "All migrations applied."
 
       - name: Reload PostgREST schema cache
         env:
-          PGPASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          psql "postgresql://postgres:$PGPASSWORD@$DB_IPV4:5432/postgres?sslmode=require" -c "NOTIFY pgrst, 'reload schema';" && echo "Schema cache reloaded!" || echo "Warning: Could not reload schema cache"
+          # New columns stay invisible to the API until PostgREST re-reads the
+          # schema, so a successful migration can still look like nothing changed.
+          psql "$DB_URL" -c "NOTIFY pgrst, 'reload schema';"
+          echo "Schema cache reloaded."
 
-      - name: Verify database connection
+      - name: Report schema state
         env:
-          PGPASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          psql "postgresql://postgres:$PGPASSWORD@$DB_IPV4:5432/postgres?sslmode=require" -c "SELECT count(*) as table_count FROM information_schema.tables WHERE table_schema = 'public';" || echo "Warning: Could not verify connection"
+          psql "$DB_URL" -c "SELECT count(*) AS public_tables FROM information_schema.tables WHERE table_schema = 'public';"
 
   deploy-functions:
     runs-on: ubuntu-latest
@@ -65,11 +109,17 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           echo "Deploying Edge Functions to project ljpdwezgahrrffnwajho..."
+          failed=""
           for func_dir in supabase/functions/*/; do
             func_name=$(basename "$func_dir")
             if [ -f "$func_dir/index.ts" ]; then
               echo "Deploying function: $func_name"
-              supabase functions deploy "$func_name" --project-ref ljpdwezgahrrffnwajho --no-verify-jwt || echo "Warning: Failed to deploy $func_name"
+              supabase functions deploy "$func_name" --project-ref ljpdwezgahrrffnwajho --no-verify-jwt || failed="$failed $func_name"
             fi
           done
-          echo "All Edge Functions deployed!"
+
+          if [ -n "$failed" ]; then
+            echo "::error::These Edge Functions failed to deploy:$failed"
+            exit 1
+          fi
+          echo "All Edge Functions deployed."
