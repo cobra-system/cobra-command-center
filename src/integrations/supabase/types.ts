@@ -216,6 +216,234 @@ export type Database = {
         }
         Relationships: []
       }
+      import_files: {
+        Row: {
+          arrival_date: string | null
+          bl_number: string | null
+          container_number: string | null
+          created_at: string
+          created_by: string | null
+          customs_value_ils: number | null
+          declaration_date: string | null
+          declaration_number: string | null
+          deleted_at: string | null
+          etd: string | null
+          exchange_rate: number | null
+          file_number: string
+          forwarder_name: string | null
+          goods_currency: string
+          goods_value: number | null
+          gross_weight_kg: number | null
+          house_bl_number: string | null
+          id: string
+          notes: string | null
+          package_count: number | null
+          port_of_discharge: string | null
+          port_of_loading: string | null
+          release_date: string | null
+          shipment_group_id: string | null
+          shipment_mode: string
+          status: string
+          supplier_id: string | null
+          supplier_invoice_number: string | null
+          supplier_name: string | null
+          updated_at: string
+          vessel_name: string | null
+          volume_cbm: number | null
+        }
+        Insert: {
+          arrival_date?: string | null
+          bl_number?: string | null
+          container_number?: string | null
+          created_at?: string
+          created_by?: string | null
+          customs_value_ils?: number | null
+          declaration_date?: string | null
+          declaration_number?: string | null
+          deleted_at?: string | null
+          etd?: string | null
+          exchange_rate?: number | null
+          file_number: string
+          forwarder_name?: string | null
+          goods_currency?: string
+          goods_value?: number | null
+          gross_weight_kg?: number | null
+          house_bl_number?: string | null
+          id?: string
+          notes?: string | null
+          package_count?: number | null
+          port_of_discharge?: string | null
+          port_of_loading?: string | null
+          release_date?: string | null
+          shipment_group_id?: string | null
+          shipment_mode?: string
+          status?: string
+          supplier_id?: string | null
+          supplier_invoice_number?: string | null
+          supplier_name?: string | null
+          updated_at?: string
+          vessel_name?: string | null
+          volume_cbm?: number | null
+        }
+        Update: {
+          arrival_date?: string | null
+          bl_number?: string | null
+          container_number?: string | null
+          created_at?: string
+          created_by?: string | null
+          customs_value_ils?: number | null
+          declaration_date?: string | null
+          declaration_number?: string | null
+          deleted_at?: string | null
+          etd?: string | null
+          exchange_rate?: number | null
+          file_number?: string
+          forwarder_name?: string | null
+          goods_currency?: string
+          goods_value?: number | null
+          gross_weight_kg?: number | null
+          house_bl_number?: string | null
+          id?: string
+          notes?: string | null
+          package_count?: number | null
+          port_of_discharge?: string | null
+          port_of_loading?: string | null
+          release_date?: string | null
+          shipment_group_id?: string | null
+          shipment_mode?: string
+          status?: string
+          supplier_id?: string | null
+          supplier_invoice_number?: string | null
+          supplier_name?: string | null
+          updated_at?: string
+          vessel_name?: string | null
+          volume_cbm?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_files_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_files_shipment_group_id_fkey"
+            columns: ["shipment_group_id"]
+            isOneToOne: false
+            referencedRelation: "shipment_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_file_orders: {
+        Row: {
+          allocation_share: number | null
+          created_at: string
+          id: string
+          import_file_id: string
+          match_reason: string | null
+          matched_by: string
+          order_id: string
+        }
+        Insert: {
+          allocation_share?: number | null
+          created_at?: string
+          id?: string
+          import_file_id: string
+          match_reason?: string | null
+          matched_by?: string
+          order_id: string
+        }
+        Update: {
+          allocation_share?: number | null
+          created_at?: string
+          id?: string
+          import_file_id?: string
+          match_reason?: string | null
+          matched_by?: string
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_file_orders_import_file_id_fkey"
+            columns: ["import_file_id"]
+            isOneToOne: false
+            referencedRelation: "import_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_file_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_cost_lines: {
+        Row: {
+          amount: number
+          amount_ils: number | null
+          category: string
+          created_at: string
+          currency: string
+          document_id: string | null
+          id: string
+          import_file_id: string
+          included_in_document_id: string | null
+          is_recoverable: boolean
+          label: string
+          line_code: string | null
+          notes: string | null
+        }
+        Insert: {
+          amount: number
+          amount_ils?: number | null
+          category?: string
+          created_at?: string
+          currency?: string
+          document_id?: string | null
+          id?: string
+          import_file_id: string
+          included_in_document_id?: string | null
+          is_recoverable?: boolean
+          label: string
+          line_code?: string | null
+          notes?: string | null
+        }
+        Update: {
+          amount?: number
+          amount_ils?: number | null
+          category?: string
+          created_at?: string
+          currency?: string
+          document_id?: string | null
+          id?: string
+          import_file_id?: string
+          included_in_document_id?: string | null
+          is_recoverable?: boolean
+          label?: string
+          line_code?: string | null
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_cost_lines_import_file_id_fkey"
+            columns: ["import_file_id"]
+            isOneToOne: false
+            referencedRelation: "import_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_cost_lines_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_change_log: {
         Row: {
           center_id: string | null
@@ -907,6 +1135,7 @@ export type Database = {
           file_url: string | null
           folder_id: string | null
           id: string
+          import_file_id: string | null
           is_starred: boolean
           notes: string | null
           order_id: string | null
@@ -932,6 +1161,7 @@ export type Database = {
           file_url?: string | null
           folder_id?: string | null
           id?: string
+          import_file_id?: string | null
           is_starred?: boolean
           notes?: string | null
           order_id?: string | null
@@ -957,6 +1187,7 @@ export type Database = {
           file_url?: string | null
           folder_id?: string | null
           id?: string
+          import_file_id?: string | null
           is_starred?: boolean
           notes?: string | null
           order_id?: string | null

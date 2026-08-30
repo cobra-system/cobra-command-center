@@ -6,6 +6,7 @@ import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Trash2, CreditCard, Check, Ship, Hash, Plus, Pencil, ChevronRight, Warehouse } from "lucide-react";
 import DocumentsSection from "@/components/DocumentsSection";
+import ImportFilesSection from "@/components/orders/importFiles/ImportFilesSection";
 import { OrderPaymentsSection } from "@/components/orders/OrderPaymentsSection";
 import { OrderAuditLog } from "@/components/orders/OrderAuditLog";
 import { ShipmentGroupSelector } from "@/components/orders/ShipmentGroupSelector";
@@ -519,6 +520,15 @@ export default function OrderDetailPage() {
 
       {/* Documents */}
       <DocumentsSection orderId={order.id} />
+
+      {/* Import dossiers — customs declaration, bills of lading and the
+          forwarder's invoices for the shipments that delivered this order. */}
+      <ImportFilesSection
+        orderId={order.id}
+        hasEdit={hasEdit}
+        supplierId={order.supplier_id}
+        supplierName={order.supplier_name}
+      />
 
       {/* Audit Log / Change History */}
       <OrderAuditLog orderId={order.id} />

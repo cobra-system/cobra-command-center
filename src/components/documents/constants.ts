@@ -35,6 +35,14 @@ export const docSubtypeLabels: Record<string, string> = {
   INVOICE: "חשבונית",
   COA: "תעודת איכות",
   CUSTOMS: "מכס",
+  // Import dossier document kinds — see src/lib/importFiles.ts
+  COMMERCIAL_INVOICE: "חשבונית מסחרית",
+  DECLARATION: "רשימון יבוא",
+  FREIGHT_INVOICE: "חשבונית הובלה",
+  TERMINAL_INVOICE: "חשבונית מסוף",
+  FORWARDER_INVOICE: "חשבונית משלח מרכזת",
+  INSURANCE: "ביטוח",
+  CERTIFICATE_OF_ORIGIN: "תעודת מקור",
   OTHER: "אחר",
 };
 
@@ -45,5 +53,12 @@ export const docSubtypeColors: Record<string, string> = {
   INVOICE: "bg-primary/15 text-primary",
   COA: "bg-warning/15 text-warning",
   CUSTOMS: "bg-warning/15 text-warning",
+  COMMERCIAL_INVOICE: "bg-primary/15 text-primary",
+  DECLARATION: "bg-warning/15 text-warning",
+  FREIGHT_INVOICE: "bg-accent/15 text-accent",
+  TERMINAL_INVOICE: "bg-accent/15 text-accent",
+  FORWARDER_INVOICE: "bg-primary/15 text-primary",
+  INSURANCE: "bg-muted text-muted-foreground",
+  CERTIFICATE_OF_ORIGIN: "bg-muted text-muted-foreground",
   OTHER: "bg-muted text-muted-foreground",
 };

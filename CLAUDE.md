@@ -89,6 +89,8 @@ const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 - `qp-mappings:hidden-columns` — QuarterlyPlanningPage (product-model mappings tab)
 - `qp-procurement:hidden-columns` — QuarterlyPlanningPage (procurement plan tab)
 - `division-consumption:hidden-columns` — DivisionConsumptionPage (consumption & health table)
+- `import-documents:hidden-columns` — ImportFilesSection (dossier documents table)
+- `import-cost-lines:hidden-columns` — ImportFilesSection (dossier cost breakdown table)
 
 Use a new unique key for each new table (e.g. `"invoices:hidden-columns"`).
 
@@ -120,7 +122,7 @@ grep -r "\"TABLE_NAME\"" mcp-server/src/tools/
 cd mcp-server && npm run build
 ```
 
-### Module inventory (34 modules · 303 tools)
+### Module inventory (35 modules · 315 tools)
 
 | Module | Domain | Key tables | Tools |
 |--------|--------|------------|------:|
@@ -158,6 +160,7 @@ cd mcp-server && npm run build
 | `waste` | Waste tracking | waste_items, waste_supplier_returns, waste_return_items | 13 |
 | `frisbee` | Base44 QA sync & consumption | frisbee_inspections, frisbee_inspection_equipment, frisbee_product_mapping | 5 |
 | `quarterly-planning` | Quarterly procurement planning | vehicle_models, quarterly_vehicle_forecasts, product_model_mappings, quarterly_procurement_plans, quarterly_plan_snapshots | 13 |
+| `import-files` | Import dossiers & landed cost | import_files, import_file_orders, import_cost_lines, purchase_documents | 12 |
 
 See `docs/MCP_TOOLS.md` for the full reference including table→module mapping.
 
