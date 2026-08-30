@@ -1,31 +1,35 @@
 /**
  * Import dossiers attached to one order.
  *
- * Shows every תיק יבוא linked to the order, each expanding into its documents
- * and its cost breakdown. Matching is manual for now — a person creates or
- * links the dossier — and every link is recorded in import_file_orders with
- * how it was made, so the eventual auto-matcher has real decisions to learn
- * from and be scored against.
+ * The way in is dragging the forwarder's email attachments onto the section —
+ * the same gesture as uploading a SWIFT confirmation. Nothing is asked up
+ * front: which dossier the files belong to, and what each document is, are
+ * both inferred from the file names. The shipment details and cost lines are
+ * filled in later from the dossier's own menu, if at all.
+ *
+ * Matching to an order stays manual for now, and every link is recorded in
+ * import_file_orders with how it was made, so the eventual auto-matcher has
+ * real decisions to learn from and be scored against.
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import {
   Ship, Plus, Link2, Trash2, Upload, ChevronDown, ChevronLeft, Pencil,
-  ExternalLink, AlertTriangle, Loader2,
+  ExternalLink, AlertTriangle, Loader2, FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useFileDropPaste } from "@/hooks/useFileDropPaste";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import type { ColDef } from "@/hooks/useColumnVisibility";
 import ImportFileDialog from "./ImportFileDialog";
 import ImportCostLineDialog from "./ImportCostLineDialog";
-import ImportDocumentUploadDialog from "./ImportDocumentUploadDialog";
 import {
   type ImportFile,
   type ImportCostLine,
@@ -38,6 +42,11 @@ import {
   shipmentModeLabels,
   sumImportCosts,
   lineAmountIls,
+  attachImportDocumentBatch,
+  uploadImportDocument,
+  guessSubtype,
+  guessDocumentNumber,
+  IMPORT_FILE_ACCEPT,
   type ImportFileStatus,
   type ShipmentMode,
   type ImportCostCategory,
@@ -65,6 +74,8 @@ interface Props {
   hasEdit: boolean;
   supplierId?: string | null;
   supplierName?: string | null;
+  /** Names a dossier when the attachments share no file number. */
+  orderNumber?: string | null;
 }
 
 /** A dossier plus everything hanging off it. */
@@ -84,7 +95,7 @@ function fmtDate(value: string | null | undefined): string {
   return Number.isNaN(d.getTime()) ? "—" : format(d, "dd/MM/yy");
 }
 
-export default function ImportFilesSection({ orderId, hasEdit, supplierId, supplierName }: Props) {
+export default function ImportFilesSection({ orderId, hasEdit, supplierId, supplierName, orderNumber }: Props) {
   const navigate = useNavigate();
   const [bundles, setBundles] = useState<DossierBundle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,7 +104,7 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
   const [fileDialogOpen, setFileDialogOpen] = useState(false);
   const [editingFile, setEditingFile] = useState<ImportFile | null>(null);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
-  const [uploadTarget, setUploadTarget] = useState<ImportFile | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [costTarget, setCostTarget] = useState<{ file: ImportFile; line: ImportCostLine | null } | null>(null);
 
   const { isVisible: docVisible, hide: docHide, show: docShow, hiddenCols: docHidden, visibleCount: docVisibleCount } =
@@ -160,6 +171,96 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
       return next;
     });
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Set when the person picked "add to this dossier"; null means group the
+  // files by the file number in their names.
+  const dossierUploadTarget = useRef<string | null>(null);
+
+  /**
+   * Take whatever was dropped and file it. The dossier is found or created
+   * from the file number shared by the names, so a drop is the whole
+   * interaction — no dialog, nothing to fill in.
+   */
+  const handleFiles = useCallback(async (files: File[]) => {
+    if (files.length === 0 || uploading) return;
+    setUploading(true);
+
+    const target = dossierUploadTarget.current;
+    dossierUploadTarget.current = null;
+
+    // "Add to this dossier" skips the guessing — the person already said which.
+    if (target) {
+      let ok = 0;
+      const failed: string[] = [];
+      for (const file of files) {
+        const res = await uploadImportDocument({
+          file,
+          importFileId: target,
+          subtype: guessSubtype(file.name),
+          documentNumber: guessDocumentNumber(file.name) || null,
+          supplierId,
+          orderId,
+        });
+        if (res.error) failed.push(`${file.name}: ${res.error}`);
+        else ok += 1;
+      }
+      setUploading(false);
+      if (failed.length > 0) {
+        toast.warning(`${ok} נוספו, ${failed.length} נכשלו.`, { description: failed.join("\n"), duration: 12000 });
+      } else {
+        toast.success(`${ok} ${ok === 1 ? "מסמך נוסף" : "מסמכים נוספו"} לתיק`);
+      }
+      fetchData();
+      return;
+    }
+
+    const result = await attachImportDocumentBatch({
+      files,
+      orderId,
+      supplierId,
+      supplierName,
+      orderNumber,
+    });
+
+    setUploading(false);
+
+    if (result.error) {
+      toast.error(`ההעלאה נכשלה: ${result.error}`);
+      return;
+    }
+
+    const where = result.joinedExisting
+      ? `נוספו לתיק ${result.fileNumber}`
+      : `נקלטו בתיק ${result.fileNumber}`;
+    if (result.failures.length > 0) {
+      toast.warning(`${result.uploaded} מסמכים ${where}. ${result.failures.length} נכשלו.`, {
+        description: result.failures.join("\n"),
+        duration: 12000,
+      });
+    } else {
+      toast.success(`${result.uploaded} ${result.uploaded === 1 ? "מסמך" : "מסמכים"} ${where}`);
+    }
+
+    // A dossier created from file names alone has no shipment details yet.
+    // Say so once rather than blocking the upload behind a form.
+    if (!result.joinedExisting) {
+      setExpanded(prev => new Set(prev).add(result.importFileId!));
+    }
+
+    fetchData();
+  }, [orderId, supplierId, supplierName, orderNumber, uploading, fetchData]);
+
+  // Drag the forwarder's whole set of attachments onto the section, or paste
+  // them. onFiles keeps the drop as one batch, which is what lets a single
+  // gesture become a single dossier.
+  const { isDragging, dropProps } = useFileDropPaste(
+    file => { void handleFiles([file]); },
+    {
+      disabled: !hasEdit || uploading,
+      onFiles: files => { void handleFiles(files); },
+    }
+  );
+
   const handleUnlink = async (file: ImportFile) => {
     if (!confirm(`לנתק את תיק ${file.file_number} מההזמנה הזו? התיק עצמו והמסמכים שלו יישמרו.`)) return;
     const { error } = await supabase
@@ -188,7 +289,13 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
 
   return (
     <>
-      <div className="bg-card rounded-xl border shadow-sm p-5">
+      <div
+        {...(hasEdit ? dropProps : {})}
+        className={cn(
+          "bg-card rounded-xl border shadow-sm p-5 transition-colors",
+          isDragging && "border-primary bg-primary/5"
+        )}
+      >
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <Ship className="h-5 w-5 text-primary" />
@@ -196,21 +303,55 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
           </div>
           {hasEdit && (
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setLinkDialogOpen(true)}>
+              <Button variant="ghost" size="sm" onClick={() => setLinkDialogOpen(true)}>
                 <Link2 className="h-3.5 w-3.5 ml-1" />שייך תיק קיים
               </Button>
-              <Button size="sm" onClick={() => { setEditingFile(null); setFileDialogOpen(true); }}>
-                <Plus className="h-3.5 w-3.5 ml-1" />תיק יבוא חדש
+              <Button size="sm" onClick={() => { dossierUploadTarget.current = null; fileInputRef.current?.click(); }} disabled={uploading}>
+                {uploading
+                  ? <Loader2 className="h-3.5 w-3.5 ml-1 animate-spin" />
+                  : <Upload className="h-3.5 w-3.5 ml-1" />}
+                העלה מסמכים
               </Button>
             </div>
           )}
         </div>
 
-        {bundles.length === 0 ? (
+        {/* The whole section is the drop target; this is the empty-state
+            prompt and the only thing a person has to understand. */}
+        {hasEdit && bundles.length === 0 && (
+          <button
+            type="button"
+            onClick={() => { dossierUploadTarget.current = null; fileInputRef.current?.click(); }}
+            disabled={uploading}
+            className={cn(
+              "w-full rounded-lg border-2 border-dashed p-8 text-center transition-colors",
+              isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50"
+            )}
+          >
+            {uploading ? (
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />מעלה...
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <FileText className="h-7 w-7 mx-auto text-muted-foreground" />
+                <p className="text-sm font-medium text-foreground">גרור לכאן את מסמכי היבוא</p>
+                <p className="text-xs text-muted-foreground">
+                  אפשר את כל הקבצים מהמייל בבת אחת — רשימון, שטר מטען, חשבוניות.
+                  <br />הם ייקלטו יחד לתיק אחד, ללא צורך למלא כלום.
+                </p>
+              </div>
+            )}
+          </button>
+        )}
+
+        {!hasEdit && bundles.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-6">
             אין תיקי יבוא משויכים להזמנה זו
           </p>
-        ) : (
+        )}
+
+        {bundles.length > 0 && (
           <div className="space-y-3">
             {bundles.map(({ file, documents, costLines, otherOrders }) => {
               const isOpen = expanded.has(file.id);
@@ -268,8 +409,8 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
                           <Button variant="outline" size="sm" onClick={() => { setEditingFile(file); setFileDialogOpen(true); }}>
                             <Pencil className="h-3.5 w-3.5 ml-1" />ערוך פרטי תיק
                           </Button>
-                          <Button variant="outline" size="sm" onClick={() => setUploadTarget(file)}>
-                            <Upload className="h-3.5 w-3.5 ml-1" />העלה מסמך
+                          <Button variant="outline" size="sm" onClick={() => { dossierUploadTarget.current = file.id; fileInputRef.current?.click(); }} disabled={uploading}>
+                            <Upload className="h-3.5 w-3.5 ml-1" />הוסף מסמכים לתיק
                           </Button>
                           <Button variant="outline" size="sm" onClick={() => setCostTarget({ file, line: null })}>
                             <Plus className="h-3.5 w-3.5 ml-1" />שורת עלות
@@ -481,6 +622,21 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
         )}
       </div>
 
+      {/* One hidden picker for both entry points. dossierUploadTarget decides
+          whether the files join a named dossier or are grouped by file name. */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept={IMPORT_FILE_ACCEPT}
+        className="hidden"
+        onChange={e => {
+          const picked = Array.from(e.target.files ?? []);
+          e.target.value = "";
+          void handleFiles(picked);
+        }}
+      />
+
       <ImportFileDialog
         open={fileDialogOpen}
         onOpenChange={setFileDialogOpen}
@@ -498,17 +654,6 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
         linkedIds={bundles.map(b => b.file.id)}
         onLinked={fetchData}
       />
-
-      {uploadTarget && (
-        <ImportDocumentUploadDialog
-          open={Boolean(uploadTarget)}
-          onOpenChange={open => { if (!open) setUploadTarget(null); }}
-          importFileId={uploadTarget.id}
-          orderId={orderId}
-          supplierId={uploadTarget.supplier_id ?? supplierId}
-          onUploaded={fetchData}
-        />
-      )}
 
       {costTarget && (
         <ImportCostLineDialog

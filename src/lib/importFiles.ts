@@ -223,6 +223,40 @@ export function guessDocumentNumber(fileName: string): string {
   return matches ? matches[matches.length - 1] : "";
 }
 
+/**
+ * Work out which dossier a batch of dropped files belongs to.
+ *
+ * A person drops the whole email's attachments at once, and the forwarder's
+ * file number is the one identifier printed on all of them — so it is also the
+ * number that repeats across their names. Candidates are 4-8 digit runs: long
+ * enough to exclude a "207" terminal code, short enough to exclude a 14-digit
+ * customs declaration number, which appears on one file only.
+ *
+ * Returns the most frequent candidate, or null when nothing repeats (a single
+ * file, or names with no numbers in them at all).
+ */
+export function deriveFileNumber(fileNames: string[]): string | null {
+  const counts = new Map<string, number>();
+
+  for (const name of fileNames) {
+    const base = name.replace(/\.[^/.]+$/, "");
+    // Count each number once per file, so a name repeating it twice does not
+    // outvote two files that each mention it once.
+    // Bounded on BOTH sides: without the lookbehind, the 14-digit declaration
+    // number 26024532019850 would still yield "2019850" as a 7-digit tail and
+    // masquerade as a file number.
+    const seen = new Set(base.match(/(?<!\d)\d{4,8}(?!\d)/g) ?? []);
+    for (const n of seen) counts.set(n, (counts.get(n) ?? 0) + 1);
+  }
+
+  let best: string | null = null;
+  let bestCount = 1; // must appear in at least two files to be a shared key
+  for (const [value, count] of counts) {
+    if (count > bestCount) { best = value; bestCount = count; }
+  }
+  return best;
+}
+
 /** Storage-safe object name — Supabase storage rejects most non-ASCII paths. */
 export function sanitizeFileName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_").replace(/_{2,}/g, "_");
@@ -343,4 +377,115 @@ export async function uploadImportDocument(args: UploadImportDocumentArgs): Prom
   }
 
   return { error: null, documentId: data.id, fileUrl: urlData.publicUrl };
+}
+
+export interface AttachBatchArgs {
+  files: File[];
+  orderId: string;
+  supplierId?: string | null;
+  supplierName?: string | null;
+  /** Used to name a dossier when the file names carry no shared number. */
+  orderNumber?: string | null;
+}
+
+export interface AttachBatchResult {
+  error: string | null;
+  importFileId?: string;
+  fileNumber?: string;
+  uploaded: number;
+  /** Files that failed, as "name: reason" — a partial batch still counts. */
+  failures: string[];
+  /** True when the dossier already existed and these files joined it. */
+  joinedExisting: boolean;
+}
+
+/**
+ * Drop a batch of import PDFs onto an order and be done.
+ *
+ * Everything a dossier needs is inferred: which dossier the files belong to
+ * (the file number repeated across their names), what each document is (its
+ * name), and the link to the order. Nothing is asked of the person up front —
+ * the shipment details and the cost lines are filled in later, if at all.
+ *
+ * Re-dropping is safe and expected: the rest of the paperwork arrives over
+ * several days, and a later batch carrying the same file number joins the
+ * dossier already on the order instead of making a second one.
+ */
+export async function attachImportDocumentBatch(args: AttachBatchArgs): Promise<AttachBatchResult> {
+  const { files, orderId, supplierId, supplierName, orderNumber } = args;
+
+  if (files.length === 0) {
+    return { error: "לא נבחרו קבצים", uploaded: 0, failures: [], joinedExisting: false };
+  }
+
+  const derived = deriveFileNumber(files.map(f => f.name));
+  // No shared number to go on — still create the dossier rather than blocking,
+  // with a placeholder the person can correct. Losing the files is worse than
+  // an ugly number.
+  const fileNumber = derived ?? `${orderNumber || "ORDER"}-${Date.now().toString().slice(-6)}`;
+
+  // Join the dossier if this order already has one under that number, so a
+  // second batch of attachments lands with the first.
+  const { data: existingLinks } = await supabase
+    .from("import_file_orders")
+    .select("import_file_id, import_files(id, file_number, deleted_at)")
+    .eq("order_id", orderId);
+
+  const existing = (existingLinks ?? [])
+    .map(l => l.import_files as unknown as { id: string; file_number: string; deleted_at: string | null } | null)
+    .find(f => f && !f.deleted_at && f.file_number === fileNumber);
+
+  let importFileId: string;
+  let joinedExisting = false;
+
+  if (existing) {
+    importFileId = existing.id;
+    joinedExisting = true;
+  } else {
+    const { data: created, error: createError } = await supabase
+      .from("import_files")
+      .insert({
+        file_number: fileNumber,
+        supplier_id: supplierId ?? null,
+        supplier_name: supplierName ?? null,
+        status: "matched",
+      })
+      .select("id")
+      .single();
+
+    if (createError) {
+      return { error: createError.message, uploaded: 0, failures: [], joinedExisting: false };
+    }
+    importFileId = created.id;
+
+    const { error: linkError } = await supabase.from("import_file_orders").insert({
+      import_file_id: importFileId,
+      order_id: orderId,
+      matched_by: "manual",
+      match_reason: derived ? `file number ${fileNumber} in attachment names` : "uploaded onto this order",
+    });
+    if (linkError) {
+      return { error: linkError.message, uploaded: 0, failures: [], joinedExisting: false };
+    }
+  }
+
+  // Upload sequentially: a batch is under ten files, and one failure should
+  // not take the rest of them down with it.
+  let uploaded = 0;
+  const failures: string[] = [];
+
+  for (const file of files) {
+    const result = await uploadImportDocument({
+      file,
+      importFileId,
+      subtype: guessSubtype(file.name),
+      documentNumber: guessDocumentNumber(file.name) || null,
+      supplierId,
+      orderId,
+    });
+    if (result.error) failures.push(`${file.name}: ${result.error}`);
+    else uploaded += 1;
+  }
+
+  return { error: null, importFileId, fileNumber, uploaded, failures, joinedExisting };
 }

@@ -528,6 +528,7 @@ export default function OrderDetailPage() {
         hasEdit={hasEdit}
         supplierId={order.supplier_id}
         supplierName={order.supplier_name}
+        orderNumber={order.order_number}
       />
 
       {/* Audit Log / Change History */}

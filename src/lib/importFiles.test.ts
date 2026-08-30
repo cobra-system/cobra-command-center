@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  deriveFileNumber,
   guessSubtype,
   guessDocumentNumber,
   sumImportCosts,
@@ -56,6 +57,58 @@ describe("guessDocumentNumber", () => {
     expect(guessDocumentNumber("packing list.pdf")).toBe("");
     // "207" is only three digits — too short to be a document number.
     expect(guessDocumentNumber("MASOF_207.pdf")).toBe("");
+  });
+});
+
+
+describe("deriveFileNumber", () => {
+  /** The seven attachments of Total Care file 460509, as they arrive. */
+  const REAL_BATCH = [
+    "Commercial_Invoice_460509.pdf",
+    "Packing_List_460509.pdf",
+    "HAWB_460509.pdf",
+    "WG_Declaration_26024532019850.pdf",
+    "Freight_Tax_Invoice_460509.pdf",
+    "MASOF_207_Supplier_Invoice_1255982.pdf",
+    "Inv_197112.pdf",
+  ];
+
+  it("picks the forwarder file number shared across a real batch", () => {
+    // 460509 is on four files; the declaration, terminal and summary invoice
+    // numbers appear once each and must not win.
+    expect(deriveFileNumber(REAL_BATCH)).toBe("460509");
+  });
+
+  it("ignores a 14-digit declaration number", () => {
+    expect(deriveFileNumber([
+      "WG_Declaration_26024532019850.pdf",
+      "WG_Declaration_26024532019850_copy.pdf",
+    ])).toBeNull();
+  });
+
+  it("ignores a short code like the 207 terminal number", () => {
+    expect(deriveFileNumber(["MASOF_207_a.pdf", "MASOF_207_b.pdf"])).toBeNull();
+  });
+
+  it("returns null when nothing repeats", () => {
+    expect(deriveFileNumber(["Inv_197112.pdf"])).toBeNull();
+    expect(deriveFileNumber(["scan1.pdf", "scan2.pdf"])).toBeNull();
+    expect(deriveFileNumber([])).toBeNull();
+  });
+
+  it("counts a number once per file", () => {
+    // Two files, one of which repeats 460509 — still two votes, not three,
+    // so a single noisy name cannot outvote a genuinely shared number.
+    expect(deriveFileNumber([
+      "460509_Invoice_460509.pdf",
+      "Packing_460509.pdf",
+    ])).toBe("460509");
+  });
+
+  it("survives a partial batch arriving later", () => {
+    // The last three attachments turn up a day after the first four; they
+    // still resolve to the same dossier.
+    expect(deriveFileNumber(REAL_BATCH.slice(0, 3))).toBe("460509");
   });
 });
 
