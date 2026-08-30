@@ -7,6 +7,7 @@ import { OrderStatusBadge } from "@/components/StatusBadge";
 import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Trash2, CreditCard, Check, Ship, Hash, Plus, Pencil, ChevronRight, Warehouse } from "lucide-react";
 import DocumentsSection from "@/components/DocumentsSection";
 import ImportFilesSection from "@/components/orders/importFiles/ImportFilesSection";
+import { useOrderShippingCost } from "@/hooks/useOrderShippingCost";
 import { OrderPaymentsSection } from "@/components/orders/OrderPaymentsSection";
 import { OrderAuditLog } from "@/components/orders/OrderAuditLog";
 import { ShipmentGroupSelector } from "@/components/orders/ShipmentGroupSelector";
@@ -83,6 +84,9 @@ export default function OrderDetailPage() {
   const order = orders.find(o => o.id === id);
   const supplier = order?.supplier_id ? suppliers.find(s => s.id === order.supplier_id) : null;
   const { hasEdit } = usePermissions("orders");
+  // What the import dossiers say this order cost to ship. Shown in the header
+  // so it is read without scrolling to the import section.
+  const shippingCost = useOrderShippingCost(id);
   const visibleItems = useMemo(() => (order ? scopeOrderItems(order.items) : []), [order, scopeOrderItems]);
 
   const supplierOptions = useMemo(() => suppliers.map(s => ({ value: s.id, label: s.company })), [suppliers]);
@@ -278,6 +282,19 @@ export default function OrderDetailPage() {
     { label: "אסמכתא TCLOG", field: "tclog_reference", value: order.tclog_reference, icon: FileText },
     { label: "הערות", field: "notes", value: order.notes, icon: FileText, managerOnly: true },
   ];
+
+  // Not an order column — it is summed from the import dossiers, so it is
+  // read-only and only appears once there is a figure to show.
+  if (shippingCost.shipping > 0) {
+    allDetails.splice(6, 0, {
+      label: "עלות הובלה (₪)",
+      field: "__shipping_cost",
+      value: shippingCost.shipping,
+      icon: Ship,
+      isReadOnly: true,
+      priceGated: true,
+    });
+  }
   const details = allDetails.filter(d => (showPrices || !d.priceGated) && (showPrices || !d.managerOnly));
 
   const dateFields = [
@@ -347,7 +364,14 @@ export default function OrderDetailPage() {
             }
             return (
               <InlineEditField key={d.label} label={d.label} value={d.value}
-                displayValue={supplierMatch ? (
+                displayValue={d.field === "__shipping_cost" ? (
+                  <span className="text-sm font-medium text-foreground">
+                    ₪{Number(d.value).toLocaleString("he-IL", { maximumFractionDigits: 2 })}
+                    {shippingCost.modes.length > 0 && (
+                      <span className="text-muted-foreground"> · {shippingCost.modes.join(", ")}</span>
+                    )}
+                  </span>
+                ) : supplierMatch ? (
                   <button onClick={() => navigate(`/suppliers/${supplierMatch.id}`)} className="text-sm font-medium text-primary hover:underline">{supplierMatch.company}</button>
                 ) : d.field === "total_price" && d.value ? formatPrice(Number(d.value)) : undefined}
                 type={d.field === "total_price" ? "number" : "text"}
