@@ -105,6 +105,30 @@ export const importCostCategoryLabels: Record<ImportCostCategory, string> = {
 /** VAT is reclaimed, so it is pre-ticked as recoverable when picked. */
 export const RECOVERABLE_BY_DEFAULT: ImportCostCategory[] = ["vat"];
 
+/**
+ * What counts as the cost of moving the goods, as opposed to the cost of
+ * clearing them.
+ *
+ * This is the number a person means by "how much did the shipment cost me":
+ * the freight itself plus everything the forwarder charges to get the box from
+ * the supplier's door to the warehouse. Duty, VAT, brokerage and statutory
+ * fees are the customs side — they follow from what was imported and its
+ * value, not from how it travelled, so mixing them in makes air and sea
+ * incomparable.
+ */
+export const SHIPPING_CATEGORIES: ImportCostCategory[] = [
+  "freight",
+  "origin",
+  "terminal",
+  "inland",
+  "storage",
+  "insurance",
+];
+
+export function isShippingCategory(category: string): boolean {
+  return SHIPPING_CATEGORIES.includes(category as ImportCostCategory);
+}
+
 export const shipmentModes = ["SEA", "AIR", "LAND", "COURIER"] as const;
 export type ShipmentMode = (typeof shipmentModes)[number];
 
@@ -305,6 +329,15 @@ export function isCostBearing(line: Pick<ImportCostLine, "is_recoverable" | "inc
 export interface ImportCostTotals {
   /** Added cost that belongs in landed cost. */
   landed: number;
+  /**
+   * The cost of moving the goods — freight, origin charges, terminal, inland
+   * haulage, storage, insurance. Part of `landed`, broken out because it is
+   * the figure that answers "what did this shipment cost me" and the only one
+   * that is comparable between air and sea.
+   */
+  shipping: number;
+  /** Duty, brokerage and statutory fees. Also part of `landed`. */
+  customs: number;
   /** Recoverable VAT — paid out, then reclaimed. */
   recoverable: number;
   /** Lines restated inside another document; shown, never summed. */
@@ -321,19 +354,66 @@ export interface ImportCostTotals {
  * skipped rather than silently added at the wrong rate — the UI flags those.
  */
 export function sumImportCosts(lines: ImportCostLine[]): ImportCostTotals {
-  const totals: ImportCostTotals = { landed: 0, recoverable: 0, duplicated: 0, cashOut: 0 };
+  const totals: ImportCostTotals = {
+    landed: 0, shipping: 0, customs: 0, recoverable: 0, duplicated: 0, cashOut: 0,
+  };
 
   for (const line of lines) {
     const ils = lineAmountIls(line);
     if (ils === null) continue;
 
-    if (line.included_in_document_id) totals.duplicated += ils;
-    else if (line.is_recoverable) totals.recoverable += ils;
-    else totals.landed += ils;
+    if (line.included_in_document_id) {
+      totals.duplicated += ils;
+    } else if (line.is_recoverable) {
+      totals.recoverable += ils;
+    } else {
+      totals.landed += ils;
+      // shipping + customs always re-add to landed, so the split can be shown
+      // without a third "everything else" bucket appearing.
+      if (isShippingCategory(line.category)) totals.shipping += ils;
+      else totals.customs += ils;
+    }
   }
 
   totals.cashOut = totals.landed + totals.recoverable;
   return totals;
+}
+
+/**
+ * Shipping cost expressed per unit of freight, which is what makes two
+ * shipments comparable.
+ *
+ * A total on its own says nothing — ₪9,000 is cheap for a full container and
+ * ruinous for 40kg of air freight. Sea freight is normally bought per CBM and
+ * air per kg, so both are returned and the caller shows whichever suits the
+ * mode. Null where the dossier has no weight or volume recorded; guessing a
+ * denominator would invent a rate.
+ */
+export interface ShippingUnitCost {
+  perKg: number | null;
+  perCbm: number | null;
+  /** The rate to lead with for this shipment's mode. */
+  headline: { value: number; unit: "kg" | "CBM" } | null;
+}
+
+export function shippingUnitCost(
+  shipping: number,
+  file: Pick<ImportFile, "gross_weight_kg" | "volume_cbm" | "shipment_mode">
+): ShippingUnitCost {
+  const weight = file.gross_weight_kg ? Number(file.gross_weight_kg) : null;
+  const volume = file.volume_cbm ? Number(file.volume_cbm) : null;
+
+  const perKg = weight && weight > 0 ? shipping / weight : null;
+  const perCbm = volume && volume > 0 ? shipping / volume : null;
+
+  // Air is sold on weight, sea on volume. Fall back to whichever exists so a
+  // dossier missing one measure still gets a headline rate.
+  const prefersWeight = file.shipment_mode === "AIR" || file.shipment_mode === "COURIER";
+  const headline = prefersWeight
+    ? (perKg !== null ? { value: perKg, unit: "kg" as const } : perCbm !== null ? { value: perCbm, unit: "CBM" as const } : null)
+    : (perCbm !== null ? { value: perCbm, unit: "CBM" as const } : perKg !== null ? { value: perKg, unit: "kg" as const } : null);
+
+  return { perKg, perCbm, headline };
 }
 
 /** A line's ILS value, or null when it is in another currency and unconverted. */

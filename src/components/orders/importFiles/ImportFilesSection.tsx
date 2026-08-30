@@ -41,6 +41,7 @@ import {
   importFileStatusColors,
   shipmentModeLabels,
   sumImportCosts,
+  shippingUnitCost,
   lineAmountIls,
   attachImportDocumentBatch,
   uploadImportDocument,
@@ -108,7 +109,9 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
   // Failures stay on screen until the next successful upload — a toast that
   // fades is not good enough when a lost document is the failure mode.
   const [failedUploads, setFailedUploads] = useState<string[]>([]);
-  const [costTarget, setCostTarget] = useState<{ file: ImportFile; line: ImportCostLine | null } | null>(null);
+  const [costTarget, setCostTarget] = useState<
+    { file: ImportFile; line: ImportCostLine | null; defaultCategory?: ImportCostCategory } | null
+  >(null);
 
   const { isVisible: docVisible, hide: docHide, show: docShow, hiddenCols: docHidden, visibleCount: docVisibleCount } =
     useColumnVisibility("import-documents:hidden-columns", DOC_COLUMN_DEFS);
@@ -333,6 +336,17 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
 
   if (loading) return null;
 
+  // Shipping across every dossier on this order, and the modes involved. One
+  // order can be split over a sea and an air shipment, so the modes are listed
+  // rather than assumed to be one.
+  const perDossier = bundles.map(b => sumImportCosts(b.costLines));
+  const orderShipping = perDossier.reduce((sum, t) => sum + t.shipping, 0);
+  const orderModes = [...new Set(
+    bundles
+      .filter((_, i) => perDossier[i].shipping > 0)
+      .map(b => shipmentModeLabels[b.file.shipment_mode as ShipmentMode] ?? b.file.shipment_mode)
+  )];
+
   return (
     <>
       <div
@@ -346,6 +360,17 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
           <div className="flex items-center gap-2">
             <Ship className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">מסמכי יבוא ({bundles.length})</h2>
+            {/* The shipping figure belongs where it can be read without
+                opening anything — it is the number a person came for. */}
+            {orderShipping > 0 && (
+              <span className="text-sm">
+                <span className="text-muted-foreground">· עלות הובלה </span>
+                <span className="font-semibold text-foreground">{ils(orderShipping)}</span>
+                {orderModes.length > 0 && (
+                  <span className="text-muted-foreground"> ({orderModes.join(", ")})</span>
+                )}
+              </span>
+            )}
           </div>
           {hasEdit && (
             <div className="flex gap-2">
@@ -426,6 +451,7 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
             {bundles.map(({ file, documents, costLines, otherOrders }) => {
               const isOpen = expanded.has(file.id);
               const totals = sumImportCosts(costLines);
+              const unitCost = shippingUnitCost(totals.shipping, file);
               const unconverted = costLines.filter(l => lineAmountIls(l) === null);
               const status = file.status as ImportFileStatus;
 
@@ -466,9 +492,21 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
                         </p>
                       )}
                     </div>
-                    <div className="text-left flex-shrink-0">
-                      <div className="text-sm font-semibold text-foreground">{ils(totals.landed)}</div>
-                      <div className="text-xs text-muted-foreground">עלות נחיתה</div>
+                    {/* Shipping leads, landed cost follows: the first is what
+                        the shipment cost, the second what the goods now cost. */}
+                    <div className="text-left flex-shrink-0 space-y-0.5">
+                      <div className="text-sm font-semibold text-foreground">{ils(totals.shipping)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        עלות הובלה
+                        {unitCost.headline && (
+                          <> · {ils(unitCost.headline.value)}/{unitCost.headline.unit}</>
+                        )}
+                      </div>
+                      {totals.landed !== totals.shipping && (
+                        <div className="text-xs text-muted-foreground">
+                          נחיתה {ils(totals.landed)}
+                        </div>
+                      )}
                     </div>
                   </button>
 
@@ -481,6 +519,9 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
                           </Button>
                           <Button variant="outline" size="sm" onClick={() => { dossierUploadTarget.current = file.id; fileInputRef.current?.click(); }} disabled={uploading}>
                             <Upload className="h-3.5 w-3.5 ml-1" />הוסף מסמכים לתיק
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => setCostTarget({ file, line: null, defaultCategory: "freight" })}>
+                            <Plus className="h-3.5 w-3.5 ml-1" />עלות הובלה
                           </Button>
                           <Button variant="outline" size="sm" onClick={() => setCostTarget({ file, line: null })}>
                             <Plus className="h-3.5 w-3.5 ml-1" />שורת עלות
@@ -558,7 +599,18 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
                       <div>
                         <h4 className="text-sm font-semibold text-foreground mb-2">עלויות ({costLines.length})</h4>
                         {costLines.length === 0 ? (
-                          <p className="text-sm text-muted-foreground py-2">עדיין לא הוזנו שורות עלות</p>
+                          <div className="py-2">
+                            <p className="text-sm text-muted-foreground">עדיין לא הוזנו שורות עלות</p>
+                            {hasEdit && (
+                              <button
+                                type="button"
+                                onClick={() => setCostTarget({ file, line: null, defaultCategory: "freight" })}
+                                className="text-sm text-primary hover:underline mt-1"
+                              >
+                                הזן את עלות ההובלה של המשלוח
+                              </button>
+                            )}
+                          </div>
                         ) : (
                           <>
                             <div className="overflow-x-auto rounded-lg border bg-card">
@@ -655,6 +707,21 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
                                 is visible rather than implied. */}
                             <div className="mt-3 flex flex-wrap gap-4 text-sm">
                               <div>
+                                <span className="text-muted-foreground">עלות הובלה: </span>
+                                <span className="font-semibold text-foreground">{ils(totals.shipping)}</span>
+                                {unitCost.headline && (
+                                  <span className="text-muted-foreground">
+                                    {" "}({ils(unitCost.headline.value)} ל-{unitCost.headline.unit})
+                                  </span>
+                                )}
+                              </div>
+                              {totals.customs > 0 && (
+                                <div>
+                                  <span className="text-muted-foreground">מכס ואגרות: </span>
+                                  <span className="text-foreground">{ils(totals.customs)}</span>
+                                </div>
+                              )}
+                              <div>
                                 <span className="text-muted-foreground">עלות נחיתה: </span>
                                 <span className="font-semibold text-foreground">{ils(totals.landed)}</span>
                               </div>
@@ -732,6 +799,7 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
           importFileId={costTarget.file.id}
           documents={bundles.find(b => b.file.id === costTarget.file.id)?.documents ?? []}
           line={costTarget.line}
+          defaultCategory={costTarget.defaultCategory}
           onSaved={fetchData}
         />
       )}

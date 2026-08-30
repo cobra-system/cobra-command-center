@@ -29,6 +29,13 @@ const DOC_SUBTYPES = [
 const text = (t: string) => ({ content: [{ type: "text" as const, text: t }] });
 const fail = (message: string) => text(`Error: ${message}`);
 
+/**
+ * Charges for moving the goods, as opposed to clearing them. Mirrors
+ * SHIPPING_CATEGORIES in src/lib/importFiles.ts — the split that makes an air
+ * shipment comparable to a sea one.
+ */
+const SHIPPING_CATEGORIES = ["freight", "origin", "terminal", "inland", "storage", "insurance"];
+
 /** A line's ILS value, or null when it is foreign currency and unconverted. */
 function amountIls(line: { amount: number; amount_ils: number | null; currency: string }): number | null {
   if (line.amount_ils !== null && line.amount_ils !== undefined) return Number(line.amount_ils);
@@ -353,7 +360,7 @@ export function registerImportFileTools(server: McpServer) {
       if (linesRes.error) return fail(linesRes.error.message);
 
       const lines = linesRes.data ?? [];
-      let landed = 0, recoverable = 0, duplicated = 0;
+      let landed = 0, shipping = 0, customs = 0, recoverable = 0, duplicated = 0;
       const unconverted: string[] = [];
       const byCategory: Record<string, number> = {};
 
@@ -369,6 +376,8 @@ export function registerImportFileTools(server: McpServer) {
           recoverable += ils;
         } else {
           landed += ils;
+          if (SHIPPING_CATEGORIES.includes(line.category)) shipping += ils;
+          else customs += ils;
           byCategory[line.category] = (byCategory[line.category] ?? 0) + ils;
         }
       }
@@ -379,6 +388,8 @@ export function registerImportFileTools(server: McpServer) {
         file_number: fileRes.data?.file_number,
         goods_value_ils: goodsIls,
         landed_cost_ils: Number(landed.toFixed(2)),
+        shipping_cost_ils: Number(shipping.toFixed(2)),
+        customs_and_fees_ils: Number(customs.toFixed(2)),
         landed_cost_by_category: Object.fromEntries(
           Object.entries(byCategory).map(([k, v]) => [k, Number(v.toFixed(2))])
         ),
@@ -533,6 +544,93 @@ export function registerImportFileTools(server: McpServer) {
           score: c.score,
           matched_on: c.reasons,
         })),
+      }, null, 2));
+    }
+  );
+  server.tool(
+    "get_shipping_cost_report",
+    "דוח עלויות הובלה — Shipping cost across shipments, split by mode with per-kg and per-CBM rates",
+    {
+      from_date: z.string().optional().describe("Only shipments arriving on or after this date (YYYY-MM-DD)"),
+      to_date: z.string().optional().describe("Only shipments arriving on or before this date (YYYY-MM-DD)"),
+      shipment_mode: z.enum(["SEA", "AIR", "LAND", "COURIER"]).optional().describe("Filter to one mode"),
+      supplier_id: z.string().uuid().optional().describe("Filter by supplier UUID"),
+    },
+    async ({ from_date, to_date, shipment_mode, supplier_id }) => {
+      let query = supabase.from("import_files").select("*").is("deleted_at", null);
+      if (from_date) query = query.gte("arrival_date", from_date);
+      if (to_date) query = query.lte("arrival_date", to_date);
+      if (shipment_mode) query = query.eq("shipment_mode", shipment_mode);
+      if (supplier_id) query = query.eq("supplier_id", supplier_id);
+
+      const { data: files, error } = await query.order("arrival_date", { ascending: false, nullsFirst: false });
+      if (error) return fail(error.message);
+      if (!files || files.length === 0) return text("No import files match those filters.");
+
+      const { data: lines, error: linesError } = await supabase
+        .from("import_cost_lines")
+        .select("*")
+        .in("import_file_id", files.map(f => f.id));
+      if (linesError) return fail(linesError.message);
+
+      const shipments = files.map(file => {
+        let shipping = 0;
+        let unconverted = 0;
+        for (const line of (lines ?? []).filter(l => l.import_file_id === file.id)) {
+          // Same two exclusions as landed cost: a line restated inside the
+          // forwarder's summary invoice, and recoverable VAT.
+          if (line.included_in_document_id || line.is_recoverable) continue;
+          if (!SHIPPING_CATEGORIES.includes(line.category)) continue;
+          const ils = amountIls(line);
+          if (ils === null) { unconverted += 1; continue; }
+          shipping += ils;
+        }
+
+        const weight = file.gross_weight_kg ? Number(file.gross_weight_kg) : null;
+        const volume = file.volume_cbm ? Number(file.volume_cbm) : null;
+        const goods = file.customs_value_ils ? Number(file.customs_value_ils) : null;
+
+        return {
+          file_number: file.file_number,
+          forwarder: file.forwarder_name,
+          mode: file.shipment_mode,
+          arrival_date: file.arrival_date,
+          supplier_name: file.supplier_name,
+          shipping_cost_ils: Number(shipping.toFixed(2)),
+          gross_weight_kg: weight,
+          volume_cbm: volume,
+          per_kg: weight && weight > 0 ? Number((shipping / weight).toFixed(2)) : null,
+          per_cbm: volume && volume > 0 ? Number((shipping / volume).toFixed(2)) : null,
+          pct_of_goods_value: goods && goods > 0 ? Number(((shipping / goods) * 100).toFixed(2)) : null,
+          lines_missing_ils_conversion: unconverted || undefined,
+        };
+      });
+
+      // Averages are weighted — total cost over total weight, not the mean of
+      // per-shipment rates, which would let a tiny consignment swing the number.
+      const byMode: Record<string, {
+        shipments: number; total_ils: number; total_kg: number; total_cbm: number;
+        avg_per_kg: number | null; avg_per_cbm: number | null;
+      }> = {};
+
+      for (const s of shipments) {
+        const m = byMode[s.mode] ??= { shipments: 0, total_ils: 0, total_kg: 0, total_cbm: 0, avg_per_kg: null, avg_per_cbm: null };
+        m.shipments += 1;
+        m.total_ils += s.shipping_cost_ils;
+        m.total_kg += s.gross_weight_kg ?? 0;
+        m.total_cbm += s.volume_cbm ?? 0;
+      }
+      for (const m of Object.values(byMode)) {
+        m.total_ils = Number(m.total_ils.toFixed(2));
+        m.avg_per_kg = m.total_kg > 0 ? Number((m.total_ils / m.total_kg).toFixed(2)) : null;
+        m.avg_per_cbm = m.total_cbm > 0 ? Number((m.total_ils / m.total_cbm).toFixed(2)) : null;
+      }
+
+      return text(JSON.stringify({
+        note: "Shipping only — freight, origin, terminal, inland, storage and insurance. Duty, VAT and brokerage are excluded so modes stay comparable. Air is normally bought per kg and sea per CBM.",
+        total_shipping_ils: Number(shipments.reduce((sum, s) => sum + s.shipping_cost_ils, 0).toFixed(2)),
+        by_mode: byMode,
+        shipments,
       }, null, 2));
     }
   );

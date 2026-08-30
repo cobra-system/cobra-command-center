@@ -39,6 +39,8 @@ interface Props {
   /** Documents in this dossier — a charge can cite the PDF it was read off. */
   documents: ImportDocument[];
   line?: ImportCostLine | null;
+  /** Preselects the category when adding, so the common case is one number. */
+  defaultCategory?: ImportCostCategory;
   onSaved: () => void;
 }
 
@@ -55,7 +57,7 @@ function docLabel(doc: ImportDocument): string {
   return [kind, doc.document_number || doc.document_name].filter(Boolean).join(" · ") || "מסמך";
 }
 
-export default function ImportCostLineDialog({ open, onOpenChange, importFileId, documents, line, onSaved }: Props) {
+export default function ImportCostLineDialog({ open, onOpenChange, importFileId, documents, line, defaultCategory, onSaved }: Props) {
   const editing = Boolean(line);
   const [saving, setSaving] = useState(false);
 
@@ -72,17 +74,20 @@ export default function ImportCostLineDialog({ open, onOpenChange, importFileId,
 
   useEffect(() => {
     if (!open) return;
-    setLabel(line?.label ?? "");
+    const initialCategory = (line?.category as ImportCostCategory) ?? defaultCategory ?? "other";
+    // A preselected category names the line too — "עלות הובלה" prefilled means
+    // the freight figure is a single number and a Save.
+    setLabel(line?.label ?? (defaultCategory ? importCostCategoryLabels[defaultCategory] : ""));
     setLineCode(line?.line_code ?? "");
-    setCategory((line?.category as ImportCostCategory) ?? "other");
+    setCategory(initialCategory);
     setAmount(line?.amount != null ? String(line.amount) : "");
     setCurrency(line?.currency ?? "ILS");
     setAmountIls(line?.amount_ils != null ? String(line.amount_ils) : "");
-    setIsRecoverable(line?.is_recoverable ?? false);
+    setIsRecoverable(line?.is_recoverable ?? (initialCategory ? RECOVERABLE_BY_DEFAULT.includes(initialCategory) : false));
     setDocumentId(line?.document_id ?? NONE);
     setIncludedIn(line?.included_in_document_id ?? NONE);
     setNotes(line?.notes ?? "");
-  }, [open, line]);
+  }, [open, line, defaultCategory]);
 
   /**
    * Picking a category pre-fills the two fields that follow from it, but only

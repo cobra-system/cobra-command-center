@@ -113,7 +113,7 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 ### תיקי יבוא
 - `import_files` — תיק יבוא של עמיל המכס (מספר תיק, רשימון, שטר מטען, מכולה, אונייה, תאריכי הגעה ושחרור, ערך טובין ושער חליפין)
 - `import_file_orders` — שיוך תיק יבוא להזמנות. קשר רבים-לרבים: מכולה אחת נושאת לרוב כמה הזמנות, ו-`match_reason` מתעד על מה ההתאמה התבססה
-- `import_cost_lines` — פירוט עלויות היבוא. `is_recoverable` מוציא מע"מ מתקזז מעלות הנחיתה, ו-`included_in_document_id` מונע ספירה כפולה של חיוב שכבר מופיע בחשבונית המשלח המרכזת
+- `import_cost_lines` — פירוט עלויות היבוא. `category` מפריד בין עלות הובלה (freight, origin, terminal, inland, storage, insurance) לבין מכס ואגרות, כדי שאפשר יהיה להשוות משלוח אווירי לימי. `is_recoverable` מוציא מע"מ מתקזז מעלות הנחיתה, ו-`included_in_document_id` מונע ספירה כפולה של חיוב שכבר מופיע בחשבונית המשלח המרכזת
 
 ### מלאי
 - `distribution_centers` — מרכזי הפצה
@@ -204,7 +204,7 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 | Toasts | Sonner |
 | טפסים | React Hook Form + Zod |
 | PDF | PDF.js + pdf-lib + mammoth |
-| אוטומציה | MCP Server — 315 כלים ב-35 מודולים לאינטגרציה עם Claude Code |
+| אוטומציה | MCP Server — 316 כלים ב-35 מודולים לאינטגרציה עם Claude Code |
 | בדיקות E2E | Playwright |
 
 ---
@@ -321,7 +321,7 @@ mcp-server/              # MCP Server לאינטגרציה עם Claude Code (30+
 
 ## MCP Tools
 
-שרת MCP מאפשר ל-Claude Code גישה ישירה לכל מסד הנתונים ללא ממשק גרפי — **315 כלים** ב-**35 מודולים**.
+שרת MCP מאפשר ל-Claude Code גישה ישירה לכל מסד הנתונים ללא ממשק גרפי — **316 כלים** ב-**35 מודולים**.
 
 | מודול | Domain | כלים |
 |-------|--------|-----:|

@@ -23,9 +23,12 @@ import {
   type ImportFile,
   type ImportDocument,
   type ImportDocSubtype,
+  type ImportCostLine,
   type ShipmentMode,
   importDocSubtypeLabels,
   shipmentModeLabels,
+  sumImportCosts,
+  shippingUnitCost,
 } from "@/lib/importFiles";
 
 const COLUMN_DEFS: ColDef[] = [
@@ -39,8 +42,11 @@ const COLUMN_DEFS: ColDef[] = [
 interface DossierGroup {
   file: ImportFile;
   documents: ImportDocument[];
+  costLines: ImportCostLine[];
   orders: { id: string; order_number: string | null }[];
 }
+
+const ils = (n: number) => `₪${n.toLocaleString("he-IL", { maximumFractionDigits: 2 })}`;
 
 interface Props {
   search: string;
@@ -64,22 +70,25 @@ export default function ImportDocumentsTab({ search }: Props) {
   const fetchData = useCallback(async () => {
     setLoading(true);
 
-    const [filesRes, docsRes, linksRes] = await Promise.all([
+    const [filesRes, docsRes, costsRes, linksRes] = await Promise.all([
       supabase.from("import_files").select("*").is("deleted_at", null)
         .order("arrival_date", { ascending: false, nullsFirst: false }),
       supabase.from("purchase_documents")
         .select("id, import_file_id, document_name, document_subtype, document_number, file_url, total_price, currency, created_at")
         .not("import_file_id", "is", null)
         .order("created_at", { ascending: true }),
+      supabase.from("import_cost_lines").select("*"),
       supabase.from("import_file_orders").select("import_file_id, orders(id, order_number)"),
     ]);
 
     const files = (filesRes.data ?? []) as ImportFile[];
     const docs = (docsRes.data ?? []) as (ImportDocument & { import_file_id: string | null })[];
+    const costs = (costsRes.data ?? []) as ImportCostLine[];
 
     setGroups(files.map(file => ({
       file,
       documents: docs.filter(d => d.import_file_id === file.id),
+      costLines: costs.filter(c => c.import_file_id === file.id),
       orders: (linksRes.data ?? [])
         .filter(l => l.import_file_id === file.id)
         .map(l => l.orders as unknown as { id: string; order_number: string | null } | null)
@@ -130,7 +139,10 @@ export default function ImportDocumentsTab({ search }: Props) {
   return (
     <>
       <div className="space-y-4">
-        {visible.map(({ file, documents, orders }) => (
+        {visible.map(({ file, documents, costLines, orders }) => {
+          const totals = sumImportCosts(costLines);
+          const unitCost = shippingUnitCost(totals.shipping, file);
+          return (
           <div key={file.id} className="rounded-xl border bg-card overflow-hidden">
             <div className="p-4 border-b bg-muted/20">
               <div className="flex items-center gap-2 flex-wrap">
@@ -143,6 +155,17 @@ export default function ImportDocumentsTab({ search }: Props) {
                   {shipmentModeLabels[file.shipment_mode as ShipmentMode] ?? file.shipment_mode}
                 </span>
                 <span className="text-xs text-muted-foreground">{documents.length} מסמכים</span>
+                {totals.shipping > 0 && (
+                  <span className="text-sm mr-auto">
+                    <span className="text-muted-foreground">עלות הובלה </span>
+                    <span className="font-semibold text-foreground">{ils(totals.shipping)}</span>
+                    {unitCost.headline && (
+                      <span className="text-muted-foreground">
+                        {" "}({ils(unitCost.headline.value)} ל-{unitCost.headline.unit})
+                      </span>
+                    )}
+                  </span>
+                )}
               </div>
               <div className="mt-1 text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
                 {file.declaration_number && <span>רשימון {file.declaration_number}</span>}
@@ -225,7 +248,8 @@ export default function ImportDocumentsTab({ search }: Props) {
               </table>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {menu && (

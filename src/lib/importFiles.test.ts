@@ -7,6 +7,7 @@ import {
   guessSubtype,
   guessDocumentNumber,
   sumImportCosts,
+  shippingUnitCost,
   lineAmountIls,
   isCostBearing,
   type ImportCostLine,
@@ -302,6 +303,96 @@ describe("sumImportCosts", () => {
   });
 
   it("returns zeroes for an empty dossier", () => {
-    expect(sumImportCosts([])).toEqual({ landed: 0, recoverable: 0, duplicated: 0, cashOut: 0 });
+    expect(sumImportCosts([])).toEqual({
+      landed: 0, shipping: 0, customs: 0, recoverable: 0, duplicated: 0, cashOut: 0,
+    });
+  });
+});
+
+describe("shipping vs customs split", () => {
+  /**
+   * Total Care file 460509 again. The point of the split: ₪9,456.72 of landed
+   * cost is not all "shipping" — ₪404 of it is brokerage and statutory fees
+   * that follow from what was imported, not from how it travelled. Comparing
+   * an air shipment to a sea one on the mixed figure is meaningless.
+   */
+  const dossier: ImportCostLine[] = [
+    line({ label: 'מע"מ למכס', category: "vat", amount: 122522, is_recoverable: true }),
+    line({ label: "אגרת מחשב ובטחון", category: "fees", amount: 91 }),
+    line({ label: "הובלה משילוח לעמילות", category: "freight", amount: 5872.64 }),
+    line({ label: "מיסי נמל", category: "fees", amount: 33 }),
+    line({ label: "עמילות מכס", category: "clearance", amount: 235 }),
+    line({ label: "הובלה יבשתית", category: "inland", amount: 1500 }),
+    line({ label: "פורמאליות", category: "fees", amount: 45 }),
+    line({ label: "שער עולמי", category: "fees", amount: 20, currency: "USD", amount_ils: 60.07 }),
+    line({ label: "מסוף ימי חייב", category: "terminal", amount: 1620.01 }),
+  ];
+
+  it("counts only the transport charges as shipping", () => {
+    const totals = sumImportCosts(dossier);
+    // freight 5872.64 + inland 1500 + terminal 1620.01
+    expect(totals.shipping).toBeCloseTo(8992.65, 2);
+  });
+
+  it("counts brokerage and statutory fees as customs", () => {
+    const totals = sumImportCosts(dossier);
+    // fees 91 + 33 + 45 + 60.07, clearance 235
+    expect(totals.customs).toBeCloseTo(464.07, 2);
+  });
+
+  it("keeps the split adding back up to landed cost", () => {
+    const totals = sumImportCosts(dossier);
+    expect(totals.shipping + totals.customs).toBeCloseTo(totals.landed, 2);
+  });
+
+  it("leaves recoverable VAT out of both sides", () => {
+    const totals = sumImportCosts(dossier);
+    expect(totals.recoverable).toBe(122522);
+    expect(totals.shipping).toBeLessThan(totals.recoverable);
+  });
+
+  it("excludes a charge restated in the summary invoice from shipping too", () => {
+    const withNested = [
+      ...dossier,
+      line({ label: "Freight invoice 196833", category: "freight", amount: 5872.64, included_in_document_id: "doc-197112" }),
+    ];
+    expect(sumImportCosts(withNested).shipping).toBeCloseTo(8992.65, 2);
+  });
+});
+
+describe("shippingUnitCost", () => {
+  /** The real shipment: 2,091 kg over 9.176 CBM, arriving by sea. */
+  const sea = { gross_weight_kg: 2091, volume_cbm: 9.176, shipment_mode: "SEA" };
+
+  it("leads with the per-CBM rate for a sea shipment", () => {
+    const unit = shippingUnitCost(8992.65, sea);
+    expect(unit.headline?.unit).toBe("CBM");
+    expect(unit.headline?.value).toBeCloseTo(980.02, 1);
+    expect(unit.perKg).toBeCloseTo(4.3, 1);
+  });
+
+  it("leads with the per-kg rate for air, which is sold by weight", () => {
+    const unit = shippingUnitCost(8992.65, { ...sea, shipment_mode: "AIR" });
+    expect(unit.headline?.unit).toBe("kg");
+    expect(unit.headline?.value).toBeCloseTo(4.3, 1);
+  });
+
+  it("falls back to the measure it has", () => {
+    const noVolume = shippingUnitCost(1000, { gross_weight_kg: 100, volume_cbm: null, shipment_mode: "SEA" });
+    expect(noVolume.headline).toEqual({ value: 10, unit: "kg" });
+
+    const noWeight = shippingUnitCost(1000, { gross_weight_kg: null, volume_cbm: 5, shipment_mode: "AIR" });
+    expect(noWeight.headline).toEqual({ value: 200, unit: "CBM" });
+  });
+
+  it("refuses to invent a rate with nothing to divide by", () => {
+    const none = shippingUnitCost(1000, { gross_weight_kg: null, volume_cbm: null, shipment_mode: "SEA" });
+    expect(none.headline).toBeNull();
+    expect(none.perKg).toBeNull();
+    expect(none.perCbm).toBeNull();
+
+    // A zero measure must not divide either.
+    const zero = shippingUnitCost(1000, { gross_weight_kg: 0, volume_cbm: 0, shipment_mode: "SEA" });
+    expect(zero.headline).toBeNull();
   });
 });
