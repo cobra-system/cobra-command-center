@@ -9,6 +9,8 @@ export interface PurchaseDocument {
   order_id: string | null;
   /** Payment installment (order_payments) this document settles — SWIFT confirmations */
   order_payment_id?: string | null;
+  /** Import dossier (import_files) this document belongs to — set for import paperwork */
+  import_file_id?: string | null;
   quantity: number;
   unit_price: number | null;
   total_price: number | null;
