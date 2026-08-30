@@ -5,6 +5,16 @@
 
 ---
 
+## [2026-08-30]
+
+- feat(orders): show shipping cost in the order details card (d2d93b7)
+- feat(imports): make shipping cost a figure of its own (2edba2e)
+- fix(imports): allow the import document kinds past the subtype constraint (396f856)
+- fix(imports): stop losing Hebrew-named files, and split imports off in documents (bdbcd76)
+- feat(imports): drag the attachments in and be done (662ad2f)
+- feat(imports): catalogue customs-broker import dossiers against orders (c7e561b)
+
+<!-- last-commit: b0433707577fc2b3267231f719db1d8b4ce315d5 -->
 ## [Unreleased]
 
 ### Fixed
@@ -49,7 +59,6 @@
 - feat: show product SKU in orders table and order detail items (f606585)
 - feat: add Projects module to sidebar for lightweight project & task tracking (01ceec7)
 
-<!-- last-commit: 4ca5065c8f84247eb52286d633229f69a4f6443e -->
 ## [2026-08-04]
 
 - feat: SAP purchase-order import (parse → match → create order) (4856982)
