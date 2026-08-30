@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,8 @@ import {
   importFileStatusLabels,
   importFileStatusColors,
   shipmentModeLabels,
+  shipmentModes,
+  IMPORT_DOC_SUBTYPES,
   sumImportCosts,
   shippingUnitCost,
   lineAmountIls,
@@ -310,6 +313,29 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
     }
   );
 
+  const handleModeChange = async (file: ImportFile, mode: string) => {
+    const { error } = await supabase.from("import_files").update({ shipment_mode: mode }).eq("id", file.id);
+    if (error) {
+      toast.error(`העדכון נכשל: ${error.message}`);
+      return;
+    }
+    toast.success(`תיק ${file.file_number} סומן כ${shipmentModeLabels[mode as ShipmentMode] ?? mode}`);
+    fetchData();
+  };
+
+  /** Correct a kind the file name got wrong — see the DHL naming note in the lib. */
+  const handleSubtypeChange = async (documentId: string, subtype: ImportDocSubtype) => {
+    const { error } = await supabase
+      .from("purchase_documents")
+      .update({ document_subtype: subtype })
+      .eq("id", documentId);
+    if (error) {
+      toast.error(`העדכון נכשל: ${error.message}`);
+      return;
+    }
+    fetchData();
+  };
+
   const handleUnlink = async (file: ImportFile) => {
     if (!confirm(`לנתק את תיק ${file.file_number} מההזמנה הזו? התיק עצמו והמסמכים שלו יישמרו.`)) return;
     const { error } = await supabase
@@ -514,6 +540,23 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
                     <div className="border-t bg-muted/10 p-4 space-y-5">
                       {hasEdit && (
                         <div className="flex gap-2 flex-wrap">
+                          {/* Mode is never guessed from the file names. Total
+                              Care's "HAWB_460509.pdf" is an OCEAN bill of
+                              lading while DHL's "_awb" really is air freight,
+                              so a name-based guess would be wrong half the
+                              time — and mode decides whether the unit rate is
+                              per kg or per CBM. One click instead. */}
+                          <Select
+                            value={file.shipment_mode}
+                            onValueChange={v => handleModeChange(file, v)}
+                          >
+                            <SelectTrigger className="h-9 w-32"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {shipmentModes.map(m => (
+                                <SelectItem key={m} value={m}>{shipmentModeLabels[m]}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <Button variant="outline" size="sm" onClick={() => { setEditingFile(file); setFileDialogOpen(true); }}>
                             <Pencil className="h-3.5 w-3.5 ml-1" />ערוך פרטי תיק
                           </Button>
@@ -561,9 +604,23 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
                                     <tr key={doc.id} className="hover:bg-muted/30 transition-colors">
                                       {docVisible("kind") && (
                                         <td className="p-2.5">
-                                          <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground whitespace-nowrap">
-                                            {(subtype && importDocSubtypeLabels[subtype]) || subtype || "אחר"}
-                                          </span>
+                                          {hasEdit ? (
+                                            <Select
+                                              value={subtype ?? "OTHER"}
+                                              onValueChange={v => handleSubtypeChange(doc.id, v as ImportDocSubtype)}
+                                            >
+                                              <SelectTrigger className="h-7 w-40 text-xs"><SelectValue /></SelectTrigger>
+                                              <SelectContent>
+                                                {IMPORT_DOC_SUBTYPES.map(st => (
+                                                  <SelectItem key={st} value={st}>{importDocSubtypeLabels[st]}</SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                          ) : (
+                                            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground whitespace-nowrap">
+                                              {(subtype && importDocSubtypeLabels[subtype]) || subtype || "אחר"}
+                                            </span>
+                                          )}
                                         </td>
                                       )}
                                       {docVisible("name") && <td className="p-2.5 text-foreground">{doc.document_name || "—"}</td>}

@@ -199,6 +199,71 @@ describe("IMPORT_DOC_SUBTYPES", () => {
   });
 });
 
+
+describe("DHL dossiers", () => {
+  /**
+   * A third forwarder, and the one that breaks naive naming. DHL sends four
+   * files named after the air waybill:
+   *
+   *   5060974542_awb.pdf       the air waybill
+   *   5060974542_sad.pdf       the customs declaration (Single Administrative Document)
+   *   5060974542_ppwk.pdf      "paperwork" — actually the shipper's commercial invoice
+   *   5060974542_proforma.pdf  "proforma" — actually DHL's own clearance charges bill
+   *
+   * The last two read backwards from what they contain, which is why they are
+   * pinned by name rather than left to the generic invoice rule.
+   */
+  const DHL_BATCH = [
+    "5060974542_ppwk.pdf",
+    "5060974542_proforma.pdf",
+    "5060974542_sad.pdf",
+    "5060974542_awb.pdf",
+  ];
+
+  it("groups the batch under the 10-digit air waybill", () => {
+    // At the previous 8-digit ceiling this returned null and the whole batch
+    // landed under a generated placeholder.
+    expect(deriveFileNumber(DHL_BATCH)).toBe("5060974542");
+  });
+
+  it("still refuses the 14-digit declaration number", () => {
+    expect(deriveFileNumber([
+      "WG_Declaration_26044752943862.pdf",
+      "WG_Declaration_26044752943862_v2.pdf",
+    ])).toBeNull();
+  });
+
+  it("classifies every file in the batch", () => {
+    expect(guessSubtype("5060974542_awb.pdf")).toBe("BL");
+    expect(guessSubtype("5060974542_sad.pdf")).toBe("DECLARATION");
+    expect(guessSubtype("5060974542_ppwk.pdf")).toBe("COMMERCIAL_INVOICE");
+    expect(guessSubtype("5060974542_proforma.pdf")).toBe("FORWARDER_INVOICE");
+  });
+
+  it("does not fire the SAD rule inside an unrelated word", () => {
+    // "sad" inside a longer word must not claim the file as a declaration:
+    // the first name still resolves on its own merits, the second matches
+    // nothing at all.
+    expect(guessSubtype("sadna_packing_list.pdf")).toBe("PACKING_LIST");
+    expect(guessSubtype("upsadown.pdf")).toBe("OTHER");
+    expect(guessSubtype("sadna.pdf")).toBe("OTHER");
+  });
+
+  it("leaves the other forwarders' batches classified as before", () => {
+    // Adding DHL's rules must not disturb Total Care or Swissport naming.
+    expect(guessSubtype("Freight_Tax_Invoice_460509.pdf")).toBe("FREIGHT_INVOICE");
+    expect(guessSubtype("MASOF_207_Supplier_Invoice_1255982.pdf")).toBe("TERMINAL_INVOICE");
+    expect(guessSubtype("Commercial_Invoice_460509.pdf")).toBe("COMMERCIAL_INVOICE");
+    expect(guessSubtype("Inv_197112.pdf")).toBe("FORWARDER_INVOICE");
+    expect(deriveFileNumber([
+      "Commercial_Invoice_460509.pdf",
+      "Packing_List_460509.pdf",
+      "HAWB_460509.pdf",
+      "WG_Declaration_26024532019850.pdf",
+    ])).toBe("460509");
+  });
+});
+
 describe("lineAmountIls", () => {
   it("uses the converted amount when the document supplied one", () => {
     expect(lineAmountIls({ amount: 1009.36, amount_ils: 3240.05, currency: "USD" })).toBe(3240.05);

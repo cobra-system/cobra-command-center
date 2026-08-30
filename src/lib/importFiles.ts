@@ -226,7 +226,18 @@ export interface ImportDocument {
  */
 const NAME_HINTS: [RegExp, ImportDocSubtype][] = [
   [/packing[\s_-]*list|רשימת\s*אריזה/i, "PACKING_LIST"],
-  [/declaration|רשימון|הצהרת\s*יבוא/i, "DECLARATION"],
+  // SAD — Single Administrative Document, DHL's name for the customs
+  // declaration. Bounded, so it cannot fire inside an unrelated word.
+  [/declaration|רשימון|הצהרת\s*יבוא|(?:^|[^a-z0-9])sad(?![a-z0-9])/i, "DECLARATION"],
+  // DHL calls the shipper's own commercial invoice "paperwork" and abbreviates
+  // it to ppwk — the one file in a DHL batch that really is the goods invoice.
+  [/(?:^|[^a-z0-9])(ppwk|paperwork)(?![a-z0-9])/i, "COMMERCIAL_INVOICE"],
+  // …while DHL's "proforma" is not a supplier proforma at all: it is their own
+  // clearance charges bill (VAT, computer and security fees, release fee). The
+  // two names read backwards from what they mean, so both are pinned here. A
+  // genuine supplier proforma dropped into a dossier would land on this rule
+  // too; the kind is editable on the document row for exactly that reason.
+  [/(?:^|[^a-z0-9])proforma(?![a-z0-9])/i, "FORWARDER_INVOICE"],
   [/freight|הובלה/i, "FREIGHT_INVOICE"],
   [/masof|terminal|מסוף/i, "TERMINAL_INVOICE"],
   // Not \b around the acronyms: underscore is a word character, so \b never
@@ -276,7 +287,12 @@ export function deriveFileNumber(fileNames: string[]): string | null {
     // Bounded on BOTH sides: without the lookbehind, the 14-digit declaration
     // number 26024532019850 would still yield "2019850" as a 7-digit tail and
     // masquerade as a file number.
-    const seen = new Set(base.match(/(?<!\d)\d{4,8}(?!\d)/g) ?? []);
+    //
+    // Upper bound is 12, not 8: DHL names its batch after the 10-digit air
+    // waybill (5060974542_awb.pdf, _sad.pdf, …), and at 8 the whole batch
+    // resolved to nothing and landed under a placeholder. 12 still excludes
+    // the 14-digit customs declaration number, which appears on one file only.
+    const seen = new Set(base.match(/(?<!\d)\d{4,12}(?!\d)/g) ?? []);
     for (const n of seen) counts.set(n, (counts.get(n) ?? 0) + 1);
   }
 
