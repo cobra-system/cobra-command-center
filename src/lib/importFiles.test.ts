@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  IMPORT_DOC_SUBTYPES,
   deriveFileNumber,
   importStorageKey,
   sanitizeFileName,
@@ -153,6 +154,47 @@ describe("importStorageKey", () => {
     const key = importStorageKey("file-1", "Commercial_Invoice_460509.pdf");
     expect(key.startsWith("imports/file-1/")).toBe(true);
     expect(key.endsWith("_Commercial_Invoice_460509.pdf")).toBe(true);
+  });
+});
+
+
+describe("IMPORT_DOC_SUBTYPES", () => {
+  /**
+   * Mirrors the CHECK on purchase_documents.document_subtype, as set by
+   * supabase/migrations/20260830000002_extend_document_subtypes_for_imports.sql.
+   *
+   * These two lists drifting apart is not a cosmetic problem: the app wrote
+   * COMMERCIAL_INVOICE, DECLARATION and the rest while the database still only
+   * allowed the original nine, so every insert of those kinds was rejected and
+   * the documents were lost. A batch of ten filed two.
+   *
+   * If this test fails, one of the two was changed alone — add the value to
+   * the constraint in a migration, or take it out of the app.
+   */
+  const DB_ALLOWED_SUBTYPES = [
+    "PI", "PO", "SWIFT", "BL", "PACKING_LIST", "INVOICE", "COA", "CUSTOMS", "OTHER",
+    "COMMERCIAL_INVOICE", "DECLARATION", "FREIGHT_INVOICE", "TERMINAL_INVOICE",
+    "FORWARDER_INVOICE", "INSURANCE", "CERTIFICATE_OF_ORIGIN",
+  ];
+
+  it("only contains values the database constraint accepts", () => {
+    const rejected = IMPORT_DOC_SUBTYPES.filter(s => !DB_ALLOWED_SUBTYPES.includes(s));
+    expect(rejected).toEqual([]);
+  });
+
+  it("covers every kind guessSubtype can return", () => {
+    // guessSubtype's fallback and every hint target must be writable, or a
+    // correctly classified document fails to save.
+    const guessed = [
+      "Commercial_Invoice_460509.pdf", "Packing_List_460509.pdf", "HAWB_460509.pdf",
+      "WG_Declaration_26024532019850.pdf", "Freight_Tax_Invoice_460509.pdf",
+      "MASOF_207_Supplier_Invoice_1255982.pdf", "Inv_197112.pdf",
+      "Certificate_of_Origin.pdf", "Insurance_policy.pdf", "scan_001.pdf",
+    ].map(guessSubtype);
+
+    for (const subtype of guessed) {
+      expect(DB_ALLOWED_SUBTYPES).toContain(subtype);
+    }
   });
 });
 

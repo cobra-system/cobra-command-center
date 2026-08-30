@@ -420,6 +420,8 @@ export interface AttachBatchResult {
   importFileId?: string;
   fileNumber?: string;
   uploaded: number;
+  /** Files already in the dossier, skipped rather than filed twice. */
+  skipped: number;
   /** Files that failed, as "name: reason" — a partial batch still counts. */
   failures: string[];
   /** True when the dossier already existed and these files joined it. */
@@ -442,7 +444,7 @@ export async function attachImportDocumentBatch(args: AttachBatchArgs): Promise<
   const { files, orderId, supplierId, supplierName, orderNumber } = args;
 
   if (files.length === 0) {
-    return { error: "לא נבחרו קבצים", uploaded: 0, failures: [], joinedExisting: false };
+    return { error: "לא נבחרו קבצים", uploaded: 0, skipped: 0, failures: [], joinedExisting: false };
   }
 
   const derived = deriveFileNumber(files.map(f => f.name));
@@ -481,7 +483,7 @@ export async function attachImportDocumentBatch(args: AttachBatchArgs): Promise<
       .single();
 
     if (createError) {
-      return { error: createError.message, uploaded: 0, failures: [], joinedExisting: false };
+      return { error: createError.message, uploaded: 0, skipped: 0, failures: [], joinedExisting: false };
     }
     importFileId = created.id;
 
@@ -492,16 +494,37 @@ export async function attachImportDocumentBatch(args: AttachBatchArgs): Promise<
       match_reason: derived ? `file number ${fileNumber} in attachment names` : "uploaded onto this order",
     });
     if (linkError) {
-      return { error: linkError.message, uploaded: 0, failures: [], joinedExisting: false };
+      // Roll the dossier back so a failed link does not strand it.
+      await supabase.from("import_files").delete().eq("id", importFileId);
+      return { error: linkError.message, uploaded: 0, skipped: 0, failures: [], joinedExisting: false };
     }
   }
+
+  // Re-dropping the same attachments is the normal way to recover from a
+  // failed batch, so a file already in the dossier is skipped rather than
+  // filed twice. Matching on the displayed name is enough: that is what a
+  // person sees, and it is what a repeat of the same attachment carries.
+  const { data: alreadyThere } = await supabase
+    .from("purchase_documents")
+    .select("document_name")
+    .eq("import_file_id", importFileId);
+  const existingNames = new Set(
+    (alreadyThere ?? []).map(d => (d.document_name ?? "").trim().toLowerCase()).filter(Boolean)
+  );
 
   // Upload sequentially: a batch is under ten files, and one failure should
   // not take the rest of them down with it.
   let uploaded = 0;
+  let skipped = 0;
   const failures: string[] = [];
 
   for (const file of files) {
+    const displayName = file.name.replace(/\.[^/.]+$/, "");
+    if (existingNames.has(displayName.trim().toLowerCase())) {
+      skipped += 1;
+      continue;
+    }
+
     const result = await uploadImportDocument({
       file,
       importFileId,
@@ -510,9 +533,22 @@ export async function attachImportDocumentBatch(args: AttachBatchArgs): Promise<
       supplierId,
       orderId,
     });
-    if (result.error) failures.push(`${file.name}: ${result.error}`);
-    else uploaded += 1;
+    if (result.error) {
+      failures.push(`${file.name}: ${result.error}`);
+    } else {
+      uploaded += 1;
+      existingNames.add(displayName.trim().toLowerCase());
+    }
   }
 
-  return { error: null, importFileId, fileNumber, uploaded, failures, joinedExisting };
+  // A dossier created for a batch where nothing landed is an empty shell that
+  // clutters the order and means nothing. Take it back out; one that files
+  // even a single document stays.
+  if (!joinedExisting && uploaded === 0) {
+    await supabase.from("import_file_orders").delete().eq("import_file_id", importFileId);
+    await supabase.from("import_files").delete().eq("id", importFileId);
+    return { error: null, fileNumber, uploaded: 0, skipped, failures, joinedExisting: false };
+  }
+
+  return { error: null, importFileId, fileNumber, uploaded, skipped, failures, joinedExisting };
 }

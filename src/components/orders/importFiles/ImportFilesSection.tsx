@@ -266,20 +266,28 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
     const where = result.joinedExisting
       ? `נוספו לתיק ${result.fileNumber}`
       : `נקלטו בתיק ${result.fileNumber}`;
+    // Skipped files are not failures — say so explicitly, or a person who
+    // re-drops a batch after an error thinks documents went missing again.
+    const skippedNote = result.skipped > 0 ? ` (${result.skipped} כבר היו בתיק)` : "";
+
     if (result.failures.length > 0) {
       setFailedUploads(result.failures);
       toast.error(
-        `${result.uploaded} מסמכים ${where}, ${result.failures.length} נכשלו — ראה את הפירוט במקטע`,
+        `${result.uploaded} מסמכים ${where}${skippedNote}, ${result.failures.length} נכשלו — ראה את הפירוט במקטע`,
         { duration: 12000 }
       );
     } else {
       setFailedUploads([]);
-      toast.success(`${result.uploaded} ${result.uploaded === 1 ? "מסמך" : "מסמכים"} ${where}`);
+      toast.success(
+        result.uploaded === 0 && result.skipped > 0
+          ? `כל המסמכים כבר קיימים בתיק ${result.fileNumber}`
+          : `${result.uploaded} ${result.uploaded === 1 ? "מסמך" : "מסמכים"} ${where}${skippedNote}`
+      );
     }
 
     // A dossier created from file names alone has no shipment details yet.
     // Say so once rather than blocking the upload behind a form.
-    if (!result.joinedExisting) {
+    if (!result.joinedExisting && result.importFileId) {
       setExpanded(prev => new Set(prev).add(result.importFileId!));
     }
 
