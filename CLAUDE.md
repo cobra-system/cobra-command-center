@@ -91,6 +91,7 @@ const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
 - `division-consumption:hidden-columns` — DivisionConsumptionPage (consumption & health table)
 - `import-documents:hidden-columns` — ImportFilesSection (dossier documents table)
 - `import-cost-lines:hidden-columns` — ImportFilesSection (dossier cost breakdown table)
+- `import-documents-tab:hidden-columns` — ImportDocumentsTab (documents module, import tab)
 
 Use a new unique key for each new table (e.g. `"invoices:hidden-columns"`).
 

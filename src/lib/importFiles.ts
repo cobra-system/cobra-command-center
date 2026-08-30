@@ -19,8 +19,15 @@ import { supabase } from "@/lib/supabase";
 /** Document `type` for import paperwork — a general attachment, not a PI/PO. */
 export const IMPORT_DOC_TYPE = "כללי";
 
-/** Forwarders send PDFs; scans and photos of a stamped page turn up too. */
-export const IMPORT_FILE_ACCEPT = ".pdf,.jpg,.jpeg,.png,.tif,.tiff,.doc,.docx,.xls,.xlsx";
+/**
+ * Accept anything.
+ *
+ * Forwarders send PDFs, but also scans, phone photos of a stamped page, Excel
+ * annexes, and occasionally a forwarded .msg or .eml. Filtering by extension
+ * only ever silently hides a file the person meant to keep, so the picker
+ * takes everything and the document kind is sorted out afterwards.
+ */
+export const IMPORT_FILE_ACCEPT = "*";
 
 /**
  * The document kinds that make up a dossier, written to
@@ -263,6 +270,26 @@ export function sanitizeFileName(name: string): string {
 }
 
 /**
+ * A storage key that cannot collide with another file's.
+ *
+ * sanitizeFileName strips every non-ASCII character, so any Hebrew name
+ * ("שטר מטען.pdf", "רשימת אריזה.pdf", …) collapses to the same "_.pdf". Keying
+ * on a timestamp plus that name meant a batch of Hebrew-named attachments
+ * uploaded within the same millisecond resolved to one path, and Supabase
+ * storage rejected all but the first as already existing — silently losing
+ * documents. The random id makes the key unique regardless of the name; the
+ * sanitized name is kept only so the bucket stays browsable, and the real
+ * name always survives in purchase_documents.document_name.
+ */
+export function importStorageKey(importFileId: string, fileName: string): string {
+  const id = typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const readable = sanitizeFileName(fileName);
+  return `imports/${importFileId}/${id}_${readable}`;
+}
+
+/**
  * What a charge actually costs the business.
  *
  * Two kinds of line are worth money on paper but must not reach landed cost:
@@ -343,7 +370,7 @@ export interface UploadImportDocumentResult {
 export async function uploadImportDocument(args: UploadImportDocumentArgs): Promise<UploadImportDocumentResult> {
   const { file, importFileId, subtype, documentNumber, supplierId, orderId, totalPrice, currency } = args;
 
-  const path = `imports/${importFileId}/${Date.now()}_${sanitizeFileName(file.name)}`;
+  const path = importStorageKey(importFileId, file.name);
 
   const { error: uploadError } = await supabase.storage.from("documents").upload(path, file);
   if (uploadError) return { error: uploadError.message };

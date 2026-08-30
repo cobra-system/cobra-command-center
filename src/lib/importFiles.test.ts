@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   deriveFileNumber,
+  importStorageKey,
+  sanitizeFileName,
   guessSubtype,
   guessDocumentNumber,
   sumImportCosts,
@@ -109,6 +111,48 @@ describe("deriveFileNumber", () => {
     // The last three attachments turn up a day after the first four; they
     // still resolve to the same dossier.
     expect(deriveFileNumber(REAL_BATCH.slice(0, 3))).toBe("460509");
+  });
+});
+
+
+describe("importStorageKey", () => {
+  /**
+   * The bug this guards: sanitizeFileName strips every non-ASCII character, so
+   * every Hebrew name collapses to "_.pdf". Keyed on a timestamp plus that
+   * name, a batch of Hebrew-named attachments uploaded inside one millisecond
+   * produced identical paths and storage rejected all but the first — a drop
+   * of ten files quietly landed two.
+   */
+  const HEBREW_BATCH = [
+    "חשבונית הובלה.pdf",
+    "רשימת אריזה.pdf",
+    "שטר מטען.pdf",
+    "חשבונית מסוף.pdf",
+    "רשימון יבוא.pdf",
+  ];
+
+  it("collapses Hebrew names to one string — the reason keys cannot use them", () => {
+    const sanitized = new Set(HEBREW_BATCH.map(sanitizeFileName));
+    expect(sanitized.size).toBe(1);
+    expect(sanitized.has("_.pdf")).toBe(true);
+  });
+
+  it("still gives every file in a Hebrew batch a distinct key", () => {
+    const keys = HEBREW_BATCH.map(name => importStorageKey("file-1", name));
+    expect(new Set(keys).size).toBe(HEBREW_BATCH.length);
+  });
+
+  it("gives the same file name a fresh key each call", () => {
+    // Two uploads of the same document must not overwrite one another.
+    const a = importStorageKey("file-1", "שטר מטען.pdf");
+    const b = importStorageKey("file-1", "שטר מטען.pdf");
+    expect(a).not.toBe(b);
+  });
+
+  it("files the object under its dossier and keeps ASCII names readable", () => {
+    const key = importStorageKey("file-1", "Commercial_Invoice_460509.pdf");
+    expect(key.startsWith("imports/file-1/")).toBe(true);
+    expect(key.endsWith("_Commercial_Invoice_460509.pdf")).toBe(true);
   });
 });
 

@@ -105,6 +105,9 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
   const [editingFile, setEditingFile] = useState<ImportFile | null>(null);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // Failures stay on screen until the next successful upload — a toast that
+  // fades is not good enough when a lost document is the failure mode.
+  const [failedUploads, setFailedUploads] = useState<string[]>([]);
   const [costTarget, setCostTarget] = useState<{ file: ImportFile; line: ImportCostLine | null } | null>(null);
 
   const { isVisible: docVisible, hide: docHide, show: docShow, hiddenCols: docHidden, visibleCount: docVisibleCount } =
@@ -175,6 +178,12 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
   // Set when the person picked "add to this dossier"; null means group the
   // files by the file number in their names.
   const dossierUploadTarget = useRef<string | null>(null);
+  // A ref as well as state: handleFiles re-entering from a second drop reads
+  // this synchronously, before React has re-rendered with the new state.
+  const uploadingRef = useRef(false);
+  const queuedFiles = useRef<File[]>([]);
+
+  const handleFilesRef = useRef<((files: File[]) => Promise<void>) | null>(null);
 
   /**
    * Take whatever was dropped and file it. The dossier is found or created
@@ -182,8 +191,30 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
    * interaction — no dialog, nothing to fill in.
    */
   const handleFiles = useCallback(async (files: File[]) => {
-    if (files.length === 0 || uploading) return;
+    if (files.length === 0) return;
+
+    // A second drop while the first is still uploading used to be discarded.
+    // Anything a person hands over is deliberate, so queue it instead and let
+    // the in-flight run pick it up.
+    if (uploadingRef.current) {
+      queuedFiles.current.push(...files);
+      toast.info(`${files.length} קבצים נוספים ממתינים בתור`);
+      return;
+    }
+
+    uploadingRef.current = true;
     setUploading(true);
+
+    /** Release the lock, then drain anything dropped while we were busy. */
+    const finish = () => {
+      uploadingRef.current = false;
+      setUploading(false);
+      const queued = queuedFiles.current;
+      if (queued.length > 0) {
+        queuedFiles.current = [];
+        void handleFilesRef.current?.(queued);
+      }
+    };
 
     const target = dossierUploadTarget.current;
     dossierUploadTarget.current = null;
@@ -204,10 +235,12 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
         if (res.error) failed.push(`${file.name}: ${res.error}`);
         else ok += 1;
       }
-      setUploading(false);
+      finish();
       if (failed.length > 0) {
-        toast.warning(`${ok} נוספו, ${failed.length} נכשלו.`, { description: failed.join("\n"), duration: 12000 });
+        setFailedUploads(failed);
+        toast.error(`${ok} נוספו, ${failed.length} נכשלו — ראה את הפירוט במקטע`, { duration: 12000 });
       } else {
+        setFailedUploads([]);
         toast.success(`${ok} ${ok === 1 ? "מסמך נוסף" : "מסמכים נוספו"} לתיק`);
       }
       fetchData();
@@ -222,9 +255,10 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
       orderNumber,
     });
 
-    setUploading(false);
+    finish();
 
     if (result.error) {
+      setFailedUploads(files.map(f => `${f.name}: ${result.error}`));
       toast.error(`ההעלאה נכשלה: ${result.error}`);
       return;
     }
@@ -233,11 +267,13 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
       ? `נוספו לתיק ${result.fileNumber}`
       : `נקלטו בתיק ${result.fileNumber}`;
     if (result.failures.length > 0) {
-      toast.warning(`${result.uploaded} מסמכים ${where}. ${result.failures.length} נכשלו.`, {
-        description: result.failures.join("\n"),
-        duration: 12000,
-      });
+      setFailedUploads(result.failures);
+      toast.error(
+        `${result.uploaded} מסמכים ${where}, ${result.failures.length} נכשלו — ראה את הפירוט במקטע`,
+        { duration: 12000 }
+      );
     } else {
+      setFailedUploads([]);
       toast.success(`${result.uploaded} ${result.uploaded === 1 ? "מסמך" : "מסמכים"} ${where}`);
     }
 
@@ -248,7 +284,9 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
     }
 
     fetchData();
-  }, [orderId, supplierId, supplierName, orderNumber, uploading, fetchData]);
+  }, [orderId, supplierId, supplierName, orderNumber, fetchData]);
+
+  handleFilesRef.current = handleFiles;
 
   // Drag the forwarder's whole set of attachments onto the section, or paste
   // them. onFiles keeps the drop as one batch, which is what lets a single
@@ -315,6 +353,30 @@ export default function ImportFilesSection({ orderId, hasEdit, supplierId, suppl
             </div>
           )}
         </div>
+
+        {/* Failures stay put until the next clean upload. A person who drags
+            ten files needs to see which ones did not make it, not a toast
+            that has already gone. */}
+        {failedUploads.length > 0 && (
+          <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2 min-w-0">
+                <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">
+                    {failedUploads.length} קבצים לא נקלטו — נסה להעלות אותם שוב
+                  </p>
+                  <ul className="mt-1 space-y-0.5">
+                    {failedUploads.map((f, i) => (
+                      <li key={i} className="text-xs text-muted-foreground break-all">{f}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setFailedUploads([])}>סגור</Button>
+            </div>
+          </div>
+        )}
 
         {/* The whole section is the drop target; this is the empty-state
             prompt and the only thing a person has to understand. */}

@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Upload, Search, CreditCard, ScrollText } from "lucide-react";
+import { FileText, Upload, Search, CreditCard, ScrollText, Ship } from "lucide-react";
 import type { PurchaseDocument, Payment } from "@/components/documents/types";
 import DocumentSummaryCards from "@/components/documents/DocumentSummaryCards";
 import DocumentsDriveView from "@/components/documents/DocumentsDriveView";
 import DocumentAnnotationEditor from "@/components/documents/DocumentAnnotationEditor";
 import PaymentsTable from "@/components/documents/PaymentsTable";
 import ComplianceTab from "@/components/documents/ComplianceTab";
+import ImportDocumentsTab from "@/components/documents/ImportDocumentsTab";
 import SimpleFileUploadDialog from "@/components/documents/SimpleFileUploadDialog";
 import PaymentFormDialog from "@/components/documents/PaymentFormDialog";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -41,6 +42,12 @@ export default function DocumentsPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Import paperwork lives in its own tab — a dossier's PDFs only make sense
+  // together, and at seven or eight files per shipment they would swamp the
+  // flat list of PIs and POs.
+  const importDocs = docs.filter(d => d.import_file_id);
+  const generalDocs = docs.filter(d => !d.import_file_id);
+
   if (loading) return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-64 w-full" /></div>;
 
   return (
@@ -69,30 +76,36 @@ export default function DocumentsPage() {
       {tab !== "compliance" && (
         <div className="relative max-w-sm">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="חפש לפי ספק, מוצר או שם מסמך..." className="pr-10" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder={tab === "imports" ? "חפש לפי מספר תיק, רשימון, מכולה, אונייה או הזמנה..." : "חפש לפי ספק, מוצר או שם מסמך..."} className="pr-10" />
         </div>
       )}
 
       {/* Summary Cards */}
-      {tab !== "compliance" && (
-        <DocumentSummaryCards docs={docs} payments={payments} />
+      {tab !== "compliance" && tab !== "imports" && (
+        <DocumentSummaryCards docs={generalDocs} payments={payments} />
       )}
 
       {/* Tabs */}
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="documents" className="gap-1">
-            <FileText className="h-4 w-4" />מסמכים ({docs.length})
+            <FileText className="h-4 w-4" />מסמכים ({generalDocs.length})
           </TabsTrigger>
           <TabsTrigger value="payments" className="gap-1">
             <CreditCard className="h-4 w-4" />תשלומים ({payments.length})
+          </TabsTrigger>
+          <TabsTrigger value="imports" className="gap-1">
+            <Ship className="h-4 w-4" />מסמכי יבוא ({importDocs.length})
           </TabsTrigger>
           <TabsTrigger value="compliance" className="gap-1">
             <ScrollText className="h-4 w-4" />ציות ורישיונות
           </TabsTrigger>
         </TabsList>
         <TabsContent value="documents">
-          <DocumentsDriveView docs={docs} search={search} onRefresh={fetchData} onAnnotate={setAnnotatingDoc} />
+          <DocumentsDriveView docs={generalDocs} search={search} onRefresh={fetchData} onAnnotate={setAnnotatingDoc} />
+        </TabsContent>
+        <TabsContent value="imports">
+          <ImportDocumentsTab search={search} />
         </TabsContent>
         <TabsContent value="payments">
           <PaymentsTable
