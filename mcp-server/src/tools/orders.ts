@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { supabase } from "../supabase.js";
+import { unwrapRows } from "../lib/queryResult.js";
 
 const ORDER_STATUS_ENUM = z.enum([
   "PENDING",
@@ -64,8 +65,8 @@ export function registerOrderTools(server: McpServer) {
 
       const result = {
         ...orderRes.data,
-        items: itemsRes.data || [],
-        payment_schedule: paymentsRes.data || [],
+        items: unwrapRows(itemsRes, "items"),
+        payment_schedule: unwrapRows(paymentsRes, "payments"),
       };
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
     }

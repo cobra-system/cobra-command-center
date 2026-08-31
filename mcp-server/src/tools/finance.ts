@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { supabase } from "../supabase.js";
+import { unwrapRows } from "../lib/queryResult.js";
 
 export function registerFinanceTools(server: McpServer) {
   server.tool(
@@ -84,8 +85,8 @@ export function registerFinanceTools(server: McpServer) {
         supabase.from("supplier_payments").select("id, supplier_id, amount, status, paid_date").in("supplier_id", supplierIds),
       ]);
 
-      const orders = ordersRes.data || [];
-      const payments = paymentsRes.data || [];
+      const orders = unwrapRows(ordersRes, "orders");
+      const payments = unwrapRows(paymentsRes, "payments");
 
       const balances = (suppliers || []).map((s: Record<string, unknown>) => {
         const supplierOrders = orders.filter((o: Record<string, unknown>) => o.supplier_id === s.id);

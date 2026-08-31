@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { supabase } from "../supabase.js";
+import { unwrapRows } from "../lib/queryResult.js";
 
 const ACTIVE_ORDER_STATUSES = ["PENDING", "ORDERED", "SHIPPED", "ARRIVED_PORT", "CUSTOMS_CLEARANCE"];
 
@@ -67,7 +68,7 @@ export function registerProcurementInventoryTools(server: McpServer) {
       ]);
 
       // 3. Stock by center
-      const stockByCenterRaw = (inventoryRes.data || []) as Record<string, unknown>[];
+      const stockByCenterRaw = (unwrapRows(inventoryRes, "inventory")) as Record<string, unknown>[];
       const stockByCenter = stockByCenterRaw.map(row => {
         const dc = row.distribution_centers as Record<string, unknown>;
         return {
@@ -79,7 +80,7 @@ export function registerProcurementInventoryTools(server: McpServer) {
       const totalStock = stockByCenter.reduce((s, c) => s + c.quantity, 0);
 
       // 4. Incoming orders
-      const incomingRaw = (incomingRes.data || []) as Record<string, unknown>[];
+      const incomingRaw = (unwrapRows(incomingRes, "incoming")) as Record<string, unknown>[];
       const incomingOrders = incomingRaw.map(row => {
         const order = row.orders as Record<string, unknown>;
         return {
@@ -94,7 +95,7 @@ export function registerProcurementInventoryTools(server: McpServer) {
       const totalIncoming = incomingOrders.reduce((s, o) => s + o.qty, 0);
 
       // 5. Monthly consumption — bucket by month
-      const consumptionRaw = (consumptionRes.data || []) as Record<string, unknown>[];
+      const consumptionRaw = (unwrapRows(consumptionRes, "consumption")) as Record<string, unknown>[];
       const byMonth: Record<string, number> = {};
       for (const row of consumptionRaw) {
         const pickup = row.equipment_pickups as Record<string, unknown>;
@@ -196,26 +197,26 @@ export function registerProcurementInventoryTools(server: McpServer) {
 
       // 3. Index data by product_id
       const stockByProduct: Record<string, number> = {};
-      for (const row of (inventoryRes.data || []) as Record<string, unknown>[]) {
+      for (const row of (unwrapRows(inventoryRes, "inventory")) as Record<string, unknown>[]) {
         const pid = row.product_id as string;
         stockByProduct[pid] = (stockByProduct[pid] || 0) + (Number(row.quantity) || 0);
       }
 
       const incomingByProduct: Record<string, number> = {};
-      for (const row of (incomingItemsRes.data || []) as Record<string, unknown>[]) {
+      for (const row of (unwrapRows(incomingItemsRes, "incomingItems")) as Record<string, unknown>[]) {
         const pid = row.product_id as string;
         incomingByProduct[pid] = (incomingByProduct[pid] || 0) + (Number(row.qty) || 0);
       }
 
       const consumptionByProduct: Record<string, number[]> = {};
-      for (const row of (consumptionRes.data || []) as Record<string, unknown>[]) {
+      for (const row of (unwrapRows(consumptionRes, "consumption")) as Record<string, unknown>[]) {
         const pid = row.product_id as string;
         if (!consumptionByProduct[pid]) consumptionByProduct[pid] = [];
         consumptionByProduct[pid].push(Number(row.quantity) || 0);
       }
 
       const supplierMap: Record<string, string> = {};
-      for (const s of (supplierRes.data || []) as Record<string, unknown>[]) {
+      for (const s of (unwrapRows(supplierRes, "supplier")) as Record<string, unknown>[]) {
         supplierMap[s.id as string] = s.company as string;
       }
 
@@ -299,12 +300,12 @@ export function registerProcurementInventoryTools(server: McpServer) {
       ]);
 
       const productMap: Record<string, string> = {};
-      for (const p of (productsRes.data || []) as Record<string, unknown>[]) {
+      for (const p of (unwrapRows(productsRes, "products")) as Record<string, unknown>[]) {
         productMap[(p.sku as string).toLowerCase()] = p.id as string;
       }
 
       const centerMap: Record<string, string> = {};
-      for (const c of (centersRes.data || []) as Record<string, unknown>[]) {
+      for (const c of (unwrapRows(centersRes, "centers")) as Record<string, unknown>[]) {
         centerMap[(c.name as string).toLowerCase()] = c.id as string;
       }
 
@@ -477,7 +478,7 @@ export function registerProcurementInventoryTools(server: McpServer) {
       }
 
       // Payments
-      for (const p of (paymentsRes.data || []) as Record<string, unknown>[]) {
+      for (const p of (unwrapRows(paymentsRes, "payments")) as Record<string, unknown>[]) {
         const isPaid = p.status === "שולם";
         events.push({
           date:    (p.due_date ?? p.created_at) as string,
@@ -487,7 +488,7 @@ export function registerProcurementInventoryTools(server: McpServer) {
       }
 
       // Notes history
-      for (const n of (notesRes.data || []) as Record<string, unknown>[]) {
+      for (const n of (unwrapRows(notesRes, "notes")) as Record<string, unknown>[]) {
         const reason = n.change_reason ? ` (${n.change_reason})` : "";
         events.push({
           date:    n.changed_at as string,
@@ -497,7 +498,7 @@ export function registerProcurementInventoryTools(server: McpServer) {
       }
 
       // Procurement meetings
-      for (const m of (meetingsRes.data || []) as Record<string, unknown>[]) {
+      for (const m of (unwrapRows(meetingsRes, "meetings")) as Record<string, unknown>[]) {
         const meeting = m.meetings as Record<string, unknown>;
         const decisionLabel = m.decision === "approved" ? "אושר"
           : m.decision === "deferred" ? "נדחה"
@@ -511,7 +512,7 @@ export function registerProcurementInventoryTools(server: McpServer) {
       }
 
       // Documents
-      for (const d of (docsRes.data || []) as Record<string, unknown>[]) {
+      for (const d of (unwrapRows(docsRes, "docs")) as Record<string, unknown>[]) {
         events.push({
           date:    d.created_at as string,
           event:   `מסמך: ${d.type}`,

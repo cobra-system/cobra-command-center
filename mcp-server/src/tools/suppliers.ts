@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { supabase } from "../supabase.js";
+import { unwrapRows } from "../lib/queryResult.js";
 
 export function registerSupplierTools(server: McpServer) {
   server.tool(
@@ -43,8 +44,8 @@ export function registerSupplierTools(server: McpServer) {
 
       const result = {
         ...supplierRes.data,
-        contacts: contactsRes.data || [],
-        price_quotes: quotesRes.data || [],
+        contacts: unwrapRows(contactsRes, "contacts"),
+        price_quotes: unwrapRows(quotesRes, "quotes"),
       };
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
     }

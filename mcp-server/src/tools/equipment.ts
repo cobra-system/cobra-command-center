@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { supabase } from "../supabase.js";
+import { unwrapRows } from "../lib/queryResult.js";
 
 export function registerEquipmentTools(server: McpServer) {
   // ═══════════════════════════════════════════════════════════════
@@ -58,15 +59,15 @@ export function registerEquipmentTools(server: McpServer) {
 
       if (instRes.error) return { content: [{ type: "text" as const, text: `Error: ${instRes.error.message}` }] };
 
-      const totalTaken = (pickupsRes.data ?? []).reduce(
+      const totalTaken = (unwrapRows(pickupsRes, "pickups")).reduce(
         (sum, p) => sum + ((p.equipment_pickup_items as { quantity: number }[]) ?? []).reduce((s, i) => s + i.quantity, 0),
         0
       );
-      const totalReturned = (returnsRes.data ?? []).reduce(
+      const totalReturned = (unwrapRows(returnsRes, "returns")).reduce(
         (sum, r) => sum + ((r.equipment_return_items as { quantity: number; reason: string; is_actually_faulty: boolean | null }[]) ?? []).reduce((s, i) => s + i.quantity, 0),
         0
       );
-      const wasteCount = (returnsRes.data ?? []).reduce(
+      const wasteCount = (unwrapRows(returnsRes, "returns")).reduce(
         (sum, r) =>
           sum +
           ((r.equipment_return_items as { quantity: number; reason: string; is_actually_faulty: boolean | null }[]) ?? [])
@@ -82,8 +83,8 @@ export function registerEquipmentTools(server: McpServer) {
           total_items_returned: totalReturned,
           return_percentage: totalTaken > 0 ? Math.round((totalReturned / totalTaken) * 100) : 0,
           waste_count: wasteCount,
-          total_pickups: (pickupsRes.data ?? []).length,
-          total_returns: (returnsRes.data ?? []).length,
+          total_pickups: (unwrapRows(pickupsRes, "pickups")).length,
+          total_returns: (unwrapRows(returnsRes, "returns")).length,
         },
       };
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
@@ -313,7 +314,7 @@ export function registerEquipmentTools(server: McpServer) {
         supabase.from("equipment_pickup_items").select("*, products(name, sku)").eq("pickup_id", id),
       ]);
       if (pickupRes.error) return { content: [{ type: "text" as const, text: `Error: ${pickupRes.error.message}` }] };
-      const result = { ...pickupRes.data, items: itemsRes.data ?? [] };
+      const result = { ...pickupRes.data, items: unwrapRows(itemsRes, "items") };
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
     }
   );
@@ -534,7 +535,7 @@ export function registerEquipmentTools(server: McpServer) {
         supabase.from("equipment_return_items").select("*, products(name, sku)").eq("return_id", id),
       ]);
       if (retRes.error) return { content: [{ type: "text" as const, text: `Error: ${retRes.error.message}` }] };
-      const result = { ...retRes.data, items: itemsRes.data ?? [] };
+      const result = { ...retRes.data, items: unwrapRows(itemsRes, "items") };
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
     }
   );
@@ -864,8 +865,8 @@ export function registerEquipmentTools(server: McpServer) {
 
       const result = {
         installer: instRes.data,
-        pickups: pickRes.data ?? [],
-        returns: retRes.data ?? [],
+        pickups: unwrapRows(pickRes, "pick"),
+        returns: unwrapRows(retRes, "ret"),
       };
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
     }
@@ -1053,8 +1054,8 @@ export function registerEquipmentTools(server: McpServer) {
       type PickupData = { installer_id: string; equipment_pickup_items: { quantity: number }[] };
       type ReturnData = { installer_id: string; equipment_return_items: { quantity: number; is_actually_faulty: boolean | null }[] };
 
-      const pickups = (pickupsRes.data ?? []) as PickupData[];
-      const returns = (returnsRes.data ?? []) as ReturnData[];
+      const pickups = (unwrapRows(pickupsRes, "pickups")) as PickupData[];
+      const returns = (unwrapRows(returnsRes, "returns")) as ReturnData[];
 
       let grandTaken = 0, grandReturned = 0, grandWaste = 0;
 
@@ -1244,7 +1245,7 @@ export function registerEquipmentTools(server: McpServer) {
       // Build net map: key = "installer_id::product_id"
       const netMap = new Map<string, { installer_id: string; product_id: string; taken: number; returned: number }>();
 
-      (pickRes.data ?? []).forEach((p) => {
+      (unwrapRows(pickRes, "pick")).forEach((p) => {
         ((p.equipment_pickup_items as PickItem[]) ?? []).forEach((item) => {
           if (product_id && item.product_id !== product_id) return;
           const key = `${p.installer_id}::${item.product_id}`;
@@ -1254,7 +1255,7 @@ export function registerEquipmentTools(server: McpServer) {
         });
       });
 
-      (retRes.data ?? []).forEach((r) => {
+      (unwrapRows(retRes, "ret")).forEach((r) => {
         ((r.equipment_return_items as PickItem[]) ?? []).forEach((item) => {
           if (product_id && item.product_id !== product_id) return;
           const key = `${r.installer_id}::${item.product_id}`;

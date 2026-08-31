@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { supabase } from "../supabase.js";
+import { unwrapRows } from "../lib/queryResult.js";
 
 export function registerSearchTools(server: McpServer) {
   server.tool(
@@ -125,8 +126,8 @@ export function registerSearchTools(server: McpServer) {
 
       if (supplierRes.error) return { content: [{ type: "text" as const, text: `Error: ${supplierRes.error.message}` }] };
 
-      const orders = ordersRes.data || [];
-      const payments = paymentsRes.data || [];
+      const orders = unwrapRows(ordersRes, "orders");
+      const payments = unwrapRows(paymentsRes, "payments");
 
       const totalOrderValue = orders.reduce((sum: number, o: Record<string, unknown>) => sum + (Number(o.total_price) || 0), 0);
       const totalPaid = payments
@@ -135,17 +136,17 @@ export function registerSearchTools(server: McpServer) {
 
       const result = {
         supplier: supplierRes.data,
-        contacts: contactsRes.data || [],
+        contacts: unwrapRows(contactsRes, "contacts"),
         summary: {
           total_orders: orders.length,
           total_order_value: totalOrderValue,
           total_paid: totalPaid,
           outstanding_balance: totalOrderValue - totalPaid,
-          total_documents: (docsRes.data || []).length,
+          total_documents: (unwrapRows(docsRes, "docs")).length,
         },
         orders,
         payments,
-        documents: docsRes.data || [],
+        documents: unwrapRows(docsRes, "docs"),
       };
 
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
@@ -173,20 +174,20 @@ export function registerSearchTools(server: McpServer) {
 
       if (productRes.error) return { content: [{ type: "text" as const, text: `Error: ${productRes.error.message}` }] };
 
-      const issues = issuesRes.data || [];
+      const issues = unwrapRows(issuesRes, "issues");
       const openIssues = issues.filter((i: Record<string, unknown>) => i.status !== "נסגר");
 
       const result = {
         product: productRes.data,
-        components: componentsRes.data || [],
-        inventory_by_center: inventoryRes.data || [],
+        components: unwrapRows(componentsRes, "components"),
+        inventory_by_center: unwrapRows(inventoryRes, "inventory"),
         issues: {
           total: issues.length,
           open: openIssues.length,
           items: issues,
         },
-        compliance: (complianceRes.data || []).map((link: Record<string, unknown>) => link.compliance_items),
-        order_history: orderItemsRes.data || [],
+        compliance: (unwrapRows(complianceRes, "compliance")).map((link: Record<string, unknown>) => link.compliance_items),
+        order_history: unwrapRows(orderItemsRes, "orderItems"),
       };
 
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
@@ -220,7 +221,7 @@ export function registerSearchTools(server: McpServer) {
       if (order.etd) events.push({ date: order.etd, type: "etd", description: "Estimated departure" });
       if (order.eta) events.push({ date: order.eta, type: "eta", description: "Estimated arrival" });
 
-      for (const payment of paymentsRes.data || []) {
+      for (const payment of unwrapRows(paymentsRes, "payments")) {
         const p = payment as Record<string, unknown>;
         events.push({
           date: p.created_at as string,
@@ -229,7 +230,7 @@ export function registerSearchTools(server: McpServer) {
         });
       }
 
-      for (const doc of docsRes.data || []) {
+      for (const doc of unwrapRows(docsRes, "docs")) {
         const d = doc as Record<string, unknown>;
         events.push({
           date: d.created_at as string,
@@ -242,7 +243,7 @@ export function registerSearchTools(server: McpServer) {
 
       const result = {
         order,
-        items: itemsRes.data || [],
+        items: unwrapRows(itemsRes, "items"),
         timeline: events,
       };
 

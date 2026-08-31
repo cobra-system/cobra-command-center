@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { supabase } from "../supabase.js";
+import { unwrapRows } from "../lib/queryResult.js";
 
 export function registerComplianceTools(server: McpServer) {
   server.tool(
@@ -47,7 +48,7 @@ export function registerComplianceTools(server: McpServer) {
 
       const result = {
         ...itemRes.data,
-        linked_products: linksRes.data || [],
+        linked_products: unwrapRows(linksRes, "links"),
       };
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
     }

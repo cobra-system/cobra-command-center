@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { supabase } from "../supabase.js";
 import { fetchDhlTracking, persistTracking } from "../lib/dhlParse.js";
+import { unwrapRows } from "../lib/queryResult.js";
 
 export function registerShippingTools(server: McpServer) {
   // ── Shipment Groups ──────────────────────────────────────────────────────────
@@ -84,8 +85,8 @@ export function registerShippingTools(server: McpServer) {
 
       const result = {
         ...groupRes.data,
-        orders: ordersRes.data || [],
-        total_value: (ordersRes.data || []).reduce(
+        orders: unwrapRows(ordersRes, "orders"),
+        total_value: (unwrapRows(ordersRes, "orders")).reduce(
           (sum: number, o: Record<string, unknown>) => sum + (Number(o.total_price) || 0), 0
         ),
       };

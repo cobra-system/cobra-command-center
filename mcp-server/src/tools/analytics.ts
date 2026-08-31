@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { supabase } from "../supabase.js";
+import { unwrapRows } from "../lib/queryResult.js";
 
 export function registerAnalyticsTools(server: McpServer) {
   server.tool(
@@ -19,11 +20,11 @@ export function registerAnalyticsTools(server: McpServer) {
         supabase.from("tasks").select("id, status, due_date").neq("status", "TEMPLATE"),
       ]);
 
-      const orders = ordersRes.data || [];
-      const products = productsRes.data || [];
-      const payments = paymentsRes.data || [];
-      const compliance = complianceRes.data || [];
-      const tasks = tasksRes.data || [];
+      const orders = unwrapRows(ordersRes, "orders");
+      const products = unwrapRows(productsRes, "products");
+      const payments = unwrapRows(paymentsRes, "payments");
+      const compliance = unwrapRows(complianceRes, "compliance");
+      const tasks = unwrapRows(tasksRes, "tasks");
 
       // Filter orders by date range if provided
       let filteredOrders = orders;
@@ -176,8 +177,8 @@ export function registerAnalyticsTools(server: McpServer) {
         }
       }
 
-      const orders = ordersRes.data || [];
-      const issues = issuesRes.data || [];
+      const orders = unwrapRows(ordersRes, "orders");
+      const issues = unwrapRows(issuesRes, "issues");
 
       const performance = (suppliers || []).map((s: Record<string, unknown>) => {
         const supplierOrders = orders.filter((o: Record<string, unknown>) => o.supplier_id === s.id);
@@ -304,18 +305,18 @@ export function registerAnalyticsTools(server: McpServer) {
 
       const result = {
         overdue_tasks: {
-          count: (tasksRes.data || []).length,
-          items: tasksRes.data || [],
+          count: (unwrapRows(tasksRes, "tasks")).length,
+          items: unwrapRows(tasksRes, "tasks"),
         },
         expired_compliance: {
-          count: (complianceRes.data || []).length,
-          items: complianceRes.data || [],
+          count: (unwrapRows(complianceRes, "compliance")).length,
+          items: unwrapRows(complianceRes, "compliance"),
         },
         late_orders: {
-          count: (ordersRes.data || []).length,
-          items: ordersRes.data || [],
+          count: (unwrapRows(ordersRes, "orders")).length,
+          items: unwrapRows(ordersRes, "orders"),
         },
-        total_overdue: (tasksRes.data || []).length + (complianceRes.data || []).length + (ordersRes.data || []).length,
+        total_overdue: (unwrapRows(tasksRes, "tasks")).length + (unwrapRows(complianceRes, "compliance")).length + (unwrapRows(ordersRes, "orders")).length,
       };
 
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };

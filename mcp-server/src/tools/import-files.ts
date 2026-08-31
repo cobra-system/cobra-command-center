@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { supabase } from "../supabase.js";
+import { unwrapRows } from "../lib/queryResult.js";
 
 /**
  * Import files (תיקי יבוא) — the customs-broker dossier for one shipment.
@@ -185,9 +186,9 @@ export function registerImportFileTools(server: McpServer) {
 
       return text(JSON.stringify({
         import_file: file,
-        documents: docsRes.data ?? [],
-        cost_lines: costsRes.data ?? [],
-        linked_orders: ordersRes.data ?? [],
+        documents: unwrapRows(docsRes, "docs"),
+        cost_lines: unwrapRows(costsRes, "costs"),
+        linked_orders: unwrapRows(ordersRes, "orders"),
       }, null, 2));
     }
   );
@@ -359,7 +360,7 @@ export function registerImportFileTools(server: McpServer) {
       if (fileRes.error) return fail(fileRes.error.message);
       if (linesRes.error) return fail(linesRes.error.message);
 
-      const lines = linesRes.data ?? [];
+      const lines = unwrapRows(linesRes, "lines");
       let landed = 0, shipping = 0, customs = 0, recoverable = 0, duplicated = 0;
       const unconverted: string[] = [];
       const byCategory: Record<string, number> = {};

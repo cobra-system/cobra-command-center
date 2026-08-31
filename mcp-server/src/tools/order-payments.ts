@@ -3,6 +3,7 @@ import { z } from "zod";
 import { supabase } from "../supabase.js";
 import { readFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
+import { unwrapRows } from "../lib/queryResult.js";
 
 const SWIFT_MIME: Record<string, string> = {
   ".pdf": "application/pdf",
@@ -76,8 +77,8 @@ export function registerOrderPaymentTools(server: McpServer) {
 
       if (orderRes.error) return { content: [{ type: "text" as const, text: `Error fetching order: ${orderRes.error.message}` }] };
 
-      const swiftDocs = (docsRes.data || []) as Record<string, unknown>[];
-      const payments = ((paymentsRes.data || []) as Record<string, unknown>[]).map((p) => ({
+      const swiftDocs = (unwrapRows(docsRes, "docs")) as Record<string, unknown>[];
+      const payments = ((unwrapRows(paymentsRes, "payments")) as Record<string, unknown>[]).map((p) => ({
         ...p,
         swift_documents: swiftDocs.filter((d) => d.order_payment_id === p.id),
       }));
@@ -121,7 +122,7 @@ export function registerOrderPaymentTools(server: McpServer) {
 
       if (orderRes.error) return { content: [{ type: "text" as const, text: `Error: ${orderRes.error.message}` }] };
 
-      const payments = paymentsRes.data || [];
+      const payments = unwrapRows(paymentsRes, "payments");
       const today = new Date().toISOString().split("T")[0];
 
       type ScheduleEntry = Record<string, unknown> & { is_paid: boolean; is_overdue: unknown; days_until_due: number | null };

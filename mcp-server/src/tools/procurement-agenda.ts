@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { supabase } from "../supabase.js";
+import { unwrapRows } from "../lib/queryResult.js";
 
 export function registerProcurementAgendaTools(server: McpServer) {
   server.tool(
@@ -140,9 +141,9 @@ export function registerProcurementAgendaTools(server: McpServer) {
           .in("status", ["PENDING", "ORDERED"]),
       ]);
 
-      const etaAlerts = etaAlertsRes.data || [];
-      const customsOrders = customsOrdersRes.data || [];
-      const pendingPiCandidates = pendingPiOrdersRes.data || [];
+      const etaAlerts = unwrapRows(etaAlertsRes, "etaAlerts");
+      const customsOrders = unwrapRows(customsOrdersRes, "customsOrders");
+      const pendingPiCandidates = unwrapRows(pendingPiOrdersRes, "pendingPiOrders");
 
       // From the pending-PI candidates, keep only those with NO order_payments row at all
       // (no deposit scheduled means PI hasn't been approved for payment yet)

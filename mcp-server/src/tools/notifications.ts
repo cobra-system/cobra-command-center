@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { supabase } from "../supabase.js";
+import { unwrapRows } from "../lib/queryResult.js";
 
 export function registerNotificationTools(server: McpServer) {
   server.tool(
@@ -47,12 +48,12 @@ export function registerNotificationTools(server: McpServer) {
           .not("pi_number", "is", null),
       ]);
 
-      const lowStockProducts = (productsRes.data || []).filter((p: Record<string, unknown>) =>
+      const lowStockProducts = (unwrapRows(productsRes, "products")).filter((p: Record<string, unknown>) =>
         (Number(p.stock_qty) || 0) <= (Number(p.reorder_point) || 0)
       );
 
       // For balance needed: join with orders to get status filter
-      const balanceOrderIds = (balanceNeededRes.data || []).map((p: Record<string, unknown>) => p.order_id as string);
+      const balanceOrderIds = (unwrapRows(balanceNeededRes, "balanceNeeded")).map((p: Record<string, unknown>) => p.order_id as string);
       let balanceNeededOrders: Record<string, unknown>[] = [];
       if (balanceOrderIds.length > 0) {
         const { data: balanceOrders } = await supabase
@@ -62,7 +63,7 @@ export function registerNotificationTools(server: McpServer) {
           .in("status", ["SHIPPED", "ARRIVED_PORT", "CUSTOMS_CLEARANCE"]);
 
         const relevantOrderIds = new Set((balanceOrders || []).map((o: Record<string, unknown>) => o.id as string));
-        balanceNeededOrders = (balanceNeededRes.data || []).filter((p: Record<string, unknown>) =>
+        balanceNeededOrders = (unwrapRows(balanceNeededRes, "balanceNeeded")).filter((p: Record<string, unknown>) =>
           relevantOrderIds.has(p.order_id as string)
         ).map((p: Record<string, unknown>) => {
           const order = (balanceOrders || []).find((o: Record<string, unknown>) => o.id === p.order_id);
@@ -71,7 +72,7 @@ export function registerNotificationTools(server: McpServer) {
       }
 
       // For PI without SWIFT: check order_payments for Deposit with no swift_reference
-      const piOrderIds = (ordersWithPiRes.data || []).map((o: Record<string, unknown>) => o.id as string);
+      const piOrderIds = (unwrapRows(ordersWithPiRes, "ordersWithPi")).map((o: Record<string, unknown>) => o.id as string);
       let piWithoutSwift: Record<string, unknown>[] = [];
       if (piOrderIds.length > 0) {
         const { data: depositPayments } = await supabase
@@ -84,7 +85,7 @@ export function registerNotificationTools(server: McpServer) {
 
         if (depositPayments && depositPayments.length > 0) {
           const depositOrderIds = new Set(depositPayments.map((p: Record<string, unknown>) => p.order_id as string));
-          const matchingOrders = (ordersWithPiRes.data || []).filter((o: Record<string, unknown>) =>
+          const matchingOrders = (unwrapRows(ordersWithPiRes, "ordersWithPi")).filter((o: Record<string, unknown>) =>
             depositOrderIds.has(o.id as string)
           );
           piWithoutSwift = matchingOrders.map((o: Record<string, unknown>) => ({
@@ -98,30 +99,30 @@ export function registerNotificationTools(server: McpServer) {
 
       const alerts = {
         expiring_compliance: {
-          count: (complianceRes.data || []).length,
-          items: complianceRes.data || [],
+          count: (unwrapRows(complianceRes, "compliance")).length,
+          items: unwrapRows(complianceRes, "compliance"),
         },
         low_stock: {
           count: lowStockProducts.length,
           items: lowStockProducts,
         },
         pending_payments: {
-          count: (paymentsRes.data || []).length,
-          items: paymentsRes.data || [],
+          count: (unwrapRows(paymentsRes, "payments")).length,
+          items: unwrapRows(paymentsRes, "payments"),
         },
         late_orders: {
-          count: (ordersRes.data || []).length,
-          items: ordersRes.data || [],
+          count: (unwrapRows(ordersRes, "orders")).length,
+          items: unwrapRows(ordersRes, "orders"),
         },
         overdue_tasks: {
-          count: (tasksRes.data || []).length,
-          items: tasksRes.data || [],
+          count: (unwrapRows(tasksRes, "tasks")).length,
+          items: unwrapRows(tasksRes, "tasks"),
         },
         // New alert categories
         eta_overdue_no_status_update: {
-          count: (etaOverdueRes.data || []).length,
+          count: (unwrapRows(etaOverdueRes, "etaOverdue")).length,
           description: "Orders whose ETA has passed but are still in ORDERED or SHIPPED status — may need status update or ETA correction",
-          items: etaOverdueRes.data || [],
+          items: unwrapRows(etaOverdueRes, "etaOverdue"),
         },
         balance_payment_needed: {
           count: balanceNeededOrders.length,
@@ -134,12 +135,12 @@ export function registerNotificationTools(server: McpServer) {
           items: piWithoutSwift,
         },
         total_alerts:
-          (complianceRes.data || []).length +
+          (unwrapRows(complianceRes, "compliance")).length +
           lowStockProducts.length +
-          (paymentsRes.data || []).length +
-          (ordersRes.data || []).length +
-          (tasksRes.data || []).length +
-          (etaOverdueRes.data || []).length +
+          (unwrapRows(paymentsRes, "payments")).length +
+          (unwrapRows(ordersRes, "orders")).length +
+          (unwrapRows(tasksRes, "tasks")).length +
+          (unwrapRows(etaOverdueRes, "etaOverdue")).length +
           balanceNeededOrders.length +
           piWithoutSwift.length,
       };
@@ -173,15 +174,15 @@ export function registerNotificationTools(server: McpServer) {
       ]);
 
       const critical = {
-        expiring_compliance_7d: complianceRes.data || [],
-        zero_stock_products: productsRes.data || [],
-        late_urgent_orders: ordersRes.data || [],
-        critical_issues: issuesRes.data || [],
+        expiring_compliance_7d: unwrapRows(complianceRes, "compliance"),
+        zero_stock_products: unwrapRows(productsRes, "products"),
+        late_urgent_orders: unwrapRows(ordersRes, "orders"),
+        critical_issues: unwrapRows(issuesRes, "issues"),
         total_critical:
-          (complianceRes.data || []).length +
-          (productsRes.data || []).length +
-          (ordersRes.data || []).length +
-          (issuesRes.data || []).length,
+          (unwrapRows(complianceRes, "compliance")).length +
+          (unwrapRows(productsRes, "products")).length +
+          (unwrapRows(ordersRes, "orders")).length +
+          (unwrapRows(issuesRes, "issues")).length,
       };
 
       return { content: [{ type: "text" as const, text: JSON.stringify(critical, null, 2) }] };

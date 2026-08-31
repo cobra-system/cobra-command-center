@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { supabase } from "../supabase.js";
+import { unwrapRows } from "../lib/queryResult.js";
 
 export function registerInventoryTools(server: McpServer) {
   server.tool(
@@ -113,7 +114,7 @@ export function registerInventoryTools(server: McpServer) {
 
       const result = {
         center: centerRes.data,
-        inventory: inventoryRes.data || [],
+        inventory: unwrapRows(inventoryRes, "inventory"),
       };
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
     }

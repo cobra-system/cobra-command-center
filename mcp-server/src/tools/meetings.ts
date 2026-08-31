@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { supabase } from "../supabase.js";
+import { unwrapRows } from "../lib/queryResult.js";
 
 export function registerMeetingTools(server: McpServer) {
   server.tool(
@@ -79,7 +80,7 @@ export function registerMeetingTools(server: McpServer) {
 
       const result = {
         ...meetingRes.data,
-        action_items: actionItemsRes.data || [],
+        action_items: unwrapRows(actionItemsRes, "actionItems"),
       };
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
     }

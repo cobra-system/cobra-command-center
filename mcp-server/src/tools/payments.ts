@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { supabase } from "../supabase.js";
+import { unwrapRows } from "../lib/queryResult.js";
 
 export function registerPaymentTools(server: McpServer) {
   server.tool(
@@ -80,8 +81,8 @@ export function registerPaymentTools(server: McpServer) {
 
       if (orderRes.error) return { content: [{ type: "text" as const, text: `Error fetching order: ${orderRes.error.message}` }] };
 
-      const payments = paymentsRes.data || [];
-      const schedule = orderPaymentsRes.data || [];
+      const payments = unwrapRows(paymentsRes, "payments");
+      const schedule = unwrapRows(orderPaymentsRes, "orderPayments");
       const schedulePaid = schedule
         .filter((p: Record<string, unknown>) => p.status === "שולם")
         .reduce((sum: number, p: Record<string, unknown>) => sum + (Number(p.amount) || 0), 0);

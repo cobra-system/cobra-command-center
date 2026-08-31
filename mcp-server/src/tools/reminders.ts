@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { supabase } from "../supabase.js";
+import { unwrapRows } from "../lib/queryResult.js";
 
 export function registerReminderTools(server: McpServer) {
   server.tool(
@@ -115,11 +116,11 @@ export function registerReminderTools(server: McpServer) {
           .neq("status", "נסגר").in("severity", ["קריטי", "גבוה"]),
       ]);
 
-      const orders = ordersRes.data || [];
-      const tasks = tasksRes.data || [];
-      const compliance = complianceRes.data || [];
-      const payments = paymentsRes.data || [];
-      const issues = issuesRes.data || [];
+      const orders = unwrapRows(ordersRes, "orders");
+      const tasks = unwrapRows(tasksRes, "tasks");
+      const compliance = unwrapRows(complianceRes, "compliance");
+      const payments = unwrapRows(paymentsRes, "payments");
+      const issues = unwrapRows(issuesRes, "issues");
 
       // Build COBRA updates from active orders
       const cobraUpdates = orders.slice(0, 10).map((o: Record<string, unknown>) => ({

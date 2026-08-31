@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { supabase } from "../supabase.js";
+import { unwrapRows } from "../lib/queryResult.js";
 
 export function registerTeamTools(server: McpServer) {
   server.tool(
@@ -37,7 +38,7 @@ export function registerTeamTools(server: McpServer) {
 
       const result = {
         ...profileRes.data,
-        user_roles: rolesRes.data || [],
+        user_roles: unwrapRows(rolesRes, "roles"),
       };
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
     }
