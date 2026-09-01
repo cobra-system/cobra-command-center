@@ -9,23 +9,23 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Wrench, Plus, ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle, CheckCircle2, Clock, Hash, Minus, Circle, Check, X, Filter } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
-import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { useColumnVisibility, defineColumns } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { DiagnosticWizard, SimpleIssueForm } from "@/components/ProductIssuesTab";
 
 import { format } from "date-fns";
 type SortKey = "reported_date" | "product_id" | "reporter" | "severity" | "status";
 
-const COLUMN_DEFS = [
-  { id: "reported_date", label: "תאריך",      sortField: "reported_date" },
-  { id: "product_id",    label: "מוצר",       sortField: "product_id" },
-  { id: "supplier",      label: "ספק" },
-  { id: "reporter",      label: "מדווח",      sortField: "reporter" },
-  { id: "description",   label: "תיאור" },
-  { id: "severity",      label: "חומרה",      sortField: "severity" },
-  { id: "status",        label: "סטטוס",      sortField: "status" },
-  { id: "ticket_number", label: "מספר פנייה" },
-] as const;
+const COLUMN_DEFS = defineColumns([
+    { id: "reported_date", label: "תאריך",      sortField: "reported_date" },
+    { id: "product_id",    label: "מוצר",       sortField: "product_id" },
+    { id: "supplier",      label: "ספק" },
+    { id: "reporter",      label: "מדווח",      sortField: "reporter" },
+    { id: "description",   label: "תיאור" },
+    { id: "severity",      label: "חומרה",      sortField: "severity" },
+    { id: "status",        label: "סטטוס",      sortField: "status" },
+    { id: "ticket_number", label: "מספר פנייה" },
+]);
 
 interface Issue {
   id: string;

@@ -76,24 +76,22 @@ export function useTreemapData(filters: TreemapFilters) {
         setDivStockData((data ?? []) as DivStockRow[]);
       })();
 
+      // Aggregated client-side: there is no get_open_issue_counts RPC in the
+      // database, so the previous call always returned null and the .catch()
+      // fallback never ran (postgrest resolves with an error, it doesn't throw).
       const issuePromise = (async () => {
-        const { data } = await supabase.rpc("get_open_issue_counts");
-        if (data) setIssueCountData(data as IssueCountRow[]);
-      })().catch(() => {
-        // RPC may not exist — fall back to direct query
-        supabase
+        const { data } = await supabase
           .from("product_issues")
           .select("product_id")
-          .neq("status", "נסגר")
-          .then(({ data }) => {
-            if (!data) return;
-            const counts = new Map<string, number>();
-            for (const row of data) {
-              counts.set(row.product_id, (counts.get(row.product_id) ?? 0) + 1);
-            }
-            setIssueCountData([...counts.entries()].map(([product_id, count]) => ({ product_id, count })));
-          });
-      });
+          .neq("status", "נסגר");
+        if (!data) return;
+        const counts = new Map<string, number>();
+        for (const row of data) {
+          if (!row.product_id) continue;
+          counts.set(row.product_id, (counts.get(row.product_id) ?? 0) + 1);
+        }
+        setIssueCountData([...counts.entries()].map(([product_id, count]) => ({ product_id, count })));
+      })().catch(() => {});
 
       const orderPromise = (async () => {
         const { data } = await supabase

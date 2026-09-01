@@ -68,7 +68,7 @@ export function ShipmentGroupSelector({ orderId, currentGroupId, hasEdit, onUpda
               <Combobox
                 options={options}
                 value={currentGroupId || ""}
-                onChange={v => handleSelect(v || null)}
+                onValueChange={v => handleSelect(v || null)}
                 placeholder="חפש קבוצת משלוח..."
               />
               {currentGroupId && (

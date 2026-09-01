@@ -1,4 +1,5 @@
 import { Fragment, useState, useEffect, useMemo, useCallback } from "react";
+import { getField } from "@/lib/sortUtils";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useData, useAuth } from "@/contexts/AppContext";
@@ -2044,8 +2045,8 @@ export default function DivisionDetailPage() {
                   .filter(r => freeTextMatch(r, orSearch))
                   .sort((a, b) => {
                     if (!orSortField) return 0;
-                    const av = (a as Record<string, unknown>)[orSortField] ?? "";
-                    const bv = (b as Record<string, unknown>)[orSortField] ?? "";
+                    const av = getField(a, orSortField) ?? "";
+                    const bv = getField(b, orSortField) ?? "";
                     if (typeof av === "number" && typeof bv === "number") {
                       return orSortDir === "asc" ? av - bv : bv - av;
                     }

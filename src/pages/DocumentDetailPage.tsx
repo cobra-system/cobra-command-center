@@ -249,7 +249,8 @@ function FilePreview({ url, filename }: { url: string; filename?: string }) {
 function generateDocumentPDF(
   doc: PurchaseDocument,
   supplierName: string | undefined,
-  productName: string | undefined
+  productName: string | undefined,
+  formatPrice: (amount: number | null | undefined, currency?: string) => string
 ) {
   const element = document.createElement("div");
   element.style.padding = "20px";
@@ -557,7 +558,7 @@ export default function DocumentDetailPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => generateDocumentPDF(doc, supplierName, productName)}
+              onClick={() => generateDocumentPDF(doc, supplierName, productName, formatPrice)}
             >
               <Download className="h-4 w-4 ml-1" />הורד כ PDF
             </Button>

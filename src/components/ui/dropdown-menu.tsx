@@ -54,7 +54,11 @@ DropdownMenuSubContent.displayName = DropdownMenuPrimitive.SubContent.displayNam
 
 const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
+  // Radix omits `dir` from Content's props (it lives on Root), but the RTL
+  // menus in this app set it per-content and it passes through to the DOM.
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content> & {
+    dir?: "ltr" | "rtl";
+  }
 >(({ className, sideOffset = 4, ...props }, ref) => (
   <DropdownMenuPrimitive.Portal>
     <DropdownMenuPrimitive.Content

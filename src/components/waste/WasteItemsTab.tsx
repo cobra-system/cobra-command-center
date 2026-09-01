@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useData } from "@/contexts/AppContext";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { useColumnVisibility, defineColumns } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import type { WasteItem, WasteStatus } from "@/contexts/types";
 import { WasteStatusBadge } from "./WasteStatusBadge";
@@ -17,15 +17,15 @@ import { cn } from "@/lib/utils";
 
 // ─── Column definitions ───────────────────────────────────────────────────────
 
-const COLUMN_DEFS = [
-  { id: "product",    label: "מוצר",        sortField: "product_name" },
-  { id: "quantity",   label: "כמות",        sortField: "quantity" },
-  { id: "status",     label: "מצב",         sortField: "status" },
-  { id: "notes",      label: "הערות" },
-  { id: "source",     label: "מקור" },
-  { id: "created_at", label: "תאריך",       sortField: "created_at" },
-  { id: "created_by", label: 'נוצר ע"י' },
-] as const;
+const COLUMN_DEFS = defineColumns([
+    { id: "product",    label: "מוצר",        sortField: "product_name" },
+    { id: "quantity",   label: "כמות",        sortField: "quantity" },
+    { id: "status",     label: "מצב",         sortField: "status" },
+    { id: "notes",      label: "הערות" },
+    { id: "source",     label: "מקור" },
+    { id: "created_at", label: "תאריך",       sortField: "created_at" },
+    { id: "created_by", label: 'נוצר ע"י' },
+]);
 
 type ColId = (typeof COLUMN_DEFS)[number]["id"];
 

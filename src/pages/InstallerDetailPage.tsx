@@ -112,7 +112,7 @@ export default function InstallerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { products } = useData();
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
 
   const [installer, setInstaller] = useState<Installer | null>(null);
   const [pickupRows, setPickupRows] = useState<PickupRow[]>([]);
@@ -266,8 +266,8 @@ export default function InstallerDetailPage() {
 
     const row = returnRows.find((r) => r.return_item_id === returnItemId);
     const prod = row ? products.find((p) => p.id === row.product_id) : null;
-    const userName = (user as { name?: string } | null)?.name ?? null;
-    const userId = (user as { id?: string } | null)?.id ?? null;
+    const userName = currentUser?.name ?? null;
+    const userId = currentUser?.id ?? null;
 
     try {
       const { error } = await supabase

@@ -61,7 +61,7 @@ interface Props {
 
 export function NewReturnDialog({ open, onOpenChange, onCreated, preselectedInstallerId, divisionProductIds }: Props) {
   const { products } = useData();
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
   const [saving, setSaving] = useState(false);
   const [installers, setInstallers] = useState<Installer[]>([]);
   const [installerId, setInstallerId] = useState(preselectedInstallerId ?? "");
@@ -171,7 +171,7 @@ export function NewReturnDialog({ open, onOpenChange, onCreated, preselectedInst
       restockInventoryForReturn(
         validItems.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
         installerName,
-        (user as { name?: string } | null)?.name ?? null
+        currentUser?.name ?? null
       ).catch(() => {/* inventory sync errors are non-critical */});
 
       toast.success("ההחזרה נשמרה בהצלחה");

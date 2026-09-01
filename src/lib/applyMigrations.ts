@@ -10,109 +10,10 @@ import { supabase } from "@/lib/supabase";
 const MIGRATION_KEY = "cobra_migrations_applied"
 const CURRENT_VERSION = "20260424_waste_schema_reload"
 
-const INTERNATIONAL_TEMPLATE_ID = "b5a990c9-579d-4d9f-8e9a-90a8856ad00b";
-const ISRAEL_TEMPLATE_ID = "c7b881d0-68ae-4e0a-9f1b-a1b9967be11c";
-
-async function migrateWorkflowTemplates() {
-  // Update international procurement workflow
-  const internationalSteps = [
-    { action: "upload_file", index: 0, name: "קבלת PI מספק", required: true },
-    { action: "approve",     index: 1, name: "אישור בישיבת רכש", required: true },
-    { action: "send_email",  index: 2, name: "שליחת PI למחלקת פיננסים", required: true },
-    { action: "input_eta",   index: 3, name: "שליחת SWIFT לספק + עדכון ETA במערכת", required: true },
-    { action: "send_email",  index: 4, name: "קליטת סחורה + מייל לאחרית SAP אלינור", required: true },
-    { action: "confirm",     index: 5, name: "אישור קליטה במלאי", required: true },
-  ];
-
-  await supabase
-    .from("workflow_templates")
-    .update({ steps: internationalSteps })
-    .eq("id", INTERNATIONAL_TEMPLATE_ID);
-
-  // Update Israeli procurement workflow (4 steps only)
-  const israelSteps = [
-    { action: "confirm",    index: 0, name: "קבלת בקשה להזמנה", required: true },
-    { action: "approve",    index: 1, name: "הזמנה אושרה",       required: true },
-    { action: "send_email", index: 2, name: "שליחה לספק",        required: true },
-    { action: "confirm",    index: 3, name: "נשלחה לספק",        required: true },
-  ];
-
-  await supabase
-    .from("workflow_templates")
-    .update({ steps: israelSteps })
-    .eq("id", ISRAEL_TEMPLATE_ID);
-
-  console.log("✅ Workflow templates updated");
-}
-
-async function fixIsraeliOrderWorkflows() {
-  // Find workflow instances that use the international template
-  // but belong to orders with Israeli suppliers
-  const { data: instances } = await supabase
-    .from("workflow_instances")
-    .select("id, order_id, template_id, current_step")
-    .eq("template_id", INTERNATIONAL_TEMPLATE_ID)
-    .not("order_id", "is", null);
-
-  if (!instances || instances.length === 0) return;
-
-  // Get order details with supplier info
-  const orderIds = instances.map(i => i.order_id).filter(Boolean);
-  const { data: orders } = await supabase
-    .from("orders")
-    .select("id, supplier_id")
-    .in("id", orderIds);
-
-  if (!orders) return;
-
-  // Get supplier countries
-  const supplierIds = orders.map(o => o.supplier_id).filter(Boolean);
-  if (supplierIds.length === 0) return;
-
-  const { data: suppliers } = await supabase
-    .from("suppliers")
-    .select("id, country")
-    .in("id", supplierIds);
-
-  if (!suppliers) return;
-
-  const israelSupplierIds = new Set(
-    suppliers.filter(s => s.country === "ישראל").map(s => s.id)
-  );
-
-  // Find orders with Israeli suppliers
-  const israelOrderIds = new Set(
-    orders.filter(o => o.supplier_id && israelSupplierIds.has(o.supplier_id)).map(o => o.id)
-  );
-
-  // Fix instances that should use Israeli workflow
-  const instancesToFix = instances.filter(i => i.order_id && israelOrderIds.has(i.order_id));
-
-  for (const instance of instancesToFix) {
-    // Delete old step logs
-    await supabase
-      .from("workflow_step_logs")
-      .delete()
-      .eq("instance_id", instance.id);
-
-    // Update to Israeli template and reset step
-    await supabase
-      .from("workflow_instances")
-      .update({
-        template_id: ISRAEL_TEMPLATE_ID,
-        current_step: 0,
-        status: "active",
-      })
-      .eq("id", instance.id);
-  }
-
-  if (instancesToFix.length > 0) {
-    console.log(`✅ Fixed ${instancesToFix.length} Israeli order workflow(s)`);
-  }
-}
-
 async function verifyTableExists(tableName: string): Promise<boolean> {
-  const { error } = await supabase.from(tableName).select("id").limit(1);
+  // Dynamic table name — outside what the generated Database types can express.
+  const db = supabase as unknown as { from: (t: string) => any };
+  const { error } = await db.from(tableName).select("id").limit(1);
   // If table doesn't exist, error code is "42P01" or message contains "relation"
   if (error && (error.code === "42P01" || error.message?.includes("relation") || error.message?.includes("schema cache"))) {
     return false;
@@ -145,10 +46,6 @@ export async function applyMigrations() {
         console.log("user_preferences table may need to be created via Supabase dashboard")
       }
     }
-
-    // Migration 2: Update workflow templates and fix Israeli orders
-    await migrateWorkflowTemplates();
-    await fixIsraeliOrderWorkflows();
 
     // Migration 3: Add depends_on column to tasks
     if (applied !== CURRENT_VERSION) {

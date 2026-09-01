@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useData, useAuth, type Supplier } from "@/contexts/AppContext";
 import { useProductScope } from "@/hooks/useProductScope";
 import { Search, Plus, ArrowUpDown, ArrowUp, ArrowDown, Globe, GitMerge, AlertTriangle, ExternalLink, Eye, Trash2, Pencil, ShoppingCart, Mail, Building2 } from "lucide-react";
-import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { useColumnVisibility, defineColumns } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
 import { Input } from "@/components/ui/input";
@@ -20,17 +20,17 @@ import { toast } from "sonner";
 
 type SortKey = "company" | "contact_name" | "email" | "phone" | "country" | "supplier_number" | "product_count" | "order_count";
 
-const COLUMN_DEFS = [
-  { id: "supplier_number", label: "מס' ספק",  sortField: "supplier_number" },
-  { id: "company",         label: "חברה",      sortField: "company" },
-  { id: "contact_name",    label: "איש קשר",   sortField: "contact_name" },
-  { id: "country",         label: "מקור",      sortField: "country" },
-  { id: "email",           label: "אימייל",    sortField: "email" },
-  { id: "phone",           label: "טלפון",     sortField: "phone" },
-  { id: "website",         label: "אתר" },
-  { id: "product_count",   label: "מוצרים",   sortField: "product_count" },
-  { id: "order_count",     label: "הזמנות",   sortField: "order_count" },
-] as const;
+const COLUMN_DEFS = defineColumns([
+    { id: "supplier_number", label: "מס' ספק",  sortField: "supplier_number" },
+    { id: "company",         label: "חברה",      sortField: "company" },
+    { id: "contact_name",    label: "איש קשר",   sortField: "contact_name" },
+    { id: "country",         label: "מקור",      sortField: "country" },
+    { id: "email",           label: "אימייל",    sortField: "email" },
+    { id: "phone",           label: "טלפון",     sortField: "phone" },
+    { id: "website",         label: "אתר" },
+    { id: "product_count",   label: "מוצרים",   sortField: "product_count" },
+    { id: "order_count",     label: "הזמנות",   sortField: "order_count" },
+]);
 
 interface DuplicateGroup {
   reason: string;

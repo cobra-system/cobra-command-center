@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
 import { supabase } from "@/lib/supabase";
-import { useData } from "@/contexts/AppContext";
+import { useData, useAuth } from "@/contexts/AppContext";
 import { toast } from "sonner";
 
 interface Props {
@@ -16,7 +16,8 @@ interface Props {
 }
 
 export function AddWasteItemDialog({ open, onOpenChange, onCreated }: Props) {
-  const { products, currentUser } = useData();
+  const { products } = useData();
+  const { currentUser } = useAuth();
   const [productId, setProductId] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [conditionNotes, setConditionNotes] = useState("");
@@ -73,7 +74,7 @@ export function AddWasteItemDialog({ open, onOpenChange, onCreated }: Props) {
             <Combobox
               options={productOptions}
               value={productId}
-              onChange={setProductId}
+              onValueChange={setProductId}
               placeholder="חפש מוצר..."
               searchPlaceholder="חיפוש..."
             />

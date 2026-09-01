@@ -14,7 +14,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { WasteStatusBadge } from "./WasteStatusBadge";
 
 import { supabase } from "@/lib/supabase";
-import { useData } from "@/contexts/AppContext";
+import { useData, useAuth } from "@/contexts/AppContext";
 import { cn } from "@/lib/utils";
 
 import type { WasteItem, WasteSupplierReturn, Profile, Supplier } from "@/contexts/types";
@@ -198,7 +198,8 @@ function PhotoSection({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function WasteItemPanel({ item, open, onOpenChange, onUpdated }: Props) {
-  const { currentUser, profiles, suppliers } = useData();
+  const { profiles, suppliers } = useData();
+  const { currentUser } = useAuth();
 
   // ── Local photo state (for instant UI update after upload) ─────────────────
   const [localPhotoUrl, setLocalPhotoUrl] = useState<string | null | undefined>(null);

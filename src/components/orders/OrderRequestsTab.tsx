@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { getField } from "@/lib/sortUtils";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useData, useAuth, useProducts } from "@/contexts/AppContext";
@@ -336,8 +337,8 @@ export function OrderRequestsTab() {
       .filter(r => freeTextMatch(r, search))
       .sort((a, b) => {
         if (!sortField) return 0;
-        const av = (a as Record<string, unknown>)[sortField] ?? "";
-        const bv = (b as Record<string, unknown>)[sortField] ?? "";
+        const av = getField(a, sortField) ?? "";
+        const bv = getField(b, sortField) ?? "";
         if (typeof av === "number" && typeof bv === "number") return sortDir === "asc" ? av - bv : bv - av;
         return sortDir === "asc"
           ? String(av).localeCompare(String(bv))

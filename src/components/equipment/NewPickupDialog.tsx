@@ -58,7 +58,7 @@ interface Props {
 
 export function NewPickupDialog({ open, onOpenChange, onCreated, preselectedInstallerId, editingPickup, divisionProductIds }: Props) {
   const { products } = useData();
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
   const isEdit = !!editingPickup;
   const [saving, setSaving] = useState(false);
   const [installers, setInstallers] = useState<Installer[]>([]);
@@ -218,7 +218,7 @@ export function NewPickupDialog({ open, onOpenChange, onCreated, preselectedInst
         deductInventoryForPickup(
           validItems.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
           installerName,
-          (user as { name?: string } | null)?.name ?? null
+          currentUser?.name ?? null
         ).catch(() => {/* inventory sync errors are non-critical */});
 
         toast.success("ההצטיידות נשמרה בהצלחה");

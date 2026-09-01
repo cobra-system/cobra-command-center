@@ -6,23 +6,23 @@ import { OrderStatusBadge } from "@/components/StatusBadge";
 import type { Order, Product, Priority, OrderStatus } from "@/contexts/AppContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { format } from "date-fns";
-import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { useColumnVisibility, defineColumns } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 
-const COLUMN_DEFS = [
-  { id: "priority", label: "עדיפות" },
-  { id: "supplier", label: "ספק" },
-  { id: "qty", label: "כמות" },
-  { id: "status", label: "סטטוס" },
-  { id: "eta", label: "ETA" },
-  { id: "etd", label: "ETD" },
-  { id: "order_date", label: "תאריך הזמנה" },
-  { id: "pi_number", label: "PI" },
-  { id: "vessel_name", label: "כלי שיט" },
-  { id: "tracking_number", label: "מעקב" },
-  { id: "total_price", label: "מחיר" },
-  { id: "notes", label: "הערות" },
-] as const;
+const COLUMN_DEFS = defineColumns([
+    { id: "priority", label: "עדיפות" },
+    { id: "supplier", label: "ספק" },
+    { id: "qty", label: "כמות" },
+    { id: "status", label: "סטטוס" },
+    { id: "eta", label: "ETA" },
+    { id: "etd", label: "ETD" },
+    { id: "order_date", label: "תאריך הזמנה" },
+    { id: "pi_number", label: "PI" },
+    { id: "vessel_name", label: "כלי שיט" },
+    { id: "tracking_number", label: "מעקב" },
+    { id: "total_price", label: "מחיר" },
+    { id: "notes", label: "הערות" },
+]);
 
 const DEFAULT_HIDDEN = ["etd", "order_date", "vessel_name", "tracking_number", "total_price", "notes"];
 

@@ -7,6 +7,22 @@ export interface ColDef {
 }
 
 /**
+ * Identity helper for a COLUMN_DEFS literal. Keeps the literal `id` and
+ * `sortField` unions — so `(typeof COLUMN_DEFS)[number]["id"]` still narrows —
+ * while declaring `sortField` on every entry. A bare `as const` array omits it
+ * from the non-sortable entries, which makes `col.sortField` a type error.
+ */
+export function defineColumns<const T extends readonly ColDef[]>(
+  columns: T
+): readonly {
+  id: T[number]["id"];
+  label: string;
+  sortField?: Extract<T[number], { sortField: string }>["sortField"];
+}[] {
+  return columns;
+}
+
+/**
  * Generic hook for per-table column visibility, persisted to localStorage.
  * @param storageKey  unique key per table, e.g. "suppliers:hidden-columns"
  * @param columns     full ordered list of columns for this table

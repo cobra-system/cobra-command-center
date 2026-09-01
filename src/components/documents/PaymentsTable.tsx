@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { format, isPast } from "date-fns";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
-import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { useColumnVisibility, defineColumns } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -24,15 +24,15 @@ interface Props {
   onEdit?: (payment: Payment) => void;
 }
 
-const COLUMN_DEFS = [
-  { id: "supplier",     label: "ספק",          sortField: "supplier" },
-  { id: "amount",       label: "סכום",         sortField: "amount" },
-  { id: "payment_type", label: "סוג",          sortField: "payment_type" },
-  { id: "document",     label: "מסמך" },
-  { id: "due_date",     label: "מועד פירעון",  sortField: "due_date" },
-  { id: "status",       label: "סטטוס",        sortField: "status" },
-  { id: "paid_date",    label: "תאריך תשלום",  sortField: "paid_date" },
-] as const;
+const COLUMN_DEFS = defineColumns([
+    { id: "supplier",     label: "ספק",          sortField: "supplier" },
+    { id: "amount",       label: "סכום",         sortField: "amount" },
+    { id: "payment_type", label: "סוג",          sortField: "payment_type" },
+    { id: "document",     label: "מסמך" },
+    { id: "due_date",     label: "מועד פירעון",  sortField: "due_date" },
+    { id: "status",       label: "סטטוס",        sortField: "status" },
+    { id: "paid_date",    label: "תאריך תשלום",  sortField: "paid_date" },
+]);
 
 export default function PaymentsTable({ payments, search, onRefresh, onEdit }: Props) {
   const { suppliers } = useData();

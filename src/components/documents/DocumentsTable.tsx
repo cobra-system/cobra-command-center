@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
-import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { useColumnVisibility, defineColumns } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import { supabase } from "@/lib/supabase";
 import type { PurchaseDocument } from "./types";
@@ -36,18 +36,18 @@ interface Props {
   onEdit?: (doc: PurchaseDocument) => void;
 }
 
-const COLUMN_DEFS = [
-  { id: "name",        label: "שם",         sortField: "name" },
-  { id: "type",        label: "סוג",        sortField: "type" },
-  { id: "supplier",    label: "ספק",        sortField: "supplier" },
-  { id: "product",     label: "מוצר",       sortField: "product" },
-  { id: "quantity",    label: "כמות",       sortField: "quantity" },
-  { id: "total_price", label: "מחיר כולל",  sortField: "total_price" },
-  { id: "order",       label: "הזמנה" },
-  { id: "status",      label: "סטטוס",      sortField: "status" },
-  { id: "approval",    label: "אישור" },
-  { id: "created_at",  label: "תאריך",      sortField: "created_at" },
-] as const;
+const COLUMN_DEFS = defineColumns([
+    { id: "name",        label: "שם",         sortField: "name" },
+    { id: "type",        label: "סוג",        sortField: "type" },
+    { id: "supplier",    label: "ספק",        sortField: "supplier" },
+    { id: "product",     label: "מוצר",       sortField: "product" },
+    { id: "quantity",    label: "כמות",       sortField: "quantity" },
+    { id: "total_price", label: "מחיר כולל",  sortField: "total_price" },
+    { id: "order",       label: "הזמנה" },
+    { id: "status",      label: "סטטוס",      sortField: "status" },
+    { id: "approval",    label: "אישור" },
+    { id: "created_at",  label: "תאריך",      sortField: "created_at" },
+]);
 
 export default function DocumentsTable({ docs, search, onRefresh, onEdit }: Props) {
   const { suppliers, products, orders } = useData();

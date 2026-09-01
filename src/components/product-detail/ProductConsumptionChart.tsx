@@ -81,6 +81,7 @@ function ChartTooltip({
   activeDivisions: string[];
 }) {
   if (!active || !payload?.length) return null;
+  const first = payload[0]?.payload ?? {};
   return (
     <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-lg min-w-[120px]" dir="rtl">
       <p className="font-semibold text-foreground mb-1">{label}</p>

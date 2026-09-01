@@ -6,9 +6,9 @@ import { format } from "date-fns";
 import { Plus, Search, ChevronUp, ChevronDown, Truck, Package } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { useData } from "@/contexts/AppContext";
+import { useData, useAuth } from "@/contexts/AppContext";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { useColumnVisibility, defineColumns } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 import type { WasteSupplierReturn, WasteReturnStatus } from "@/contexts/types";
 import { WasteReturnStatusBadge } from "./WasteStatusBadge";
@@ -23,15 +23,15 @@ import { cn } from "@/lib/utils";
 
 // ─── Column definitions ───────────────────────────────────────────────────────
 
-const COLUMN_DEFS = [
-  { id: "supplier",    label: "ספק",           sortField: "supplier_name" },
-  { id: "tracking",    label: "מעקב DHL" },
-  { id: "items_count", label: "פריטים",         sortField: "items_count" },
-  { id: "status",      label: "מצב",            sortField: "status" },
-  { id: "settlement",  label: "סגירה" },
-  { id: "created_at",  label: "תאריך",          sortField: "created_at" },
-  { id: "created_by",  label: 'נוצר ע"י' },
-] as const;
+const COLUMN_DEFS = defineColumns([
+    { id: "supplier",    label: "ספק",           sortField: "supplier_name" },
+    { id: "tracking",    label: "מעקב DHL" },
+    { id: "items_count", label: "פריטים",         sortField: "items_count" },
+    { id: "status",      label: "מצב",            sortField: "status" },
+    { id: "settlement",  label: "סגירה" },
+    { id: "created_at",  label: "תאריך",          sortField: "created_at" },
+    { id: "created_by",  label: 'נוצר ע"י' },
+]);
 
 type ColId = (typeof COLUMN_DEFS)[number]["id"];
 
@@ -119,7 +119,8 @@ interface CreateReturnDialogProps {
 
 function CreateReturnDialog({ open, onOpenChange }: CreateReturnDialogProps) {
   const navigate = useNavigate();
-  const { suppliers, currentUser } = useData();
+  const { suppliers } = useData();
+  const { currentUser } = useAuth();
 
   const [supplierId, setSupplierId] = useState("");
   const [returnReason, setReturnReason] = useState("");
@@ -186,7 +187,7 @@ function CreateReturnDialog({ open, onOpenChange }: CreateReturnDialogProps) {
             <Combobox
               options={supplierOptions}
               value={supplierId}
-              onChange={setSupplierId}
+              onValueChange={setSupplierId}
               placeholder="בחר ספק..."
               searchPlaceholder="חפש ספק..."
             />

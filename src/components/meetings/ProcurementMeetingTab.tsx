@@ -93,12 +93,16 @@ function DecisionBadge({ decision }: { decision: ProcurementDecision }) {
   );
 }
 
+function useFmtAmount() {
+  const { formatPrice } = useCurrency();
+  return (amount: number | null | undefined, currency?: string | null) =>
+    formatPrice(amount, currency || "USD");
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ProcurementMeetingTab() {
-  const { formatPrice } = useCurrency();
-  const fmtAmount = (amount: number | null | undefined, currency?: string | null) =>
-    formatPrice(amount, currency || "USD");
+  const fmtAmount = useFmtAmount();
   const navigate = useNavigate();
 
   // ── KPI state ─────────────────────────────────────────────────────────────
@@ -842,6 +846,7 @@ function PendingRow({
   isVisible: (id: string) => boolean;
   onNavigate: (id: string) => void;
 }) {
+  const fmtAmount = useFmtAmount();
   const totalPending = order.pendingPayments.reduce((s, p) => s + p.amount, 0);
   const paymentCurrency = order.pendingPayments[0]?.currency;
 
@@ -918,6 +923,7 @@ function AgendaOrderRow({
   onRemove: () => void;
   onNavigate: (id: string) => void;
 }) {
+  const fmtAmount = useFmtAmount();
   const totalPending = item.pendingPayments.reduce((s, p) => s + p.amount, 0);
   const paymentCurrency = item.pendingPayments[0]?.currency;
   const decisionOpt = DECISION_OPTIONS.find(d => d.value === item.decision)!;

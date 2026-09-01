@@ -6,6 +6,15 @@ export type SortType = "string" | "number" | "date"
 export type SortDir = "asc" | "desc"
 
 /**
+ * Read a dynamically-named field off a typed row.
+ * Interfaces have no index signature, so `row[field]` needs a cast; doing it
+ * here keeps the `as unknown as Record<...>` dance out of the call sites.
+ */
+export function getField(row: unknown, field: string): unknown {
+  return (row as Record<string, unknown>)[field]
+}
+
+/**
  * Compare two values for sorting
  * Handles different data types and locales (Hebrew support)
  */
@@ -27,8 +36,8 @@ export function compareValues(
     }
 
     case "date": {
-      const dateA = new Date(a).getTime()
-      const dateB = new Date(b).getTime()
+      const dateA = new Date(a as string | number | Date).getTime()
+      const dateB = new Date(b as string | number | Date).getTime()
       return dateA - dateB
     }
 
@@ -45,7 +54,7 @@ export function compareValues(
 /**
  * Create a comparator function for a specific field and sort type
  */
-export function createComparator<T extends Record<string, any>>(
+export function createComparator<T extends object>(
   field: keyof T,
   type: SortType = "string"
 ) {
@@ -57,7 +66,7 @@ export function createComparator<T extends Record<string, any>>(
 /**
  * Sort an array of items by a specific field
  */
-export function sortArray<T extends Record<string, any>>(
+export function sortArray<T extends object>(
   items: T[],
   field: keyof T,
   direction: SortDir = "asc",
@@ -70,9 +79,9 @@ export function sortArray<T extends Record<string, any>>(
 /**
  * Filter an array based on filter criteria
  */
-export function filterArray<T extends Record<string, any>>(
+export function filterArray<T extends object>(
   items: T[],
-  filters: Record<string, any>
+  filters: Record<string, unknown>
 ): T[] {
   return items.filter((item) => {
     for (const [key, value] of Object.entries(filters)) {
@@ -81,10 +90,10 @@ export function filterArray<T extends Record<string, any>>(
       }
 
       if (Array.isArray(value)) {
-        if (!value.includes(item[key])) {
+        if (!value.includes(getField(item, key))) {
           return false
         }
-      } else if (item[key] !== value) {
+      } else if (getField(item, key) !== value) {
         return false
       }
     }

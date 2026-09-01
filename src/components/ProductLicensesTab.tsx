@@ -32,7 +32,7 @@ function StatusBadge({ daysLeft, status }: { daysLeft: number | null; status: st
   return <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-success/15 text-success">🟢 {daysLeft} ימים</span>;
 }
 
-export default function ProductLicensesTab({ productId, isManager }: { productId: string; isManager: boolean }) {
+export default function ProductLicensesTab({ productId, hasEdit }: { productId: string; hasEdit: boolean }) {
   const navigate = useNavigate();
   const [links, setLinks] = useState<LinkedCompliance[]>([]);
   const [allItems, setAllItems] = useState<{ id: string; name: string; category: string }[]>([]);
@@ -46,7 +46,12 @@ export default function ProductLicensesTab({ productId, isManager }: { productId
       .select("id, compliance_item_id, compliance_items:compliance_item_id(id, name, category, expiry_date, status)")
       .eq("product_id", productId);
     if (data) {
-      setLinks(data.map((d: any) => ({ id: d.id, compliance_item_id: d.compliance_item_id, compliance_item: d.compliance_items })));
+      const rows = data as unknown as Array<{
+        id: string;
+        compliance_item_id: string;
+        compliance_items: LinkedCompliance["compliance_item"];
+      }>;
+      setLinks(rows.map(d => ({ id: d.id, compliance_item_id: d.compliance_item_id, compliance_item: d.compliance_items })));
     }
     setLoading(false);
   }, [productId]);
@@ -87,7 +92,7 @@ export default function ProductLicensesTab({ productId, isManager }: { productId
         </div>
       </div>
 
-      {links.length === 0 && !isManager && (
+      {links.length === 0 && !hasEdit && (
         <p className="text-sm text-muted-foreground text-center py-4">אין רישיונות מקושרים למוצר זה</p>
       )}
 
@@ -105,7 +110,7 @@ export default function ProductLicensesTab({ productId, isManager }: { productId
                   <span className="text-xs text-muted-foreground">{item.category}</span>
                   <StatusBadge daysLeft={daysLeft} status={item.status} />
                 </div>
-                {isManager && (
+                {hasEdit && (
                   <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleRemove(link.id)}>
                     <X className="h-3.5 w-3.5" />
                   </Button>
@@ -116,7 +121,7 @@ export default function ProductLicensesTab({ productId, isManager }: { productId
         </div>
       )}
 
-      {isManager && availableItems.length > 0 && (
+      {hasEdit && availableItems.length > 0 && (
         <div className="flex items-center gap-2">
           <Select value={addingId} onValueChange={setAddingId}>
             <SelectTrigger className="flex-1"><SelectValue placeholder="בחר רישיון לקישור..." /></SelectTrigger>

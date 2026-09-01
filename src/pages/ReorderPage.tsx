@@ -10,22 +10,22 @@ import { InlineEditField } from "@/components/InlineEditField";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "sonner";
-import { useColumnVisibility } from "@/hooks/useColumnVisibility";
+import { useColumnVisibility, defineColumns } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
 
 type SortKey = "status" | "name" | "sku" | "stock_qty" | "incoming_qty" | "monthly_sales_avg" | "days_until_stockout" | "lead_time_days" | "order_by_date";
 
-const COLUMN_DEFS = [
-  { id: "status",              label: "סטטוס",             sortField: "status" },
-  { id: "name",                label: "מוצר",              sortField: "name" },
-  { id: "stock_qty",           label: "מלאי",              sortField: "stock_qty" },
-  { id: "incoming_qty",        label: "בדרך",              sortField: "incoming_qty" },
-  { id: "active_orders",       label: "הזמנות פעילות" },
-  { id: "monthly_sales_avg",   label: "מכירות/חודש",       sortField: "monthly_sales_avg" },
-  { id: "days_until_stockout", label: "ימים לאזילה",       sortField: "days_until_stockout" },
-  { id: "lead_time_days",      label: "Lead Time",          sortField: "lead_time_days" },
-  { id: "order_by_date",       label: "צריך להזמין עד",    sortField: "order_by_date" },
-] as const;
+const COLUMN_DEFS = defineColumns([
+    { id: "status",              label: "סטטוס",             sortField: "status" },
+    { id: "name",                label: "מוצר",              sortField: "name" },
+    { id: "stock_qty",           label: "מלאי",              sortField: "stock_qty" },
+    { id: "incoming_qty",        label: "בדרך",              sortField: "incoming_qty" },
+    { id: "active_orders",       label: "הזמנות פעילות" },
+    { id: "monthly_sales_avg",   label: "מכירות/חודש",       sortField: "monthly_sales_avg" },
+    { id: "days_until_stockout", label: "ימים לאזילה",       sortField: "days_until_stockout" },
+    { id: "lead_time_days",      label: "Lead Time",          sortField: "lead_time_days" },
+    { id: "order_by_date",       label: "צריך להזמין עד",    sortField: "order_by_date" },
+]);
 
 interface ReorderRow {
   id: string;

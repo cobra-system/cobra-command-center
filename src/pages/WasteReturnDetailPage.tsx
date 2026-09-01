@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { InlineEditField } from "@/components/InlineEditField";
 import { WasteReturnStatusBadge } from "@/components/waste/WasteStatusBadge";
 import { WasteReturnDhlWidget } from "@/components/waste/WasteReturnDhlWidget";
-import { useData, useCurrency } from "@/contexts/AppContext";
+import { useData, useCurrency, useAuth } from "@/contexts/AppContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
   ArrowRight,
@@ -85,6 +85,7 @@ interface SettlementSectionProps {
 }
 
 function SettlementSection({ ret, hasEdit, onSaved }: SettlementSectionProps) {
+  const { formatPrice } = useCurrency();
   const [creditInput, setCreditInput] = useState(ret.credit_amount?.toString() ?? "");
   const [rmaDateInput, setRmaDateInput] = useState(ret.rma_expected_return_date?.slice(0, 10) ?? "");
   const [savingCredit, setSavingCredit] = useState(false);
@@ -342,7 +343,7 @@ export default function WasteReturnDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { currentUser } = useData();
+  const { currentUser } = useAuth();
   const { formatPrice } = useCurrency();
   const { hasEdit, isManager } = usePermissions("waste");
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { getField } from "@/lib/sortUtils";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AppContext";
@@ -892,8 +893,8 @@ export default function QuarterlyPlanningPage() {
           av = fa?.[field as keyof QuarterlyVehicleForecast] ?? 0;
           bv = fb?.[field as keyof QuarterlyVehicleForecast] ?? 0;
         } else {
-          av = (a as Record<string, unknown>)[field] ?? "";
-          bv = (b as Record<string, unknown>)[field] ?? "";
+          av = getField(a, field) ?? "";
+          bv = getField(b, field) ?? "";
         }
         if (typeof av === "number" && typeof bv === "number") return dir === "asc" ? av - bv : bv - av;
         return dir === "asc" ? String(av).localeCompare(String(bv), "he") : String(bv).localeCompare(String(av), "he");
@@ -911,8 +912,8 @@ export default function QuarterlyPlanningPage() {
     if (planSort.field && planSort.dir) {
       const { field, dir } = planSort;
       result = [...result].sort((a, b) => {
-        const av = field === "product_name" ? a.products?.name : field === "supplier" ? a.products?.supplier : field === "sku" ? a.products?.sku : field === "cross_div_forecast" ? (crossDivForecasts.get(a.product_id) ?? 0) : (a as Record<string, unknown>)[field];
-        const bv = field === "product_name" ? b.products?.name : field === "supplier" ? b.products?.supplier : field === "sku" ? b.products?.sku : field === "cross_div_forecast" ? (crossDivForecasts.get(b.product_id) ?? 0) : (b as Record<string, unknown>)[field];
+        const av = field === "product_name" ? a.products?.name : field === "supplier" ? a.products?.supplier : field === "sku" ? a.products?.sku : field === "cross_div_forecast" ? (crossDivForecasts.get(a.product_id) ?? 0) : getField(a, field);
+        const bv = field === "product_name" ? b.products?.name : field === "supplier" ? b.products?.supplier : field === "sku" ? b.products?.sku : field === "cross_div_forecast" ? (crossDivForecasts.get(b.product_id) ?? 0) : getField(b, field);
         if (typeof av === "number" && typeof bv === "number") return dir === "asc" ? av - bv : bv - av;
         return dir === "asc" ? String(av ?? "").localeCompare(String(bv ?? ""), "he") : String(bv ?? "").localeCompare(String(av ?? ""), "he");
       });
