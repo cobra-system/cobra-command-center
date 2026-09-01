@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useData, useCurrency } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
+import type { Tables } from "@/integrations/supabase/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,9 +20,9 @@ export default function ReportsPage() {
   const { products, orders, tasks, suppliers } = useData();
   const { formatPrice, toDisplayAmount } = useCurrency();
   const [monthOffset, setMonthOffset] = useState(0);
-  const [issues, setIssues] = useState<Record<string, unknown>[]>([]);
-  const [allIssues, setAllIssues] = useState<Record<string, unknown>[]>([]);
-  const [payments, setPayments] = useState<Record<string, unknown>[]>([]);
+  const [issues, setIssues] = useState<Tables<"product_issues">[]>([]);
+  const [allIssues, setAllIssues] = useState<Tables<"product_issues">[]>([]);
+  const [payments, setPayments] = useState<Tables<"supplier_payments">[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("operations");
 

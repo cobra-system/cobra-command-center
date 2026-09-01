@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { getField } from "@/lib/sortUtils";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import type { Json, TablesInsert } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AppContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -413,12 +414,22 @@ export default function QuarterlyPlanningPage() {
 
     // Fetch division stock + incoming orders in parallel
     const productIds = [...productForecasts.keys()];
-    const [divProdsRes, incomingRes] = await Promise.all([
-      supabase.from("division_products").select("product_id, division_stock").eq("division", division),
-      supabase.from("order_items").select("product_id, qty, orders!inner(status)")
-        .in("product_id", productIds.length > 0 ? productIds : ["__none__"])
-        .in("orders.status" as string, ["SHIPPED", "ARRIVED_PORT", "CUSTOMS_CLEARANCE"]),
-    ]);
+    // Kept as separate awaited promises: pairing the two builders inside a
+    // Promise.all tuple sends type inference excessively deep, and the incoming
+    // query filters on an embedded resource, which the generated types cannot
+    // express.
+    const divProdsPromise = supabase
+      .from("division_products")
+      .select("product_id, division_stock")
+      .eq("division", division)
+      .then(r => r as { data: { product_id: string; division_stock: number | null }[] | null });
+    const incomingPromise = supabase
+      .from("order_items")
+      .select("product_id, qty, orders!inner(status)")
+      .in("product_id", productIds.length > 0 ? productIds : ["__none__"])
+      .in("orders.status" as never, ["SHIPPED", "ARRIVED_PORT", "CUSTOMS_CLEARANCE"] as never)
+      .then(r => r as { data: { product_id: string; qty: number }[] | null });
+    const [divProdsRes, incomingRes] = await Promise.all([divProdsPromise, incomingPromise]);
     const stockMap = new Map<string, number>();
     for (const dp of divProdsRes.data ?? []) stockMap.set(dp.product_id, dp.division_stock ?? 0);
     const incomingMap = new Map<string, number>();
@@ -426,7 +437,7 @@ export default function QuarterlyPlanningPage() {
       incomingMap.set(item.product_id, (incomingMap.get(item.product_id) ?? 0) + (item.qty ?? 0));
     }
 
-    const upserts: Record<string, unknown>[] = [];
+    const upserts: TablesInsert<"quarterly_procurement_plans">[] = [];
     for (const [productId, entry] of productForecasts) {
       const avgUtil = entry.count > 0 ? entry.utilization / entry.count : 1;
       const forecast = entry.forecast;
@@ -462,7 +473,7 @@ export default function QuarterlyPlanningPage() {
         year: selectedYear,
         quarter: selectedQuarter,
         label: `לפני חישוב מחדש — ${format(new Date(), "dd/MM/yyyy HH:mm")}`,
-        payload: plans,
+        payload: plans as unknown as Json,
         total_products: plans.length,
         total_required: plans.reduce((s, p) => s + (p.required_to_order ?? 0), 0),
         captured_by_name: currentUser?.name,
@@ -665,7 +676,7 @@ export default function QuarterlyPlanningPage() {
       supabase.from("frisbee_product_mapping").select("base44_equipment_name, product_id, products(id, name, sku)"),
     ]);
 
-    const modelStats = (modelStatsRes.data ?? []) as {
+    const modelStats = (modelStatsRes.data ?? []) as unknown as {
       manufacturer: string;
       model: string;
       inspection_count: number;
@@ -834,7 +845,7 @@ export default function QuarterlyPlanningPage() {
       .eq("id", id)
       .single();
     if (error || !data) { toast({ title: "שגיאה", variant: "destructive" }); return; }
-    setActiveSnapshot(data as QuarterlyPlanSnapshot);
+    setActiveSnapshot(data as unknown as QuarterlyPlanSnapshot);
   }
 
   async function restoreSnapshot(snapshot: QuarterlyPlanSnapshot) {

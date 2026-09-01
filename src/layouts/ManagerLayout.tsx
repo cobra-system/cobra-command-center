@@ -30,7 +30,7 @@ import {
   Boxes,
   ArrowLeft,
   ExternalLink,
-  Map,
+  Map as MapIcon,
   Lock,
   Moon,
   Sun,
@@ -65,7 +65,7 @@ const defaultNavItems = [
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard, Package, ShoppingCart, Truck, ListTodo, FolderKanban,
-  Settings, FileText, Calendar, CalendarClock, BarChart3, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Recycle, Boxes, Map, Lock, Trash2,
+  Settings, FileText, Calendar, CalendarClock, BarChart3, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Recycle, Boxes, Map: MapIcon, Lock, Trash2,
 };
 
 const NAV_ORDER_KEY = "cobra-nav-order";

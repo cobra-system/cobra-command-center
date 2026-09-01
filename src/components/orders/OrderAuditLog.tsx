@@ -103,12 +103,12 @@ export function OrderAuditLog({ orderId }: { orderId: string }) {
         .limit(20),
     ]);
 
-    const auditEntries: TimelineEntry[] = (auditRes.data || []).map((r: AuditRow) => ({
+    const auditEntries: TimelineEntry[] = ((auditRes.data || []) as unknown as AuditRow[]).map(r => ({
       id: `audit-${r.id}`,
       timestamp: r.created_at,
       type: "audit" as const,
       action: r.action,
-      details: r.details,
+      details: (r.details ?? {}) as Record<string, unknown>,
     }));
 
     const noteEntries: TimelineEntry[] = (noteRes.data || []).map((r: NoteRow) => ({

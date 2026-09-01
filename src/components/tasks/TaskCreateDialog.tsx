@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useData, useAuth, type Priority } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
+import type { TablesInsert } from "@/integrations/supabase/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -143,7 +144,7 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
   };
 
   /** Insert a task, gracefully handling missing optional columns and RLS issues. */
-  const insertTask = async (payload: Record<string, unknown>) => {
+  const insertTask = async (payload: TablesInsert<"tasks">) => {
     const { data, error } = await supabase.from("tasks").insert(payload).select("id").single();
     if (error?.message?.includes("created_by") && "created_by" in payload) {
       const { created_by: _, ...rest } = payload;
@@ -171,7 +172,7 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
 
     if (isRecurring) {
       // Save as recurring task
-      const payload: Record<string, unknown> = {
+      const payload: TablesInsert<"tasks"> = {
         title: title.trim(),
         description: description.trim() || null,
         frequency,
@@ -208,7 +209,7 @@ export default function TaskCreateDialog({ open, onOpenChange, onSaved }: Props)
       }
     } else {
       // Save as one-time task
-      const taskData: Record<string, unknown> = {
+      const taskData: TablesInsert<"tasks"> = {
         title: title.trim(),
         description: description.trim() || null,
         priority,

@@ -174,7 +174,9 @@ export default function ProductFormDialog({ open, onOpenChange, editProduct, pre
       toast.error(firstError.message);
       return;
     }
-    const productData = productResult.data;
+    // zod widens every key to optional under this project's non-strict
+    // tsconfig; the parse above has already enforced name and sku.
+    const productData = productResult.data as Omit<Product, "id" | "components">;
 
     const rawComps = comps.filter(c => c.name.trim()).map(c => ({
       name: c.name.trim(),

@@ -382,7 +382,7 @@ export function DivisionDashboard({ branchId, lastSynced }: Props) {
 
   const pivotRows = useMemo(() =>
     pivotEquipment.map(equip => {
-      const entry: Record<string, unknown> = { equip };
+      const entry: Record<string, string | number> = { equip };
       let total = 0;
       searchMonths.forEach(m => {
         const row = filteredSearchStats.find(r => r.equipment_name === equip && r.month === m);

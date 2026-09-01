@@ -339,11 +339,11 @@ function generateDocumentPDF(
 
   const filename = `${doc.document_name || "document"}-${doc.type}-${format(new Date(doc.created_at), "yyyy-MM-dd")}.pdf`;
   const opt = {
-    margin: [10, 10, 10, 10],
+    margin: [10, 10, 10, 10] as [number, number, number, number],
     filename: filename,
-    image: { type: "jpeg", quality: 0.98 },
+    image: { type: "jpeg" as const, quality: 0.98 },
     html2canvas: { scale: 2 },
-    jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
+    jsPDF: { orientation: "portrait" as const, unit: "mm", format: "a4" },
   };
 
   html2pdf().set(opt).from(element).save();

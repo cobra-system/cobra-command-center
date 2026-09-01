@@ -121,7 +121,10 @@ export function BarcodeScanner({ open, title, hint, onScan, onClose, onManualEnt
         instance
           .stop()
           .catch(() => {})
-          .finally(() => instance.clear().catch(() => {}));
+          .finally(() => {
+            // clear() is synchronous and may throw if the element is already gone.
+            try { instance.clear(); } catch { /* nothing to clean up */ }
+          });
       }
     };
     // onScan/onManualEntry are intentionally read via refs — see comment above.

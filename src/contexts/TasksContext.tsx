@@ -55,7 +55,7 @@ export function TasksProvider({ session, children }: { session: Session | null; 
         'postgres_changes',
         { event: '*', schema: 'public', table: 'tasks' },
         (payload) => {
-          const taskId = (payload.new as Record<string, unknown>)?.id || (payload.old as Record<string, unknown>)?.id;
+          const taskId = ((payload.new ?? payload.old) as { id?: string } | null)?.id;
 
           // Skip notifications for own mutations
           if (ownMutationIds.current.has(taskId)) {

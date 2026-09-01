@@ -76,8 +76,9 @@ export default function DocumentPdfViewerDialog({ open, onOpenChange, doc, onAnn
     cvs.style.height = `${vp.height}px`;
 
     const ctx = cvs.getContext("2d")!;
-    const transform = dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] as const : undefined;
-    await page.render({ canvasContext: ctx, viewport: vp, transform }).promise;
+    // pdf.js takes a mutable number[] for the transform matrix.
+    const transform = dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined;
+    await page.render({ canvas: cvs, canvasContext: ctx, viewport: vp, transform }).promise;
   }, [pdfDoc, pageNum, scale, rotation]);
 
   useEffect(() => { renderPage(); }, [renderPage]);

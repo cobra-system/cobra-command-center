@@ -73,7 +73,7 @@ export function RolesProvider({ currentUser, children }: { currentUser: Profile 
   const upsertRolePermission = useCallback(async (role: string, moduleKey: string, level: PermissionLevel) => {
     try {
       const { error } = await supabase.from("role_permissions").upsert(
-        { role, module_key: moduleKey, permission_level: level } as Record<string, unknown>,
+        { role, module_key: moduleKey, permission_level: level },
         { onConflict: "role,module_key" }
       );
       if (error) throw error;
@@ -133,7 +133,7 @@ export function RolesProvider({ currentUser, children }: { currentUser: Profile 
 
   const addRoleDefinition = useCallback(async (name: string) => {
     try {
-      const { error } = await supabase.from("role_definitions").insert({ name } as Record<string, unknown>);
+      const { error } = await supabase.from("role_definitions").insert({ name });
       if (error) throw error;
       await queryClient.refetchQueries({ queryKey: ["roleDefinitions"] });
       toast.success("תפקיד נוסף בהצלחה");

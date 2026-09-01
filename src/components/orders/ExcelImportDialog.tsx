@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
+import type { TablesInsert } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AppContext";
 import type { OrderRequest } from "@/contexts/types";
@@ -70,7 +71,7 @@ export function ExcelImportDialog({ open, onOpenChange, division, existing, onDo
         }
       } else if (createMissing && (m.parsed.patch.product_name || m.parsed.matchKey)) {
         const productName = (m.parsed.patch.product_name as string | undefined) ?? m.parsed.matchKey ?? "—";
-        const insertPayload: Record<string, unknown> = {
+        const insertPayload: TablesInsert<"order_requests"> = {
           division,
           product_name: productName,
           product_sku: (m.parsed.patch.product_sku as string | null | undefined) ?? null,

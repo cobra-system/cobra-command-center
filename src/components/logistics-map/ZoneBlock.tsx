@@ -186,7 +186,11 @@ function UtilizationBar({ current, capacity }: { current: number; capacity: numb
 
 // ── Resize handles ────────────────────────────────────────────────────────────
 
-const HANDLE_POSITIONS: Record<ResizeHandle, string> = {
+/** Only the corners get a visible grab handle; WarehouseMap derives the edge
+ *  axes from the handle name, so `n`/`s`/`e`/`w` need no position of their own. */
+type CornerHandle = Extract<ResizeHandle, "nw" | "ne" | "sw" | "se">;
+
+const HANDLE_POSITIONS: Record<CornerHandle, string> = {
   nw: "top-0 right-0 cursor-nw-resize",
   ne: "top-0 left-0 cursor-ne-resize",
   sw: "bottom-0 right-0 cursor-sw-resize",
@@ -202,7 +206,7 @@ function ResizeHandles({
 }) {
   return (
     <>
-      {(Object.keys(HANDLE_POSITIONS) as ResizeHandle[]).map((handle) => (
+      {(Object.keys(HANDLE_POSITIONS) as CornerHandle[]).map((handle) => (
         <div
           key={handle}
           className={`absolute w-3 h-3 bg-white border-2 border-primary rounded-sm z-30 ${HANDLE_POSITIONS[handle]}`}

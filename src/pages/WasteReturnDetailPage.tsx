@@ -362,10 +362,11 @@ export default function WasteReturnDetailPage() {
         .is("deleted_at", null)
         .single();
       if (error) throw error;
+      const joined = data as typeof data & { suppliers?: { company: string | null } | null };
       return {
         ...data,
-        supplier_name: (data as any).suppliers?.company ?? null,
-      } as WasteSupplierReturn;
+        supplier_name: joined.suppliers?.company ?? null,
+      } as unknown as WasteSupplierReturn;
     },
     enabled: !!id,
   });

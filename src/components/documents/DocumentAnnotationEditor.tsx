@@ -10,7 +10,7 @@
  */
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as pdfjsLib from "pdfjs-dist";
-import { Canvas as FabricCanvas, PencilBrush, IText, Rect, FabricImage } from "fabric";
+import { Canvas as FabricCanvas, PencilBrush, IText, Rect, FabricImage, type TPointerEventInfo } from "fabric";
 import { PDFDocument } from "pdf-lib";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -97,8 +97,9 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
     pdfCvs.style.height = `${vp.height}px`;
 
     const ctx = pdfCvs.getContext("2d")!;
-    const transform = dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] as const : undefined;
-    await page.render({ canvasContext: ctx, viewport: vp, transform }).promise;
+    // pdf.js takes a mutable number[] for the transform matrix.
+    const transform = dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined;
+    await page.render({ canvas: pdfCvs, canvasContext: ctx, viewport: vp, transform }).promise;
 
     const fc = fabricRef.current;
     if (fc) {
@@ -202,7 +203,7 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
     const canvas = fabricRef.current;
     if (!canvas || tool !== "text") return;
 
-    const handler = (opt: { e: PointerEvent }) => {
+    const handler = (opt: TPointerEventInfo) => {
       const pointer = canvas.getScenePoint(opt.e);
       const text = new IText("טקסט", {
         left: pointer.x,
@@ -228,7 +229,7 @@ export default function DocumentAnnotationEditor({ open, onOpenChange, doc, onSa
     const canvas = fabricRef.current;
     if (!canvas || tool !== "rect") return;
 
-    const handler = (opt: { e: PointerEvent }) => {
+    const handler = (opt: TPointerEventInfo) => {
       const pointer = canvas.getScenePoint(opt.e);
       canvas.add(new Rect({
         left: pointer.x - 80, top: pointer.y - 40,

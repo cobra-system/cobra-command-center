@@ -124,7 +124,7 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
         const { data: mainCenter } = await supabase.from("distribution_centers").select("id").eq("is_main", true).maybeSingle();
         if (mainCenter) {
           await supabase.from("center_inventory").upsert(
-            { center_id: mainCenter.id, product_id: id, quantity: dbUpdates.stock_qty } as Record<string, unknown>,
+            { center_id: mainCenter.id, product_id: id, quantity: dbUpdates.stock_qty },
             { onConflict: "center_id,product_id" }
           );
         }

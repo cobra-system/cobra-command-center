@@ -181,7 +181,6 @@ COBRA Command Center היא מערכת ERP קלה לעסקי ייבוא. היא 
 - `role_definitions` — הגדרות תפקידים ורשאות
 - `role_permissions` — הרשאות גרנולריות לפי תפקיד ומודול
 - `user_preferences` — העדפות משתמש (מיון, תצוגה)
-- `login_attempts` — לוג ניסיונות כניסה
 - `sap_sync_log` — לוג סנכרון SAP
 - `learning_journal` — יומן למידה
 - `audit_log` — לוג פעילות מלא (פעולה, ישות, משתמש, IP)

@@ -66,15 +66,15 @@ export default function ProductDeleteDialog({ open, productId, productName, onCo
   }, [open, productId]);
 
   const rows: { label: string; count: number; action: "ימחק" | "יינותק" }[] = impact ? [
-    { label: "רכיבי מוצר", count: impact.components, action: "ימחק" },
-    { label: "פריטי הזמנה", count: impact.orderItems, action: "יינותק" },
-    { label: "רשומות מלאי", count: impact.centerInventory, action: "ימחק" },
-    { label: "קישורי ציות", count: impact.complianceLinks, action: "ימחק" },
-    { label: "בעיות מוצר", count: impact.issues, action: "ימחק" },
-    { label: "מסמכי רכש", count: impact.purchaseDocuments, action: "יינותק" },
-{ label: "פריטי איסוף ציוד", count: impact.equipmentPickupItems, action: "ימחק" },
-    { label: "פריטי החזרת ציוד", count: impact.equipmentReturnItems, action: "ימחק" },
-    { label: "הקצאות מחסן", count: impact.warehouseZoneProducts, action: "ימחק" },
+    { label: "רכיבי מוצר", count: impact.components, action: "ימחק" as const },
+    { label: "פריטי הזמנה", count: impact.orderItems, action: "יינותק" as const },
+    { label: "רשומות מלאי", count: impact.centerInventory, action: "ימחק" as const },
+    { label: "קישורי ציות", count: impact.complianceLinks, action: "ימחק" as const },
+    { label: "בעיות מוצר", count: impact.issues, action: "ימחק" as const },
+    { label: "מסמכי רכש", count: impact.purchaseDocuments, action: "יינותק" as const },
+{ label: "פריטי איסוף ציוד", count: impact.equipmentPickupItems, action: "ימחק" as const },
+    { label: "פריטי החזרת ציוד", count: impact.equipmentReturnItems, action: "ימחק" as const },
+    { label: "הקצאות מחסן", count: impact.warehouseZoneProducts, action: "ימחק" as const },
   ].filter(r => r.count > 0) : [];
 
   return (

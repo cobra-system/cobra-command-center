@@ -27,6 +27,8 @@ interface InlineEditFieldProps {
   isComputed?: boolean;
   /** Optional function to generate navigation links for multiSelect items */
   getItemLink?: (item: string) => string;
+  /** Hint shown in the editing input while it is empty */
+  placeholder?: string;
 }
 
 export function InlineEditField({
@@ -43,6 +45,7 @@ export function InlineEditField({
   tooltip,
   isComputed = false,
   getItemLink,
+  placeholder,
 }: InlineEditFieldProps) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(String(value ?? ""));
@@ -208,6 +211,7 @@ export function InlineEditField({
           onChange={e => setEditValue(e.target.value)}
           onBlur={handleSave}
           onKeyDown={handleKeyDown}
+          placeholder={placeholder}
           className={cn("h-7 text-sm", inputClassName)}
         />
       </div>

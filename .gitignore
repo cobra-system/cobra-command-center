@@ -33,3 +33,6 @@ vite.config.ts.timestamp-*
 # Python
 __pycache__/
 *.pyc
+
+# tsc --build artifacts
+*.tsbuildinfo

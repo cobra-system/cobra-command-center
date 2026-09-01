@@ -36,10 +36,10 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       if (ords) {
         return ords.map(o => {
           const items = o.order_items || [];
-          const calculatedTotal = items.reduce((sum: number, item: Record<string, number | null>) => {
-            const itemTotal = (item.price || 0) * (item.qty || 0);
-            return sum + itemTotal;
-          }, 0);
+          const calculatedTotal = items.reduce(
+            (sum, item) => sum + (item.price || 0) * (item.qty || 0),
+            0
+          );
           return { ...o, items, total_price: calculatedTotal };
         }) as unknown as Order[];
       }

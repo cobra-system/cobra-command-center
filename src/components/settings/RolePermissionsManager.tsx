@@ -49,7 +49,12 @@ export default function RolePermissionsManager() {
     });
   };
 
-  const groupedModules = Object.groupBy(MODULES, (mod) => mod.category);
+  // Grouped by hand rather than with Object.groupBy, which is ES2024 and
+  // outside this project's lib target.
+  const groupedModules = MODULES.reduce<Record<string, typeof MODULES>>((acc, mod) => {
+    (acc[mod.category] ??= []).push(mod);
+    return acc;
+  }, {});
 
   return (
     <Card dir="rtl">

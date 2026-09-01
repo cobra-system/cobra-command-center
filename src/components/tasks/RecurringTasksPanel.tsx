@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, CalendarClock, Play, Zap, CheckCircle, Clock } from "lucide-react";
+import { Plus, Pencil, Trash2, CalendarClock, Play, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useData, type Priority } from "@/contexts/AppContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,20 +17,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import type { Task } from "@/contexts/AppContext";
 type RecurringTask = Task;
-
-interface WorkflowInstance {
-  id: string;
-  status: string;
-  current_step: number;
-  template?: {
-    name: string;
-    steps: { name: string }[];
-  };
-  order?: {
-    supplier_name: string | null;
-    items: { name: string }[];
-  };
-}
 
 const frequencyOptions = [
   { value: "daily", label: "יומי" },
@@ -55,7 +41,6 @@ const priorityOptions: { value: Priority; label: string }[] = [
 export default function RecurringTasksPanel() {
   const { profiles } = useData();
   const [tasks, setTasks] = useState<RecurringTask[]>([]);
-  const [workflows, setWorkflows] = useState<WorkflowInstance[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<RecurringTask | null>(null);
@@ -76,23 +61,8 @@ export default function RecurringTasksPanel() {
     if (!error && data) setTasks(data as RecurringTask[]);
   };
 
-  const fetchWorkflows = async () => {
-    const { data, error } = await supabase
-      .from("workflow_instances")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (!error && data) {
-      const instances = data.map(i => ({
-        ...i,
-        template: { name: i.template_id || "תהליך", steps: [] }
-      } as WorkflowInstance));
-      setWorkflows(instances);
-    }
-    setLoading(false);
-  };
-
   useEffect(() => {
-    Promise.all([fetchTasks(), fetchWorkflows()]);
+    fetchTasks().finally(() => setLoading(false));
   }, []);
 
   const resetForm = () => {
@@ -162,9 +132,6 @@ export default function RecurringTasksPanel() {
 
   if (loading) return <div className="flex justify-center items-center py-20"><span className="text-muted-foreground">טוען...</span></div>;
 
-  const activeWorkflows = workflows.filter(w => w.status === "active");
-  const completedWorkflows = workflows.filter(w => w.status === "completed");
-
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6 p-6">
       <div className="space-y-2">
@@ -176,14 +143,10 @@ export default function RecurringTasksPanel() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
+        <TabsList className="grid w-full grid-cols-1 mb-6">
           <TabsTrigger value="recurring" className="flex items-center gap-2">
             <CalendarClock className="h-4 w-4" />
             משימות חוזרות
-          </TabsTrigger>
-          <TabsTrigger value="workflows" className="flex items-center gap-2">
-            <Zap className="h-4 w-4" />
-            תהליכים
           </TabsTrigger>
         </TabsList>
 
@@ -338,68 +301,6 @@ export default function RecurringTasksPanel() {
           )}
         </TabsContent>
 
-        {/* Workflows Tab */}
-        <TabsContent value="workflows" className="space-y-4">
-          {workflows.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                <Clock className="h-12 w-12 mx-auto mb-3 opacity-40" />
-                <p>אין תהליכים פעילים</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {activeWorkflows.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-foreground flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-primary" />
-                    תהליכים פעילים ({activeWorkflows.length})
-                  </h3>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {activeWorkflows.map(wf => (
-                      <Card key={wf.id} className="border-primary/30 bg-primary/5">
-                        <CardHeader>
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-primary" />
-                            {wf.order?.supplier_name || "תהליך"}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <p className="text-sm text-muted-foreground">שלב {wf.current_step + 1} מתוך {wf.template?.steps.length || 1}</p>
-                          <Badge>פעיל</Badge>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {completedWorkflows.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-foreground flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-success" />
-                    תהליכים הושלמו ({completedWorkflows.length})
-                  </h3>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {completedWorkflows.map(wf => (
-                      <Card key={wf.id} className="opacity-60">
-                        <CardHeader>
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <CheckCircle className="h-4 w-4 text-success" />
-                            {wf.order?.supplier_name || "תהליך"}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <Badge variant="secondary">הושלם</Badge>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </TabsContent>
       </Tabs>
     </div>
   );

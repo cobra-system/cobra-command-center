@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import type { Json } from "@/integrations/supabase/types";
 
 const SW_PATH = "/notification-sw.js";
 
@@ -57,7 +58,7 @@ export async function subscribePush(vapidPublicKey: string): Promise<{ ok: boole
     .upsert({
       user_id: user.id,
       channel: "push",
-      config: json,
+      config: json as unknown as Json,
       user_agent: navigator.userAgent,
       is_active: true,
     }, { onConflict: "user_id,channel" });

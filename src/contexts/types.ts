@@ -40,6 +40,8 @@ export interface Product {
   reorder_point?: number | null;
   lead_time_days?: number | null;
   monthly_sales_avg?: number | null;
+  /** Legacy per-month sales figure; `monthly_sales_avg` supersedes it. */
+  monthly_sales?: number | null;
   end_product_url?: string | null;
   end_product_image?: string | null;
 }
@@ -146,6 +148,8 @@ export interface Order {
   order_image?: string | null;
   /** SAP purchase-order number this order was imported from. */
   sap_doc_entry?: string | null;
+  /** Comma-separated aggregate of every division the order's items cover (see derive_order_division). */
+  division?: string | null;
   items: OrderItem[];
 }
 

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import type { Json } from "@/integrations/supabase/types";
 import { logger } from "@/lib/logger";
 
 interface ActivityEntry {
@@ -22,7 +23,7 @@ export async function logActivity(entry: ActivityEntry): Promise<void> {
       action: entry.action,
       entity_type: entry.entityType,
       entity_id: entry.entityId ?? null,
-      details: entry.details ?? {},
+      details: (entry.details ?? {}) as Json,
     });
 
     if (error) {

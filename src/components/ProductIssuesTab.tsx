@@ -155,7 +155,7 @@ export function DiagnosticWizard({ productId, onClose, onSaved }: { productId: s
       diagnostic_source: source,
       diagnostic_steps: diagnosticSteps,
       image_url: imageUrl,
-    } as Record<string, unknown>);
+    });
 
     if (error) {
       toast.error("שגיאה בדיווח התקלה: " + error.message);
@@ -292,7 +292,7 @@ export function SimpleIssueForm({ productId, onClose, onSaved }: { productId: st
       description: description.trim(),
       severity,
       image_url: imageUrl,
-    } as Record<string, unknown>);
+    });
     toast.success("תקלה דווחה בהצלחה");
     setSaving(false);
     onClose();
