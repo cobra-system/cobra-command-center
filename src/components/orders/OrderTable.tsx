@@ -33,6 +33,13 @@ const COLUMN_DEFS: ColDef[] = [
   { id: "product",         label: "מוצר",           sortField: "product" },
   { id: "qty",             label: "כמות",           sortField: "qty" },
   { id: "supplier",        label: "ספק",            sortField: "supplier" },
+  // The supplier's own document number (proforma invoice) — how an order is
+  // usually recognised in correspondence with the supplier, so it reads as
+  // "supplier invoice" rather than by the internal PI jargon. The id differs
+  // from the field name on purpose: useColumnVisibility drops stored ids that
+  // no longer exist, so renaming it re-shows the column for everyone who had
+  // it hidden under the old default, without disturbing their other choices.
+  { id: "supplier_invoice", label: "מס׳ חשבונית ספק", sortField: "pi_number" },
   { id: "shipping",        label: "משלוח",          sortField: "shipping" },
   { id: "status",          label: "סטטוס",          sortField: "status" },
   { id: "order_date",      label: "תאריך הזמנה",    sortField: "order_date" },
@@ -43,12 +50,11 @@ const COLUMN_DEFS: ColDef[] = [
   { id: "tracking_number", label: "מספר מעקב",      sortField: "tracking_number" },
   { id: "tracking_carrier", label: "חברת שילוח",    sortField: "tracking_carrier" },
   { id: "tracking_status", label: "מצב מעקב DHL",   sortField: "tracking_status" },
-  { id: "pi_number",       label: "PI Number",       sortField: "pi_number" },
   { id: "updated_at",      label: "עודכן לאחרונה",  sortField: "updated_at" },
 ];
 
 // ─── Props ───────────────────────────────────────────────────────────────────
-const PRICE_COLS = new Set(["total_price", "payment", "pi_number"]);
+const PRICE_COLS = new Set(["total_price", "payment", "supplier_invoice"]);
 
 interface OrderTableProps {
   filtered: Order[];
@@ -96,7 +102,7 @@ export function OrderTable({
 }: OrderTableProps) {
   const { formatPrice } = useCurrency();
   const navigate = useNavigate();
-  const colVis = useColumnVisibility("orders:hidden-columns", COLUMN_DEFS, ["total_price", "pi_number"]);
+  const colVis = useColumnVisibility("orders:hidden-columns", COLUMN_DEFS, ["total_price"]);
   const isVisible = (id: string) => hidePrices && PRICE_COLS.has(id) ? false : colVis.isVisible(id);
   const { hide, show, hiddenCols, visibleCount } = colVis;
   const { menu: colMenu, setMenu: setColMenu, closeMenu } = useColMenu();
@@ -384,6 +390,9 @@ export function OrderTable({
                         ) : <span className="text-muted-foreground">—</span>}
                       </td>
                     )}
+                    {isVisible("supplier_invoice") && (
+                      <td className="p-3 text-muted-foreground text-xs font-mono">{order.pi_number || "—"}</td>
+                    )}
                     {isVisible("shipping") && (
                       <td className="p-3 text-muted-foreground">
                         {order.shipping === "בין ספקים" ? (
@@ -481,9 +490,6 @@ export function OrderTable({
                       <td className="p-3 text-xs">
                         <TrackingBadge order={order} />
                       </td>
-                    )}
-                    {isVisible("pi_number") && (
-                      <td className="p-3 text-muted-foreground text-xs font-mono">{order.pi_number || "—"}</td>
                     )}
                     {isVisible("updated_at") && (
                       <td className="p-3 text-muted-foreground text-xs">{order.updated_at ? format(new Date(order.updated_at), "dd/MM/yyyy") : "—"}</td>
