@@ -123,7 +123,7 @@ grep -r "\"TABLE_NAME\"" mcp-server/src/tools/
 cd mcp-server && npm run build
 ```
 
-### Module inventory (35 modules · 316 tools)
+### Module inventory (35 modules · 317 tools)
 
 | Module | Domain | Key tables | Tools |
 |--------|--------|------------|------:|
@@ -143,7 +143,7 @@ cd mcp-server && npm run build
 | `meetings` | Meetings & decisions | meetings, meeting_action_items | 14 |
 | `notifications` | Notifications | orders, tasks, compliance_items | 3 |
 | `order-payments` | Order payments | order_payments, orders | 7 |
-| `orders` | Orders | orders, order_items, purchase_documents | 13 |
+| `orders` | Orders | orders, order_items, purchase_documents, goods_receipt_emails | 14 |
 | `payments` | Supplier payments | supplier_payments | 4 |
 | `procurement-agenda` | Procurement agenda | orders | 2 |
 | `procurement-inventory` | Procurement inventory | center_inventory, orders | 6 |

@@ -87,7 +87,7 @@ All tables have RLS enabled. Key policies:
 
 ## Edge Functions
 
-17 Edge Functions deployed to Supabase:
+18 Edge Functions deployed to Supabase:
 
 | Function | Purpose | Auth | Rate Limit |
 |----------|---------|------|------------|
@@ -108,6 +108,7 @@ All tables have RLS enabled. Key policies:
 | `sync-frisbee` | Sync פריזבי קרסו inspection data from Base44 (Bearer auth) | CRON_SECRET | — |
 | `sync-lubinski` | Sync לובינסקי inspection data from Base44 (api_key auth) | CRON_SECRET | — |
 | `reset-monthly-orders` | Reset fulfilled monthly order requests to pending on the 1st of each month | CRON_SECRET | — |
+| `send-goods-receipt-email` | Mail the receiving clerk the arrival table with the invoice attached | JWT (any role) | — |
 
 ### Deploying Edge Functions
 ```bash

@@ -1,12 +1,55 @@
+export interface EmailAttachment {
+  /** File name as it should appear in the recipient's mail client. */
+  filename: string;
+  /** Base64-encoded file content (no data: prefix). */
+  content: string;
+}
+
 interface SendEmailOptions {
   to: string | string[];
   subject: string;
   html: string;
   from?: string;
+  cc?: string[];
+  attachments?: EmailAttachment[];
+  /** Overrides the RESEND_API_KEY env var — use with loadEmailConfig(). */
+  apiKey?: string;
 }
 
-export async function sendEmail(opts: SendEmailOptions): Promise<void> {
-  const apiKey = Deno.env.get("RESEND_API_KEY");
+/**
+ * Resolves the Resend credentials, preferring the env vars and falling back to
+ * the app_config table so they can be rotated without redeploying a function.
+ */
+export async function loadEmailConfig(supabaseAdmin: unknown): Promise<{ apiKey: string; from: string }> {
+  const envKey = Deno.env.get("RESEND_API_KEY");
+  const envFrom = Deno.env.get("RESEND_FROM_EMAIL");
+  if (envKey && envFrom) return { apiKey: envKey, from: envFrom };
+
+  // Structurally typed rather than importing the client's generics — this
+  // module is shared by functions that build their client differently.
+  const client = supabaseAdmin as {
+    from: (table: string) => {
+      select: (cols: string) => {
+        in: (col: string, vals: string[]) => Promise<{ data: { key: string; value: string }[] | null }>;
+      };
+    };
+  };
+
+  const { data } = await client
+    .from("app_config")
+    .select("key, value")
+    .in("key", ["resend_api_key", "resend_from_email"]);
+  const config = Object.fromEntries((data ?? []).map(r => [r.key, r.value]));
+
+  return {
+    apiKey: envKey || config.resend_api_key || "",
+    from: envFrom || config.resend_from_email || "notifications@cobra-system.com",
+  };
+}
+
+/** Sends one mail through Resend. Returns the provider message id when given. */
+export async function sendEmail(opts: SendEmailOptions): Promise<string | null> {
+  const apiKey = opts.apiKey || Deno.env.get("RESEND_API_KEY");
   if (!apiKey) throw new Error("RESEND_API_KEY לא מוגדר");
 
   const from = opts.from ?? Deno.env.get("RESEND_FROM_EMAIL") ?? "notifications@cobra-system.com";
@@ -22,6 +65,8 @@ export async function sendEmail(opts: SendEmailOptions): Promise<void> {
       to: Array.isArray(opts.to) ? opts.to : [opts.to],
       subject: opts.subject,
       html: opts.html,
+      ...(opts.cc && opts.cc.length > 0 ? { cc: opts.cc } : {}),
+      ...(opts.attachments && opts.attachments.length > 0 ? { attachments: opts.attachments } : {}),
     }),
   });
 
@@ -29,6 +74,9 @@ export async function sendEmail(opts: SendEmailOptions): Promise<void> {
     const errText = await res.text();
     throw new Error(`Resend API שגיאה ${res.status}: ${errText}`);
   }
+
+  const body = await res.json().catch(() => null) as { id?: string } | null;
+  return body?.id ?? null;
 }
 
 export function buildDailyDigestHtml(opts: {

@@ -15,6 +15,7 @@ import RolePermissionsManager from "@/components/settings/RolePermissionsManager
 import RoleDefinitionManager from "@/components/settings/RoleDefinitionManager";
 import UserManagementTable from "@/components/settings/UserManagementTable";
 import NotificationSettings from "@/components/settings/NotificationSettings";
+import GoodsReceiptSettings from "@/components/settings/GoodsReceiptSettings";
 import AlertsContent from "@/components/settings/AlertsContent";
 import SignupRequestsPanel from "@/components/settings/SignupRequestsPanel";
 import { passwordChangeSchema } from "@/lib/schemas/passwordSchema";
@@ -437,6 +438,9 @@ export default function SettingsPage() {
             <AlertsContent />
             <div className="border-t pt-6">
               <NotificationSettings />
+            </div>
+            <div className="border-t pt-6">
+              <GoodsReceiptSettings />
             </div>
           </TabsContent>
         )}

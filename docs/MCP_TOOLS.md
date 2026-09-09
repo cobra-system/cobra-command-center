@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-ה-MCP Server של Cobra Command Center מספק **316 כלים** ב-**35 מודולים** לשימוש Claude Code — גישה ישירה לכל ה-DB ללא דרישת ממשק גרפי.
+ה-MCP Server של Cobra Command Center מספק **317 כלים** ב-**35 מודולים** לשימוש Claude Code — גישה ישירה לכל ה-DB ללא דרישת ממשק גרפי.
 
 - **Server entry point:** `mcp-server/src/index.ts`
 - **Tool modules:** `mcp-server/src/tools/`
@@ -29,7 +29,7 @@
 | `meetings` | Meetings & decisions | 14 | meetings, meeting_action_items, meeting_documents, meeting_participants |
 | `notifications` | Notifications | 3 | orders, tasks, compliance_items, product_issues, supplier_payments |
 | `order-payments` | Order payments | 7 | order_payments, orders, purchase_documents |
-| `orders` | Orders lifecycle | 13 | orders, order_items, order_payments, order_notes_history, purchase_documents |
+| `orders` | Orders lifecycle | 14 | orders, order_items, order_payments, order_notes_history, purchase_documents, goods_receipt_emails |
 | `payments` | Supplier payments | 4 | supplier_payments, orders |
 | `procurement-agenda` | Procurement agenda | 2 | orders, order_payments |
 | `procurement-inventory` | Procurement inventory | 6 | center_inventory, orders, order_items, purchase_documents, supplier_bank_details, procurement_meeting_orders |
@@ -70,6 +70,7 @@ Use this to find which module(s) to update when a table's schema changes.
 | `equipment_return_items` | equipment |
 | `equipment_returns` | equipment |
 | `goals` | goals |
+| `goods_receipt_emails` | orders |
 | `installers` | equipment |
 | `inventory_change_log` | audit-logs |
 | `inventory_transfers` | inventory |

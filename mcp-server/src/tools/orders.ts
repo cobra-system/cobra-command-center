@@ -568,4 +568,26 @@ export function registerOrderTools(server: McpServer) {
       };
     }
   );
+
+  server.tool(
+    "list_goods_receipt_emails",
+    "מיילי קליטת סחורה — List the goods-receipt emails already sent to the receiving clerk (who was told what arrived, when, into which warehouse). Use it to check whether an arrival was already reported before sending again.",
+    {
+      order_id: z.string().uuid().optional().describe("Filter to one order UUID"),
+      limit: z.number().default(20).describe("Max results"),
+    },
+    async ({ order_id, limit }) => {
+      let query = supabase
+        .from("goods_receipt_emails")
+        .select("id, order_id, sent_by_name, recipient_email, cc_emails, subject, receipt_date, warehouse, received_by, lines, attachment_names, created_at")
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+      if (order_id) query = query.eq("order_id", order_id);
+
+      const { data, error } = await query;
+      if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    }
+  );
 }

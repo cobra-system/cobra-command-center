@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useData, useCurrency, type Priority, type OrderStatus } from "@/contexts/AppContext";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Trash2, CreditCard, Check, Ship, Hash, Plus, Pencil, ChevronRight, Warehouse } from "lucide-react";
+import { ArrowRight, Package, Truck, Calendar, DollarSign, FileText, Trash2, CreditCard, Check, Ship, Hash, Plus, Pencil, ChevronRight, Warehouse, Mail } from "lucide-react";
 import DocumentsSection from "@/components/DocumentsSection";
 import ImportFilesSection from "@/components/orders/importFiles/ImportFilesSection";
 import { useOrderShippingCost } from "@/hooks/useOrderShippingCost";
@@ -12,6 +12,8 @@ import { OrderPaymentsSection } from "@/components/orders/OrderPaymentsSection";
 import { OrderAuditLog } from "@/components/orders/OrderAuditLog";
 import { ShipmentGroupSelector } from "@/components/orders/ShipmentGroupSelector";
 import { DhlTrackingWidget } from "@/components/orders/DhlTrackingWidget";
+import GoodsReceiptEmailDialog from "@/components/orders/GoodsReceiptEmailDialog";
+import { useLastGoodsReceiptEmail } from "@/hooks/useLastGoodsReceiptEmail";
 import { TclogTrackingWidget } from "@/components/orders/TclogTrackingWidget";
 import { detectCarrier, carrierLabel } from "@/lib/trackingCarrierDetect";
 import { supabase } from "@/lib/supabase";
@@ -73,6 +75,7 @@ export default function OrderDetailPage() {
   const [deleteItemConfirm, setDeleteItemConfirm] = useState<string | null>(null);
   const [trackingLoading, setTrackingLoading] = useState(false);
   const [inventoryDialog, setInventoryDialog] = useState(false);
+  const [goodsReceiptDialog, setGoodsReceiptDialog] = useState(false);
   const [editItemDialog, setEditItemDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [itemName, setItemName] = useState("");
@@ -87,6 +90,9 @@ export default function OrderDetailPage() {
   // What the import dossiers say this order cost to ship. Shown in the header
   // so it is read without scrolling to the import section.
   const shippingCost = useOrderShippingCost(id);
+  // Shown in the header so a second person can see the receiving clerk was
+  // already mailed about this arrival.
+  const { latest: lastReceiptEmail, refresh: refreshReceiptEmails } = useLastGoodsReceiptEmail(id);
   const visibleItems = useMemo(() => (order ? scopeOrderItems(order.items) : []), [order, scopeOrderItems]);
 
   const supplierOptions = useMemo(() => suppliers.map(s => ({ value: s.id, label: s.company })), [suppliers]);
@@ -330,7 +336,18 @@ export default function OrderDetailPage() {
               );
             })}
           </p>
+          {lastReceiptEmail && (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              מייל קליטת סחורה נשלח ל-{lastReceiptEmail.recipient_email} ב-{format(new Date(lastReceiptEmail.created_at), "dd/MM/yyyy HH:mm")}
+              {lastReceiptEmail.sent_by_name ? ` על ידי ${lastReceiptEmail.sent_by_name}` : ""}
+            </p>
+          )}
         </div>
+        {hasEdit && (
+          <Button variant="outline" size="sm" onClick={() => setGoodsReceiptDialog(true)}>
+            <Mail className="h-4 w-4 ml-1" />מייל קליטת סחורה
+          </Button>
+        )}
         {hasEdit && (
           <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteConfirm(true)}>
             <Trash2 className="h-4 w-4 ml-1" />מחיקה
@@ -600,6 +617,13 @@ export default function OrderDetailPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <GoodsReceiptEmailDialog
+        open={goodsReceiptDialog}
+        onOpenChange={setGoodsReceiptDialog}
+        order={order}
+        onSent={refreshReceiptEmails}
+      />
 
       {/* Delete Confirmation */}
       <Dialog open={deleteConfirm} onOpenChange={setDeleteConfirm}>
