@@ -22,11 +22,13 @@ import { toast } from "sonner";
 import { useData } from "@/contexts/AppContext";
 import type { Order } from "@/contexts/types";
 import {
-  GOODS_RECEIPT_COLUMNS,
+  GOODS_RECEIPT_ROW_COLUMNS,
+  GOODS_RECEIPT_SUPPLIER_FIELDS,
   buildGoodsReceiptSubject,
   formatReceiptDate,
   isLikelyInvoice,
   warehouseLabel,
+  type GoodsReceiptField,
   type GoodsReceiptLine,
 } from "@/lib/goodsReceipt";
 
@@ -148,8 +150,8 @@ export default function GoodsReceiptEmailDialog({ open, onOpenChange, order, onS
   const setField = (key: string, field: keyof GoodsReceiptLine, value: string) =>
     setLines(prev => prev.map(l => (l.key === key ? { ...l, [field]: value } : l)));
 
-  /** The three header controls are "apply to every row" — rows stay editable after. */
-  const applyToAll = (field: "receipt_date" | "warehouse" | "received_by", value: string) =>
+  /** The header controls are "apply to every row" — rows stay editable after. */
+  const applyToAll = (field: GoodsReceiptField, value: string) =>
     setLines(prev => prev.map(l => ({ ...l, [field]: value })));
 
   const handleDateChange = (date: Date | undefined) => {
@@ -232,7 +234,7 @@ export default function GoodsReceiptEmailDialog({ open, onOpenChange, order, onS
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5 text-primary" />
@@ -245,7 +247,7 @@ export default function GoodsReceiptEmailDialog({ open, onOpenChange, order, onS
             <Loader2 className="h-5 w-5 animate-spin mx-auto" />
           </div>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-5 min-w-0">
             {/* Recipients */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -264,8 +266,20 @@ export default function GoodsReceiptEmailDialog({ open, onOpenChange, order, onS
               </div>
             </div>
 
-            {/* Values applied to every row */}
+            {/* Values shared by every row — the supplier, and the receipt details */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-lg border bg-muted/30 p-3">
+              {GOODS_RECEIPT_SUPPLIER_FIELDS.map(f => (
+                <div key={f.field} className="space-y-1">
+                  <Label htmlFor={`gr-${f.field}`}>{f.label}</Label>
+                  <Input
+                    id={`gr-${f.field}`}
+                    value={lines[0]?.[f.field] ?? ""}
+                    onChange={e => applyToAll(f.field, e.target.value)}
+                    placeholder={f.field === "supplier_code" ? "קוד הספק ב-SAP" : "שם הספק"}
+                  />
+                </div>
+              ))}
+              <div className="hidden sm:block" />
               <div className="space-y-1">
                 <Label>תאריך קבלה</Label>
                 <DateInput value={receiptDate} onChange={handleDateChange} />
@@ -298,24 +312,26 @@ export default function GoodsReceiptEmailDialog({ open, onOpenChange, order, onS
                   <Plus className="h-3.5 w-3.5 ml-1" />שורה
                 </Button>
               </div>
-              <div className="overflow-x-auto rounded-lg border">
-                <table className="w-full text-sm">
+              {/* table-fixed with percentage widths: the table sizes to the
+                  dialog rather than forcing it wider than the screen. */}
+              <div className="rounded-lg border min-w-0">
+                <table className="w-full table-fixed text-sm">
                   <thead>
                     <tr className="bg-[#2f5597] text-white">
-                      {GOODS_RECEIPT_COLUMNS.map(col => (
-                        <th key={col.field} className="text-right p-2 font-semibold whitespace-nowrap"
-                          style={{ minWidth: col.width }}>{col.label}</th>
+                      {GOODS_RECEIPT_ROW_COLUMNS.map(col => (
+                        <th key={col.field} className="text-right px-2 py-1.5 text-xs font-semibold"
+                          style={{ width: col.width }}>{col.label}</th>
                       ))}
-                      <th className="w-10" />
+                      <th style={{ width: "4%" }} />
                     </tr>
                   </thead>
                   <tbody className="divide-y">
                     {lines.map(line => (
                       <tr key={line.key} className="hover:bg-muted/30">
-                        {GOODS_RECEIPT_COLUMNS.map(col => (
+                        {GOODS_RECEIPT_ROW_COLUMNS.map(col => (
                           <td key={col.field} className="p-1">
                             <Input
-                              className="h-8 border-transparent bg-transparent hover:border-input focus:border-input"
+                              className="h-8 w-full px-2 text-xs border-transparent bg-transparent hover:border-input focus:border-input"
                               value={line[col.field]}
                               onChange={e => setField(line.key, col.field, e.target.value)}
                             />
@@ -330,7 +346,7 @@ export default function GoodsReceiptEmailDialog({ open, onOpenChange, order, onS
                       </tr>
                     ))}
                     {lines.length === 0 && (
-                      <tr><td colSpan={GOODS_RECEIPT_COLUMNS.length + 1}
+                      <tr><td colSpan={GOODS_RECEIPT_ROW_COLUMNS.length + 1}
                         className="p-4 text-center text-muted-foreground">אין שורות</td></tr>
                     )}
                   </tbody>
@@ -348,13 +364,14 @@ export default function GoodsReceiptEmailDialog({ open, onOpenChange, order, onS
                   אין מסמכים עם קובץ מצורף בהזמנה זו — העלה את החשבונית במסמכי ההזמנה כדי לצרף אותה.
                 </p>
               ) : (
-                <div className="space-y-1.5 rounded-lg border p-3">
+                <div className="space-y-1.5 rounded-lg border p-3 max-h-48 overflow-y-auto min-w-0">
                   {documents.map(doc => (
-                    <label key={doc.id} className="flex items-center gap-2 text-sm cursor-pointer">
-                      <Checkbox checked={selectedDocs.includes(doc.id)} onCheckedChange={() => toggleDoc(doc.id)} />
-                      <span className="truncate">{doc.document_name || "ללא שם"}</span>
+                    <label key={doc.id} className="flex items-center gap-2 text-sm cursor-pointer min-w-0">
+                      <Checkbox className="shrink-0" checked={selectedDocs.includes(doc.id)}
+                        onCheckedChange={() => toggleDoc(doc.id)} />
+                      <span className="truncate min-w-0">{doc.document_name || "ללא שם"}</span>
                       {doc.document_subtype && (
-                        <span className="text-xs text-muted-foreground">({doc.document_subtype})</span>
+                        <span className="text-xs text-muted-foreground shrink-0">({doc.document_subtype})</span>
                       )}
                     </label>
                   ))}

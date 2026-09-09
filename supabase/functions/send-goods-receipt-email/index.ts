@@ -184,7 +184,21 @@ Deno.serve(async (req) => {
     const { apiKey, from } = await loadEmailConfig(supabaseAdmin);
     if (!apiKey) return json({ error: "שירות המייל אינו מוגדר (resend_api_key חסר)" }, 500);
 
-    const messageId = await sendEmail({ to: recipient, cc, subject, html, from, apiKey, attachments });
+    let messageId: string | null = null;
+    try {
+      messageId = await sendEmail({ to: recipient, cc, subject, html, from, apiKey, attachments });
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      // Resend's shared testing sender only delivers to the address that owns
+      // the Resend account. Everything else comes back 403, which reads as a
+      // mystery unless the cause is named.
+      if (from.endsWith("@resend.dev")) {
+        return json({
+          error: `שליחה נכשלה: כתובת השולח היא ${from} — כתובת הבדיקה של Resend, שמותר לה לשלוח רק לכתובת בעל החשבון ב-Resend. אמת דומיין ב-Resend ועדכן את resend_from_email לכתובת שלו. (${reason})`,
+        }, 502);
+      }
+      return json({ error: `שליחת המייל נכשלה: ${reason}` }, 502);
+    }
 
     const { data: logRow } = await supabaseAdmin
       .from("goods_receipt_emails")

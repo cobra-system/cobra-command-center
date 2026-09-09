@@ -20,15 +20,25 @@ export interface GoodsReceiptLine {
 
 export type GoodsReceiptField = Exclude<keyof GoodsReceiptLine, "key">;
 
-export const GOODS_RECEIPT_COLUMNS: { field: GoodsReceiptField; label: string; width: string }[] = [
-  { field: "supplier_code", label: "קוד ספק", width: "7rem" },
-  { field: "supplier_name", label: "שם ספק", width: "12rem" },
-  { field: "product_code", label: "קוד מוצר", width: "8rem" },
-  { field: "product_name", label: "שם מוצר", width: "12rem" },
-  { field: "qty", label: "כמות", width: "6rem" },
-  { field: "receipt_date", label: "תאריך קבלה", width: "9rem" },
-  { field: "warehouse", label: "לאן לקלוט", width: "9rem" },
-  { field: "received_by", label: "מי קיבל", width: "8rem" },
+/**
+ * The supplier is a property of the order, not of the line, so it is edited
+ * once above the table instead of being repeated in every row — that keeps the
+ * dialog narrow enough to read without scrolling sideways. Both values still go
+ * into every row of the mail itself.
+ */
+export const GOODS_RECEIPT_SUPPLIER_FIELDS: { field: GoodsReceiptField; label: string }[] = [
+  { field: "supplier_code", label: "קוד ספק" },
+  { field: "supplier_name", label: "שם ספק" },
+];
+
+/** The per-line columns, sized as percentages so the table never overflows. */
+export const GOODS_RECEIPT_ROW_COLUMNS: { field: GoodsReceiptField; label: string; width: string }[] = [
+  { field: "product_code", label: "קוד מוצר", width: "14%" },
+  { field: "product_name", label: "שם מוצר", width: "26%" },
+  { field: "qty", label: "כמות", width: "10%" },
+  { field: "receipt_date", label: "תאריך קבלה", width: "16%" },
+  { field: "warehouse", label: "לאן לקלוט", width: "17%" },
+  { field: "received_by", label: "מי קיבל", width: "13%" },
 ];
 
 /** dd/MM/yyyy — the format the receiving clerk reads in the mail. */
