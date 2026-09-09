@@ -1,0 +1,53 @@
+{
+  "_comment": [
+    "Maps SAP warehouse codes to the divisions in division_product_consumption.",
+    "The AWACS technician codes come from the division's own equipping form",
+    "(טופס הצטיידות: חטיבת AWACS), which lists each technician beside their",
+    "warehouse code — not from matching numbers. Add a technician here when the",
+    "form gains one, otherwise their sales fall into 'unmapped' and are reported."
+  ],
+  "divisions": {
+    "איווקס": {
+      "note": "חטיבת AWACS — מוקד המכירות וטכנאי השטח המתקינים",
+      "warehouses": {
+        "042": "גאי",
+        "102": "דור",
+        "103": "דניאל",
+        "106": "חיים",
+        "107": "אופק",
+        "109": "היתם גאבר",
+        "112": "רומן",
+        "115": "מאור",
+        "116": "גימיל",
+        "117": "גולן",
+        "126": "לירן",
+        "129": "אוראל",
+        "132": "עדי"
+      }
+    },
+    "פריזבי קרסו": {
+      "note": "מפיץ — כמעט כל התנועות רשומות על קרסו מוטורס בע\"מ",
+      "warehouses": { "011": "קרסו מוטורס" }
+    },
+    "דלק מוטורס": {
+      "note": "מפיץ בונדד",
+      "warehouses": { "002": "דלק מוטורס (בונדד)" }
+    },
+    "לובינסקי": {
+      "note": "מפיץ",
+      "warehouses": { "003": "דוד לובינסקי" }
+    },
+    "מחסן ראשי ת\"א": {
+      "note": "המחסן המרכזי — מוכר ישירות לסיטונאים ומזין את כל שאר המחסנים",
+      "warehouses": { "001": "מחסן ראשי תל אביב" }
+    },
+    "תחנות שירות": {
+      "note": "כל השאר. חלוקה פנימית בין התחנות טרם אושרה — 666 משמש להחזרות ותיקונים",
+      "warehouses": {
+        "032": "", "104": "", "031": "", "175": "", "060": "", "008": "",
+        "010": "", "125": "", "041": "", "029": "", "144": "", "120": "",
+        "028": "", "666": "מחסן החזרות/תיקונים"
+      }
+    }
+  }
+}

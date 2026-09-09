@@ -10,6 +10,8 @@ tab-separated text. .xlsx and plain CSV/TSV are accepted too.
 
 Usage:
     python3 scripts/sap-ledger/parse_ledger.py <file> [--json-only]
+    python3 scripts/sap-ledger/parse_ledger.py <file> --map warehouse-map.json \
+        --product-id <uuid> [--include-partial]
 """
 from __future__ import annotations
 
@@ -299,6 +301,58 @@ def summarize(product: dict) -> dict:
     }
 
 
+def apply_map(result: dict, map_path: str, product_id: str,
+              include_partial: bool) -> dict:
+    """Fold per-warehouse months into division rows ready for upsert.
+
+    Warehouses absent from the map are never silently dropped — they are
+    returned under "unmapped" so a new technician or branch is noticed the
+    first month it appears.
+    """
+    with open(map_path, encoding="utf-8") as fh:
+        mapping = json.load(fh)
+
+    by_warehouse: dict[str, str] = {}
+    for division, spec in mapping["divisions"].items():
+        for code in spec["warehouses"]:
+            by_warehouse[code] = division
+
+    rows: list[dict] = []
+    skipped: list[str] = []
+    unmapped: dict[str, float] = defaultdict(float)
+
+    for product in result["products"]:
+        if product_id is None and len(result["products"]) > 1:
+            raise SystemExit("--product-id is required for a multi-product ledger")
+        for month in product["monthly"]:
+            if month["partial"] and not include_partial:
+                skipped.append(month["month"])
+                continue
+            per_division: dict[str, float] = defaultdict(float)
+            for warehouse, values in month["by_warehouse"].items():
+                if not values["sold"]:
+                    continue
+                division = by_warehouse.get(warehouse)
+                if division is None:
+                    unmapped[warehouse] += values["sold"]
+                    continue
+                per_division[division] += values["sold"]
+            for division, quantity in sorted(per_division.items()):
+                rows.append({
+                    "division": division,
+                    "product_id": product_id,
+                    "month": f"{month['month']}-01",
+                    "quantity": int(round(quantity)),
+                    "partial": month["partial"],
+                })
+
+    return {
+        "rows": rows,
+        "skipped_partial_months": sorted(set(skipped)),
+        "unmapped_warehouses": {k: round(v, 2) for k, v in sorted(unmapped.items())},
+    }
+
+
 def print_report(result: dict) -> None:
     for p in result["products"]:
         print(f"\n{'='*72}")
@@ -330,9 +384,30 @@ def main() -> None:
     ap.add_argument("file", help="the SAP ledger export")
     ap.add_argument("--json-only", action="store_true",
                     help="emit JSON only, no human-readable report")
+    ap.add_argument("--map", dest="map_path",
+                    help="warehouse-map.json — fold warehouses into divisions "
+                         "and emit rows ready for bulk_upsert_division_consumption")
+    ap.add_argument("--product-id", help="product UUID to stamp on the mapped rows")
+    ap.add_argument("--include-partial", action="store_true",
+                    help="also emit the month the ledger cuts through "
+                         "(it understates consumption — mark it downstream)")
     args = ap.parse_args()
 
     result = parse(args.file)
+
+    if args.map_path:
+        mapped = apply_map(result, args.map_path, args.product_id,
+                           args.include_partial)
+        json.dump(mapped, sys.stdout, ensure_ascii=False, indent=2)
+        print()
+        if mapped["unmapped_warehouses"]:
+            print(f"\n! warehouses missing from {args.map_path}: "
+                  f"{mapped['unmapped_warehouses']}", file=sys.stderr)
+        if mapped["skipped_partial_months"]:
+            print(f"! skipped partial month(s): "
+                  f"{', '.join(mapped['skipped_partial_months'])}", file=sys.stderr)
+        return
+
     if args.json_only:
         json.dump(result, sys.stdout, ensure_ascii=False, indent=2)
         print()
