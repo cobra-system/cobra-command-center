@@ -23,6 +23,7 @@ import { PhotoCaptureButton } from "@/components/ui/PhotoCaptureButton";
 import { OrdersHistoryTable } from "@/components/product-detail/OrdersHistoryTable";
 import { WasteItemsSection } from "@/components/product-detail/WasteItemsSection";
 import { ProductConsumptionChart } from "@/components/product-detail/ProductConsumptionChart";
+import { ItemLedgerAnalysis } from "@/components/product-detail/ItemLedgerAnalysis";
 import { useProductConsumption } from "@/hooks/useProductConsumption";
 import { supabase } from "@/lib/supabase";
 
@@ -260,6 +261,21 @@ export default function ProductDetailPage() {
           productId={product.id}
         />
       )}
+
+      <ItemLedgerAnalysis
+        sku={product.sku}
+        systemStock={totalStock}
+        leadTimeDays={product.lead_time_days}
+        canEdit={canEditStock}
+        onSavePlan={async updates => {
+          try {
+            await updateProduct(product.id, updates);
+            toast.success("נקודת ההזמנה וזמן האספקה נשמרו במוצר");
+          } catch {
+            // error toast already shown by AppContext
+          }
+        }}
+      />
 
       <TooltipProvider delayDuration={200}>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">

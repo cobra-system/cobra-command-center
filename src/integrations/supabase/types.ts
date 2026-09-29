@@ -444,6 +444,159 @@ export type Database = {
           },
         ]
       }
+      item_ledger_imports: {
+        Row: {
+          created_at: string
+          file_name: string
+          id: string
+          imported_by: string | null
+          item_count: number
+          movement_count: number
+          period_end: string | null
+          period_start: string | null
+          unmatched_skus: string[]
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          id?: string
+          imported_by?: string | null
+          item_count?: number
+          movement_count?: number
+          period_end?: string | null
+          period_start?: string | null
+          unmatched_skus?: string[]
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          id?: string
+          imported_by?: string | null
+          item_count?: number
+          movement_count?: number
+          period_end?: string | null
+          period_start?: string | null
+          unmatched_skus?: string[]
+        }
+        Relationships: []
+      }
+      item_ledger_items: {
+        Row: {
+          closing_balance: number
+          item_name: string | null
+          last_import_id: string | null
+          opening_balance: number
+          period_end: string
+          period_start: string
+          product_id: string | null
+          sku: string
+          updated_at: string
+        }
+        Insert: {
+          closing_balance?: number
+          item_name?: string | null
+          last_import_id?: string | null
+          opening_balance?: number
+          period_end: string
+          period_start: string
+          product_id?: string | null
+          sku: string
+          updated_at?: string
+        }
+        Update: {
+          closing_balance?: number
+          item_name?: string | null
+          last_import_id?: string | null
+          opening_balance?: number
+          period_end?: string
+          period_start?: string
+          product_id?: string | null
+          sku?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_ledger_items_last_import_id_fkey"
+            columns: ["last_import_id"]
+            isOneToOne: false
+            referencedRelation: "item_ledger_imports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_ledger_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      item_ledger_movements: {
+        Row: {
+          account_code: string | null
+          account_name: string | null
+          balance: number | null
+          doc_line: number | null
+          doc_number: string | null
+          doc_type: string
+          id: number
+          import_id: string | null
+          line_no: number
+          movement_date: string
+          quantity: number
+          sku: string
+          unit_price: number | null
+          warehouse_code: string | null
+        }
+        Insert: {
+          account_code?: string | null
+          account_name?: string | null
+          balance?: number | null
+          doc_line?: number | null
+          doc_number?: string | null
+          doc_type: string
+          id?: number
+          import_id?: string | null
+          line_no: number
+          movement_date: string
+          quantity: number
+          sku: string
+          unit_price?: number | null
+          warehouse_code?: string | null
+        }
+        Update: {
+          account_code?: string | null
+          account_name?: string | null
+          balance?: number | null
+          doc_line?: number | null
+          doc_number?: string | null
+          doc_type?: string
+          id?: number
+          import_id?: string | null
+          line_no?: number
+          movement_date?: string
+          quantity?: number
+          sku?: string
+          unit_price?: number | null
+          warehouse_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_ledger_movements_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "item_ledger_imports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_ledger_movements_sku_fkey"
+            columns: ["sku"]
+            isOneToOne: false
+            referencedRelation: "item_ledger_items"
+            referencedColumns: ["sku"]
+          },
+        ]
+      }
       inventory_change_log: {
         Row: {
           center_id: string | null
@@ -2118,6 +2271,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      import_item_ledger: {
+        Args: { p_import_id: string; p_items: Json }
+        Returns: number
       }
       is_manager: { Args: never; Returns: boolean }
     }

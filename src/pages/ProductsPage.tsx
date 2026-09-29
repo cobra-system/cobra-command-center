@@ -7,7 +7,7 @@ import { useProductScope } from "@/hooks/useProductScope";
 import { useLiveProductMetrics, type ProductMetrics } from "@/hooks/useLiveProductMetrics";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { supabase } from "@/lib/supabase";
-import { Search, ChevronDown, ChevronUp, Boxes, Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye, Pencil, Truck, ShoppingCart, ClipboardList, Copy, Hash, Table2, LayoutGrid } from "lucide-react";
+import { Search, ChevronDown, ChevronUp, Boxes, Plus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye, Pencil, Truck, ShoppingCart, ClipboardList, Copy, Hash, Table2, LayoutGrid, FileSpreadsheet } from "lucide-react";
 import { InlineEditCell } from "@/components/orders/InlineEditCell";
 import { updateDivisionStock } from "@/components/orders/divisionStockHelpers";
 import { BONDED_DIVISIONS, DIVISION_COLORS } from "@/components/equipment/constants";
@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ProductFormDialog from "@/components/products/ProductFormDialog";
 import ProductDeleteDialog from "@/components/products/ProductDeleteDialog";
+import ItemLedgerImportDialog from "@/components/products/ItemLedgerImportDialog";
 import { useTablePreferences } from "@/hooks/useTablePreferences";
 import { useColumnVisibility } from "@/hooks/useColumnVisibility";
 import { ColContextMenu, useColMenu, colThContextMenu, trContextMenu } from "@/components/ui/ColContextMenu";
@@ -88,7 +89,7 @@ function CompositeIncomingBadge({ m }: { m: ProductMetrics | undefined }) {
 }
 
 export default function ProductsPage() {
-  const { suppliers, deleteProduct, updateProduct } = useData();
+  const { suppliers, deleteProduct, updateProduct, products: allProducts } = useData();
   const { formatPrice } = useCurrency();
   const { scopedProducts: products } = useProductScope();
   const navigate = useNavigate();
@@ -106,6 +107,7 @@ export default function ProductsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [displayLimit, setDisplayLimit] = useState(100);
   const [formOpen, setFormOpen] = useState(false);
+  const [ledgerOpen, setLedgerOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
@@ -335,6 +337,7 @@ export default function ProductsPage() {
             </button>
           </div>
         </div>
+        {hasEdit && <Button variant="outline" onClick={() => setLedgerOpen(true)}><FileSpreadsheet className="h-4 w-4 ml-2" />ייבוא כרטסת</Button>}
         {hasEdit && <Button onClick={openAdd}><Plus className="h-4 w-4 ml-2" />מוצר חדש</Button>}
       </div>
 
@@ -903,6 +906,7 @@ export default function ProductsPage() {
       )}
 
       <ProductFormDialog open={formOpen} onOpenChange={setFormOpen} editProduct={editProduct} />
+      <ItemLedgerImportDialog open={ledgerOpen} onOpenChange={setLedgerOpen} products={allProducts} />
 
       {deleteTarget && (
         <ProductDeleteDialog

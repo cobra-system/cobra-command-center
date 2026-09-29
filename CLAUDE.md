@@ -123,7 +123,7 @@ grep -r "\"TABLE_NAME\"" mcp-server/src/tools/
 cd mcp-server && npm run build
 ```
 
-### Module inventory (35 modules · 316 tools)
+### Module inventory (36 modules · 320 tools)
 
 | Module | Domain | Key tables | Tools |
 |--------|--------|------------|------:|
@@ -162,6 +162,7 @@ cd mcp-server && npm run build
 | `frisbee` | Base44 QA sync & consumption | frisbee_inspections, frisbee_inspection_equipment, frisbee_product_mapping | 5 |
 | `quarterly-planning` | Quarterly procurement planning | vehicle_models, quarterly_vehicle_forecasts, product_model_mappings, quarterly_procurement_plans, quarterly_plan_snapshots | 13 |
 | `import-files` | Import dossiers, shipping & landed cost | import_files, import_file_orders, import_cost_lines, purchase_documents | 13 |
+| `item-ledger` | Item ledger (כרטסת) consumption & reorder analysis | item_ledger_imports, item_ledger_items, item_ledger_movements | 4 |
 
 See `docs/MCP_TOOLS.md` for the full reference including table→module mapping.
 

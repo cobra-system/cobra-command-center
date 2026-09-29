@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-ה-MCP Server של Cobra Command Center מספק **316 כלים** ב-**35 מודולים** לשימוש Claude Code — גישה ישירה לכל ה-DB ללא דרישת ממשק גרפי.
+ה-MCP Server של Cobra Command Center מספק **320 כלים** ב-**36 מודולים** לשימוש Claude Code — גישה ישירה לכל ה-DB ללא דרישת ממשק גרפי.
 
 - **Server entry point:** `mcp-server/src/index.ts`
 - **Tool modules:** `mcp-server/src/tools/`
@@ -47,6 +47,7 @@
 | `waste` | Waste tracking | 13 | waste_items, supplier_returns |
 | `quarterly-planning` | Quarterly procurement planning | 13 | vehicle_models, quarterly_vehicle_forecasts, product_model_mappings, quarterly_procurement_plans, quarterly_plan_snapshots |
 | `import-files` | תיקי יבוא, עלות הובלה ועלות נחיתה | 13 | import_files, import_file_orders, import_cost_lines, purchase_documents |
+| `item-ledger` | כרטסת פריטים — צריכה, יתרה ונקודת הזמנה | 4 | item_ledger_imports, item_ledger_items, item_ledger_movements |
 
 ---
 
@@ -119,6 +120,9 @@ Use this to find which module(s) to update when a table's schema changes.
 | `import_files` | import-files |
 | `import_file_orders` | import-files |
 | `import_cost_lines` | import-files |
+| `item_ledger_imports` | item-ledger |
+| `item_ledger_items` | item-ledger |
+| `item_ledger_movements` | item-ledger |
 
 ### Tables without MCP coverage (intentional)
 
