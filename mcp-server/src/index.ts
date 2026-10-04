@@ -35,6 +35,7 @@ import { registerWasteTools } from "./tools/waste.js";
 import { registerFrisbeeTools } from "./tools/frisbee.js";
 import { registerQuarterlyPlanningTools } from "./tools/quarterly-planning.js";
 import { registerImportFileTools } from "./tools/import-files.js";
+import { registerItemLedgerTools } from "./tools/item-ledger.js";
 
 const server = new McpServer({
   name: "cobra-command-center",
@@ -77,6 +78,7 @@ registerWasteTools(server);
 registerFrisbeeTools(server);
 registerQuarterlyPlanningTools(server);
 registerImportFileTools(server);
+registerItemLedgerTools(server);
 
 // Start the server with stdio transport
 const transport = new StdioServerTransport();
