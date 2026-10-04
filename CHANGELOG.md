@@ -5,6 +5,11 @@
 
 ---
 
+## [2026-10-04]
+
+- feat(products): monthly item-ledger import with per-product consumption analysis (319d379)
+
+<!-- last-commit: 7cceafe0b5dded8af06e72f0250ade76789117e9 -->
 ## [2026-08-30]
 
 - feat(orders): show shipping cost in the order details card (d2d93b7)
@@ -14,7 +19,6 @@
 - feat(imports): drag the attachments in and be done (662ad2f)
 - feat(imports): catalogue customs-broker import dossiers against orders (c7e561b)
 
-<!-- last-commit: b0433707577fc2b3267231f719db1d8b4ce315d5 -->
 ## [Unreleased]
 
 ### Added
