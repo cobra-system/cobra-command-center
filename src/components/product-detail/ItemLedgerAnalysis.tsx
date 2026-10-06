@@ -318,17 +318,38 @@ function MonthlyTable({ a }: { a: LedgerAnalysis }) {
   );
 }
 
-function WarehousesTable({ a, warehouseName }: { a: LedgerAnalysis; warehouseName: (c: string) => string }) {
+function WarehousesTable({ a, warehouseName }: { a: LedgerAnalysis; warehouseName: ReturnType<typeof useWarehouseNames> }) {
   const rows = a.warehouses.filter(w => w.net !== 0 || w.consumption !== 0 || w.min < 0);
   if (rows.length < 2) return null;
+
+  const divisionTotals = new Map<string, { consumption: number; net: number; warehouses: number }>();
+  for (const w of rows) {
+    const key = warehouseName.info(w.code).division ?? "לא משויך";
+    const t = divisionTotals.get(key) ?? { consumption: 0, net: 0, warehouses: 0 };
+    t.consumption += w.consumption; t.net += w.net; t.warehouses++;
+    divisionTotals.set(key, t);
+  }
+  const divisionRows = [...divisionTotals.entries()].sort((x, y) => y[1].consumption - x[1].consumption);
+
   return (
     <section>
-      <SectionTitle>תנועה לפי מחסן בתקופה</SectionTitle>
+      <SectionTitle>תנועה לפי חטיבה ומחסן בתקופה</SectionTitle>
+      <div className="flex flex-wrap gap-2 mb-2">
+        {divisionRows.map(([div, t]) => (
+          <div key={div} className="border rounded-lg px-3 py-1.5 text-xs">
+            <span className="font-semibold">{div}</span>
+            <span className="text-muted-foreground"> · צריכה </span>
+            <span className="tabular-nums font-semibold">{fmtNum(t.consumption)}</span>
+            <span className="text-muted-foreground"> · {t.warehouses} מחסנים</span>
+          </div>
+        ))}
+      </div>
       <div className="overflow-x-auto border rounded-lg">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50 text-xs text-muted-foreground">
               <th className="text-right p-2 font-semibold">מחסן</th>
+              <th className="text-right p-2 font-semibold">חטיבה</th>
               <th className="text-left p-2 font-semibold">צריכה</th>
               <th className="text-left p-2 font-semibold">תנועה נטו</th>
               <th className="text-left p-2 font-semibold">שפל</th>
@@ -338,6 +359,7 @@ function WarehousesTable({ a, warehouseName }: { a: LedgerAnalysis; warehouseNam
             {rows.map(w => (
               <tr key={w.code} className="border-b last:border-0">
                 <td className="p-2">{warehouseName(w.code)}</td>
+                <td className="p-2 text-muted-foreground">{warehouseName.info(w.code).division ?? "—"}</td>
                 <td className="p-2 text-left tabular-nums" dir="ltr">{w.consumption}</td>
                 <td className={`p-2 text-left tabular-nums ${w.net < 0 ? "text-destructive" : ""}`} dir="ltr">{w.net > 0 ? "+" : ""}{w.net}</td>
                 <td className={`p-2 text-left tabular-nums ${w.min < 0 ? "text-destructive" : "text-muted-foreground"}`} dir="ltr">

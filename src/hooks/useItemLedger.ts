@@ -54,24 +54,60 @@ export function useItemLedger(sku: string | null | undefined) {
   });
 }
 
+export interface WarehouseInfo { name: string | null; division: string | null }
+
+const EXTRA_WAREHOUSE_DIVISION: Record<string, string> = { "100": "שירות" };
+
+// Installers carry the ERP warehouse number as an integer ("032" → 32)
+const installerKey = (code: string) => String(parseInt(code, 10));
+
+/**
+ * Resolves an ERP warehouse code to its name and division:
+ *  1. distribution_centers.sap_code (central + bonded warehouses; division falls back to the center name)
+ *  2. installers.warehouse_number (the field warehouses listed on each division page)
+ */
 export function useWarehouseNames() {
   const { data } = useQuery({
-    queryKey: ["warehouse-names"],
+    queryKey: ["warehouse-names-v2"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("distribution_centers")
-        .select("name, sap_code")
-        .is("deleted_at", null)
-        .not("sap_code", "is", null);
-      if (error) throw error;
-      return Object.fromEntries((data ?? []).map(d => [d.sap_code as string, d.name as string]));
+      const [centers, installers] = await Promise.all([
+        supabase.from("distribution_centers").select("name, division, sap_code").is("deleted_at", null).not("sap_code", "is", null),
+        supabase.from("installers").select("name, warehouse_number, division").is("deleted_at", null).not("warehouse_number", "is", null),
+      ]);
+      if (centers.error) throw centers.error;
+      if (installers.error) throw installers.error;
+
+      const byCenter = new Map<string, WarehouseInfo>();
+      for (const c of centers.data ?? []) {
+        byCenter.set(c.sap_code as string, { name: c.name as string, division: ((c.division as string | null) ?? (c.name as string)) });
+      }
+      const byInstaller = new Map<string, { names: string[]; divisions: Set<string> }>();
+      for (const i of installers.data ?? []) {
+        const k = String(i.warehouse_number);
+        const e = byInstaller.get(k) ?? { names: [], divisions: new Set<string>() };
+        e.names.push(i.name as string);
+        if (i.division) e.divisions.add(i.division as string);
+        byInstaller.set(k, e);
+      }
+      return { byCenter, byInstaller };
     },
     staleTime: 30 * 60_000,
   });
-  return (code: string) => {
-    const name = data?.[code] ?? EXTRA_WAREHOUSES[code];
+
+  const info = (code: string): WarehouseInfo => {
+    const center = data?.byCenter.get(code);
+    if (center) return center;
+    const inst = data?.byInstaller.get(installerKey(code));
+    if (inst) return { name: inst.names.join(" / "), division: [...inst.divisions].join(" / ") || null };
+    const extra = EXTRA_WAREHOUSES[code];
+    return extra ? { name: extra, division: EXTRA_WAREHOUSE_DIVISION[code] ?? null } : { name: null, division: null };
+  };
+
+  const warehouseName = (code: string) => {
+    const { name } = info(code);
     return name ? `${name} (${code})` : `מחסן ${code}`;
   };
+  return Object.assign(warehouseName, { info });
 }
 
 export function useItemLedgerImports(limit = 6) {

@@ -18,7 +18,9 @@ vi.mock("@/hooks/useItemLedger", () => ({
       movements,
     },
   }),
-  useWarehouseNames: () => (c: string) => `מחסן ${c}`,
+  useWarehouseNames: () => Object.assign((c: string) => `מחסן ${c}`, {
+    info: (c: string) => ({ name: `מחסן ${c}`, division: c === "011" ? "פריזבי קרסו" : null }),
+  }),
 }));
 
 beforeAll(() => {
@@ -34,5 +36,12 @@ describe("ItemLedgerAnalysis", () => {
     expect(screen.getByText("2 שב׳")).toBeInTheDocument(); // lead time from product (14 days)
     expect(screen.getByText("פער מול המלאי בקוברה")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /שמור נקודת הזמנה/ })).toBeInTheDocument();
+  });
+
+  it("shows the division of each warehouse and a per-division summary", () => {
+    render(<ItemLedgerAnalysis sku="AAA" />);
+    expect(screen.getByText("תנועה לפי חטיבה ומחסן בתקופה")).toBeInTheDocument();
+    expect(screen.getAllByText("פריזבי קרסו").length).toBeGreaterThanOrEqual(2); // summary chip + table cell
+    expect(screen.getByText("לא משויך")).toBeInTheDocument(); // warehouse 001 has no division
   });
 });
