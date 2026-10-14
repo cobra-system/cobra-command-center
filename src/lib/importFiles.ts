@@ -493,6 +493,8 @@ export interface AttachBatchArgs {
   supplierName?: string | null;
   /** Used to name a dossier when the file names carry no shared number. */
   orderNumber?: string | null;
+  /** Kind already decided for a file (e.g. read from its content); others are guessed from the name. */
+  subtypes?: Map<File, ImportDocSubtype>;
 }
 
 export interface AttachBatchResult {
@@ -521,7 +523,7 @@ export interface AttachBatchResult {
  * dossier already on the order instead of making a second one.
  */
 export async function attachImportDocumentBatch(args: AttachBatchArgs): Promise<AttachBatchResult> {
-  const { files, orderId, supplierId, supplierName, orderNumber } = args;
+  const { files, orderId, supplierId, supplierName, orderNumber, subtypes } = args;
 
   if (files.length === 0) {
     return { error: "לא נבחרו קבצים", uploaded: 0, skipped: 0, failures: [], joinedExisting: false };
@@ -608,7 +610,7 @@ export async function attachImportDocumentBatch(args: AttachBatchArgs): Promise<
     const result = await uploadImportDocument({
       file,
       importFileId,
-      subtype: guessSubtype(file.name),
+      subtype: subtypes?.get(file) ?? guessSubtype(file.name),
       documentNumber: guessDocumentNumber(file.name) || null,
       supplierId,
       orderId,

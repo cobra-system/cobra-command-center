@@ -4,6 +4,8 @@ import { useAuth, useData, useCurrency, type Priority, type OrderStatus } from "
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import DailyReportWidget from "@/components/DailyReportWidget";
+import DocumentInboxCard from "@/components/DocumentInboxCard";
+import { canSeeDocuments } from "@/lib/permissions";
 import { Package, Truck, ClipboardList, Users, AlertTriangle, ScrollText, Wrench, ChevronLeft, TrendingUp, DollarSign } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
@@ -157,6 +159,9 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Smart document inbox — recognises SWIFTs, shipping papers and new-order files and routes them */}
+      {canSeeDocuments(currentUser) && <DocumentInboxCard />}
 
       {/* Main content: Orders + Tasks side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { orderSchema } from "@/lib/schemas/orderSchema";
 import { OrderFileImportDialog, type OrderImportResult } from "@/components/orders/OrderFileImportDialog";
 import { attachOrderDocument } from "@/lib/orderImport/attachDocument";
+import { matchItems, matchSupplier, parseOrderFile } from "@/lib/orderImport";
 
 const priorities: { value: Priority; label: string }[] = [
   { value: "דחוף", label: "דחוף" },
@@ -42,9 +43,12 @@ interface Props {
   defaultPriority?: Priority;
   hideTrigger?: boolean;
   onOrderCreated?: (orderId: string) => void;
+  /** A file already chosen elsewhere (the dashboard document inbox) — read and loaded into the form on open. */
+  initialImportFile?: File | null;
+  onInitialImportConsumed?: () => void;
 }
 
-export function NewOrderDialog({ suppliers, products, addOrder, open: controlledOpen, onOpenChange, defaultProductId, defaultSupplierId, defaultQuantity, defaultNotes, defaultPriority, hideTrigger, onOrderCreated }: Props) {
+export function NewOrderDialog({ suppliers, products, addOrder, open: controlledOpen, onOpenChange, defaultProductId, defaultSupplierId, defaultQuantity, defaultNotes, defaultPriority, hideTrigger, onOrderCreated, initialImportFile, onInitialImportConsumed }: Props) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setOpen = (v: boolean) => {
@@ -271,6 +275,27 @@ export function NewOrderDialog({ suppliers, products, addOrder, open: controlled
       (unmatched ? ` · ${unmatched} ללא שיוך למוצר — השלם ידנית` : "")
     );
   };
+
+  // A file handed over by the dashboard inbox goes through the same reader and
+  // matching as "ייבוא מקובץ", so the form opens already filled in.
+  useEffect(() => {
+    if (!open || !initialImportFile) return;
+    let cancelled = false;
+    (async () => {
+      const doc = await parseOrderFile(initialImportFile);
+      if (cancelled) return;
+      applyImport({
+        doc,
+        supplierId: matchSupplier(doc, suppliers).supplier?.id ?? "",
+        items: matchItems(doc.items, products),
+        file: initialImportFile,
+      });
+      onInitialImportConsumed?.();
+    })();
+    return () => { cancelled = true; };
+    // applyImport is recreated every render; the file and open state are the real inputs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialImportFile]);
 
   const handleSubmit = async () => {
     const rawItems = items
