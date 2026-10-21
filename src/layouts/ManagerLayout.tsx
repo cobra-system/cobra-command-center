@@ -30,8 +30,6 @@ import {
   Boxes,
   ArrowLeft,
   ExternalLink,
-  Map,
-  Lock,
   Moon,
   Sun,
   Trash2,
@@ -56,8 +54,6 @@ const defaultNavItems = [
   { to: "/issues", icon: "Wrench", label: "תקלות" },
   { to: "/waste-management", icon: "Recycle", label: "ניהול בלאי" },
   { to: "/reorder", icon: "CalendarClock", label: "תכנון רכש" },
-  { to: "/logistics-map", icon: "Map", label: "מפת מחסן" },
-  { to: "/lock-control", icon: "Lock", label: "בקרת נעילה" },
   { to: "/reports", icon: "BarChart3", label: "דוחות" },
   { to: "/trash", icon: "Trash2", label: "סל מחזור" },
   { to: "/settings", icon: "Settings", label: "הגדרות" },
@@ -65,7 +61,7 @@ const defaultNavItems = [
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard, Package, ShoppingCart, Truck, ListTodo, FolderKanban,
-  Settings, FileText, Calendar, CalendarClock, BarChart3, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Recycle, Boxes, Map, Lock, Trash2,
+  Settings, FileText, Calendar, CalendarClock, BarChart3, GripVertical, Server, Repeat, Zap, ScrollText, Wrench, Recycle, Boxes, Trash2,
 };
 
 const NAV_ORDER_KEY = "cobra-nav-order";
