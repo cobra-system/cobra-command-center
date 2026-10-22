@@ -35,6 +35,8 @@ import {
   Moon,
   Sun,
   Trash2,
+  EyeOff,
+  Eye,
   type LucideIcon,
 } from "lucide-react";
 import { EntityContextMenu, type ContextMenuGroupItem } from "@/components/EntityContextMenu";
@@ -69,6 +71,19 @@ const iconMap: Record<string, LucideIcon> = {
 };
 
 const NAV_ORDER_KEY = "cobra-nav-order";
+const NAV_HIDDEN_KEY = "cobra-nav-hidden";
+// Settings must stay reachable so hidden tabs can always be restored.
+const NAV_UNHIDEABLE = new Set(["/settings"]);
+
+function getStoredHidden(): string[] {
+  try {
+    const stored = localStorage.getItem(NAV_HIDDEN_KEY);
+    const parsed = stored ? JSON.parse(stored) : [];
+    return Array.isArray(parsed) ? parsed.filter((to): to is string => typeof to === "string") : [];
+  } catch {
+    return [];
+  }
+}
 
 function getStoredOrder(): typeof defaultNavItems {
   try {
@@ -99,6 +114,8 @@ export default function ManagerLayout() {
   // Surface order-request lifecycle events as in-app toasts (RLS already filters)
   useOrderRequestToasts();
   const [navItems, setNavItems] = useState(getStoredOrder);
+  const [hiddenNav, setHiddenNav] = useState<string[]>(getStoredHidden);
+  const [showHiddenList, setShowHiddenList] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const { theme, setTheme } = useTheme();
@@ -125,6 +142,7 @@ export default function ManagerLayout() {
           { to: "/waste-management", icon: "Recycle", label: "ניהול בלאי" },
         ]
     : navItems.filter((item) => {
+        if (hiddenNav.includes(item.to)) return false;
         if (isManager) return true;
         if (item.to === "/settings") return false;
         const moduleKey = getModuleKeyFromRoute(item.to);
@@ -142,6 +160,15 @@ export default function ManagerLayout() {
     navigate("/login");
   };
 
+  const saveHidden = (next: string[]) => {
+    setHiddenNav(next);
+    try { localStorage.setItem(NAV_HIDDEN_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+    if (next.length === 0) setShowHiddenList(false);
+  };
+  const hideNavItem = (to: string) => saveHidden([...hiddenNav.filter(h => h !== to), to]);
+  const showNavItem = (to: string) => saveHidden(hiddenNav.filter(h => h !== to));
+  const hiddenNavItems = navItems.filter(i => hiddenNav.includes(i.to));
+
   const handleDragStart = (index: number) => setDragIndex(index);
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
@@ -151,9 +178,12 @@ export default function ManagerLayout() {
     if (dragIndex === null || dragIndex === index) {
       setDragIndex(null); setDragOverIndex(null); return;
     }
+    const from = navItems.findIndex(i => i.to === visibleNavItems[dragIndex]?.to);
+    const target = navItems.findIndex(i => i.to === visibleNavItems[index]?.to);
+    if (from < 0 || target < 0) { setDragIndex(null); setDragOverIndex(null); return; }
     const newItems = [...navItems];
-    const [removed] = newItems.splice(dragIndex, 1);
-    newItems.splice(index, 0, removed);
+    const [removed] = newItems.splice(from, 1);
+    newItems.splice(target, 0, removed);
     setNavItems(newItems);
     localStorage.setItem(NAV_ORDER_KEY, JSON.stringify(newItems.map(i => i.to)));
     setDragIndex(null); setDragOverIndex(null);
@@ -211,6 +241,9 @@ export default function ManagerLayout() {
                 { label: "נווט לעמוד", icon: ArrowLeft, onClick: () => { navigate(item.to); setSidebarOpen(false); } },
                 { label: "פתח בלשונית חדשה", icon: ExternalLink, onClick: () => window.open(item.to, "_blank") },
               ],
+              [
+                { label: "הסתר מהתפריט", icon: EyeOff, hidden: !navDraggable || NAV_UNHIDEABLE.has(item.to), onClick: () => hideNavItem(item.to) },
+              ],
             ];
             return (
               <EntityContextMenu key={item.to} groups={navMenuGroups}>
@@ -259,6 +292,38 @@ export default function ManagerLayout() {
             );
           })}
         </nav>
+
+        {/* Hidden tabs restore */}
+        {!divisionManager && hiddenNavItems.length > 0 && !collapsed && (
+          <div className="px-3 pb-2 border-t border-border/50 pt-2">
+            <button
+              onClick={() => setShowHiddenList(v => !v)}
+              className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+            >
+              <Eye className="h-3.5 w-3.5" />
+              <span>לשוניות מוסתרות ({hiddenNavItems.length})</span>
+            </button>
+            {showHiddenList && (
+              <div className="mt-1 space-y-0.5">
+                {hiddenNavItems.map(item => {
+                  const Icon = iconMap[item.icon] || Package;
+                  return (
+                    <button
+                      key={item.to}
+                      onClick={() => showNavItem(item.to)}
+                      title="החזר לתפריט"
+                      className="w-full flex items-center gap-3 px-4 py-1.5 rounded-lg text-[13px] text-muted-foreground/70 hover:bg-muted/70 hover:text-foreground transition-colors"
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="flex-1 text-start">{item.label}</span>
+                      <Eye className="h-3.5 w-3.5" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Collapse toggle (desktop only) */}
         <div className="hidden lg:flex justify-center py-2 border-t border-border/50">
