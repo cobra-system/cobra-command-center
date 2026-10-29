@@ -19,7 +19,7 @@ export function registerDivisionTools(server: McpServer) {
         .from("division_products")
         .select(`
           id, division, product_id, division_stock, division_stock_updated_at,
-          quarterly_demand, quarterly_demand_updated_at, notes, created_at, updated_at,
+          quarterly_demand, quarterly_demand_updated_at, notes, sale_price, sale_price_currency, created_at, updated_at,
           products(id, name, sku)
         `)
         .order("division")
@@ -43,8 +43,10 @@ export function registerDivisionTools(server: McpServer) {
       division_stock: z.number().int().min(0).optional().describe("Current field stock quantity"),
       quarterly_demand: z.number().int().min(0).optional().describe("Quarterly demand forecast"),
       notes: z.string().optional().describe("Free-text notes"),
+      sale_price: z.number().min(0).nullable().optional().describe("Customer sale price in this division (null clears it)"),
+      sale_price_currency: z.enum(["ILS", "USD", "EUR"]).optional().describe("Currency of sale_price (default ILS)"),
     },
-    async ({ division, product_id, division_stock, quarterly_demand, notes }) => {
+    async ({ division, product_id, division_stock, quarterly_demand, notes, sale_price, sale_price_currency }) => {
       const now = new Date().toISOString();
       const payload: Record<string, unknown> = {
         division,
@@ -60,6 +62,8 @@ export function registerDivisionTools(server: McpServer) {
         payload.quarterly_demand_updated_at = now;
       }
       if (notes !== undefined) payload.notes = notes;
+      if (sale_price !== undefined) payload.sale_price = sale_price;
+      if (sale_price_currency !== undefined) payload.sale_price_currency = sale_price_currency;
 
       const { data, error } = await supabase
         .from("division_products")

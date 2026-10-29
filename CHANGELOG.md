@@ -5,6 +5,11 @@
 
 ---
 
+## [Unreleased]
+
+### Added
+- Per-division customer sale price (`division_products.sale_price`) with COBRA TV PRO and Android screen price list for פריזבי קרסו / לובינסקי; exposed via `list_division_products` / `upsert_division_product` MCP tools
+
 ## [2026-10-04]
 
 - feat(products): monthly item-ledger import with per-product consumption analysis (319d379)
