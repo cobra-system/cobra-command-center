@@ -9,20 +9,21 @@ import { Label } from "@/components/ui/label";
 import { DateInput } from "@/components/ui/date-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Check, Pencil, Plus, Trash2, Undo2, Play } from "lucide-react";
+import { Check, Pencil, Plus, Trash2, Play } from "lucide-react";
 import { toast } from "sonner";
 
 const NO_DIVISION = "none";
-const DONE_LIMIT = 15;
 
-const columns: { key: "TODO" | "IN_PROGRESS" | "DONE"; label: string; headerClass: string }[] = [
+type ColumnKey = "TODO" | "IN_PROGRESS";
+
+const columns: { key: ColumnKey; label: string; headerClass: string }[] = [
   { key: "TODO", label: "לביצוע", headerClass: "bg-[hsl(var(--todo))]" },
   { key: "IN_PROGRESS", label: "בטיפול", headerClass: "bg-warning/20" },
-  { key: "DONE", label: "הושלם", headerClass: "bg-[hsl(var(--done))]" },
 ];
 
-function columnOf(task: Task): "TODO" | "IN_PROGRESS" | "DONE" {
-  if (task.status === "DONE") return "DONE";
+// Completed tasks drop off the board (they stay in the database as DONE).
+function columnOf(task: Task): ColumnKey | null {
+  if (task.status === "DONE") return null;
   if (task.status === "IN_PROGRESS" || task.status === "BLOCKED") return "IN_PROGRESS";
   return "TODO";
 }
@@ -43,7 +44,6 @@ export default function SimpleTaskBoard() {
   const [newTitle, setNewTitle] = useState("");
   const [newDivision, setNewDivision] = useState(NO_DIVISION);
   const [divisionFilter, setDivisionFilter] = useState<string>("all");
-  const [showAllDone, setShowAllDone] = useState(false);
 
   const [editing, setEditing] = useState<Task | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -72,11 +72,8 @@ export default function SimpleTaskBoard() {
     return counts;
   }, [boardTasks]);
 
-  const byColumn = (key: "TODO" | "IN_PROGRESS" | "DONE") => {
+  const byColumn = (key: ColumnKey) => {
     const list = visible.filter(t => columnOf(t) === key);
-    if (key === "DONE") {
-      return list.sort((a, b) => (b.completed_at ?? "").localeCompare(a.completed_at ?? ""));
-    }
     return list.sort((a, b) => {
       // Dated tasks first (soonest on top), then newest undated.
       if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date);
@@ -176,24 +173,23 @@ export default function SimpleTaskBoard() {
       </div>
 
       {/* Columns */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {columns.map(col => {
-          const all = byColumn(col.key);
-          const list = col.key === "DONE" && !showAllDone ? all.slice(0, DONE_LIMIT) : all;
+          const list = byColumn(col.key);
           return (
             <div key={col.key} className="space-y-2">
               <div className={`${col.headerClass} rounded-lg px-4 py-2.5 flex items-center justify-between`}>
                 <h3 className="font-semibold text-sm text-foreground">{col.label}</h3>
-                <span className="text-xs bg-card px-2 py-0.5 rounded-full text-muted-foreground font-medium">{all.length}</span>
+                <span className="text-xs bg-card px-2 py-0.5 rounded-full text-muted-foreground font-medium">{list.length}</span>
               </div>
               <div className="space-y-2 min-h-[120px]">
                 {list.length === 0 && <p className="text-xs text-muted-foreground text-center py-6">אין משימות</p>}
                 {list.map(task => {
-                  const overdue = col.key !== "DONE" && task.due_date && new Date(task.due_date) < new Date(new Date().setHours(0, 0, 0, 0));
+                  const overdue = task.due_date && new Date(task.due_date) < new Date(new Date().setHours(0, 0, 0, 0));
                   return (
                     <div key={task.id} className="bg-card border rounded-lg p-3 shadow-sm space-y-2">
                       <div className="flex items-start justify-between gap-2">
-                        <p className={`text-sm font-medium leading-snug ${col.key === "DONE" ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                        <p className={`text-sm font-medium leading-snug text-foreground`}>
                           {task.title}
                         </p>
                         <button onClick={() => openEdit(task)} className="p-1 rounded hover:bg-muted shrink-0" aria-label="עריכה">
@@ -215,25 +211,13 @@ export default function SimpleTaskBoard() {
                             <Play className="h-3 w-3 ml-1" />התחל
                           </Button>
                         )}
-                        {col.key !== "DONE" && (
-                          <Button size="sm" variant="outline" className="h-7 text-xs text-success" onClick={() => move(task, "DONE")}>
-                            <Check className="h-3 w-3 ml-1" />בוצע
-                          </Button>
-                        )}
-                        {col.key === "DONE" && (
-                          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => move(task, "TODO")}>
-                            <Undo2 className="h-3 w-3 ml-1" />החזר
-                          </Button>
-                        )}
+                        <Button size="sm" variant="outline" className="h-7 text-xs text-success" onClick={() => move(task, "DONE")}>
+                          <Check className="h-3 w-3 ml-1" />בוצע
+                        </Button>
                       </div>
                     </div>
                   );
                 })}
-                {col.key === "DONE" && all.length > DONE_LIMIT && (
-                  <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => setShowAllDone(v => !v)}>
-                    {showAllDone ? "הצג פחות" : `הצג את כל ${all.length} המשימות`}
-                  </Button>
-                )}
               </div>
             </div>
           );
