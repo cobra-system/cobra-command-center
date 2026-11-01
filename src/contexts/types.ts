@@ -299,6 +299,7 @@ export interface Task {
   completed_at?: string | null;
   created_by?: string | null;
   month_of_year?: number | null;
+  division?: string | null;
 }
 
 export interface RoleDefinition {

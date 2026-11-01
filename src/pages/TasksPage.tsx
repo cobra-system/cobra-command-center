@@ -1,20 +1,25 @@
 import { useState } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Grid3x3, Clock, GanttChart } from "lucide-react";
+import { Calendar, Grid3x3, Clock, GanttChart, LayoutList } from "lucide-react";
+import SimpleTaskBoard from "@/components/tasks/SimpleTaskBoard";
 import TaskWeeklyView from "@/components/tasks/TaskWeeklyView";
 import TaskMonthlyView from "@/components/tasks/TaskMonthlyView";
 import TaskDayView from "@/components/tasks/TaskDayView";
 import TaskGanttView from "@/components/tasks/TaskGanttView";
 
 export default function TasksPage() {
-  const [view, setView] = useState("daily");
+  const [view, setView] = useState("board");
   const { hasEdit } = usePermissions("tasks");
 
   return (
     <div className="h-full flex flex-col" dir="rtl">
       <Tabs value={view} onValueChange={setView} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-4">
+        <TabsList className="grid w-full grid-cols-5 mb-4">
+          <TabsTrigger value="board" className="gap-1 sm:gap-1.5 text-xs sm:text-sm px-1 sm:px-3">
+            <LayoutList className="h-4 w-4" />
+            <span className="hidden sm:inline">לוח</span>
+          </TabsTrigger>
           <TabsTrigger value="daily" className="gap-1 sm:gap-1.5 text-xs sm:text-sm px-1 sm:px-3">
             <Calendar className="h-4 w-4" />
             <span className="hidden sm:inline">יום</span>
@@ -32,6 +37,10 @@ export default function TasksPage() {
             <span className="hidden sm:inline">גאנט</span>
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="board" className="flex-1">
+          <SimpleTaskBoard />
+        </TabsContent>
 
         <TabsContent value="weekly" className="flex-1">
           <TaskWeeklyView />

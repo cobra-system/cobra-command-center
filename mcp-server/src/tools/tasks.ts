@@ -109,9 +109,10 @@ export function registerTaskTools(server: McpServer) {
       priority: z.enum(PRIORITY_ENUM).optional().describe(PRIORITY_DESC),
       status: z.enum([...STATUS_ENUM]).optional().describe("Initial status: TODO, IN_PROGRESS, DONE, BLOCKED"),
       category: z.string().optional().describe("Task category"),
+      division: z.string().optional().describe("חטיבה קשורה (למשל AWACS, כפתור, DOORE, דלק מוטורס, פריזבי קרסו, לובינסקי) — leave empty for a general task"),
       created_by: z.string().uuid().optional().describe("UUID of the user creating the task"),
     },
-    async ({ title, description, assignee, due_date, priority, status, category, created_by }) => {
+    async ({ title, description, assignee, due_date, priority, status, category, division, created_by }) => {
       const insert: Record<string, unknown> = {
         title,
         description: description || null,
@@ -119,6 +120,7 @@ export function registerTaskTools(server: McpServer) {
         priority: priority || "בינוני",
         status: status || "TODO",
         category: category || null,
+        division: division || null,
         created_by: created_by || null,
         is_daily: false,
       };
@@ -151,6 +153,7 @@ export function registerTaskTools(server: McpServer) {
       status: z.enum([...STATUS_ENUM]).optional().describe("Status: TODO, IN_PROGRESS, DONE, BLOCKED"),
       milestone: z.string().optional().describe("Goal/milestone name"),
       notes: z.string().optional().describe("Task notes"),
+      division: z.string().optional().describe("חטיבה קשורה (empty string clears it)"),
       frequency: z.enum(["daily", "weekly", "monthly", "annual"]).optional().describe("Recurrence frequency"),
       day_of_week: z.number().min(0).max(6).optional().describe("Day of week (0=Sunday) for weekly tasks"),
       day_of_month: z.number().min(1).max(31).optional().describe("Day of month for monthly/annual tasks"),
@@ -160,7 +163,7 @@ export function registerTaskTools(server: McpServer) {
     async ({ id, assignee_name, ...fields }) => {
       const updates: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(fields)) {
-        if (value !== undefined) updates[key] = value;
+        if (value !== undefined) updates[key] = key === "division" && value === "" ? null : value;
       }
 
       if (assignee_name !== undefined) {
@@ -211,9 +214,10 @@ export function registerTaskTools(server: McpServer) {
       assignee_name: z.string().optional().describe("Filter by assignee name (partial match)"),
       is_daily: z.boolean().optional().describe("Filter daily tasks only"),
       category: z.string().optional().describe("Filter by category"),
+      division: z.string().optional().describe("Filter by related division (חטיבה)"),
       limit: z.number().default(50).describe("Max results"),
     },
-    async ({ status, assignee_name, is_daily, category, limit }) => {
+    async ({ status, assignee_name, is_daily, category, division, limit }) => {
       let query = supabase
         .from("tasks")
         .select("*")
@@ -226,6 +230,7 @@ export function registerTaskTools(server: McpServer) {
       if (assignee_name) query = query.ilike("assignee_name", `%${assignee_name}%`);
       if (is_daily !== undefined) query = query.eq("is_daily", is_daily);
       if (category) query = query.eq("category", category);
+      if (division) query = query.eq("division", division);
 
       const { data, error } = await query;
       if (error) return { content: [{ type: "text" as const, text: `Error: ${error.message}` }] };

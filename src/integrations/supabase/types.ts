@@ -1691,6 +1691,7 @@ export type Database = {
           days_before: number | null
           deliverable: string | null
           description: string | null
+          division: string | null
           due_date: string | null
           frequency: string | null
           id: string
@@ -1718,6 +1719,7 @@ export type Database = {
           days_before?: number | null
           deliverable?: string | null
           description?: string | null
+          division?: string | null
           due_date?: string | null
           frequency?: string | null
           id?: string
@@ -1745,6 +1747,7 @@ export type Database = {
           days_before?: number | null
           deliverable?: string | null
           description?: string | null
+          division?: string | null
           due_date?: string | null
           frequency?: string | null
           id?: string
