@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { DateInput } from "@/components/ui/date-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Check, Pencil, Plus, Trash2, Play } from "lucide-react";
+import { Check, Pencil, Plus, Trash2, Play, Undo2, ChevronDown, ChevronUp, MessageSquarePlus } from "lucide-react";
 import { toast } from "sonner";
 
 const NO_DIVISION = "none";
@@ -44,6 +44,10 @@ export default function SimpleTaskBoard() {
   const [newTitle, setNewTitle] = useState("");
   const [newDivision, setNewDivision] = useState(NO_DIVISION);
   const [divisionFilter, setDivisionFilter] = useState<string>("all");
+
+  const [showDone, setShowDone] = useState(false);
+  const [noteTaskId, setNoteTaskId] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
 
   const [editing, setEditing] = useState<Task | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -81,6 +85,25 @@ export default function SimpleTaskBoard() {
       if (b.due_date) return 1;
       return 0;
     });
+  };
+
+  const doneTasks = useMemo(
+    () => visible
+      .filter(t => t.status === "DONE")
+      .sort((a, b) => (b.completed_at ?? "").localeCompare(a.completed_at ?? "")),
+    [visible],
+  );
+
+  const startNote = (task: Task) => {
+    setNoteTaskId(task.id);
+    setNoteDraft(task.notes ?? "");
+  };
+
+  const saveNote = async (task: Task) => {
+    const value = noteDraft.trim() || null;
+    setNoteTaskId(null);
+    if (value === (task.notes ?? null)) return;
+    await updateTask(task.id, { notes: value });
   };
 
   const handleAdd = async () => {
@@ -204,7 +227,33 @@ export default function SimpleTaskBoard() {
                           </span>
                         )}
                       </div>
-                      {task.notes && <p className="text-xs text-muted-foreground line-clamp-2">{task.notes}</p>}
+                      {noteTaskId === task.id ? (
+                        <Textarea
+                          autoFocus
+                          rows={2}
+                          value={noteDraft}
+                          onChange={e => setNoteDraft(e.target.value)}
+                          onBlur={() => saveNote(task)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveNote(task); }
+                            if (e.key === "Escape") setNoteTaskId(null);
+                          }}
+                          placeholder="מה המצב עכשיו? (Enter לשמירה)"
+                          className="text-xs"
+                        />
+                      ) : task.notes ? (
+                        <button
+                          onClick={() => startNote(task)}
+                          className="w-full text-right text-xs bg-muted/60 hover:bg-muted rounded-md px-2 py-1.5 text-foreground whitespace-pre-wrap"
+                          title="לחיצה לעדכון"
+                        >
+                          <span className="text-muted-foreground">עדכון אחרון: </span>{task.notes}
+                        </button>
+                      ) : (
+                        <button onClick={() => startNote(task)} className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground">
+                          <MessageSquarePlus className="h-3.5 w-3.5" />הוסף עדכון מצב
+                        </button>
+                      )}
                       <div className="flex gap-1.5 pt-0.5">
                         {col.key === "TODO" && (
                           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => move(task, "IN_PROGRESS")}>
@@ -222,6 +271,37 @@ export default function SimpleTaskBoard() {
             </div>
           );
         })}
+      </div>
+
+      {/* Completed tasks — hidden by default, restorable */}
+      <div className="border rounded-lg">
+        <button
+          onClick={() => setShowDone(v => !v)}
+          className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium hover:bg-muted/50 rounded-lg"
+        >
+          <span>משימות שהושלמו ({doneTasks.length})</span>
+          {showDone ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+        {showDone && (
+          <div className="border-t divide-y">
+            {doneTasks.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">אין משימות שהושלמו</p>}
+            {doneTasks.map(task => (
+              <div key={task.id} className="flex items-center gap-3 px-4 py-2.5">
+                <div className="flex-1 min-w-0 space-y-0.5">
+                  <p className="text-sm text-muted-foreground line-through truncate">{task.title}</p>
+                  {task.notes && <p className="text-xs text-muted-foreground truncate">{task.notes}</p>}
+                </div>
+                <DivisionTag division={task.division} />
+                {task.completed_at && (
+                  <span className="text-[11px] text-muted-foreground shrink-0">{format(new Date(task.completed_at), "dd/MM/yyyy")}</span>
+                )}
+                <Button size="sm" variant="outline" className="h-7 text-xs shrink-0" onClick={() => move(task, "TODO")}>
+                  <Undo2 className="h-3 w-3 ml-1" />החזר ללוח
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Edit dialog */}
